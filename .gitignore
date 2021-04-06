@@ -1,3 +1,4 @@
 examples/.ipynb_checkpoints/
+examples/geckodriver.log
 docs/build
 __pycache__
