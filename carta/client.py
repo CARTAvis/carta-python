@@ -795,7 +795,7 @@ class Image:
     
     def make_active(self):
         """Make this the active image."""
-        self.session.call_action("setActiveFrame", self.image_id)
+        self.session.call_action("setActiveFrameById", self.image_id)
         
     def make_spatial_reference(self):
         """Make this image the spatial reference."""
