@@ -2,6 +2,8 @@
 
 import re
 import time
+import os
+import subprocess
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -9,6 +11,53 @@ from selenium.common.exceptions import ElementClickInterceptedException, NoSuchE
 
 from .util import CartaScriptingException, logger
 from .client import Session
+
+
+class Backend:
+    # TODO TODO TODO document this
+    FRONTEND_URL = re.compile(r"[info] CARTA is accessible at (http://(.*?):\d+/?token=.*)\n")
+    
+    def __init__(self, params, executable_path="carta", remote_host=None):
+        self.proc = None
+        self.backend_host = None
+        self.frontend_url = None
+        self.output = []
+        self.errors = []
+        
+        ssh_cmd = ("ssh", remote_host) if remote_host is not None else tuple()
+        self.cmd = (*ssh_cmd, executable_path, *params)
+    
+    def start(self):        
+        # TODO currently we log everything to stdout, but maybe we shouldn't
+        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE)
+        os.set_blocking(self.proc.stdout.fileno(), False)
+        
+        time.sleep(1)
+        
+        while True:
+            line = self.proc.stdout.readline()
+            if not line:
+                break
+            line = line.decode()
+            
+            self.output.append(line)
+            if "[error]" in line or "[critical]" in line:
+                self.errors.append(line)
+        
+        if self.proc.poll() is not None:
+            return False
+        
+        for line in self.output:
+            m = FRONTEND_URL.match(line)
+            if m:
+                self.frontend_url, self.backend_host = m.groups()
+                break
+        
+        return True
+    
+    def stop(self):
+        if self.proc is not None and self.proc.poll() is not None:
+            self.proc.terminate()
 
 class Browser:
     """The top-level browser class.
@@ -29,9 +78,24 @@ class Browser:
     """
     def __init__(self, driver_class, **kwargs):
         self.driver = driver_class(**kwargs)
-    
-    def new_session(self, frontend_url, grpc_port=None, timeout=10, force_legacy=False):
+        
+    def new_session(self, **kwargs):
         """Create a new session.
+        
+        :obj:`carta.client.Session.new` wraps this method, which calls either :obj:`carta.browser.Browser.new_session_from_url` or :obj:`carta.browser.Browser.new_session_with_backend`, depending on which keyword arguments are provided.
+        """
+        
+        if "frontend_url" in kwargs:
+            func = self.new_session_from_url
+            keys = {"frontend_url", "timeout"}
+        else:
+            func = self.new_session_with_backend
+            keys = {"executable_path", "grpc_port", "remote_host", "params", "timeout"}
+            
+        func(**{k: v for k, v in kwargs.items() if k in keys})
+    
+    def new_session_from_url(self, frontend_url, timeout=10):
+        """Create a new session by connecting to an existing backend.
         
         You can use :obj:`carta.client.Session.new`, which wraps this method.
         
@@ -39,100 +103,108 @@ class Browser:
         ----------
         frontend_url : string
             The URL of the frontend.
-        grpc_port : number, optional
-            The gRPC port on which the CARTA backend is listening. This is only used for legacy CARTA versions; in newer versions this value is parsed automatically from the frontend.
-        timeout : number
-            The number of seconds to spend parsing the frontend for connection information. 10 seconds by default. If the attempt times out and `grpc_port` is set, an additional attempt will be made to use the legacy method to parse the remaining information from the frontend.
-        force_legacy : boolean
-            If this is set, we assume that we're connecting to a legacy CARTA version, and we skip the attempt to parse the frontend using the new method. `grpc_port` must be set if this option is used.
+        timeout : number, optional
+            The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
             
         Returns
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in this browser.
         """
-        # TODO: the gRPC port should be sent to the frontend by the backend and logged by the frontend
+                
         self.driver.get(frontend_url)
         
         backend_host = None
         session_id = None
-        parsed_grpc_port = None
+        grpc_port = None
         
-        if not force_legacy:
-            start = time.time()
-            last_error = ""
-            
-            while (backend_host is None or parsed_grpc_port is None or session_id is None):
-                if time.time() - start > timeout:
-                    break
-                
-                try:
-                    # We can't use .text because Selenium is too clever to return the text of invisible elements.
-                    backend_url = self.driver.find_element_by_id("info-server-url").get_attribute("textContent")
-                    m = re.match(r"wss?://(.*?):\d+", backend_url)
-                    if m:
-                        backend_host = m.group(1)
-                    else:
-                        last_error = f"Could not parse backend host from url string '{backend_url}'."
-                    
-                    parsed_grpc_port = int(self.driver.find_element_by_id("info-grpc-port").get_attribute("textContent"))
-                    session_id = int(self.driver.find_element_by_id("info-session-id").get_attribute("textContent"))
-                except (NoSuchElementException, ValueError) as e:
-                    last_error = str(e)
-                    time.sleep(1)
-                    continue # retry
-            
-            if backend_host is not None and parsed_grpc_port is not None and session_id is not None:
-                return Session(backend_host, parsed_grpc_port, session_id, browser=self)
-                        
-            logger.warning(f"Could not use new method to parse connection information from CARTA frontend session. Falling back to legacy method. Last error: {last_error}")
-            
-            backend_host = None
-            session_id = None
-        
-        if grpc_port is None:
-            self.close()
-            raise CartaScriptingException("Cannot use legacy method to parse connection information from CARTA frontend session. A gRPC port parameter must be provided.")
-            
         start = time.time()
+        last_error = ""
         
-        while (backend_host is None or session_id is None):
+        while (backend_host is None or grpc_port is None or session_id is None):
             if time.time() - start > timeout:
                 break
             
             try:
-                log_button = self.driver.find_element_by_id("logButton")
-            except NoSuchElementException:
+                # We can't use .text because Selenium is too clever to return the text of invisible elements.
+                backend_url = self.driver.find_element_by_id("info-server-url").get_attribute("textContent")
+                m = re.match(r"wss?://(.*?):\d+", backend_url)
+                if m:
+                    backend_host = m.group(1)
+                else:
+                    last_error = f"Could not parse backend host from url string '{backend_url}'."
+                
+                grpc_port = int(self.driver.find_element_by_id("info-grpc-port").get_attribute("textContent"))
+                session_id = int(self.driver.find_element_by_id("info-session-id").get_attribute("textContent"))
+            except (NoSuchElementException, ValueError) as e:
+                last_error = str(e)
                 time.sleep(1)
                 continue # retry
-            
-            try:
-                log_button.click()
-            except ElementClickInterceptedException:
-                try:
-                    self.driver.find_element_by_class_name("bp3-dialog-close-button").click()
-                except (NoSuchElementException, ElementClickInterceptedException):
-                    time.sleep(1)
-                    continue # retry
-                
-                try:
-                    log_button.click()
-                except ElementClickInterceptedException:
-                    time.sleep(1)
-                    continue # retry
-            
-            log_entries = self.driver.find_element_by_class_name("log-entry-list")
-            
-            m = re.search(r"Connected to server wss?://(.*?):\d+ with session ID (\d+)", log_entries.text)
-            if m:
-                backend_host = m.group(1)
-                session_id = int(m.group(2))
         
-        if backend_host is None or session_id is None:
-            self.close()
-            raise CartaScriptingException("Could not parse CARTA backend host and session ID from frontend.")
+        if None in (backend_host, grpc_port, session_id):
+            self.exit("Could not parse CARTA backend host and session ID from frontend.")
         
         return Session(backend_host, grpc_port, session_id, browser=self)
+    
+    def new_session_with_backend(self, executable_path="carta", grpc_port=50051, remote_host=None, params=tuple(), timeout=10):
+        """Create a new session after launching a new backend process.
+        
+        You can use :obj:`carta.client.Session.new`, which wraps this method.
+        
+        Parameters
+        ----------
+        executable_path : string, optional
+            A custom path to the CARTA backend executable. The default is `"carta"`.
+        grpc_port : string, optional
+            The grpc_port to use. 50051 by default.
+        remote_host : string, optional
+            A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
+        params : iterable, optional
+            Additional parameters to be passed to the backend process. By default the gRPC port is set and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
+        timeout : number, optional
+            The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
+            
+        Returns
+        -------
+        :obj:`carta.client.Session`
+            A session object connected to a new frontend session running in this browser.
+        """
+        
+        backend = Backend(("--no_browser", "--grpc_port", grpc_port, *params), remote_host)
+        if not backend.start():
+            self.exit(f"CARTA backend exited unexpectedly:\n{''.join(backend.errors)}")
+        backend_host, frontend_url = backend.backend_host, backend.frontend_url
+        
+        if None in (backend_host, frontend_url):
+            self.exit("Could not parse CARTA frontend URL from backend output.")
+        
+        self.driver.get(frontend_url)
+        
+        session_id = None
+        
+        start = time.time()
+        last_error = ""
+        
+        while (session_id is None):
+            if time.time() - start > timeout:
+                break
+            
+            try:
+                # We can't use .text because Selenium is too clever to return the text of invisible elements.
+                session_id = int(self.driver.find_element_by_id("info-session-id").get_attribute("textContent"))
+            except (NoSuchElementException, ValueError) as e:
+                last_error = str(e)
+                time.sleep(1)
+                continue # retry
+        
+        if session_id is None:
+            self.exit("Could not parse CARTA session ID from frontend.")
+        
+        return Session(backend_host, grpc_port, session_id, browser=self, backend=backend)
+        
+    def exit(self, msg):
+        self.close()
+        raise CartaScriptingException(msg)
     
     def close(self):
         """Shut down the browser driver."""

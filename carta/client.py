@@ -55,6 +55,10 @@ class Session:
         The gRPC port on which the CARTA backend is listening.
     session_id : number
         The ID of an existing CARTA frontend session connected to this CARTA backend.
+    browser : :obj:`carta.browser.Browser`
+        The browser object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.new`.
+    backend : :obj:`carta.browser.Backend`
+        The backend object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.new` and an existing frontend URL is not provided.
     
     Attributes
     ----------
@@ -63,11 +67,12 @@ class Session:
     session_id : number
         The ID of the CARTA frontend session associated with this object.
     """
-    def __init__(self, host, port, session_id, browser=None):
+    def __init__(self, host, port, session_id, browser=None, backend=None):
         self.uri = "%s:%s" % (host, port)
         self.session_id = session_id
         
         self._browser = browser
+        self._backend = backend
         
     def __del__(self):
         self.close()
@@ -93,24 +98,22 @@ class Session:
         return cls(host, port, session_id)
     
     @classmethod
-    def new(cls, browser, frontend_url, **kwargs):
+    def new(cls, browser, **kwargs):
         """Create a new frontend session.
         
         Parameters
         ----------
         browser : :obj:`carta.browser.Browser`
             The browser to use to open the frontend.
-        frontend_url : string
-            The URL of the frontend.
         **kwargs : arbitrary keyword parameters
-            `timeout`: the number of seconds to spend retrying parsing connection information from the frontend; default: 10. `grpc_port`: the gRPC port on which the CARTA backend is listening; only used when connecting to legacy CARTA versions. `force_legacy`: assume a legacy CARTA version and use only the legacy connection method. By default the newer method is attempted first until it times out, and then the legacy method is attempted until it times out.
+            `frontend_url`: the URL of an existing frontend to use instead of launching a backend process.  `executable_path`: a custom path to the backend executable (default: `"carta"`). `grpc_port`: a custom gRPC port to use when launching a backend process (default: 50051). `remote_host`: a remote host where the backend process should be launched, which must be accessible through passwordless ssh (by default the backend process is launched on the local host). `params`: an iterable of additional parameters to be passed to the backend process (by default the gRPC port is set and the automatic browser is disabled). `timeout`: the number of seconds to spend retrying parsing connection information from the frontend (default: 10).
             
         Returns
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in the browser provided.
         """
-        return browser.new_session(frontend_url, **kwargs)
+        return browser.new_session(**kwargs)
         
     def __repr__(self):
         return f"Session(session_id={self.session_id}, uri={self.uri})"
@@ -616,6 +619,9 @@ class Session:
         
         if self._browser is not None:
             self._browser.close()
+            
+        if self._backend is not None:
+            self._backend.stop()
 
 
 class Image:
