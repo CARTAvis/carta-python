@@ -7,9 +7,9 @@ import subprocess
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import ElementClickInterceptedException, NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException
 
-from .util import CartaScriptingException, logger
+from .util import CartaScriptingException
 from .client import Session
 
 
@@ -48,7 +48,7 @@ class Backend:
             return False
         
         for line in self.output:
-            m = FRONTEND_URL.match(line)
+            m = self.FRONTEND_URL.match(line)
             if m:
                 self.frontend_url, self.backend_host = m.groups()
                 break
@@ -142,7 +142,7 @@ class Browser:
                 continue # retry
         
         if None in (backend_host, grpc_port, session_id):
-            self.exit("Could not parse CARTA backend host and session ID from frontend.")
+            self.exit(f"Could not parse CARTA backend host and session ID from frontend. Last error: {last_error}")
         
         return Session(backend_host, grpc_port, session_id, browser=self)
     
@@ -198,7 +198,7 @@ class Browser:
                 continue # retry
         
         if session_id is None:
-            self.exit("Could not parse CARTA session ID from frontend.")
+            self.exit(f"Could not parse CARTA session ID from frontend. Last error: {last_error}")
         
         return Session(backend_host, grpc_port, session_id, browser=self, backend=backend)
         
