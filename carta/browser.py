@@ -4,6 +4,7 @@ import re
 import time
 import os
 import subprocess
+import pathlib
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -15,7 +16,7 @@ from .client import Session
 
 class Backend:
     # TODO TODO TODO document this
-    FRONTEND_URL = re.compile(r"[info] CARTA is accessible at (http://(.*?):\d+/?token=.*)\n")
+    FRONTEND_URL = re.compile(r"\[info\] CARTA is accessible at (http://(.*?):\d+/\?token=.*)")
     
     def __init__(self, params, executable_path="carta", remote_host=None):
         self.proc = None
@@ -25,11 +26,11 @@ class Backend:
         self.errors = []
         
         ssh_cmd = ("ssh", remote_host) if remote_host is not None else tuple()
-        self.cmd = (*ssh_cmd, executable_path, *params)
+        self.cmd = tuple(str(p) for p in (*ssh_cmd, executable_path, *params))
     
     def start(self):        
         # TODO currently we log everything to stdout, but maybe we shouldn't
-        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE)
+        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, cwd=pathlib.Path.home())
         os.set_blocking(self.proc.stdout.fileno(), False)
         
         time.sleep(1)
@@ -48,7 +49,7 @@ class Backend:
             return False
         
         for line in self.output:
-            m = self.FRONTEND_URL.match(line)
+            m = self.FRONTEND_URL.search(line)
             if m:
                 self.frontend_url, self.backend_host = m.groups()
                 break
@@ -92,7 +93,7 @@ class Browser:
             func = self.new_session_with_backend
             keys = {"executable_path", "grpc_port", "remote_host", "params", "timeout"}
             
-        func(**{k: v for k, v in kwargs.items() if k in keys})
+        return func(**{k: v for k, v in kwargs.items() if k in keys})
     
     def new_session_from_url(self, frontend_url, timeout=10):
         """Create a new session by connecting to an existing backend.
@@ -170,7 +171,7 @@ class Browser:
             A session object connected to a new frontend session running in this browser.
         """
         
-        backend = Backend(("--no_browser", "--grpc_port", grpc_port, *params), remote_host)
+        backend = Backend(("--no_browser", "--grpc_port", grpc_port, *params), executable_path, remote_host)
         if not backend.start():
             self.exit(f"CARTA backend exited unexpectedly:\n{''.join(backend.errors)}")
         backend_host, frontend_url = backend.backend_host, backend.frontend_url
@@ -185,7 +186,7 @@ class Browser:
         start = time.time()
         last_error = ""
         
-        while (session_id is None):
+        while (session_id is None or session_id == 0):
             if time.time() - start > timeout:
                 break
             

@@ -26,6 +26,7 @@ Usage example::
 import json
 import posixpath
 import base64
+import time
 
 import grpc
 
@@ -73,6 +74,9 @@ class Session:
         
         self._browser = browser
         self._backend = backend
+        
+        # This is a local point of reference for paths, and may not be in sync with the frontend's starting directory
+        self._pwd = None
         
     def __del__(self):
         self.close()
@@ -250,16 +254,18 @@ class Session:
             return f"{self.pwd()}/{path}"
     
     def pwd(self):
-        """The current directory.
+        """The current directory. This is a local property of the wrapper, and may not be in sync with the frontend's saved starting directory, which is changed whenever a file is opened to the file's parent directory.
         
         Returns
         -------
         string
             The session's current directory. 
         """
-        self.call_action("fileBrowserStore.getFileList", Macro("fileBrowserStore", "startingDirectory"))
-        directory = self.get_value("fileBrowserStore.fileList.directory")
-        return f"/{directory}"
+        if self._pwd is None:
+            self.call_action("fileBrowserStore.getFileList", Macro("fileBrowserStore", "startingDirectory"))
+            directory = self.get_value("fileBrowserStore.fileList.directory")
+            self._pwd = f"/{directory}"
+        return self._pwd
     
     def ls(self):
         """The current directory listing.
@@ -267,9 +273,9 @@ class Session:
         Returns
         -------
         list
-            The list of files and subdirectories in the session's current directory. 
+            The list of files and subdirectories in the session's locally stored current directory. 
         """
-        self.call_action("fileBrowserStore.getFileList", Macro("fileBrowserStore", "startingDirectory"))
+        self.call_action("fileBrowserStore.getFileList", self.pwd())
         file_list = self.get_value("fileBrowserStore.fileList")
         items = []
         if "files" in file_list:
@@ -279,22 +285,16 @@ class Session:
         return sorted(items)
     
     def cd(self, path):
-        """Change the current directory
+        """Change the current directory used by the wrapper. This does not affect the starting directory saved by the frontend.
         
-        TODO: .. is not supported. If the directory doesn't exist, the frontend attribute is set, and subsequent file list actions seem to fail silently. We attempt to recover from this and restore the attribute to its previous valid state.
+        TODO: .. is not supported, but it can be now that we have made this value independent of the frontend.
         
         Parameters
         ----------
         path : string
             The path to the new directory, which may be relative to the current directory or absolute (relative to the CARTA backend root).
         """
-        full_path = self.resolve_file_path(path)
-        old_pwd = self.pwd()
-        self.call_action("fileBrowserStore.saveStartingDirectory", full_path)
-        pwd = self.pwd()
-        if pwd == old_pwd:
-            self.call_action("fileBrowserStore.saveStartingDirectory", pwd)
-            print(f"Warning: could not change directory to {full_path}.")
+        self._pwd = self.resolve_file_path(path)
     
     # IMAGES
 
@@ -680,9 +680,7 @@ class Image:
         """
         path = session.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
-        saved_pwd = session.pwd()
         image_id = session.call_action("appendFile" if append else "openFile", directory, file_name, hdu)
-        session.cd(saved_pwd)
         
         return cls(session, image_id, file_name)
     
