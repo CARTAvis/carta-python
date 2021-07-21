@@ -15,8 +15,39 @@ from .client import Session
 
 
 class Backend:
-    # TODO TODO TODO document this
-    FRONTEND_URL = re.compile(r"\[info\] CARTA is accessible at (http://(.*?):\d+/\?token=.*)")
+    """Helper class for managing a CARTA backend process.
+    
+    You should not need to instantiate this directly; it is created on by a :obj:`carta.browser.Browser` object.
+    
+    Parameters
+    ----------
+    params : iterable
+        Parameters to pass to the CARTA backend process.
+    executable_path : string
+        The path to the backend executable. Default: `"carta"`.
+    remote_host : string
+        If this is set, an attempt will be made to start the backend over `ssh` on this host.
+    
+    Attributes
+    ----------
+    proc : :obj:`subprocess.Popen`
+        The backend subprocess object. Set by the :obj:`carta.browser.Backend.start` method.
+    backend_host : string
+        The host of the running backend, parsed from the output of the backend process. Set by the :obj:`carta.browser.Backend.start` method.
+    frontend_url : string
+        The URL of the running frontend, parsed from the output of the backend process. Set by the :obj:`carta.browser.Backend.start` method.
+    output : list of strings
+        All output of the backend process, split into lines, terminated by newline characters.
+    errors : list of strings
+        Error output of the backend process, split into lines, terminated by newline characters.
+        
+    Returns
+    -------
+    :obj:`carta.browser.Backend`
+        A backend object with a process which has not been started. 
+    
+    """
+    FRONTEND_URL = re.compile(r"CARTA is accessible at (http://(.*?):\d+/\?token=.*)")
     
     def __init__(self, params, executable_path="carta", remote_host=None):
         self.proc = None
@@ -25,10 +56,14 @@ class Backend:
         self.output = []
         self.errors = []
         
-        ssh_cmd = ("ssh", remote_host) if remote_host is not None else tuple()
+        ssh_cmd = ("ssh", "-tt", remote_host) if remote_host is not None else tuple()
         self.cmd = tuple(str(p) for p in (*ssh_cmd, executable_path, *params))
-    
-    def start(self):        
+            
+    def start(self):
+        """Start the backend process.
+        
+        This method creates the subprocess object and parses the backend host and the frontend URL from the process output.
+        """
         # TODO currently we log everything to stdout, but maybe we shouldn't
         self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, cwd=pathlib.Path.home())
         os.set_blocking(self.proc.stdout.fileno(), False)
@@ -57,8 +92,13 @@ class Backend:
         return True
     
     def stop(self):
+        """Stop the backend process.
+        
+        This method terminates the backend process if it exists and is running.
+        """
         if self.proc is not None and self.proc.poll() is not None:
             self.proc.terminate()
+
 
 class Browser:
     """The top-level browser class.
