@@ -96,7 +96,8 @@ class Backend:
         
         This method terminates the backend process if it exists and is running.
         """
-        if self.proc is not None and self.proc.poll() is not None:
+                
+        if self.proc is not None and self.proc.poll() is None:
             self.proc.terminate()
 
 
