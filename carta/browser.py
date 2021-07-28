@@ -27,6 +27,8 @@ class Backend:
         The path to the backend executable. Default: `"carta"`.
     remote_host : string
         If this is set, an attempt will be made to start the backend over `ssh` on this host.
+    token : string
+        If this is set, this will be used as the gRPC security token and no attempt will be made to parse the token from the backend output.
     
     Attributes
     ----------
@@ -36,6 +38,8 @@ class Backend:
         The host of the running backend, parsed from the output of the backend process. Set by the :obj:`carta.browser.Backend.start` method.
     frontend_url : string
         The URL of the running frontend, parsed from the output of the backend process. Set by the :obj:`carta.browser.Backend.start` method.
+    token : string
+        The gRPC security token of the running backend, either parsed from the output of the backend process and set by the :obj:`carta.browser.Backend.start` method, or overridden with a parameter.
     output : list of strings
         All output of the backend process, split into lines, terminated by newline characters.
     errors : list of strings
@@ -48,11 +52,13 @@ class Backend:
     
     """
     FRONTEND_URL = re.compile(r"CARTA is accessible at (http://(.*?):\d+/\?token=.*)")
+    GRPC_TOKEN = re.compile(r"CARTA gRPC token: (.*)")
     
-    def __init__(self, params, executable_path="carta", remote_host=None):
+    def __init__(self, params, executable_path="carta", remote_host=None, token=None):
         self.proc = None
         self.backend_host = None
         self.frontend_url = None
+        self.token = token
         self.output = []
         self.errors = []
         
@@ -88,6 +94,13 @@ class Backend:
             if m:
                 self.frontend_url, self.backend_host = m.groups()
                 break
+        
+        if self.grpc_token is None:
+            for line in self.output:
+                m = self.GRPC_TOKEN.search(line)
+                if m:
+                    self.grpc_token = m.group(1)
+                    break
         
         return True
     
@@ -128,15 +141,17 @@ class Browser:
         """
         
         if "frontend_url" in kwargs:
+            if "token" not in kwargs:
+                raise CartaScriptingException("Could not connect to an existing CARTA instance: missing security token.")
             func = self.new_session_from_url
-            keys = {"frontend_url", "timeout"}
+            keys = {"frontend_url", "timeout", "token"}
         else:
             func = self.new_session_with_backend
-            keys = {"executable_path", "grpc_port", "remote_host", "params", "timeout"}
+            keys = {"executable_path", "grpc_port", "remote_host", "params", "timeout", "token"}
             
         return func(**{k: v for k, v in kwargs.items() if k in keys})
     
-    def new_session_from_url(self, frontend_url, timeout=10):
+    def new_session_from_url(self, frontend_url, token, timeout=10):
         """Create a new session by connecting to an existing backend.
         
         You can use :obj:`carta.client.Session.new`, which wraps this method.
@@ -145,6 +160,8 @@ class Browser:
         ----------
         frontend_url : string
             The URL of the frontend.
+        token : string
+            The gRPC security token used by the backend.
         timeout : number, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
             
@@ -186,9 +203,9 @@ class Browser:
         if None in (backend_host, grpc_port, session_id):
             self.exit(f"Could not parse CARTA backend host and session ID from frontend. Last error: {last_error}")
         
-        return Session(backend_host, grpc_port, session_id, browser=self)
+        return Session(backend_host, grpc_port, session_id, token, browser=self)
     
-    def new_session_with_backend(self, executable_path="carta", grpc_port=50051, remote_host=None, params=tuple(), timeout=10):
+    def new_session_with_backend(self, executable_path="carta", grpc_port=50051, remote_host=None, params=tuple(), timeout=10, token=None):
         """Create a new session after launching a new backend process.
         
         You can use :obj:`carta.client.Session.new`, which wraps this method.
@@ -205,6 +222,8 @@ class Browser:
             Additional parameters to be passed to the backend process. By default the gRPC port is set and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
         timeout : number, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
+        token : string, optional
+            The gRPC security token to use. Parsed from the backend output by default.
             
         Returns
         -------
@@ -212,7 +231,7 @@ class Browser:
             A session object connected to a new frontend session running in this browser.
         """
         
-        backend = Backend(("--no_browser", "--grpc_port", grpc_port, *params), executable_path, remote_host)
+        backend = Backend(("--no_browser", "--grpc_port", grpc_port, *params), executable_path, remote_host, token)
         if not backend.start():
             self.exit(f"CARTA backend exited unexpectedly:\n{''.join(backend.errors)}")
         backend_host, frontend_url = backend.backend_host, backend.frontend_url
@@ -242,7 +261,7 @@ class Browser:
         if session_id is None:
             self.exit(f"Could not parse CARTA session ID from frontend. Last error: {last_error}")
         
-        return Session(backend_host, grpc_port, session_id, browser=self, backend=backend)
+        return Session(backend_host, grpc_port, session_id, backend.token, browser=self, backend=backend)
         
     def exit(self, msg):
         self.close()

@@ -56,6 +56,8 @@ class Session:
         The gRPC port on which the CARTA backend is listening.
     session_id : number
         The ID of an existing CARTA frontend session connected to this CARTA backend.
+    token : string
+        The gRPC security token used by this CARTA backend.
     browser : :obj:`carta.browser.Browser`
         The browser object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.new`.
     backend : :obj:`carta.browser.Backend`
@@ -67,10 +69,13 @@ class Session:
         The URI of the CARTA backend's gRPC interface, constructed from the host and port parameters.
     session_id : number
         The ID of the CARTA frontend session associated with this object.
+    token : string
+        The gRPC security token used by the CARTA backend.
     """
-    def __init__(self, host, port, session_id, browser=None, backend=None):
+    def __init__(self, host, port, session_id, token, browser=None, backend=None):
         self.uri = "%s:%s" % (host, port)
         self.session_id = session_id
+        self.token = token
         
         self._browser = browser
         self._backend = backend
@@ -82,7 +87,7 @@ class Session:
         self.close()
     
     @classmethod
-    def connect(cls, host, port, session_id):
+    def connect(cls, host, port, session_id, token):
         """Connect to an existing frontend session.
         
         Parameters
@@ -93,24 +98,28 @@ class Session:
             The gRPC port on which the CARTA backend is listening.
         session_id : number
             The ID of an existing CARTA frontend session connected to this CARTA backend.
+        token : string
+            The gRPC security token used by this backend instance.
             
         Returns
         -------
         :obj:`carta.client.Session`
             A session object connected to the frontend session provided.
         """
-        return cls(host, port, session_id)
+        return cls(host, port, session_id, token)
     
     @classmethod
     def new(cls, browser, **kwargs):
         """Create a new frontend session.
+        
+        By default this method will launch a new CARTA backend process which is controlled by the wrapper. To use an existing CARTA backend process, you must provide both a `frontend_url` parameter and a `token` paramater in the keyword arguments, as described below.
         
         Parameters
         ----------
         browser : :obj:`carta.browser.Browser`
             The browser to use to open the frontend.
         **kwargs : arbitrary keyword parameters
-            `frontend_url`: the URL of an existing frontend to use instead of launching a backend process.  `executable_path`: a custom path to the backend executable (default: `"carta"`). `grpc_port`: a custom gRPC port to use when launching a backend process (default: 50051). `remote_host`: a remote host where the backend process should be launched, which must be accessible through passwordless ssh (by default the backend process is launched on the local host). `params`: an iterable of additional parameters to be passed to the backend process (by default the gRPC port is set and the automatic browser is disabled). `timeout`: the number of seconds to spend retrying parsing connection information from the frontend (default: 10).
+            `frontend_url`: the URL of an existing frontend to use instead of launching a backend process.  `executable_path`: a custom path to the backend executable (default: `"carta"`). `grpc_port`: a custom gRPC port to use when launching a backend process (default: 50051). `remote_host`: a remote host where the backend process should be launched, which must be accessible through passwordless ssh (by default the backend process is launched on the local host). `params`: an iterable of additional parameters to be passed to the backend process (by default the gRPC port is set and the automatic browser is disabled). `timeout`: the number of seconds to spend retrying parsing connection information from the frontend (default: 10). `token`: use this gRPC security token instead of parsing it from the backend output (required if you use an existing backend process).
             
         Returns
         -------
@@ -182,13 +191,17 @@ class Session:
                 "path": path,
                 "action": action,
                 "parameters": parameters,
-                "async": kwargs.get("async", False)
+                "async": kwargs.get("async", False),
             }
+            
+            metadata = [("token", self.token)]
+            print("Trying to use token", self.token)
             
             with grpc.insecure_channel(self.uri) as channel:
                 stub = carta_service_pb2_grpc.CartaBackendStub(channel)
                 response = stub.CallAction(
-                    carta_service_pb2.ActionRequest(**request_kwargs)
+                    request=carta_service_pb2.ActionRequest(**request_kwargs),
+                    metadata=metadata
                 )
         except grpc.RpcError as e:
             self.close()
