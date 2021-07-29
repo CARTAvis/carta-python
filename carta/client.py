@@ -145,7 +145,7 @@ class Session:
         *args
             A variable-length list of parameters to pass to the action. :obj:`carta.util.Macro` objects may be used to refer to frontend objects which will be evaluated dynamically. This parameter list will be serialized into a JSON string with :obj:`carta.util.CartaEncoder`.
         **kwargs
-            Arbitrary keyword arguments. At present only two are used: `async` (boolean) is passed in the gRPC message to indicate that an action is asynchronous (but this currently has no effect); and `response_expected` (boolean) indicates that the action should return a JSON object.
+            Arbitrary keyword arguments. At present only three are used: `async` (boolean) is passed in the gRPC message to indicate that an action is asynchronous (but this currently has no effect). `response_expected` (boolean) indicates that the action should return a JSON object. `return_path` specifies a subobject of the action's response which should be returned instead of the whole response.
         
         Returns
         -------
@@ -177,6 +177,9 @@ class Session:
                 "parameters": parameters,
                 "async": kwargs.get("async", False)
             }
+            
+            if "return_path" in kwargs:
+                request_kwargs["return_path"] = kwargs["return_path"]
             
             with grpc.insecure_channel(self.uri) as channel:
                 stub = carta_service_pb2_grpc.CartaBackendStub(channel)
@@ -675,7 +678,7 @@ class Image:
         path = session.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
         saved_pwd = session.pwd()
-        image_id = session.call_action("appendFile" if append else "openFile", directory, file_name, hdu)
+        image_id = session.call_action("appendFile" if append else "openFile", directory, file_name, hdu, return_path="frameInfo.fileId")
         session.cd(saved_pwd)
         
         return cls(session, image_id, file_name)
