@@ -95,11 +95,11 @@ class Backend:
                 self.frontend_url, self.backend_host = m.groups()
                 break
         
-        if self.grpc_token is None:
+        if self.token is None:
             for line in self.output:
                 m = self.GRPC_TOKEN.search(line)
                 if m:
-                    self.grpc_token = m.group(1)
+                    self.token = m.group(1)
                     break
         
         return True
