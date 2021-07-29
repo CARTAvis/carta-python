@@ -5,6 +5,7 @@ import time
 import os
 import subprocess
 import pathlib
+import signal
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -71,7 +72,7 @@ class Backend:
         This method creates the subprocess object and parses the backend host and the frontend URL from the process output.
         """
         # TODO currently we log everything to stdout, but maybe we shouldn't
-        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, cwd=pathlib.Path.home())
+        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, cwd=pathlib.Path.home(), preexec_fn=os.setpgrp)
         os.set_blocking(self.proc.stdout.fileno(), False)
         
         time.sleep(1)
@@ -109,9 +110,10 @@ class Backend:
         
         This method terminates the backend process if it exists and is running.
         """
-                
-        if self.proc is not None and self.proc.poll() is None:
-            self.proc.terminate()
+        
+        pgrp = os.getpgid(self.proc.pid)
+        os.killpg(pgrp, signal.SIGINT)
+        self.proc.wait()
 
 
 class Browser:
@@ -133,28 +135,11 @@ class Browser:
     """
     def __init__(self, driver_class, **kwargs):
         self.driver = driver_class(**kwargs)
-        
-    def new_session(self, **kwargs):
-        """Create a new session.
-        
-        :obj:`carta.client.Session.new` wraps this method, which calls either :obj:`carta.browser.Browser.new_session_from_url` or :obj:`carta.browser.Browser.new_session_with_backend`, depending on which keyword arguments are provided.
-        """
-        
-        if "frontend_url" in kwargs:
-            if "token" not in kwargs:
-                raise CartaScriptingException("Could not connect to an existing CARTA instance: missing security token.")
-            func = self.new_session_from_url
-            keys = {"frontend_url", "timeout", "token"}
-        else:
-            func = self.new_session_with_backend
-            keys = {"executable_path", "grpc_port", "remote_host", "params", "timeout", "token"}
-            
-        return func(**{k: v for k, v in kwargs.items() if k in keys})
     
     def new_session_from_url(self, frontend_url, token, timeout=10):
         """Create a new session by connecting to an existing backend.
         
-        You can use :obj:`carta.client.Session.new`, which wraps this method.
+        You can use :obj:`carta.client.Session.connect`, which wraps this method.
         
         Parameters
         ----------

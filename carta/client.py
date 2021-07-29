@@ -26,7 +26,6 @@ Usage example::
 import json
 import posixpath
 import base64
-import time
 
 import grpc
 
@@ -87,7 +86,7 @@ class Session:
         self.close()
     
     @classmethod
-    def connect(cls, host, port, session_id, token):
+    def interact(cls, host, port, session_id, token):
         """Connect to an existing frontend session.
         
         Parameters
@@ -109,8 +108,30 @@ class Session:
         return cls(host, port, session_id, token)
     
     @classmethod
-    def new(cls, browser, **kwargs):
-        """Create a new frontend session.
+    def connect(cls, browser, frontend_url, token, timeout=10):
+        """Connect to an existing CARTA instance and create a new session.
+        
+        Parameters
+        ----------
+        browser : :obj:`carta.browser.Browser`
+            The browser to use to open the frontend.
+        frontend_url : string
+            The frontend URL of the CARTA instance.
+        token : string
+            The gRPC security token of the CARTA instance.
+        timeout : number
+            The number of seconds to spend retrying parsing connection information from the frontend (default: 10).
+            
+        Returns
+        -------
+        :obj:`carta.client.Session`
+            A session object connected to a new frontend session running in the browser provided.
+        """
+        return browser.new_session_from_url(frontend_url, token, timeout)
+    
+    @classmethod
+    def new(cls, browser, executable_path="carta", grpc_port=50051, remote_host=None, params=tuple(), timeout=10, token=None):
+        """Launch a new CARTA instance and create a new session.
         
         By default this method will launch a new CARTA backend process which is controlled by the wrapper. To use an existing CARTA backend process, you must provide both a `frontend_url` parameter and a `token` paramater in the keyword arguments, as described below.
         
@@ -118,15 +139,25 @@ class Session:
         ----------
         browser : :obj:`carta.browser.Browser`
             The browser to use to open the frontend.
-        **kwargs : arbitrary keyword parameters
-            `frontend_url`: the URL of an existing frontend to use instead of launching a backend process.  `executable_path`: a custom path to the backend executable (default: `"carta"`). `grpc_port`: a custom gRPC port to use when launching a backend process (default: 50051). `remote_host`: a remote host where the backend process should be launched, which must be accessible through passwordless ssh (by default the backend process is launched on the local host). `params`: an iterable of additional parameters to be passed to the backend process (by default the gRPC port is set and the automatic browser is disabled). `timeout`: the number of seconds to spend retrying parsing connection information from the frontend (default: 10). `token`: use this gRPC security token instead of parsing it from the backend output (required if you use an existing backend process).
+        executable_path : string, optional
+            A custom path to the CARTA backend executable. The default is `"carta"`.
+        grpc_port : string, optional
+            The grpc_port to use. 50051 by default.
+        remote_host : string, optional
+            A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
+        params : iterable, optional
+            Additional parameters to be passed to the backend process. By default the gRPC port is set and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
+        timeout : number, optional
+            The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
+        token : string, optional
+            The gRPC security token to use. Parsed from the backend output by default.
             
         Returns
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in the browser provided.
         """
-        return browser.new_session(**kwargs)
+        return browser.new_session_with_backend(executable_path, grpc_port, remote_host, params, timeout, token)
         
     def __repr__(self):
         return f"Session(session_id={self.session_id}, uri={self.uri})"
