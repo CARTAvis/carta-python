@@ -1,26 +1,11 @@
 """
-This is the main module of the CARTA Python wrapper. It comprises a `Session` class and an `Image` class.
+This is the main module of the CARTA Python wrapper. It comprises a session class which represents a CARTA frontend session, and an image class which represents a single image open in the session.
 
-The session object can be connected to an existing frontend session. It can also create a new session, for example in a headless browser, using a browser class from :obj:`carta.browser`. Please see that module's documentation for more information about the additional dependencies which are required for this.
+The user can interact with an existing CARTA session open in their browser by creating a session object using the :obj:`carta.client.Session.interact` classmethod.
+
+Alternatively, the user can create a new session which runs in a headless browser controlled by the wrapper. The user can connect to an existing CARTA backend instance (using the :obj:`carta.client.Session.connect` classmethod), or first start a new CARTA backend instance which is also controlled by the wrapper (using the :obj:`carta.client.Session.new` classmethod). The backend can be started either on the local host or on a remote host which the user can access with passwordless SSH.
 
 Image objects should not be instantiated directly, and should only be created through methods on the session object.
-
-Usage example::
-
-    session = Session.connect("localhost", 50051, 1)
-
-    for img in session.image_list():
-        img.close()
-
-    img = session.open_image("/full/path/to/image.fits")
-    img2 = session.append_image("/path/to/another/image.fits")
-
-    img.set_channel_stokes(10, 0, True)
-    img.set_colormap(Colormap.VIRIDIS)
-
-    y, x = img.shape[-2:]
-    img.set_center(x/2, y/2)
-    img.set_zoom(4)
 """
 
 import json
@@ -51,22 +36,22 @@ class Session:
     ----------
     host : string
         The address of the host where the CARTA backend is running.
-    port : number
+    port : integer
         The gRPC port on which the CARTA backend is listening.
-    session_id : number
+    session_id : integer
         The ID of an existing CARTA frontend session connected to this CARTA backend.
     token : string
         The gRPC security token used by this CARTA backend.
     browser : :obj:`carta.browser.Browser`
-        The browser object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.new`.
+        The browser object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.connect` or :obj:`carta.client.Session.new`.
     backend : :obj:`carta.browser.Backend`
-        The backend object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.new` and an existing frontend URL is not provided.
+        The backend object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.new`.
     
     Attributes
     ----------
     uri : string
         The URI of the CARTA backend's gRPC interface, constructed from the host and port parameters.
-    session_id : number
+    session_id : integer
         The ID of the CARTA frontend session associated with this object.
     token : string
         The gRPC security token used by the CARTA backend.
@@ -87,29 +72,29 @@ class Session:
     
     @classmethod
     def interact(cls, host, port, session_id, token):
-        """Connect to an existing frontend session.
+        """Interact with an existing CARTA frontend session.
         
         Parameters
         ----------
         host : string
             The address of the host where the CARTA backend is running.
-        port : number
+        port : integer
             The gRPC port on which the CARTA backend is listening.
-        session_id : number
+        session_id : integer
             The ID of an existing CARTA frontend session connected to this CARTA backend.
         token : string
-            The gRPC security token used by this backend instance.
+            The gRPC security token used by this CARTA backend instance.
             
         Returns
         -------
         :obj:`carta.client.Session`
-            A session object connected to the frontend session provided.
+            A session object associated with the frontend session provided.
         """
         return cls(host, port, session_id, token)
     
     @classmethod
     def connect(cls, browser, frontend_url, token, timeout=10):
-        """Connect to an existing CARTA instance and create a new session.
+        """Connect to an existing CARTA backend instance and create a new session.
         
         Parameters
         ----------
@@ -119,7 +104,7 @@ class Session:
             The frontend URL of the CARTA instance.
         token : string
             The gRPC security token of the CARTA instance.
-        timeout : number
+        timeout : integer
             The number of seconds to spend retrying parsing connection information from the frontend (default: 10).
             
         Returns
@@ -131,23 +116,21 @@ class Session:
     
     @classmethod
     def new(cls, browser, executable_path="carta", grpc_port=50051, remote_host=None, params=tuple(), timeout=10, token=None):
-        """Launch a new CARTA instance and create a new session.
-        
-        By default this method will launch a new CARTA backend process which is controlled by the wrapper. To use an existing CARTA backend process, you must provide both a `frontend_url` parameter and a `token` paramater in the keyword arguments, as described below.
+        """Launch a new CARTA backend instance and create a new session.
         
         Parameters
         ----------
         browser : :obj:`carta.browser.Browser`
             The browser to use to open the frontend.
         executable_path : string, optional
-            A custom path to the CARTA backend executable. The default is `"carta"`.
+            A custom path to the CARTA backend executable. The default is ``"carta"``.
         grpc_port : string, optional
             The grpc_port to use. 50051 by default.
         remote_host : string, optional
             A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
         params : iterable, optional
             Additional parameters to be passed to the backend process. By default the gRPC port is set and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
-        timeout : number, optional
+        timeout : integer, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
         token : string, optional
             The gRPC security token to use. Parsed from the backend output by default.
@@ -192,7 +175,7 @@ class Session:
         *args
             A variable-length list of parameters to pass to the action. :obj:`carta.util.Macro` objects may be used to refer to frontend objects which will be evaluated dynamically. This parameter list will be serialized into a JSON string with :obj:`carta.util.CartaEncoder`.
         **kwargs
-            Arbitrary keyword arguments. At present only three are used: `async` (boolean) is passed in the gRPC message to indicate that an action is asynchronous (but this currently has no effect). `response_expected` (boolean) indicates that the action should return a JSON object. `return_path` specifies a subobject of the action's response which should be returned instead of the whole response.
+            Arbitrary keyword arguments. At present only three are used: *async* (boolean) is passed in the gRPC message to indicate that an action is asynchronous (but this currently has no effect). *response_expected* (boolean) indicates that the action should return a JSON object. *return_path* specifies a subobject of the action's response which should be returned instead of the whole response.
         
         Returns
         -------
@@ -263,7 +246,7 @@ class Session:
     def get_value(self, path):
         """Get the value of an attribute from a frontend store.
         
-        Like the `call_action` method, this is exposed in the public API but is not intended to be used directly under normal circumstances.
+        Like the :obj:`carta.client.Session.call_action` method, this is exposed in the public API but is not intended to be used directly under normal circumstances.
         
         Parameters
         ----------
@@ -658,9 +641,11 @@ class Session:
             f.write(self.rendered_view_data(background_color))
             
     def close(self):
-        """Close the browser session, if applicable.
+        """Close the browser session and stop the backend process, if applicable.
         
-        If this session was created with the `new` method and a browser, close the browser session. If this session was connected to an existing external browser session, this method has no effect.
+        If this session was newly created in a headless browser, close the browser session. If a new backend process was also started, stop the backend process.
+        
+        If this session is interacting with an existing external browser session, this method has no effect.
         """
         
         if self._browser is not None:
@@ -706,7 +691,7 @@ class Image:
     def new(cls, session, path, hdu, append):
         """Open or append a new image in the session and return an image object associated with it.
         
-        This method should not be used directly. It is wrapped by the `open_image` and `append_image` methods of the session object.
+        This method should not be used directly. It is wrapped by :obj:`carta.client.Session.open_image` and :obj:`carta.client.Session.append_image`.
         
         Parameters
         ----------
@@ -734,7 +719,7 @@ class Image:
     def from_list(cls, session, image_list):
         """Create a list of image objects from a list of open images retrieved from the frontend.
         
-        This method should not be used directly. It is wrapped by the `image_list` method of the session object.
+        This method should not be used directly. It is wrapped by :obj:`carta.client.Session.image_list`.
         
         Parameters
         ----------
@@ -911,6 +896,7 @@ class Image:
         """
         self.call_action("setCenter", x, y)
         
+    @validate(Number(), Boolean())
     def set_zoom(self, zoom, absolute=True):
         """Set the zoom level.
         
@@ -951,13 +937,13 @@ class Image:
         scaling : {0}
             The scaling type.
         alpha : {1}
-            The alpha value (only applicable to `LOG` and `POWER` scaling types).
+            The alpha value (only applicable to ``LOG`` and ``POWER`` scaling types).
         gamma : {2}
-            The gamma value (only applicable to the `GAMMA` scaling type).
+            The gamma value (only applicable to the ``GAMMA`` scaling type).
         min : {3}
-            The minimum of the scale. Only used if both `min` and `max` are set.
+            The minimum of the scale. Only used if both *min* and *max* are set.
         max : {4}
-            The maximum of the scale. Only used if both `min` and `max` are set.
+            The maximum of the scale. Only used if both *min* and *max* are set.
         """
         self.call_action("renderConfig.setScaling", scaling)
         if scaling in (Scaling.LOG, Scaling.POWER) and alpha is not None:
@@ -995,7 +981,7 @@ class Image:
         Parameters
         ----------
         levels : {0}
-            The contour levels. This may be a numeric numpy array; e.g. the output of `arange`.
+            The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``.
         smoothing_mode : {1}
             The smoothing mode.
         smoothing_factor : {2}

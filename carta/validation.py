@@ -109,7 +109,7 @@ class Number(Parameter):
     def validate(self, value, parent):
         """Check if the value is a number and falls within any bounds that were provided.
         
-        We check the type by attempting to convert the value to `float`. We do this instead of comparing types directly to support compatible numeric types from e.g. the numpy library without having to anticipate and check for them explicitly and without introducing import dependencies.
+        We check the type by attempting to convert the value to ``float``. We do this instead of comparing types directly to support compatible numeric types from e.g. the numpy library without having to anticipate and check for them explicitly and without introducing import dependencies.
                 
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
@@ -139,13 +139,13 @@ class Number(Parameter):
         desc = ["a number"]
         
         if self.min is not None:
-            desc.append(f"greater than{' or equal to' if self.min_included else ''} {self.min}")
+            desc.append(f"greater than{' or equal to' if self.min_included else ''} ``{self.min}``")
             
             if self.max is not None:
                 desc.append("and")
         
         if self.max is not None:
-            desc.append(f"smaller than{' or equal to' if self.max_included else ''} {self.max}")
+            desc.append(f"smaller than{' or equal to' if self.max_included else ''} ``{self.max}``")
         
         return " ".join(desc)
         
@@ -167,10 +167,10 @@ class Boolean(Parameter):
         
 
 class NoneParameter(Parameter):
-    """A parameter which must be `None`. This is not intended to be used directly; it is used together with :obj:`carta.validation.Union` for optional parameters with a default value of `None`."""
+    """A parameter which must be ``None``. This is not intended to be used directly; it is used together with :obj:`carta.validation.Union` for optional parameters with a default value of ``None``."""
     
     def validate(self, value, parent):
-        """Check if the value is `None`. 
+        """Check if the value is ``None``. 
         
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
@@ -179,7 +179,7 @@ class NoneParameter(Parameter):
         
     @property
     def description(self):
-        return "None"
+        return "``None``"
 
 
 class OneOf(Parameter):
@@ -190,7 +190,7 @@ class OneOf(Parameter):
     *options : iterable
         An iterable of permitted values.
     normalize : function, optional
-        A function for applying a transformation to the value before the comparison: for example, `lambda x: x.lower()`.
+        A function for applying a transformation to the value before the comparison: for example, ``lambda x: x.lower()``.
         
     Attributes
     ----------
@@ -288,11 +288,11 @@ class Constant(OneOf):
             fullname = self.clazz.__name__  # Avoid reporting __builtin__
         else:
             fullname = self.clazz.__module__ + '.' + self.clazz.__name__
-        return f"`a class property of` :obj:`{fullname}`"
+        return f"a class property of :obj:`{fullname}`"
         
 
 class NoneOr(Union):
-    """A parameter which can match the given descriptor or `None`. Used for optional parameters which are `None` by default.
+    """A parameter which can match the given descriptor or ``None``. Used for optional parameters which are ``None`` by default.
     
     Parameters
     ----------
@@ -473,13 +473,13 @@ class Evaluate(Parameter):
 def validate(*vargs):
     """The function which returns the decorator used to validate method parameters.
     
-    It is assumed that the function to be decorated is an object method and the first parameter is `self`; this parameter is therefore ignored by the decorator. The remaining positional parameters are validated in order using the provided descriptors. The descriptors are also combined pairwise with the parameter names in the signature of the original function to create a dictionary for validating keyword parameters.
+    It is assumed that the function to be decorated is an object method and the first parameter is ``self``; this parameter is therefore ignored by the decorator. The remaining positional parameters are validated in order using the provided descriptors. The descriptors are also combined pairwise with the parameter names in the signature of the original function to create a dictionary for validating keyword parameters.
     
-    Functions with `*args` or `**kwargs` are not currently supported: use iterables and explicit keyword parameters instead.
+    Functions with ``*args`` or ``**kwargs`` are not currently supported: use iterables and explicit keyword parameters instead.
     
     The decorator inserts the descriptions of the parameters into the docstring of the decorated function, if placeholders have been left for them in the original docstring. The descriptions are passed as positional parameters to :obj:`str.format`.
     
-    The `self` parameter is passed into the validation method of each descriptor, so that checks can depend on properties to be evaluated at runtime (this is currently used by :obj:`carta.validation.Evaluate`).
+    The ``self`` parameter is passed into the validation method of each descriptor, so that checks can depend on properties to be evaluated at runtime (this is currently used by :obj:`carta.validation.Evaluate`).
 
     The decorated function raises a :obj:`carta.util.CartaValidationFailed` if one of the parameters fails to validate.
     
@@ -496,6 +496,10 @@ def validate(*vargs):
         
     def decorator(func):
         kwvargs = {k:v for (k, v) in zip(inspect.getfullargspec(func).args, vargs)}
+        STRIP_OBJ = re.compile(":obj:`(.*)`")
+        STRIP_CODE = re.compile("``(.*)``")
+        PRESERVE = re.compile("(:obj:`.+?`|``.+?``)")
+        ITALICISE = re.compile(r"^([\s.,]*)(.+?)([\s.,]*)$")
         
         @functools.wraps(func)
         def newfunc(self, *args, **kwargs):
@@ -512,13 +516,24 @@ def validate(*vargs):
             except (TypeError, ValueError, AttributeError) as e:
                 # Strip out any documentation formatting from the descriptions
                 msg = str(e)
-                msg = re.sub(":obj:`(.*)`", r"\1", msg)
-                msg = re.sub("``(.*)``", r"\1", msg)
+                msg = STRIP_OBJ.sub(r"\1", msg)
+                msg = STRIP_CODE.sub(r"\1", msg)
                 raise CartaValidationFailed(f"Invalid function parameter: {msg}")
             return func(self, *args, **kwargs)
         
+        # If descriptions contain formatting they are not formatted correctly by Sphinx
+        def fix_description(s):
+            parts = PRESERVE.split(s)
+            if len(parts) == 1:
+                return s
+            for i, p in enumerate(parts):
+                if PRESERVE.match(p):
+                    continue
+                parts[i] = ITALICISE.sub(r"\1*\2*\3", p)
+            return "".join(parts)
+        
         if newfunc.__doc__ is not None:
-            newfunc.__doc__ = newfunc.__doc__.format(*(p.description for p in vargs))
+            newfunc.__doc__ = newfunc.__doc__.format(*(fix_description(p.description) for p in vargs))
                     
         return newfunc
     return decorator

@@ -1,4 +1,4 @@
-"""This module provides browser objects which can be used to create new sessions. It depends on the `selenium` library. The desired browser and its corresponding web driver also have to be installed."""
+"""This module provides browser objects which can be used to create new sessions. It depends on the ``selenium`` library. The desired browser and its corresponding web driver also have to be installed."""
 
 import re
 import time
@@ -18,16 +18,16 @@ from .client import Session
 class Backend:
     """Helper class for managing a CARTA backend process.
     
-    You should not need to instantiate this directly; it is created on by a :obj:`carta.browser.Browser` object.
+    You should not need to instantiate this directly; it is created on demand by a :obj:`carta.browser.Browser` object.
     
     Parameters
     ----------
     params : iterable
         Parameters to pass to the CARTA backend process.
     executable_path : string
-        The path to the backend executable. Default: `"carta"`.
+        The path to the backend executable. Default: ``"carta"``.
     remote_host : string
-        If this is set, an attempt will be made to start the backend over `ssh` on this host.
+        If this is set, an attempt will be made to start the backend over ``ssh`` on this host.
     token : string
         If this is set, this will be used as the gRPC security token and no attempt will be made to parse the token from the backend output.
     
@@ -198,7 +198,7 @@ class Browser:
         Parameters
         ----------
         executable_path : string, optional
-            A custom path to the CARTA backend executable. The default is `"carta"`.
+            A custom path to the CARTA backend executable. The default is ``"carta"``.
         grpc_port : string, optional
             The grpc_port to use. 50051 by default.
         remote_host : string, optional
