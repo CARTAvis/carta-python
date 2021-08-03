@@ -41,6 +41,8 @@ class Backend:
         The URL of the running frontend, parsed from the output of the backend process. Set by the :obj:`carta.browser.Backend.start` method.
     token : string
         The gRPC security token of the running backend, either parsed from the output of the backend process and set by the :obj:`carta.browser.Backend.start` method, or overridden with a parameter.
+    debug_no_auth : boolean
+        If this is set, the backend will accept websocket and gRPC connections with no authentication token. This is provided for debugging purposes only and should not be used under normal circumstances. This value is automatically detected from the provided backend parameters.
     output : list of strings
         All output of the backend process, split into lines, terminated by newline characters.
     errors : list of strings
@@ -53,6 +55,7 @@ class Backend:
     
     """
     FRONTEND_URL = re.compile(r"CARTA is accessible at (http://(.*?):\d+/\?token=.*)")
+    FRONTEND_URL_NO_AUTH = re.compile(r"CARTA is accessible at (http://(.*?):\d+.*)")
     GRPC_TOKEN = re.compile(r"CARTA gRPC token: (.*)")
     
     def __init__(self, params, executable_path="carta", remote_host=None, token=None):
@@ -60,6 +63,7 @@ class Backend:
         self.backend_host = None
         self.frontend_url = None
         self.token = token
+        self.debug_no_auth = ("--debug_no_auth" in params)
         self.output = []
         self.errors = []
         
@@ -90,13 +94,15 @@ class Backend:
         if self.proc.poll() is not None:
             return False
         
+        frontend_url_re = self.FRONTEND_URL if not self.debug_no_auth else self.FRONTEND_URL_NO_AUTH
+        
         for line in self.output:
-            m = self.FRONTEND_URL.search(line)
+            m = frontend_url_re.search(line)
             if m:
                 self.frontend_url, self.backend_host = m.groups()
                 break
         
-        if self.token is None:
+        if self.token is None and not self.debug_no_auth:
             for line in self.output:
                 m = self.GRPC_TOKEN.search(line)
                 if m:
@@ -136,7 +142,7 @@ class Browser:
     def __init__(self, driver_class, **kwargs):
         self.driver = driver_class(**kwargs)
     
-    def new_session_from_url(self, frontend_url, token, timeout=10):
+    def new_session_from_url(self, frontend_url, token, timeout=10, debug_no_auth=False):
         """Create a new session by connecting to an existing backend.
         
         You can use :obj:`carta.client.Session.connect`, which wraps this method.
@@ -149,6 +155,8 @@ class Browser:
             The gRPC security token used by the backend.
         timeout : number, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
+        debug_no_auth : boolean
+            This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
             
         Returns
         -------
@@ -188,7 +196,7 @@ class Browser:
         if None in (backend_host, grpc_port, session_id):
             self.exit(f"Could not parse CARTA backend host and session ID from frontend. Last error: {last_error}")
         
-        return Session(backend_host, grpc_port, session_id, token, browser=self)
+        return Session(backend_host, grpc_port, session_id, token, browser=self, debug_no_auth=debug_no_auth)
     
     def new_session_with_backend(self, executable_path="carta", grpc_port=50051, remote_host=None, params=tuple(), timeout=10, token=None):
         """Create a new session after launching a new backend process.
@@ -246,7 +254,7 @@ class Browser:
         if session_id is None:
             self.exit(f"Could not parse CARTA session ID from frontend. Last error: {last_error}")
         
-        return Session(backend_host, grpc_port, session_id, backend.token, browser=self, backend=backend)
+        return Session(backend_host, grpc_port, session_id, backend.token, browser=self, backend=backend, debug_no_auth=backend.debug_no_auth)
         
     def exit(self, msg):
         self.close()

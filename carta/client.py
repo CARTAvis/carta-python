@@ -46,6 +46,8 @@ class Session:
         The browser object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.connect` or :obj:`carta.client.Session.new`.
     backend : :obj:`carta.browser.Backend`
         The backend object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.new`.
+    debug_no_auth : boolean
+        This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
     
     Attributes
     ----------
@@ -56,13 +58,14 @@ class Session:
     token : string
         The gRPC security token used by the CARTA backend.
     """
-    def __init__(self, host, port, session_id, token, browser=None, backend=None):
+    def __init__(self, host, port, session_id, token, browser=None, backend=None, debug_no_auth=False):
         self.uri = "%s:%s" % (host, port)
         self.session_id = session_id
         self.token = token
         
         self._browser = browser
         self._backend = backend
+        self._debug_no_auth = debug_no_auth
         
         # This is a local point of reference for paths, and may not be in sync with the frontend's starting directory
         self._pwd = None
@@ -71,7 +74,7 @@ class Session:
         self.close()
     
     @classmethod
-    def interact(cls, host, port, session_id, token):
+    def interact(cls, host, port, session_id, token, debug_no_auth=False):
         """Interact with an existing CARTA frontend session.
         
         Parameters
@@ -84,16 +87,18 @@ class Session:
             The ID of an existing CARTA frontend session connected to this CARTA backend.
         token : string
             The gRPC security token used by this CARTA backend instance.
+        debug_no_auth : boolean
+            Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
             
         Returns
         -------
         :obj:`carta.client.Session`
             A session object associated with the frontend session provided.
         """
-        return cls(host, port, session_id, token)
+        return cls(host, port, session_id, token, debug_no_auth=debug_no_auth)
     
     @classmethod
-    def connect(cls, browser, frontend_url, token, timeout=10):
+    def connect(cls, browser, frontend_url, token, timeout=10, debug_no_auth=False):
         """Connect to an existing CARTA backend instance and create a new session.
         
         Parameters
@@ -106,13 +111,15 @@ class Session:
             The gRPC security token of the CARTA instance.
         timeout : integer
             The number of seconds to spend retrying parsing connection information from the frontend (default: 10).
+        debug_no_auth : boolean
+            Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
             
         Returns
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in the browser provided.
         """
-        return browser.new_session_from_url(frontend_url, token, timeout)
+        return browser.new_session_from_url(frontend_url, token, timeout, debug_no_auth)
     
     @classmethod
     def new(cls, browser, executable_path="carta", grpc_port=50051, remote_host=None, params=tuple(), timeout=10, token=None):
@@ -211,7 +218,9 @@ class Session:
             if "return_path" in kwargs:
                 request_kwargs["return_path"] = kwargs["return_path"]
             
-            metadata = [("token", self.token)]
+            metadata = []
+            if not self._debug_no_auth:
+                metadata.append(("token", self.token))
             
             with grpc.insecure_channel(self.uri) as channel:
                 stub = carta_service_pb2_grpc.CartaBackendStub(channel)
