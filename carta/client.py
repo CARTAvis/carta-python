@@ -417,16 +417,15 @@ class Session:
     @validate(Number(), Number())
     def set_view_area(self, width, height):
         """Set the dimensions of the view area.
-        
+                
         Parameters
         ----------
         width : {0}
-            The new width, in pixels.
+            The new width, in pixels, divided by the device pixel ratio.
         height : {1}
-            The new height, in pixels.
+            The new height, in pixels, divided by the device pixel ratio.
         """
-        ratio = self.get_value("pixelRatio")
-        self.call_action("overlayStore.setViewDimension", width/ratio, height/ratio)
+        self.call_action("overlayStore.setViewDimension", width, height)
     
     @validate(Constant(CoordinateSystem))
     def set_coordinate_system(self, system=CoordinateSystem.AUTO):
