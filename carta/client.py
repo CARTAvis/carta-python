@@ -418,14 +418,12 @@ class Session:
     def set_view_area(self, width, height):
         """Set the dimensions of the view area.
         
-        TODO: we need a way to set the real pixel value. Simplest solution: expose the pixel ratio on the frontend and divide by it. Fractional values work as expected.
-        
         Parameters
         ----------
         width : {0}
-            The new width, in pixels divided by the browser's pixel ratio.
+            The new width, in pixels.
         height : {1}
-            The new height, in pixels divided by the browser's pixel ratio.
+            The new height, in pixels.
         """
         ratio = self.get_value("pixelRatio")
         self.call_action("overlayStore.setViewDimension", width/ratio, height/ratio)
