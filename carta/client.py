@@ -323,9 +323,11 @@ class Session:
         return sorted(items)
     
     def cd(self, path):
-        """Change the current directory used by the wrapper. This does not affect the starting directory saved by the frontend.
+        """Change the current directory used by the wrapper.
         
         TODO: .. is not supported, but it can be now that we have made this value independent of the frontend.
+        
+        This does not affect the starting directory saved by the frontend. To change that directory, use :obj:`carta.client.session.set_starting_directory`.
         
         Parameters
         ----------
@@ -333,6 +335,25 @@ class Session:
             The path to the new directory, which may be relative to the current directory or absolute (relative to the CARTA backend root).
         """
         self._pwd = self.resolve_file_path(path)
+        
+    def set_starting_directory(self, path):
+        """Change the starting directory of the frontend.
+        
+        This is particularly useful for interactive sessions. If a new session object reconnects to an existing frontend session, this method allows the current directory in the frontend session to be reset to a known state. This ensures that any paths used in the script continue to work even if the current directory in the frontend changed during a previous execution. 
+        
+        It should not be necessary to use this method in non-interactive scripts which do not reuse frontend sessions.
+        
+        This does not affect the current directory used by the wrapper. To change that directory, use :obj:`carta.client.session.cd`.
+        
+        This method must be called before any methods that use the locally saved path.
+        
+        Parameters
+        ----------
+        path : string
+            The path to the new directory, which must be absolute (relative to the CARTA backend root).
+        
+        """
+        self.call_action("fileBrowserStore.saveStartingDirectory", path)
     
     # IMAGES
 
@@ -406,7 +427,8 @@ class Session:
         height : {1}
             The new height, in pixels divided by the browser's pixel ratio.
         """
-        self.call_action("overlayStore.setViewDimension", width, height)
+        ratio = self.get_value("pixelRatio")
+        self.call_action("overlayStore.setViewDimension", width/ratio, height/ratio)
     
     @validate(Constant(CoordinateSystem))
     def set_coordinate_system(self, system=CoordinateSystem.AUTO):
