@@ -13,8 +13,6 @@ This package is not yet published on PyPi, but can be installed from the local r
 
 To create a new frontend session which is controlled by the wrapper instead of connecting to an existing frontend session, you also need to install the `selenium` Python library. You also need to make sure that your desired browser is installed, together with a corresponding web driver.
 
-Some example usage of the client as a module is shown in the Jupyter notebook provided in `examples`. In addition to `jupyter` and `selenium`, the notebook depends on `numpy`.
-
-To perform a basic end-to-end test by opening or appending an image, you can execute the prototype client as a script with commandline parameters. Use `carta_test_client.py --help` to see options.
+Some example usage of the client as a module is shown in the [documentation](https://carta-controller.readthedocs.io).
 
 The client is under rapid development and this API should be considered experimental and subject to change depending on feedback. The current overall design principle considers session and image objects to be lightweight conduits to the frontend. They store as little state as possible and are not guaranteed to be unique or valid connections -- it is the caller's responsibility to manage the objects and store retrieved data as required.
