@@ -1,4 +1,4 @@
-"""This module provides a collection of classes corresponding to various enumerated types and other literal lists of options defined in the frontend. The properties of these classes should be used in place of literal strings and numbers to represent these values; for example: `Colormap.VIRIDIS` rather than `"viridis"`. """
+"""This module provides a collection of classes corresponding to various enumerated types and other literal lists of options defined in the frontend. The properties of these classes should be used in place of literal strings and numbers to represent these values; for example: ``Colormap.VIRIDIS`` rather than ``"viridis"``. """
 
 class Colormap:
     """All available colormaps."""

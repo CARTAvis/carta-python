@@ -46,19 +46,19 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/idia-astro/carta-python",
     packages=setuptools.find_packages(),
-    scripts=["bin/carta_test_client.py"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-        "Operating System :: OS Independent",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: POSIX",
     ],
     python_requires='>=3.6',
     install_requires=[
         "grpcio>=1.26.0",
     ],
     setup_requires=[
-        "grpcio-tools>=1.26.0",
         "google-api-python-client>=1.12.4",
+        "grpcio-tools>=1.26.0",
     ],
     cmdclass={
         "build_py": BuildPy,

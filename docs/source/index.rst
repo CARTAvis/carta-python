@@ -1,8 +1,10 @@
-carta-python: a gRPC scripting wrapper for CARTA
-================================================
+carta-python: a scripting wrapper for CARTA
+===========================================
 
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
 
+   introduction
+   quickstart
    carta
