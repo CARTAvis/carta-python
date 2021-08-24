@@ -4,11 +4,19 @@ CARTA scripting quick start
 Installation
 ------------
 
-Python library dependencies: ``grpcio``, ``grpcio-tools``, ``google-api-python-client``. You also need access to a CARTA backend executable, either on the local host or on a remote host which you can access through SSH.
+This package is not yet published on PyPi, but can be installed from a local checkout of the repository. The protocol buffer definitions and associated files are in a submodule.
+
+Ensure that you're using a Python 3 installation and its corresponding ``pip``, either using a ``virtualenv`` or the appropriate system executable, which may be called ``pip3``.
 
 .. code-block:: shell
 
-    pip install carta
+    git clone --recursive https://github.com/idia-astro/carta-python.git
+    cd carta-python
+    pip install .
+
+The required Python library dependencies (``grpcio``, ``grpcio-tools``, ``google-api-python-client``) should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the ``selenium`` Python library.
+
+You need access to a CARTA backend executable, either on the local host or on a remote host which you can access through SSH. If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
 
 Connecting to an existing session
 ---------------------------------
