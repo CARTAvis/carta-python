@@ -16,7 +16,7 @@ Ensure that you're using a Python 3 installation and its corresponding ``pip``, 
 
 The required Python library dependencies (``grpcio``, ``grpcio-tools``, ``google-api-python-client``) should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the ``selenium`` Python library.
 
-You need access to a CARTA backend executable, either on the local host or on a remote host which you can access through SSH. You must be able to access the frontend served by this backend instance. SDM invocation (a multi-user system with web-based authentication) is not currently supported. The CARTA version must be ``3.0.0-beta.1b`` or newer.
+You need access to a CARTA backend executable, either on the local host or on a remote host which you can access through SSH. You must be able to access the frontend served by this backend instance. SDM invocation (a multi-user system with web-based authentication) is not currently supported. The CARTA version must be ``3.0.0-beta.1b`` or newer. You must run the backend executable with the ``--grpc_port`` commandline parameter to enable the gRPC interface. The recommended default port value is ``50051``.
 
 If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
 
