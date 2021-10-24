@@ -58,8 +58,8 @@ These commands are further customisable with optional parameters. See the API re
     # New session, start remote backend
     session = Session.new(ChromeHeadless(), remote_host="REMOTE HOSTNAME OR IP")
 
-Opening and images
-------------------
+Opening and appending images
+----------------------------
 
 Helper methods on the session object open images in the frontend and return image objects which you can use to interact with individual images.
 
