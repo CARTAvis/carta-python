@@ -3,6 +3,7 @@
 import logging
 import json
 import functools
+import re
 
 logger = logging.getLogger("carta_scripting")
 logger.setLevel(logging.WARN)
@@ -11,6 +12,11 @@ logger.addHandler(logging.StreamHandler())
 
 class CartaScriptingException(Exception):
     """The top-level exception for all scripting errors."""
+    pass
+
+
+class CartaBadSession(CartaScriptingException):
+    """An exception for invalid session specifications."""
     pass
 
 
@@ -85,3 +91,10 @@ def cached(func):
         newfunc.__doc__ = newfunc.__doc__ + "\n\nThis value is transparently cached on the parent object."
         
     return newfunc
+
+
+def token_from_url(url):
+    m = re.match(".*\?token=(.*)", url)
+    if m:
+        return m.group(1)
+    return None

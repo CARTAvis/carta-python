@@ -11,7 +11,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 
-from .util import CartaScriptingException
+from .util import CartaBadSession, token_from_url
 from .client import Session
 
 
@@ -158,9 +158,20 @@ class Browser:
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in this browser.
+            
+        Raises
+        ------
+        CartaBadSession
+            If the session object could not be created.
         """
         
         # TODO TODO TODO use cookie if it exists
+        
+        if token is None:
+            token = token_from_url(frontend_url)
+            
+        if token is None:
+            self.exit("No token parameter was provided, and no token could be parsed from the URL.")
                 
         self.driver.get(frontend_url)
         
@@ -208,6 +219,11 @@ class Browser:
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in this browser.
+            
+        Raises
+        ------
+        CartaBadSession
+            If the session object could not be created.
         """
         
         backend = Backend(("--no_browser", "--enable_scripting", *params), executable_path, remote_host, token)
@@ -221,7 +237,7 @@ class Browser:
         
     def exit(self, msg):
         self.close()
-        raise CartaScriptingException(msg)
+        raise CartaBadSession(msg)
     
     def close(self):
         """Shut down the browser driver."""

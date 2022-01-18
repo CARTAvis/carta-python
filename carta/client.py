@@ -14,7 +14,7 @@ import base64
 import requests
 
 from .constants import Colormap, Scaling, CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, SmoothingMode, ContourDashMode
-from .util import logger, CartaActionFailed, CartaBadResponse, Macro, CartaEncoder, cached
+from .util import logger, CartaBadSession, CartaActionFailed, CartaBadResponse, Macro, CartaEncoder, cached, token_from_url
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, OneOf, Evaluate, Attr
     
 # TODO: profiles -- need to wait for refactoring to make tsv and png profiles accessible
@@ -69,7 +69,7 @@ class Session:
         self.close()
     
     @classmethod
-    def interact(cls, frontend_url, session_id, token, debug_no_auth=False):
+    def interact(cls, frontend_url, session_id, token=None, debug_no_auth=False):
         """Interact with an existing CARTA frontend session.
         
         Parameters
@@ -79,7 +79,7 @@ class Session:
         session_id : integer
             The ID of an existing CARTA frontend session.
         token : string
-            The security token used by the CARTA instance.
+            The security token used by the CARTA instance. You may omit this if the URL contains a token.
         debug_no_auth : boolean
             Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
             
@@ -87,11 +87,22 @@ class Session:
         -------
         :obj:`carta.client.Session`
             A session object associated with the frontend session provided.
+            
+        Raises
+        ------
+        CartaBadSession
+            If the session object could not be created.
         """
+        if token is None:
+            token = token_from_url(frontend_url)
+            
+        if token is None:
+            raise CartaBadSession("No token parameter was provided, and no token could be parsed from the URL.")
+        
         return cls(frontend_url, session_id, token, debug_no_auth=debug_no_auth)
     
     @classmethod
-    def create(cls, browser, frontend_url, token, cookie=None, timeout=10, debug_no_auth=False):
+    def create(cls, browser, frontend_url, token=None, cookie=None, timeout=10, debug_no_auth=False):
         """Connect to an existing CARTA backend or CARTA controller instance and create a new session.
         
         Parameters
@@ -101,7 +112,7 @@ class Session:
         frontend_url : string
             The frontend URL of the CARTA instance.
         token : string
-            The security token used by the CARTA instance.
+            The security token used by the CARTA instance. You may omit this if the URL contains a token.
         cookie : string
             The path to a cookie file. Required for authenticating with a controller instance to create the session.
         timeout : integer
@@ -113,6 +124,11 @@ class Session:
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in the browser provided.
+            
+        Raises
+        ------
+        CartaBadSession
+            If the session object could not be created.
         """
         return browser.new_session_from_url(frontend_url, token, cookie, backend=None, timeout=timeout, debug_no_auth=debug_no_auth)
     
@@ -139,6 +155,11 @@ class Session:
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in the browser provided.
+            
+        Raises
+        ------
+        CartaBadSession
+            If the session object could not be created.
         """
         return browser.new_session_with_backend(executable_path, remote_host, params, timeout, token)
         
@@ -218,7 +239,7 @@ class Session:
             
             response = requests.post(url=self.uri, data=request_data, headers=headers)
             
-        except ??? as e:
+        except requests.exceptions.RequestException as e:
             self.close()
             raise CartaActionFailed(f"{carta_action_description} failed: {e.details()}") from e
         
