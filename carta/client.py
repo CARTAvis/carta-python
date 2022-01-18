@@ -11,11 +11,8 @@ Image objects should not be instantiated directly, and should only be created th
 import json
 import posixpath
 import base64
+import requests
 
-import grpc
-
-from cartaproto import carta_service_pb2
-from cartaproto import carta_service_pb2_grpc
 from .constants import Colormap, Scaling, CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, SmoothingMode, ContourDashMode
 from .util import logger, CartaActionFailed, CartaBadResponse, Macro, CartaEncoder, cached
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, OneOf, Evaluate, Attr
@@ -34,14 +31,12 @@ class Session:
     
     Parameters
     ----------
-    host : string
-        The address of the host where the CARTA backend is running.
-    port : integer
-        The gRPC port on which the CARTA backend is listening.
+    frontend_url : string
+        The frontend URL of the CARTA instance.
     session_id : integer
-        The ID of an existing CARTA frontend session connected to this CARTA backend.
+        The ID of an existing CARTA frontend session.
     token : string
-        The gRPC security token used by this CARTA backend.
+        The security token used by the CARTA instance.
     browser : :obj:`carta.browser.Browser`
         The browser object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.connect` or :obj:`carta.client.Session.new`.
     backend : :obj:`carta.browser.Backend`
@@ -52,14 +47,14 @@ class Session:
     Attributes
     ----------
     uri : string
-        The URI of the CARTA backend's gRPC interface, constructed from the host and port parameters.
+        The URI of the CARTA scripting interface, constructed from the base frontend URL.
     session_id : integer
         The ID of the CARTA frontend session associated with this object.
     token : string
-        The gRPC security token used by the CARTA backend.
+        The security token used by the CARTA instance.
     """
-    def __init__(self, host, port, session_id, token, browser=None, backend=None, debug_no_auth=False):
-        self.uri = "%s:%s" % (host, port)
+    def __init__(self, frontend_url, session_id, token, browser=None, backend=None, debug_no_auth=False):
+        self.uri = f"{frontend_url}/api/scripting/action"
         self.session_id = session_id
         self.token = token
         
@@ -74,19 +69,17 @@ class Session:
         self.close()
     
     @classmethod
-    def interact(cls, host, port, session_id, token, debug_no_auth=False):
+    def interact(cls, frontend_url, session_id, token, debug_no_auth=False):
         """Interact with an existing CARTA frontend session.
         
         Parameters
         ----------
-        host : string
-            The address of the host where the CARTA backend is running.
-        port : integer
-            The gRPC port on which the CARTA backend is listening.
+        frontend_url : string
+            The frontend URL of the CARTA instance.
         session_id : integer
-            The ID of an existing CARTA frontend session connected to this CARTA backend.
+            The ID of an existing CARTA frontend session.
         token : string
-            The gRPC security token used by this CARTA backend instance.
+            The security token used by the CARTA instance.
         debug_no_auth : boolean
             Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
             
@@ -95,11 +88,11 @@ class Session:
         :obj:`carta.client.Session`
             A session object associated with the frontend session provided.
         """
-        return cls(host, port, session_id, token, debug_no_auth=debug_no_auth)
+        return cls(frontend_url, session_id, token, debug_no_auth=debug_no_auth)
     
     @classmethod
-    def connect(cls, browser, frontend_url, token, timeout=10, debug_no_auth=False):
-        """Connect to an existing CARTA backend instance and create a new session.
+    def create(cls, browser, frontend_url, token, cookie=None, timeout=10, debug_no_auth=False):
+        """Connect to an existing CARTA backend or CARTA controller instance and create a new session.
         
         Parameters
         ----------
@@ -108,7 +101,9 @@ class Session:
         frontend_url : string
             The frontend URL of the CARTA instance.
         token : string
-            The gRPC security token of the CARTA instance.
+            The security token used by the CARTA instance.
+        cookie : string
+            The path to a cookie file. Required for authenticating with a controller instance to create the session.
         timeout : integer
             The number of seconds to spend retrying parsing connection information from the frontend (default: 10).
         debug_no_auth : boolean
@@ -119,10 +114,10 @@ class Session:
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in the browser provided.
         """
-        return browser.new_session_from_url(frontend_url, token, timeout, debug_no_auth)
+        return browser.new_session_from_url(frontend_url, token, cookie, backend=None, timeout=timeout, debug_no_auth=debug_no_auth)
     
     @classmethod
-    def new(cls, browser, executable_path="carta", grpc_port=50051, remote_host=None, params=tuple(), timeout=10, token=None):
+    def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None):
         """Launch a new CARTA backend instance and create a new session.
         
         Parameters
@@ -131,23 +126,21 @@ class Session:
             The browser to use to open the frontend.
         executable_path : string, optional
             A custom path to the CARTA backend executable. The default is ``"carta"``.
-        grpc_port : string, optional
-            The grpc_port to use. 50051 by default.
         remote_host : string, optional
             A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
         params : iterable, optional
-            Additional parameters to be passed to the backend process. By default the gRPC port is set and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
+            Additional parameters to be passed to the backend process. By default scripting is enabled and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
         timeout : integer, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
         token : string, optional
-            The gRPC security token to use. Parsed from the backend output by default.
+            The security token to use. Parsed from the backend output by default.
             
         Returns
         -------
         :obj:`carta.client.Session`
             A session object connected to a new frontend session running in the browser provided.
         """
-        return browser.new_session_with_backend(executable_path, grpc_port, remote_host, params, timeout, token)
+        return browser.new_session_with_backend(executable_path, remote_host, params, timeout, token)
         
     def __repr__(self):
         return f"Session(session_id={self.session_id}, uri={self.uri})"
@@ -171,7 +164,7 @@ class Session:
         return '.'.join(parts[:-1]), parts[-1]
         
     def call_action(self, path, *args, **kwargs):
-        """Call an action on the frontend through the backend's gRPC interface.
+        """Call an action on the frontend through the backend's scripting interface.
         
         This method is the core of the session class, and provides a generic interface for calling any action on the frontend. This is exposed as a public method to give developers the option of writing experimental functionality; wherever possible script writers should instead use the more user-friendly methods on the session and image objects which wrap this method.
         
@@ -182,7 +175,7 @@ class Session:
         *args
             A variable-length list of parameters to pass to the action. :obj:`carta.util.Macro` objects may be used to refer to frontend objects which will be evaluated dynamically. This parameter list will be serialized into a JSON string with :obj:`carta.util.CartaEncoder`.
         **kwargs
-            Arbitrary keyword arguments. At present only three are used: *async* (boolean) is passed in the gRPC message to indicate that an action is asynchronous (but this currently has no effect). *response_expected* (boolean) indicates that the action should return a JSON object. *return_path* specifies a subobject of the action's response which should be returned instead of the whole response.
+            Arbitrary keyword arguments. At present only three are used: *async* (boolean) is passed to indicate that an action is asynchronous (but this currently has no effect). *response_expected* (boolean) indicates that the action should return a JSON object. *return_path* specifies a subobject of the action's response which should be returned instead of the whole response.
         
         Returns
         -------
@@ -192,7 +185,7 @@ class Session:
         Raises
         ------
         CartaActionFailed
-            If a :obj:`grpc.RpcError` occurs, or if the gRPC request fails.
+            If a transport error occurs, or the action fails. TODO: split this into separate errors.
         CartaBadResponse    
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
@@ -201,56 +194,53 @@ class Session:
         
         logger.debug(f"Sending action request to backend; path: {path}; action: {action}; args: {args}, kwargs: {kwargs}")
         
-        # I don't think this can fail
-        parameters = json.dumps(args, cls=CartaEncoder)
-        
-        carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {parameters}"
-        
-        try:
-            request_kwargs = {
+        request_kwargs = {
                 "session_id": self.session_id,
                 "path": path,
                 "action": action,
-                "parameters": parameters,
+                "parameters": args,
                 "async": kwargs.get("async", False),
             }
 
-            if "return_path" in kwargs:
-                request_kwargs["return_path"] = kwargs["return_path"]
-            
-            metadata = []
+        if "return_path" in kwargs:
+            request_kwargs["return_path"] = kwargs["return_path"]
+        
+        # TODO does this work? do we need to convert to bytes explicitly?
+        request_data = json.dumps(request_kwargs, cls=CartaEncoder)
+        
+        carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {args}"
+        
+        try:
+
+            headers = {}
             if not self._debug_no_auth:
-                metadata.append(("token", self.token))
+                headers["Authorization"] = f"Bearer: {self.token}"
             
-            with grpc.insecure_channel(self.uri) as channel:
-                stub = carta_service_pb2_grpc.CartaBackendStub(channel)
-                response = stub.CallAction(
-                    request=carta_service_pb2.ActionRequest(**request_kwargs),
-                    metadata=metadata
-                )
-        except grpc.RpcError as e:
+            response = requests.post(url=self.uri, data=request_data, headers=headers)
+            
+        except ??? as e:
             self.close()
             raise CartaActionFailed(f"{carta_action_description} failed: {e.details()}") from e
         
-        logger.debug(f"Got success status: {response.success}; message: {response.message}; response: {response.response}")
-        
-        if not response.success:
+        try:
+            response_data = response.json()
+        except json.decoder.JSONDecodeError as e:
             self.close()
-            raise CartaActionFailed(f"{carta_action_description} failed: {response.message}")
+            raise CartaBadResponse(f"{carta_action_description} received a response which could not be decoded.\nError: {e}") from e
         
-        if response.response == '':
+        logger.debug(f"Got success status: {response_data.success}; message: {response_data.message}; response: {response_data.response}")
+        
+        if not response_data.success:
+            self.close()
+            raise CartaActionFailed(f"{carta_action_description} failed: {response_data.message}")
+        
+        if response_data.response == '':
             if response_expected:
                 self.close()
                 raise CartaBadResponse(f"{carta_action_description} expected a response, but did not receive one.")
             return None
-        
-        try:
-            decoded_response = json.loads(response.response)
-        except json.decoder.JSONDecodeError as e:
-            self.close()
-            raise CartaBadResponse(f"{carta_action_description} received a response which could not be decoded.\nResponse string: {repr(response.response)}\nError: {e}") from e
-        
-        return decoded_response
+
+        return response_data
 
     def get_value(self, path):
         """Get the value of an attribute from a frontend store.

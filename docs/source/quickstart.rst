@@ -14,9 +14,9 @@ Ensure that you're using a Python 3 installation and its corresponding ``pip``, 
     cd carta-python
     pip install .
 
-The required Python library dependencies (``grpcio``, ``grpcio-tools``, ``google-api-python-client``) should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the ``selenium`` Python library.
+The required Python library dependency (``requests``) should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the ``selenium`` Python library.
 
-You need access to a CARTA backend executable, either on the local host or on a remote host which you can access through SSH. You must be able to access the frontend served by this backend instance. SDM invocation (a multi-user system with web-based authentication) is not currently supported. The CARTA version must be ``3.0.0-beta.1b`` or newer. You must run the backend executable with the ``--grpc_port`` commandline parameter to enable the gRPC interface. The recommended default port value is ``50051``.
+You need access either to a CARTA backend executable, on the local host or on a remote host which you can access through SSH, or to a CARTA controller instance (a multi-user system with web-based authentication). You must be able to access the frontend served by this CARTA instance. If you are using your own backend executable, you must start it with the ``--enable_scripting`` commandline parameter to enable the scripting interface.
 
 If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
 
@@ -29,18 +29,20 @@ Use this option if you want to use scripting to control a CARTA session which yo
     
     from carta.client import Session
 
-    session = Session.interact("localhost", 50051, 1, "GRPC SECURITY TOKEN")
+    session = Session.interact("FRONTEND URL", 1, "SECURITY TOKEN")
 
-The host, port and security token values must match your running backend process. For simplicity you have the option of using an environment variable, ``CARTA_GRPC_TOKEN``, to run CARTA with a fixed gRPC token. Otherwise, a randomly generated token will be printed by the backend when it starts. The session ID must match the running frontend session -- you can find it by mousing over the status indicator at the top right of the CARTA window in your browser.
+The frontend URL and security token values must match your running backend process. For simplicity you have the option of using an environment variable, ``CARTA_AUTH_TOKEN``, to run CARTA with a fixed security token. Otherwise, a randomly generated token will be printed by the backend when it starts. The session ID must match the running frontend session -- you can find it by mousing over the status indicator at the top right of the CARTA window in your browser.
 
 Creating a new session
 ----------------------
 
 Use these options if you want to write a non-interactive script which starts a new session in a headless browser (and optionally also a new backend process), performs a series of actions, and saves output, with no input from you.
 
-The wrapper automatically parses the gRPC host and port and the session ID from the frontend. If the wrapper also starts the backend process, it parses the frontend URL and gRPC token from the backend output. If you want to connect to an existing backend process, you must provide the frontend URL and the security token.
+The wrapper automatically parses the session ID from the frontend. If the wrapper also starts the backend process, it parses the frontend URL from the backend output. If you want to connect to an existing backend process, you must provide the frontend URL and the security token.
 
 The wrapper can start a backend process on a remote host if your Unix user has the appropriate permissions to ssh to the remote host without entering a password.
+
+To connect to a controller instance, you must obtain a security token for scripting requests from the controller dashboard. Creating the session requires additional authentication. A helper function is provided to assist you in logging into the controller instance and obtaining a long-lived cookie which you can save and use when creating a session. (TODO: actually implement this) 
 
 These commands are further customisable with optional parameters. See the API reference for more information.
 
@@ -50,13 +52,16 @@ These commands are further customisable with optional parameters. See the API re
     from carta.browser import ChromeHeadless
 
     # New session, connect to an existing backend
-    session = Session.connect(ChromeHeadless(), "FRONTEND URL", "GRPC SECURITY TOKEN")
+    session = Session.create(ChromeHeadless(), "FRONTEND URL", "SECURITY TOKEN")
 
     # New session, start local backend
-    session = Session.new(ChromeHeadless())
+    session = Session.start_and_create(ChromeHeadless())
 
     # New session, start remote backend
-    session = Session.new(ChromeHeadless(), remote_host="REMOTE HOSTNAME OR IP")
+    session = Session.start_and_create(ChromeHeadless(), remote_host="REMOTE HOSTNAME OR IP")
+    
+    # New session, connect to an existing controller (a cookie is needed for authentication)
+    session = Session.create(ChromeHeadless(), "FRONTEND URL", "SECURITY TOKEN", "path/to/cookie/file")
 
 Opening and appending images
 ----------------------------
