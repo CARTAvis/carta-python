@@ -11,8 +11,10 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 
-from .util import CartaBadSession, token_from_url
+from .util import CartaBadSession
 from .client import Session
+from .protocol import Protocol
+from .token import BackendToken
 
 
 class Backend:
@@ -28,7 +30,7 @@ class Backend:
         The path to the backend executable. Default: ``"carta"``.
     remote_host : string
         If this is set, an attempt will be made to start the backend over ``ssh`` on this host.
-    token : string
+    token : :obj:`carta.token.BackendToken`
         If this is set, this will be used as the security token and no attempt will be made to parse the token from the backend output.
     
     Attributes
@@ -37,7 +39,7 @@ class Backend:
         The backend subprocess object. Set by the :obj:`carta.browser.Backend.start` method.
     frontend_url : string
         The URL of the running frontend, parsed from the output of the backend process. Set by the :obj:`carta.browser.Backend.start` method.
-    token : string
+    token : :obj:`carta.token.BackendToken`
         The security token of the running backend, either parsed from the output of the backend process and set by the :obj:`carta.browser.Backend.start` method, or overridden with a parameter.
     debug_no_auth : boolean
         If this is set, the backend will accept HTTP connections with no authentication token. This is provided for debugging purposes only and should not be used under normal circumstances. This value is automatically detected from the provided backend parameters.
@@ -95,11 +97,11 @@ class Backend:
         for line in self.output:
             m = frontend_url_re.search(line)
             if m:
-                self.frontend_url, token = m.groups()
+                self.frontend_url, token_string = m.groups()
                 break
         
         if self.token is None and not self.debug_no_auth:
-            self.token = token
+            self.token = BackendToken(token_string)
         
         return True
     
@@ -134,7 +136,7 @@ class Browser:
     def __init__(self, driver_class, **kwargs):
         self.driver = driver_class(**kwargs)
     
-    def new_session_from_url(self, frontend_url, token, cookie=None, backend=None, timeout=10, debug_no_auth=False):
+    def new_session_from_url(self, frontend_url, token=None, backend=None, timeout=10, debug_no_auth=False):
         """Create a new session by connecting to an existing backend.
         
         You can use :obj:`carta.client.Session.create`, which wraps this method.
@@ -143,10 +145,8 @@ class Browser:
         ----------
         frontend_url : string
             The URL of the frontend.
-        token : string
-            The security token used by the backend.
-        cookie : string
-            The path to a cookie file. Required for authenticating with a controller instance to create the session.
+        token : :obj:`carta.token.Token`, optional
+            The security token used by the CARTA instance. May be omitted if the URL contains a token.
         backend : :obj:`carta.browser.Backend`
             The backend object associated with this session, if any. This is set if this method is called from :obj:`carta.browser.Browser.new_session_with_backend`.
         timeout : number, optional
@@ -161,19 +161,20 @@ class Browser:
             
         Raises
         ------
+        CartaBadToken
+            If an invalid token was provided.
+        CartaBadUrl
+            If an invalid URL was provided.
         CartaBadSession
             If the session object could not be created.
         """
-        
-        # TODO TODO TODO use cookie if it exists
-        
-        if token is None:
-            token = token_from_url(frontend_url)
-            
-        if token is None:
-            self.exit("No token parameter was provided, and no token could be parsed from the URL.")
                 
-        self.driver.get(frontend_url)
+        protocol = Protocol(frontend_url, token, debug_no_auth=debug_no_auth)
+        
+        if protocol.controller_auth:
+            self.driver.add_cookie(protocol.cookie())
+                
+        self.driver.get(protocol.frontend_url)
         
         session_id = None
         
@@ -195,7 +196,7 @@ class Browser:
         if session_id is None:
             self.exit(f"Could not parse session ID from frontend. Last error: {last_error}")
         
-        return Session(frontend_url, session_id, token, browser=self, backend=backend, debug_no_auth=debug_no_auth)
+        return Session(session_id, protocol, browser=self, backend=backend)
     
     def new_session_with_backend(self, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None):
         """Create a new session after launching a new backend process.
@@ -212,7 +213,7 @@ class Browser:
             Additional parameters to be passed to the backend process. By default scripting is enabled and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
         timeout : number, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
-        token : string, optional
+        token : :obj:`carta.token.BackendToken`, optional
             The security token to use. Parsed from the backend output by default.
             
         Returns
@@ -222,6 +223,10 @@ class Browser:
             
         Raises
         ------
+        CartaBadToken
+            If an invalid token was provided.
+        CartaBadUrl
+            If an invalid URL was provided.
         CartaBadSession
             If the session object could not be created.
         """
@@ -233,7 +238,7 @@ class Browser:
         if backend.frontend_url is None:
             self.exit("Could not parse CARTA frontend URL from backend output.")
             
-        return self.new_session_from_url(backend.frontend_url, backend.token, cookie=None, backend=backend, timeout=timeout, debug_no_auth=debug_no_auth)
+        return self.new_session_from_url(backend.frontend_url, backend.token, backend=backend, timeout=timeout, debug_no_auth=backend.debug_no_auth)
         
     def exit(self, msg):
         self.close()

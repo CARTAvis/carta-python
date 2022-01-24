@@ -3,7 +3,6 @@
 import logging
 import json
 import functools
-import re
 
 logger = logging.getLogger("carta_scripting")
 logger.setLevel(logging.WARN)
@@ -32,6 +31,14 @@ class CartaActionFailed(CartaScriptingException):
 
 class CartaBadResponse(CartaScriptingException):
     """An exception for unexpected responses."""
+    pass
+
+class CartaBadToken(CartaScriptingException):
+    """An exception for expired and invalid tokens"""
+    pass
+
+class CartaBadUrl(CartaScriptingException):
+    """An exception for invalid URLs"""
     pass
 
 
@@ -93,8 +100,8 @@ def cached(func):
     return newfunc
 
 
-def token_from_url(url):
-    m = re.match(".*\?token=(.*)", url)
-    if m:
-        return m.group(1)
-    return None
+def split_action_path(path):
+    """Extracts a path to a frontend object store and an action from a combined path.
+    """
+    parts = path.split('.')
+    return '.'.join(parts[:-1]), parts[-1]

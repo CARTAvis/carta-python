@@ -8,59 +8,42 @@ Alternatively, the user can create a new session which runs in a headless browse
 Image objects should not be instantiated directly, and should only be created through methods on the session object.
 """
 
-import json
 import posixpath
 import base64
-import requests
 
 from .constants import Colormap, Scaling, CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, SmoothingMode, ContourDashMode
-from .util import logger, CartaBadSession, CartaActionFailed, CartaBadResponse, Macro, CartaEncoder, cached, token_from_url
+from .protocol import Protocol
+from .util import logger, Macro, cached, split_action_path, CartaScriptingException
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, OneOf, Evaluate, Attr
-    
-# TODO: profiles -- need to wait for refactoring to make tsv and png profiles accessible
-# TODO: histograms -- also need access to urls for exporting histograms
-# TODO: preferences -- generic get and set for now
-# TODO: regions
 
+# TODO split Session and Image into two files!
 class Session:
     """This object corresponds to a CARTA frontend session.
     
     This class provides the core generic method for calling actions on the frontend (through the backend), as well as convenience methods which wrap this generic method and provide a more intuitive and user-friendly interface to frontend functionality associated with the session as a whole.
     
+    This class should not be instantiated directly. Three class methods are provided for creating different types of sessions with all the appropriate parameters set: :obj:`carta.client.Session.interact` for interacting with an existing CARTA session open in the user's browser, :obj:`carta.client.Session.create` for creating a new CARTA session in a headless browser by connecting to an existing CARTA backend or controller instance, and :obj:`carta.client.Session.start_and_create` for starting a new backend instance and then connecting to it to create a new session in a headless browser.
+    
     The session object can be used to create image objects, which provide analogous convenience methods for functionality associated with individual images.
     
     Parameters
     ----------
-    frontend_url : string
-        The frontend URL of the CARTA instance.
     session_id : integer
-        The ID of an existing CARTA frontend session.
-    token : string
-        The security token used by the CARTA instance.
+        The ID of the CARTA frontend session associated with this object. This is set automatically when a new session is created with :obj:`carta.client.Session.create` or :obj:`carta.client.Session.start_and_create`.
+    protocol : :obj:`carta.protocol.Protocol`
+        The protocol object which handles HTTP communication with the CARTA scripting API. This is created automatically when a new session is created with one of the three class methods for creating sessions.
     browser : :obj:`carta.browser.Browser`
-        The browser object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.connect` or :obj:`carta.client.Session.new`.
+        The browser object associated with this session. This is created automatically when a new session is created with :obj:`carta.client.Session.create` or :obj:`carta.client.Session.start_and_create`.
     backend : :obj:`carta.browser.Backend`
-        The backend object associated with this session. This is set automatically when a new session is created with :obj:`carta.client.Session.new`.
+        The backend object associated with this session. This is created automatically when a new session is created with :obj:`carta.client.Session.start_and_create`.
     debug_no_auth : boolean
         This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
-    
-    Attributes
-    ----------
-    uri : string
-        The URI of the CARTA scripting interface, constructed from the base frontend URL.
-    session_id : integer
-        The ID of the CARTA frontend session associated with this object.
-    token : string
-        The security token used by the CARTA instance.
     """
-    def __init__(self, frontend_url, session_id, token, browser=None, backend=None, debug_no_auth=False):
-        self.uri = f"{frontend_url}/api/scripting/action"
+    def __init__(self, session_id, protocol, browser=None, backend=None):
         self.session_id = session_id
-        self.token = token
-        
+        self._protocol = protocol
         self._browser = browser
         self._backend = backend
-        self._debug_no_auth = debug_no_auth
         
         # This is a local point of reference for paths, and may not be in sync with the frontend's starting directory
         self._pwd = None
@@ -78,9 +61,9 @@ class Session:
             The frontend URL of the CARTA instance.
         session_id : integer
             The ID of an existing CARTA frontend session.
-        token : string
+        token : :obj:`carta.token.Token`, optional
             The security token used by the CARTA instance. You may omit this if the URL contains a token.
-        debug_no_auth : boolean
+        debug_no_auth : boolean, optional
             Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
             
         Returns
@@ -90,19 +73,17 @@ class Session:
             
         Raises
         ------
+        CartaBadToken
+            If an invalid token was provided.
+        CartaBadUrl
+            If an invalid URL was provided.
         CartaBadSession
             If the session object could not be created.
         """
-        if token is None:
-            token = token_from_url(frontend_url)
-            
-        if token is None:
-            raise CartaBadSession("No token parameter was provided, and no token could be parsed from the URL.")
-        
-        return cls(frontend_url, session_id, token, debug_no_auth=debug_no_auth)
+        return cls(session_id, Protocol(frontend_url, token, debug_no_auth=debug_no_auth))
     
     @classmethod
-    def create(cls, browser, frontend_url, token=None, cookie=None, timeout=10, debug_no_auth=False):
+    def create(cls, browser, frontend_url, token=None, timeout=10, debug_no_auth=False):
         """Connect to an existing CARTA backend or CARTA controller instance and create a new session.
         
         Parameters
@@ -111,14 +92,12 @@ class Session:
             The browser to use to open the frontend.
         frontend_url : string
             The frontend URL of the CARTA instance.
-        token : string
+        token : :obj:`carta.token.Token`, optional
             The security token used by the CARTA instance. You may omit this if the URL contains a token.
-        cookie : string
-            The path to a cookie file. Required for authenticating with a controller instance to create the session.
-        timeout : integer
+        timeout : integer, optional
             The number of seconds to spend retrying parsing connection information from the frontend (default: 10).
-        debug_no_auth : boolean
-            Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
+        debug_no_auth : boolean, optional
+            Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
             
         Returns
         -------
@@ -127,14 +106,18 @@ class Session:
             
         Raises
         ------
+        CartaBadToken
+            If an invalid token was provided.
+        CartaBadUrl
+            If an invalid URL was provided.
         CartaBadSession
             If the session object could not be created.
         """
-        return browser.new_session_from_url(frontend_url, token, cookie, backend=None, timeout=timeout, debug_no_auth=debug_no_auth)
+        return browser.new_session_from_url(frontend_url, token, backend=None, timeout=timeout, debug_no_auth=debug_no_auth)
     
     @classmethod
     def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None):
-        """Launch a new CARTA backend instance and create a new session.
+        """Start a new CARTA backend instance and create a new session. This method cannot be used with a CARTA controller instance (which already starts and stops backend instances for the user on demand).
         
         Parameters
         ----------
@@ -148,7 +131,7 @@ class Session:
             Additional parameters to be passed to the backend process. By default scripting is enabled and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
         timeout : integer, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
-        token : string, optional
+        token : :obj:`carta.token.Token`, optional
             The security token to use. Parsed from the backend output by default.
             
         Returns
@@ -158,31 +141,17 @@ class Session:
             
         Raises
         ------
+        CartaBadToken
+            If an invalid token was provided.
+        CartaBadUrl
+            If an invalid URL was provided.
         CartaBadSession
             If the session object could not be created.
         """
         return browser.new_session_with_backend(executable_path, remote_host, params, timeout, token)
         
     def __repr__(self):
-        return f"Session(session_id={self.session_id}, uri={self.uri})"
-    
-    def split_path(self, path):
-        """Extract a path to a frontend object store and an action from a combined path.
-        
-        Parameters
-        ----------
-        path : string
-            A dot-separated path to an action on a frontend object store.
-            
-        Returns
-        -------
-        string
-            The dot-separated path to the object store.
-        string
-            The name of the action.
-        """
-        parts = path.split('.')
-        return '.'.join(parts[:-1]), parts[-1]
+        return f"Session(session_id={self.session_id}, uri={self._protocol.frontend_url})"
         
     def call_action(self, path, *args, **kwargs):
         """Call an action on the frontend through the backend's scripting interface.
@@ -210,58 +179,11 @@ class Session:
         CartaBadResponse    
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
-        response_expected = kwargs.pop("response_expected", False)
-        path, action = self.split_path(path)
-        
-        logger.debug(f"Sending action request to backend; path: {path}; action: {action}; args: {args}, kwargs: {kwargs}")
-        
-        request_kwargs = {
-                "session_id": self.session_id,
-                "path": path,
-                "action": action,
-                "parameters": args,
-                "async": kwargs.get("async", False),
-            }
-
-        if "return_path" in kwargs:
-            request_kwargs["return_path"] = kwargs["return_path"]
-        
-        # TODO does this work? do we need to convert to bytes explicitly?
-        request_data = json.dumps(request_kwargs, cls=CartaEncoder)
-        
-        carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {args}"
-        
         try:
-
-            headers = {}
-            if not self._debug_no_auth:
-                headers["Authorization"] = f"Bearer: {self.token}"
-            
-            response = requests.post(url=self.uri, data=request_data, headers=headers)
-            
-        except requests.exceptions.RequestException as e:
+            self._protocol.request_scripting_action(self.session_id, path, args, kwargs)
+        except CartaScriptingException:
             self.close()
-            raise CartaActionFailed(f"{carta_action_description} failed: {e.details()}") from e
-        
-        try:
-            response_data = response.json()
-        except json.decoder.JSONDecodeError as e:
-            self.close()
-            raise CartaBadResponse(f"{carta_action_description} received a response which could not be decoded.\nError: {e}") from e
-        
-        logger.debug(f"Got success status: {response_data.success}; message: {response_data.message}; response: {response_data.response}")
-        
-        if not response_data.success:
-            self.close()
-            raise CartaActionFailed(f"{carta_action_description} failed: {response_data.message}")
-        
-        if response_data.response == '':
-            if response_expected:
-                self.close()
-                raise CartaBadResponse(f"{carta_action_description} expected a response, but did not receive one.")
-            return None
-
-        return response_data
+            raise
 
     def get_value(self, path):
         """Get the value of an attribute from a frontend store.
@@ -278,7 +200,7 @@ class Session:
         object
             The value of the attribute, deserialized from a JSON string.
         """
-        path, parameter = self.split_path(path)
+        path, parameter = split_action_path(path)
         macro = Macro(path, parameter)
         return self.call_action("fetchParameter", macro, response_expected=True)
     

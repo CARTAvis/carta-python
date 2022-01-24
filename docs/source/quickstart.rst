@@ -23,45 +23,81 @@ If you want to create browser sessions from the wrapper, you also need to make s
 Connecting to an existing session
 ---------------------------------
 
-Use this option if you want to use scripting to control a CARTA session which you already have open in your browser.
+Use the ``interact`` method if you want to use scripting to control a CARTA session which you already have open in your browser.
 
 .. code-block:: python
     
     from carta.client import Session
+    from carta.token import BackendToken
 
-    session = Session.interact("FRONTEND URL", 1, "SECURITY TOKEN")
+    session = Session.interact("FRONTEND URL", 1, BackendToken("SECURITY TOKEN"))
 
-The frontend URL and security token values must match your running backend process. For simplicity you have the option of using an environment variable, ``CARTA_AUTH_TOKEN``, to run CARTA with a fixed security token. Otherwise, a randomly generated token will be printed by the backend when it starts. The session ID must match the running frontend session -- you can find it by mousing over the status indicator at the top right of the CARTA window in your browser.
+If you have launched a backend directly, the frontend URL and security token must match your running backend process. You have the option of using an environment variable, ``CARTA_AUTH_TOKEN``, to run CARTA with a fixed security token. Otherwise, a randomly generated token will be printed by the backend when it starts. If you include the security token in the URL, you may omit the security token parameter (it will be parsed from the URL automatically).
+
+To connect to a controller instance, you must authenticate to obtain a controller security token. We recommend using the helper functions provided to save the token to a file and load it from a file. You may also be able to copy this token from an existing browser cookie. This is a long-lived refresh token which will be used automatically to obtain access tokens from the controller as required. You will only have to authenticate again when the long-lived token expires. Token lifetime is configured by the host of the controller.
+
+.. code-block:: python
+    
+    from carta.client import Session
+    from carta.protocol import Protocol
+    from carta.token import ControllerToken
+    
+    # Get a refresh token from the controller -- you only have to do this when the token expires
+    # You will be prompted securely for a password
+    # We recommend not automating this in a way that reveals the password!
+    Protocol.request_refresh_token("FRONTEND URL", "USERNAME", "path/to/token")
+
+    session = Session.interact("FRONTEND URL", 1, ControllerToken.from_file("path/to/token"))
+
+The session ID must match the running frontend session -- you can find it by mousing over the status indicator at the top right of the CARTA window in your browser.
 
 Creating a new session
 ----------------------
 
-Use these options if you want to write a non-interactive script which starts a new session in a headless browser (and optionally also a new backend process), performs a series of actions, and saves output, with no input from you.
+Use the ``create`` method if you want to write a non-interactive script which starts a new session in a headless browser, performs a series of actions, and saves output, with no input from you.
 
 The wrapper automatically parses the session ID from the frontend. If the wrapper also starts the backend process, it parses the frontend URL from the backend output. If you want to connect to an existing backend process, you must provide the frontend URL and the security token.
 
 The wrapper can start a backend process on a remote host if your Unix user has the appropriate permissions to ssh to the remote host without entering a password.
 
-To connect to a controller instance, you must obtain a security token for scripting requests from the controller dashboard. Creating the session requires additional authentication. A helper function is provided to assist you in logging into the controller instance and obtaining a long-lived cookie which you can save and use when creating a session. (TODO: actually implement this) 
-
-These commands are further customisable with optional parameters. See the API reference for more information.
-
 .. code-block:: python
     
     from carta.client import Session
+    from carta.token import BackendToken
     from carta.browser import ChromeHeadless
 
     # New session, connect to an existing backend
-    session = Session.create(ChromeHeadless(), "FRONTEND URL", "SECURITY TOKEN")
+    session = Session.create(ChromeHeadless(), "FRONTEND URL", BackendToken("SECURITY TOKEN"))
 
     # New session, start local backend
     session = Session.start_and_create(ChromeHeadless())
 
     # New session, start remote backend
     session = Session.start_and_create(ChromeHeadless(), remote_host="REMOTE HOSTNAME OR IP")
+
+To connect to a controller instance, you must authenticate (synchronously) to obtain a controller security token. We recommend using the helper functions provided to save the token to a file and to load it from a file when you use it.
+
+.. code-block:: python
+
+    from carta.protocol import Protocol
+
+    # Get a refresh token from the controller -- you only have to do this when the token expires
+    # You will be prompted securely for a password
+    # We recommend not automating this in a way that reveals the password!
+    Protocol.request_refresh_token("FRONTEND URL", "USERNAME", "path/to/token")
     
-    # New session, connect to an existing controller (a cookie is needed for authentication)
-    session = Session.create(ChromeHeadless(), "FRONTEND URL", "SECURITY TOKEN", "path/to/cookie/file")
+This is a long-lived refresh token which will be used automatically to obtain access tokens from the controller as required. You will only have to authenticate again when the long-lived token expires. Token lifetime is configured by the host of the controller. 
+
+.. code-block:: python
+
+    from carta.client import Session
+    from carta.browser import ChromeHeadless
+    from carta.token import ControllerToken
+    
+    # New session, connect to an existing controller
+    session = Session.create(ChromeHeadless(), "FRONTEND URL", ControllerToken.from_file("path/to/token"))
+    
+These commands are further customisable with optional parameters. See the API reference for more information.
 
 Opening and appending images
 ----------------------------
