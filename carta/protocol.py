@@ -99,8 +99,8 @@ class Protocol:
     def request_scripting_token(self):
         # TODO test and add error handling
         self.check_refresh_token()
-        payload = {"token": self.refresh_token.string} # TODO what is this actually supposed to be???
-        response = requests.post(url=self.frontend_url + self.SCRIPTING_TOKEN_PATH, data=payload)
+        cookie = self.refresh_token.as_cookie()
+        response = requests.post(url=self.frontend_url + self.SCRIPTING_TOKEN_PATH, cookies={cookie["name"]: cookie["value"]})
         self.scripting_token = ControllerToken(response["token"]) # TODO what is this actually supposed to be???
 
     def request_scripting_action(self, session_id, path, *args, **kwargs):
@@ -110,12 +110,12 @@ class Protocol:
         logger.debug(f"Sending action request to backend; path: {path}; action: {action}; args: {args}, kwargs: {kwargs}")
         
         request_kwargs = {
-                "session_id": session_id,
-                "path": path,
-                "action": action,
-                "parameters": args,
-                "async": kwargs.get("async", False),
-            }
+            "session_id": session_id,
+            "path": path,
+            "action": action,
+            "parameters": args,
+            "async": kwargs.get("async", False),
+        }
 
         if "return_path" in kwargs:
             request_kwargs["return_path"] = kwargs["return_path"]

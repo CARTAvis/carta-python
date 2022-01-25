@@ -94,13 +94,14 @@ class ControllerToken(Token):
         if not self.refresh:
             raise CartaBadToken("Cannot convert a scripting token to a cookie. Refresh token expected.")
         
+        # TODO we probably don't need most of these fields at all
         return {
             "name": "Refresh-Token",
             "value": self.string,
-            "path": "/api/auth/refresh",
+            #"path": "/api/auth/refresh",
             "domain": domain,
-            "expires": self.expires.timestamp(),
-            "secure": True,
-            "httpOnly": True,
-            "sameSite": "Strict",
+            #"expires": self.expires.timestamp(),
+            #"secure": True,
+            #"httpOnly": True,
+            #"sameSite": "Strict",
         }
