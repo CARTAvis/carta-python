@@ -1,4 +1,4 @@
-examples/.ipynb_checkpoints/
-examples/geckodriver.log
 docs/build
 __pycache__
+build
+carta.egg-info
