@@ -180,7 +180,7 @@ class Session:
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
         try:
-            self._protocol.request_scripting_action(self.session_id, path, args, kwargs)
+            self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
         except CartaScriptingException:
             self.close()
             raise

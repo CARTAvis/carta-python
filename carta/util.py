@@ -15,30 +15,42 @@ class CartaScriptingException(Exception):
 
 
 class CartaBadSession(CartaScriptingException):
-    """An exception for invalid session specifications."""
+    """A session could not be constructed."""
+    pass
+
+
+class CartaBadToken(CartaScriptingException):
+    """A token has expired or is invalid."""
+    pass
+
+
+class CartaBadUrl(CartaScriptingException):
+    """An URL is invalid."""
     pass
 
 
 class CartaValidationFailed(CartaScriptingException):
-    """An exception for parameter validation errors."""
+    """Invalid parameters were passed to a function with a :obj:`carta.validation.validate` decorator."""
+    pass
+
+
+class CartaBadRequest(CartaScriptingException):
+    """A request sent to the CARTA backend was rejected."""
+    pass
+
+
+class CartaRequestFailed(CartaScriptingException):
+    """A request received a failure response from the CARTA backend."""
     pass
 
 
 class CartaActionFailed(CartaScriptingException):
-    """An exception for action failures."""
+    """An action request received a failure response from the CARTA frontend."""
     pass
 
 
 class CartaBadResponse(CartaScriptingException):
-    """An exception for unexpected responses."""
-    pass
-
-class CartaBadToken(CartaScriptingException):
-    """An exception for expired and invalid tokens"""
-    pass
-
-class CartaBadUrl(CartaScriptingException):
-    """An exception for invalid URLs"""
+    """An action request received an unexpected response from the CARTA frontend."""
     pass
 
 

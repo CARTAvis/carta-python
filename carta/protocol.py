@@ -3,11 +3,12 @@
 import getpass
 
 import requests
+import simplejson
 import urllib
 import json
 
 from .token import BackendToken, ControllerToken
-from .util import logger, CartaActionFailed, CartaBadResponse, CartaBadToken, CartaBadUrl, CartaEncoder, split_action_path
+from .util import logger, CartaBadRequest, CartaRequestFailed, CartaActionFailed, CartaBadResponse, CartaBadToken, CartaBadUrl, CartaEncoder, split_action_path
 
 class AuthType:
     BACKEND, CONTROLLER, NONE = 0, 1, 2
@@ -42,7 +43,7 @@ class Protocol:
             else:
                 raise CartaBadToken("Unrecognised token.")
         
-        self.frontend_url = frontend_url
+        self.frontend_url = frontend_url.rstrip("/")
     
     @classmethod
     def request_refresh_token(cls, frontend_url, username, path=None):
@@ -120,29 +121,30 @@ class Protocol:
         if "return_path" in kwargs:
             request_kwargs["return_path"] = kwargs["return_path"]
         
-        # TODO does this work? do we need to convert to bytes explicitly?
         request_data = json.dumps(request_kwargs, cls=CartaEncoder)
         
         carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {args}"
-        
         
         headers = {}
         if self.controller_auth:
             if not self.scripting_token.valid():
                 self.check_refresh_token()
                 self.request_scripting_token()
-            headers["Authorization"] = f"Bearer: {self.scripting_token.string}"
+            headers["Authorization"] = f"Bearer {self.scripting_token.string}"
         elif self.backend_auth:
-            headers["Authorization"] = f"Bearer: {self.backend_token.string}"
+            headers["Authorization"] = f"Bearer {self.backend_token.string}"
         
         try:
             response = requests.post(url=self.frontend_url + self.ACTION_PATH, data=request_data, headers=headers)
         except requests.exceptions.RequestException as e:
-            raise CartaActionFailed(f"{carta_action_description} failed: {e.details()}") from e
+            raise CartaBadRequest(f"{carta_action_description} failed: {e}") from e
         
+        if response.status_code != 200:
+            raise CartaRequestFailed(f"{carta_action_description} failed with status {response.status_code}.")
+                
         try:
             response_data = response.json()
-        except json.decoder.JSONDecodeError as e:
+        except simplejson.errors.JSONDecodeError as e:
             raise CartaBadResponse(f"{carta_action_description} received a response which could not be decoded.\nError: {e}") from e
         
         logger.debug(f"Got success status: {response_data.success}; message: {response_data.message}; response: {response_data.response}")
