@@ -25,12 +25,9 @@ class Protocol:
             if isinstance(token, ControllerToken):
                 if token.scripting:
                     raise CartaBadToken("A long-lived controller refresh token was expected, but a short-lived controller scripting token was provided.")
-                
-                if not token.valid():
-                    raise CartaBadToken("Long-lived controller token has expired. Please use `Protocol.request_refresh_token` to log in and save a new token.")
-                
                 self.auth = AuthType.CONTROLLER
                 self.refresh_token = token
+                self.check_refresh_token()
                 self.request_scripting_token()
             elif isinstance(token, BackendToken):
                 self.auth = AuthType.BACKEND
@@ -94,9 +91,14 @@ class Protocol:
     
     def cookie(self):
         return self.refresh_token.as_cookie(self.domain)
+    
+    def check_refresh_token(self):
+        if not self.refresh_token.valid():
+            raise CartaBadToken("Long-lived controller token has expired. Please use `Protocol.request_refresh_token` to log in and save a new token.")
 
     def request_scripting_token(self):
         # TODO test and add error handling
+        self.check_refresh_token()
         payload = {"token": self.refresh_token.string} # TODO what is this actually supposed to be???
         response = requests.post(url=self.frontend_url + self.SCRIPTING_TOKEN_PATH, data=payload)
         self.scripting_token = ControllerToken(response["token"]) # TODO what is this actually supposed to be???
@@ -127,6 +129,7 @@ class Protocol:
         headers = {}
         if self.controller_auth:
             if not self.scripting_token.valid():
+                self.check_refresh_token()
                 self.request_scripting_token()
             headers["Authorization"] = f"Bearer: {self.scripting_token.string}"
         elif self.backend_auth:
