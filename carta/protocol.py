@@ -105,6 +105,7 @@ class Protocol:
         self.scripting_token = ControllerToken(response["token"]) # TODO what is this actually supposed to be???
 
     def request_scripting_action(self, session_id, path, *args, **kwargs):
+        timeout = kwargs.pop("timeout", 10)
         response_expected = kwargs.pop("response_expected", False)
         path, action = split_action_path(path)
         
@@ -120,9 +121,10 @@ class Protocol:
 
         if "return_path" in kwargs:
             request_kwargs["return_path"] = kwargs["return_path"]
+            response_expected = True
         
         request_data = json.dumps(request_kwargs, cls=CartaEncoder)
-        
+                
         carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {args}"
         
         headers = {}
@@ -135,10 +137,10 @@ class Protocol:
             headers["Authorization"] = f"Bearer {self.backend_token.string}"
         
         try:
-            response = requests.post(url=self.frontend_url + self.ACTION_PATH, data=request_data, headers=headers)
+            response = requests.post(url=self.frontend_url + self.ACTION_PATH, data=request_data, headers=headers, timeout=timeout)
         except requests.exceptions.RequestException as e:
             raise CartaBadRequest(f"{carta_action_description} failed: {e}") from e
-        
+                
         if response.status_code != 200:
             raise CartaRequestFailed(f"{carta_action_description} failed with status {response.status_code}.")
                 
@@ -147,14 +149,14 @@ class Protocol:
         except simplejson.errors.JSONDecodeError as e:
             raise CartaBadResponse(f"{carta_action_description} received a response which could not be decoded.\nError: {e}") from e
         
-        logger.debug(f"Got success status: {response_data.success}; message: {response_data.message}; response: {response_data.response}")
+        logger.debug(f"Got response: {response_data}")
         
-        if not response_data.success:
-            raise CartaActionFailed(f"{carta_action_description} failed: {response_data.message}")
+        if not response_data['success']:
+            raise CartaActionFailed(f"{carta_action_description} failed: {response_data.get('message', 'No error message received.')}")
         
-        if response_data.response == '':
+        if 'response' not in response_data:
             if response_expected:
                 raise CartaBadResponse(f"{carta_action_description} expected a response, but did not receive one.")
             return None
 
-        return response_data
+        return response_data['response']

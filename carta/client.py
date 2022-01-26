@@ -165,7 +165,7 @@ class Session:
         *args
             A variable-length list of parameters to pass to the action. :obj:`carta.util.Macro` objects may be used to refer to frontend objects which will be evaluated dynamically. This parameter list will be serialized into a JSON string with :obj:`carta.util.CartaEncoder`.
         **kwargs
-            Arbitrary keyword arguments. At present only three are used: *async* (boolean) is passed to indicate that an action is asynchronous (but this currently has no effect). *response_expected* (boolean) indicates that the action should return a JSON object. *return_path* specifies a subobject of the action's response which should be returned instead of the whole response.
+            Arbitrary keyword arguments. At present only three are used: *async* (boolean) is passed to indicate that the request should return a response as soon as the action is called, without waiting for the action to complete. *response_expected* (boolean) indicates that the action should return a JSON object. This is set automatically if *return_path* is set. *return_path* specifies a subobject of the action's response which should be returned instead of the whole response. *timeout* (boolean) is the maximum time in seconds to wait for an action request to complete (the default is 10).
         
         Returns
         -------
@@ -180,7 +180,7 @@ class Session:
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
         try:
-            self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
+            return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
         except CartaScriptingException:
             self.close()
             raise
