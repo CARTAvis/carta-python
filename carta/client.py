@@ -252,7 +252,7 @@ class Session:
         if "files" in file_list:
             items.extend([f["name"] for f in file_list["files"]])
         if "subdirectories" in file_list:
-            items.extend([f"{d}/" for d in file_list["subdirectories"]])
+            items.extend([f"{d['name']}/" for d in file_list["subdirectories"]])
         return sorted(items)
     
     def cd(self, path):
