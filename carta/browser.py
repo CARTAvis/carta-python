@@ -173,7 +173,7 @@ class Browser:
         
         if protocol.controller_auth:
             self.driver.add_cookie(protocol.cookie())
-                
+
         self.driver.get(protocol.frontend_url)
         
         session_id = None
@@ -181,7 +181,8 @@ class Browser:
         start = time.time()
         last_error = ""
         
-        while (session_id is None):
+        # Keep trying until the displayed ID is not 0
+        while not session_id:
             if time.time() - start > timeout:
                 break
             
@@ -193,9 +194,9 @@ class Browser:
                 time.sleep(1)
                 continue # retry
         
-        if session_id is None:
+        if not session_id:
             self.exit(f"Could not parse session ID from frontend. Last error: {last_error}")
-        
+                
         return Session(session_id, protocol, browser=self, backend=backend)
     
     def new_session_with_backend(self, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None):

@@ -56,7 +56,7 @@ Creating a new session
 
 Use the ``create`` method if you want to write a non-interactive script which starts a new session in a headless browser, performs a series of actions, and saves output, with no input from you.
 
-The wrapper automatically parses the session ID from the frontend. If the wrapper also starts the backend process, it parses the frontend URL from the backend output. If you want to connect to an existing backend process, you must provide the frontend URL and the security token.
+The wrapper automatically parses the session ID from the frontend. If the wrapper also starts the backend process, it parses the frontend URL from the backend output. If you want to connect to an existing backend process, you must provide the frontend URL and the security token. You may omit the token if it is included in the URL.
 
 The wrapper can start a backend process on a remote host if your Unix user has the appropriate permissions to ssh to the remote host without entering a password.
 

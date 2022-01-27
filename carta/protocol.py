@@ -20,6 +20,9 @@ class Protocol:
     SCRIPTING_TOKEN_PATH = "/api/auth/scripting"
     
     def __init__(self, frontend_url, token=None, debug_no_auth=False):
+        self.frontend_url = frontend_url
+        self.base_url, token_from_url = self.split_token_from_url(frontend_url)
+        
         if debug_no_auth:
             self.auth = AuthType.NONE
         else:
@@ -34,16 +37,12 @@ class Protocol:
                 self.auth = AuthType.BACKEND
                 self.backend_token = token
             elif token is None:
-                try:
-                    frontend_url, token = self.split_token_from_url(frontend_url)
-                except CartaBadUrl:
+                if token_from_url is None:
                     raise CartaBadToken("No token was provided, and no token could be parsed from the frontend URL.")
                 self.auth = AuthType.BACKEND
-                self.backend_token = token
+                self.backend_token = token_from_url
             else:
                 raise CartaBadToken("Unrecognised token.")
-        
-        self.frontend_url = frontend_url.rstrip("/")
     
     @classmethod
     def request_refresh_token(cls, frontend_url, username, path=None):
@@ -51,7 +50,7 @@ class Protocol:
         password = getpass.getpass(f"Please enter the CARTA password for user {username}: ")
         payload = {"username": username, "password": password}
         
-        response = requests.post(url=frontend_url + cls.REFRESH_TOKEN_PATH, data=payload)
+        response = requests.post(url=frontend_url.rstrip("/") + cls.REFRESH_TOKEN_PATH, data=payload)
         
         token = ControllerToken(response["token"]) # TODO what is this actually supposed to be???
         
@@ -65,9 +64,14 @@ class Protocol:
         parsed_url = urllib.parse.urlparse(url)
         parsed_query = urllib.parse.parse_qs(parsed_url.query)
         
+        base_url = parsed_url._replace(query='').geturl().rstrip("/")
+        
         if "token" not in parsed_query:
-            raise CartaBadUrl(f"Could not parse URL and token from URL string '{url}'")
-        return parsed_url._replace(query='').geturl(), BackendToken(parsed_query["token"][0])
+            token = None
+        else:
+            token = BackendToken(parsed_query["token"][0])
+            
+        return base_url, token
     
     @property
     def domain(self):
@@ -101,7 +105,7 @@ class Protocol:
         # TODO test and add error handling
         self.check_refresh_token()
         cookie = self.refresh_token.as_cookie()
-        response = requests.post(url=self.frontend_url + self.SCRIPTING_TOKEN_PATH, cookies={cookie["name"]: cookie["value"]})
+        response = requests.post(url=self.base_url + self.SCRIPTING_TOKEN_PATH, cookies={cookie["name"]: cookie["value"]})
         self.scripting_token = ControllerToken(response["token"]) # TODO what is this actually supposed to be???
 
     def request_scripting_action(self, session_id, path, *args, **kwargs):
@@ -137,12 +141,20 @@ class Protocol:
             headers["Authorization"] = f"Bearer {self.backend_token.string}"
         
         try:
-            response = requests.post(url=self.frontend_url + self.ACTION_PATH, data=request_data, headers=headers, timeout=timeout)
+            response = requests.post(url=self.base_url + self.ACTION_PATH, data=request_data, headers=headers, timeout=timeout)
         except requests.exceptions.RequestException as e:
             raise CartaBadRequest(f"{carta_action_description} failed: {e}") from e
                 
+        known_errors = {
+            400: "The backend could not parse the request.",
+            403: "Could not authenticate.",
+            404: f"No session with ID {session_id} could be found.",
+            500: "An internal error occurred, or the client cancelled the request.",
+        }
+        
         if response.status_code != 200:
-            raise CartaRequestFailed(f"{carta_action_description} failed with status {response.status_code}.")
+            backend_message = known_errors.get(response.status_code, "Unknown error.")
+            raise CartaRequestFailed(f"{carta_action_description} failed with status {response.status_code}. {backend_message}")
                 
         try:
             response_data = response.json()
