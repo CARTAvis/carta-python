@@ -64,16 +64,16 @@ The wrapper can start a backend process on a remote host if your Unix user has t
     
     from carta.client import Session
     from carta.token import BackendToken
-    from carta.browser import ChromeHeadless
+    from carta.browser import Chrome
 
     # New session, connect to an existing backend
-    session = Session.create(ChromeHeadless(), "FRONTEND URL", BackendToken("SECURITY TOKEN"))
+    session = Session.create(Chrome(), "FRONTEND URL", BackendToken("SECURITY TOKEN"))
 
     # New session, start local backend
-    session = Session.start_and_create(ChromeHeadless())
+    session = Session.start_and_create(Chrome())
 
     # New session, start remote backend
-    session = Session.start_and_create(ChromeHeadless(), remote_host="REMOTE HOSTNAME OR IP")
+    session = Session.start_and_create(Chrome(), remote_host="REMOTE HOSTNAME OR IP")
 
 To connect to a controller instance, you must authenticate (synchronously) to obtain a controller security token. We recommend using the helper functions provided to save the token to a file and to load it from a file when you use it.
 
@@ -91,11 +91,11 @@ This is a long-lived refresh token which will be used automatically to obtain ac
 .. code-block:: python
 
     from carta.client import Session
-    from carta.browser import ChromeHeadless
+    from carta.browser import Chrome
     from carta.token import ControllerToken
     
     # New session, connect to an existing controller
-    session = Session.create(ChromeHeadless(), "FRONTEND URL", ControllerToken.from_file("path/to/token"))
+    session = Session.create(Chrome(), "FRONTEND URL", ControllerToken.from_file("path/to/token"))
     
 These commands are further customisable with optional parameters. See the API reference for more information.
 

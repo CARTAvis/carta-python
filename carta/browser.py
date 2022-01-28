@@ -115,7 +115,7 @@ class Backend:
         os.killpg(pgrp, signal.SIGINT)
         self.proc.wait()
 
-
+# TODO split backend to separate file
 class Browser:
     """The top-level browser class.
     
@@ -250,22 +250,30 @@ class Browser:
         self.driver.quit()
 
 
-class ChromeHeadless(Browser):
-    """Chrome or Chromium running headless, using the SwiftShader renderer for WebGL."""
-    def __init__(self):
-        chrome_options = Options()
-        chrome_options.add_argument("--use-gl=swiftshader")
-        chrome_options.add_argument("--headless")
-        super().__init__(webdriver.Chrome, options=chrome_options)
-
-
 class Chrome(Browser):
-    """Chrome or Chromium, no special options."""
-    def __init__(self):
-        super().__init__(webdriver.Chrome)
+    """Chrome or Chromium, optionally headless.
 
+    Parameters
+    ----------
+    headless : boolean, optional
+        Run the browser headless (this is the default).
+    browser_path : string, optional
+        A path to a custom chrome or chromium executable.
+    driver_path : string, optional
+        A path to a custom chromedriver executable.
+    """
+    def __init__(self, headless=True, browser_path=None, driver_path=None):
+        options = Options()
+        if headless:
+            options.add_argument("--headless")
+        if browser_path:
+            options.binary_location = browser_path
 
-class Firefox(Browser):
-    """Firefox, no special options."""
-    def __init__(self):
-        super().__init__(webdriver.Firefox)
+        kwargs = {
+            "options": options,
+        }
+
+        if driver_path:
+            kwargs["executable_path"] = driver_path
+
+        super().__init__(webdriver.Chrome, **kwargs)
