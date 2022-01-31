@@ -12,7 +12,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 
 from .util import CartaBadSession
-from .client import Session
+from .session import Session
 from .protocol import Protocol
 from .token import BackendToken
 
@@ -139,7 +139,7 @@ class Browser:
     def new_session_from_url(self, frontend_url, token=None, backend=None, timeout=10, debug_no_auth=False):
         """Create a new session by connecting to an existing backend.
         
-        You can use :obj:`carta.client.Session.create`, which wraps this method.
+        You can use :obj:`carta.session.Session.create`, which wraps this method.
         
         Parameters
         ----------
@@ -156,7 +156,7 @@ class Browser:
             
         Returns
         -------
-        :obj:`carta.client.Session`
+        :obj:`carta.session.Session`
             A session object connected to a new frontend session running in this browser.
             
         Raises
@@ -202,7 +202,7 @@ class Browser:
     def new_session_with_backend(self, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None):
         """Create a new session after launching a new backend process.
         
-        You can use :obj:`carta.client.Session.start_and_create`, which wraps this method. This method starts a backend process, parses the frontend URL from the output, and calls :obj:`carta.browser.Browser.new_session_from_url`.
+        You can use :obj:`carta.session.Session.start_and_create`, which wraps this method. This method starts a backend process, parses the frontend URL from the output, and calls :obj:`carta.browser.Browser.new_session_from_url`.
         
         Parameters
         ----------
@@ -219,7 +219,7 @@ class Browser:
             
         Returns
         -------
-        :obj:`carta.client.Session`
+        :obj:`carta.session.Session`
             A session object connected to a new frontend session running in this browser.
             
         Raises

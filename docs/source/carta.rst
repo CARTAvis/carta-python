@@ -1,9 +1,6 @@
 carta package
 =============
 
-Submodules
-----------
-
 carta.browser module
 --------------------
 
@@ -12,18 +9,42 @@ carta.browser module
    :undoc-members:
    :show-inheritance:
 
-carta.client module
--------------------
-
-.. automodule:: carta.client
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 carta.constants module
 ----------------------
 
 .. automodule:: carta.constants
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.image module
+------------------
+
+.. automodule:: carta.image
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.protocol module
+---------------------
+
+.. automodule:: carta.protocol
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.session module
+--------------------
+
+.. automodule:: carta.session
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.token module
+------------------
+
+.. automodule:: carta.token
    :members:
    :undoc-members:
    :show-inheritance:
@@ -40,15 +61,6 @@ carta.validation module
 -----------------------
 
 .. automodule:: carta.validation
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: carta
    :members:
    :undoc-members:
    :show-inheritance:

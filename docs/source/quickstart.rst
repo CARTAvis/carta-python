@@ -36,7 +36,7 @@ Use the ``interact`` method if you want to use scripting to control a CARTA sess
 
 .. code-block:: python
     
-    from carta.client import Session
+    from carta.session import Session
     from carta.token import BackendToken
 
     session = Session.interact("FRONTEND URL", 1, BackendToken("SECURITY TOKEN"))
@@ -47,7 +47,7 @@ To connect to a controller instance, you must authenticate to obtain a controlle
 
 .. code-block:: python
     
-    from carta.client import Session
+    from carta.session import Session
     from carta.protocol import Protocol
     from carta.token import ControllerToken
     
@@ -71,7 +71,7 @@ The wrapper can start a backend process on a remote host if your Unix user has t
 
 .. code-block:: python
     
-    from carta.client import Session
+    from carta.session import Session
     from carta.token import BackendToken
     from carta.browser import Chrome
 
@@ -99,7 +99,7 @@ This is a long-lived refresh token which will be used automatically to obtain ac
 
 .. code-block:: python
 
-    from carta.client import Session
+    from carta.session import Session
     from carta.browser import Chrome
     from carta.token import ControllerToken
     

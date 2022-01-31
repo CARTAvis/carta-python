@@ -1,4 +1,4 @@
-"""This module provides a collection of descriptors of the permitted types and values of parameters passed to :obj:`carta.client.Session` and :obj:`carta.client.Image` methods. They are associated with methods through a decorator which performs the validation at runtime and also injects parameter descriptions into the methods' docstrings."""
+"""This module provides a collection of descriptors of the permitted types and values of parameters passed to :obj:`carta.session.Session` and :obj:`carta.image.Image` methods. They are associated with methods through a decorator which performs the validation at runtime and also injects parameter descriptions into the methods' docstrings."""
 
 import re
 import functools
