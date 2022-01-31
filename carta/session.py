@@ -31,7 +31,7 @@ class Session:
         The protocol object which handles HTTP communication with the CARTA scripting API. This is created automatically when a new session is created with one of the three class methods for creating sessions.
     browser : :obj:`carta.browser.Browser`
         The browser object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.create` or :obj:`carta.session.Session.start_and_create`.
-    backend : :obj:`carta.browser.Backend`
+    backend : :obj:`carta.backend.Backend`
         The backend object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.start_and_create`.
     debug_no_auth : boolean
         This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.

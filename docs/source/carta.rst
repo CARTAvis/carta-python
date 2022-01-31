@@ -1,6 +1,14 @@
 carta package
 =============
 
+carta.backend module
+--------------------
+
+.. automodule:: carta.backend
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.browser module
 --------------------
 
