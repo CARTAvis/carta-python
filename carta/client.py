@@ -568,7 +568,7 @@ class Session:
             args.append(background_color)
         return self.call_action(*args, response_expected=True)
     
-    @validate(Color())
+    @validate(NoneOr(Color()))
     def rendered_view_data(self, background_color=None):
         """Get the decoded data of the rendered active image.
         
@@ -587,7 +587,7 @@ class Session:
         data = uri.split(",")[1]
         return base64.b64decode(data)
     
-    @validate(String(), Color())
+    @validate(String(), NoneOr(Color()))
     def save_rendered_view(self, file_name, background_color=None):
         """Save the decoded data of the rendered active image to a file.
         

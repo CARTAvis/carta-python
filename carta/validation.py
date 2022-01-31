@@ -495,7 +495,7 @@ def validate(*vargs):
     """
         
     def decorator(func):
-        kwvargs = {k:v for (k, v) in zip(inspect.getfullargspec(func).args, vargs)}
+        kwvargs = {k:v for (k, v) in zip(inspect.getfullargspec(func).args[1:], vargs)}
         STRIP_OBJ = re.compile(":obj:`(.*)`")
         STRIP_CODE = re.compile("``(.*)``")
         PRESERVE = re.compile("(:obj:`.+?`|``.+?``)")
