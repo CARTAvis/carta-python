@@ -20,15 +20,6 @@ You need access either to a CARTA backend executable, on the local host or on a 
 
 If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
 
-.. warning::
-    At time of writing, the Snap package of Chromium has a bug which prevents WebGL from working in headless mode.
-
-    Our recommended workaround is to use Chrome installed from `Google's website <https://www.google.com/chrome/>`_ together with an appropriate version of Chromedriver installed from `the Chromedriver website <https://chromedriver.chromium.org/downloads>`_ (the Snap ``chromedriver`` executable may not work even if the version appears to be compatible).
-
-    Your distro may also have an alternative Chromium package available.
-
-    Selenium should automatically find the Chrome or Chromium executable in the default system install location, and the Chromedriver executable if it is in your path, but if you have multiple versions installed in parallel you may need to specify paths explicitly when creating the :obj:`carta.browser.Chrome` object.
-
 Connecting to an existing session
 ---------------------------------
 

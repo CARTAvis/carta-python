@@ -152,15 +152,19 @@ class Chrome(Browser):
     ----------
     headless : boolean, optional
         Run the browser headless (this is the default).
+    gl : string, optional
+        The value to pass to the ``--use-gl`` flag. The default is ``swiftshader``. Set this to ``None`` to disable setting this flag.
     browser_path : string, optional
         A path to a custom chrome or chromium executable.
     driver_path : string, optional
         A path to a custom chromedriver executable.
     """
-    def __init__(self, headless=True, browser_path=None, driver_path=None):
+    def __init__(self, headless=True, gl="swiftshader", browser_path=None, driver_path=None):
         options = Options()
         if headless:
             options.add_argument("--headless")
+        if gl:
+            options.add_argument(f"--use-gl={gl}")
         if browser_path:
             options.binary_location = browser_path
 
