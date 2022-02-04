@@ -16,8 +16,8 @@ class AuthType:
 
 class Protocol:
     ACTION_PATH = "/api/scripting/action"
-    REFRESH_TOKEN_PATH = "/api/auth/refresh"
-    SCRIPTING_TOKEN_PATH = "/api/auth/scripting"
+    REFRESH_TOKEN_PATH = "/api/auth/login"
+    SCRIPTING_TOKEN_PATH = "/api/auth/token"
     
     def __init__(self, frontend_url, token=None, debug_no_auth=False):
         self.frontend_url = frontend_url
@@ -48,11 +48,11 @@ class Protocol:
     def request_refresh_token(cls, frontend_url, username, path=None):
         # TODO test and add error handling
         password = getpass.getpass(f"Please enter the CARTA password for user {username}: ")
-        payload = {"username": username, "password": password}
+        payload = {"username": username, "password": password, "embedRefresh": True}
         
         response = requests.post(url=frontend_url.rstrip("/") + cls.REFRESH_TOKEN_PATH, data=payload)
         
-        token = ControllerToken(response["token"]) # TODO what is this actually supposed to be???
+        token = ControllerToken(response["refresh_token"])
         
         if path:
             token.save(path)
@@ -106,7 +106,7 @@ class Protocol:
         self.check_refresh_token()
         cookie = self.refresh_token.as_cookie()
         response = requests.post(url=self.base_url + self.SCRIPTING_TOKEN_PATH, cookies={cookie["name"]: cookie["value"]})
-        self.scripting_token = ControllerToken(response["token"]) # TODO what is this actually supposed to be???
+        self.scripting_token = ControllerToken(response["access_token"])
 
     def request_scripting_action(self, session_id, path, *args, **kwargs):
         timeout = kwargs.pop("timeout", 10)
