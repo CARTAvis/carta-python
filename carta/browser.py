@@ -47,7 +47,7 @@ class Browser:
         timeout : number, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
         debug_no_auth : boolean
-            This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
+            Disable authentication. This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
             
         Returns
         -------

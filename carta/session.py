@@ -34,7 +34,7 @@ class Session:
     backend : :obj:`carta.backend.Backend`
         The backend object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.start_and_create`.
     debug_no_auth : boolean
-        This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
+        Disable authentication. This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
     """
     def __init__(self, session_id, protocol, browser=None, backend=None):
         self.session_id = session_id
@@ -61,7 +61,7 @@ class Session:
         token : :obj:`carta.token.Token`, optional
             The security token used by the CARTA instance. You may omit this if the URL contains a token.
         debug_no_auth : boolean, optional
-            Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances. You must still pass in a *token* argument if you use this option, but you may set it to ``None``. It will be ignored.
+            Disable authentication. Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
             
         Returns
         -------
@@ -94,7 +94,7 @@ class Session:
         timeout : integer, optional
             The number of seconds to spend retrying parsing connection information from the frontend (default: 10).
         debug_no_auth : boolean, optional
-            Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
+            Disable authentication. Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
             
         Returns
         -------
@@ -171,8 +171,12 @@ class Session:
         
         Raises
         ------
+        CartaBadRequest
+            If the request was invalid.
+        CartaRequestFailed
+            If the backend could not send the request to the frontend.
         CartaActionFailed
-            If a transport error occurs, or the action fails. TODO: split this into separate errors.
+            If the action failed.
         CartaBadResponse    
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
