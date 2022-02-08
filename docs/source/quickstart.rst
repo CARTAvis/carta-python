@@ -116,6 +116,7 @@ Changing image properties
 Properties specific to individual images can be accessed through image objects:
 
 .. code-block:: python
+
     import numpy as np
     from carta.constants import Colormap, Scaling
 
