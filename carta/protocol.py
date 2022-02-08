@@ -110,8 +110,11 @@ class Protocol:
             
         Returns
         -------
-        string, :obj:`carta.token.BackendToken` object or None
-        
+        string
+            The URL with the backend token removed.
+        :obj:`carta.token.BackendToken` object or None
+            The object representing the backend token.
+
         Raises
         ------
         CartaBadUrl

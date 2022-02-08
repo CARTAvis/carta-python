@@ -69,6 +69,7 @@ class ControllerToken(Token):
         Returns
         -------
         :obj:`datetime.datetime` object
+            The expiration date.
         
         Raises
         ------
@@ -86,6 +87,7 @@ class ControllerToken(Token):
         Returns
         -------
         string
+            The username.
         
         Raises
         ------
@@ -98,11 +100,12 @@ class ControllerToken(Token):
         
     @property
     def token_type(self):
-        """The type of this token (``Token.REFRESH`` or ``Token.SCRIPTING``).
+        """The type of this token.
         
         Returns
         -------
         integer
+            ``Token.REFRESH`` or ``Token.SCRIPTING``.
         
         Raises
         ------
@@ -120,6 +123,7 @@ class ControllerToken(Token):
         Returns
         -------
         boolean
+            Whether this is a refresh token.
         
         Raises
         ------
@@ -135,6 +139,7 @@ class ControllerToken(Token):
         Returns
         -------
         boolean
+            Whether this is a scripting token.
         
         Raises
         ------
@@ -154,7 +159,8 @@ class ControllerToken(Token):
             
         Returns
         -------
-        :obj:`carta.token.ControllerToken` object
+        :obj:`carta.token.ControllerToken`
+            The controller token.
         """
         with open(path) as f:
             string = f.read().strip()
@@ -167,6 +173,7 @@ class ControllerToken(Token):
         Returns
         -------
         boolean
+            Whether this token is valid.
         
         Raises
         ------
