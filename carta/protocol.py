@@ -69,9 +69,7 @@ class Protocol:
         """Request a refresh token from a controller and optionally save it to a file.
         
         This function must be run interactively. It securely prompts the user to enter a password.
-        
-        TODO: document exceptions
-        
+                
         Parameters
         ----------
         frontend_url : string
@@ -96,10 +94,14 @@ class Protocol:
             If the response could not be decoded.
         """
         password = getpass.getpass(f"Please enter the CARTA password for user {username}: ")
-        payload = {"username": username, "password": password}
+        
+        payload = json.dumps({"username": username, "password": password})
+        headers = {
+            'Content-Type': 'application/json',
+        }
         
         try:
-            response = requests.post(url=frontend_url.rstrip("/") + cls.REFRESH_TOKEN_PATH, data=payload)
+            response = requests.post(url=frontend_url.rstrip("/") + cls.REFRESH_TOKEN_PATH, headers=headers, data=payload)
         except requests.exceptions.RequestException as e:
             raise CartaBadRequest(f"Request for refresh token was invalid: {e}") from e
             
@@ -292,7 +294,9 @@ class Protocol:
                 
         carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {args}"
         
+        # TODO unclear why setting a content type explicitly here causes a read timeout but only with a controller
         headers = {}
+        
         if self.controller_auth:
             if not self.scripting_token.valid():
                 self.check_refresh_token()
@@ -305,14 +309,14 @@ class Protocol:
             response = requests.post(url=self.base_url + self.ACTION_PATH, data=request_data, headers=headers, timeout=timeout)
         except requests.exceptions.RequestException as e:
             raise CartaBadRequest(f"{carta_action_description} failed: {e}") from e
-                
+            
         known_errors = {
             400: "The backend could not parse the request.",
             403: "Could not authenticate.",
             404: f"No session with ID {session_id} could be found.",
             500: "An internal error occurred, or the client cancelled the request.",
         }
-        
+                
         if response.status_code != 200:
             backend_message = known_errors.get(response.status_code, "Unknown error.")
             raise CartaRequestFailed(f"{carta_action_description} failed with status {response.status_code}. {backend_message}")
