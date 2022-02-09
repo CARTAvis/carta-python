@@ -37,7 +37,7 @@ class Protocol:
     """
     ACTION_PATH = "/api/scripting/action"
     REFRESH_TOKEN_PATH = "/api/auth/login"
-    SCRIPTING_TOKEN_PATH = "/api/auth/token"
+    SCRIPTING_TOKEN_PATH = "/api/auth/refresh"
     
     def __init__(self, frontend_url, token=None, debug_no_auth=False):
         self.frontend_url = frontend_url
@@ -47,8 +47,8 @@ class Protocol:
             self.auth = AuthType.NONE
         else:
             if isinstance(token, ControllerToken):
-                if token.scripting:
-                    raise CartaBadToken("A long-lived controller refresh token was expected, but a short-lived controller scripting token was provided.")
+                if not token.refresh:
+                    raise CartaBadToken("A long-lived controller refresh token was expected, but a different controller token was provided.")
                 self.auth = AuthType.CONTROLLER
                 self.refresh_token = token
                 self.check_refresh_token()
@@ -85,14 +85,43 @@ class Protocol:
         -------
         :obj:`carta.token.ControllerToken` object
             The token object created using the returned refresh token.
+            
+        Raises
+        ------
+        CartaBadRequest
+            If the request was invalid.
+        CartaRequestFailed
+            If the request failed.
+        CartaBadResponse    
+            If the response could not be decoded.
         """
-        # TODO test and add error handling
         password = getpass.getpass(f"Please enter the CARTA password for user {username}: ")
-        payload = {"username": username, "password": password, "embedRefresh": True}
+        payload = {"username": username, "password": password}
         
-        response = requests.post(url=frontend_url.rstrip("/") + cls.REFRESH_TOKEN_PATH, data=payload)
+        try:
+            response = requests.post(url=frontend_url.rstrip("/") + cls.REFRESH_TOKEN_PATH, data=payload)
+        except requests.exceptions.RequestException as e:
+            raise CartaBadRequest(f"Request for refresh token was invalid: {e}") from e
+            
+        try:
+            response_data = response.json()
+        except simplejson.errors.JSONDecodeError as e:
+            raise CartaBadResponse(f"Request for refresh token received a response which could not be decoded.\nError: {e}") from e
         
-        token = ControllerToken(response["refresh_token"])
+        if response.status_code != 200:
+            raise CartaRequestFailed(f"Request for refresh token failed with status code {response.status_code}: {response_data['message']}.")
+        
+        token_string = None
+        
+        for c in response.cookies:
+            if c.name == "Refresh-Token":
+                token_string = c.value
+                break
+            
+        if not token_string:
+            raise CartaBadResponse("Request for refresh token did not receive a response with the expected cookie.")
+
+        token = ControllerToken(token_string)
         
         if path:
             token.save(path)
@@ -180,13 +209,38 @@ class Protocol:
     def request_scripting_token(self):
         """Request a scripting token from the controller and cache it on this object.
         
-        TODO: document exceptions.
+        Raises
+        ------
+        CartaBadRequest
+            If the request was invalid.
+        CartaRequestFailed
+            If the request failed.
+        CartaBadResponse    
+            If the response could not be decoded.
         """
-        # TODO test and add error handling
         self.check_refresh_token()
-        cookie = self.refresh_token.as_cookie()
-        response = requests.post(url=self.base_url + self.SCRIPTING_TOKEN_PATH, cookies={cookie["name"]: cookie["value"]})
-        self.scripting_token = ControllerToken(response["access_token"])
+        
+        payload = json.dumps({"scripting": True})
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Cookie': f'Refresh-Token={self.refresh_token.string}',
+        }
+                
+        try:
+            response = requests.post(url=self.base_url + self.SCRIPTING_TOKEN_PATH, headers=headers, data=payload)
+        except requests.exceptions.RequestException as e:
+            raise CartaBadRequest(f"Request for scripting token was invalid: {e}") from e
+                    
+        try:
+            response_data = response.json()
+        except simplejson.errors.JSONDecodeError as e:
+            raise CartaBadResponse(f"Request for scripting token received a response which could not be decoded.\nError: {e}") from e
+                
+        if response.status_code != 200:
+            raise CartaRequestFailed(f"Request for scripting token failed with status code {response.status_code}: {response_data['message']}.")
+        
+        self.scripting_token = ControllerToken(response_data["access_token"])
 
     def request_scripting_action(self, session_id, path, *args, **kwargs):
         """Call an action on the frontend through the backend's scripting interface.

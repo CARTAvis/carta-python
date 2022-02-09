@@ -67,6 +67,8 @@ class Browser:
         protocol = Protocol(frontend_url, token, debug_no_auth=debug_no_auth)
         
         if protocol.controller_auth:
+            # A limitation of Selenium is that to add cookies for a domain you have to be at that domain already.
+            self.driver.get(protocol.frontend_url)
             self.driver.add_cookie(protocol.cookie())
 
         self.driver.get(protocol.frontend_url)

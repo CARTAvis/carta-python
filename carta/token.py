@@ -9,11 +9,8 @@ from .util import CartaBadToken
 
 class Token:
     """The parent token class. This should not be instantiated directly."""
-    UNKNOWN, BACKEND, REFRESH, SCRIPTING = list(range(4))
-    
     def __init__(self, string):
         self.string = string
-        self.token_type = Token.UNKNOWN
 
 
 class BackendToken(Token):
@@ -26,7 +23,6 @@ class BackendToken(Token):
     """
     def __init__(self, string):
         super().__init__(string)
-        self.token_type = Token.BACKEND
 
 
 class ControllerToken(Token):
@@ -48,16 +44,14 @@ class ControllerToken(Token):
             
             decoded_payload = base64.b64decode(payload)
             decoded_dict = json.loads(decoded_payload.decode("utf-8"))
-            
+                        
             exp = int(decoded_dict["exp"])
             self._expires = datetime.datetime.fromtimestamp(exp)
             self._username = decoded_dict["username"]
-            if "refreshToken" in decoded_dict:
-                self._token_type = Token.REFRESH
-            elif "scripting" in decoded_dict:
-                self._token_type = Token.SCRIPTING
-            else:
-                raise ValueError("This is not a refresh token or a scripting token.")
+            if "refresh" in decoded_dict:
+                self._refresh = True
+            if "scripting" in decoded_dict:
+                self._scripting = True
             
         except Exception as e:
             raise CartaBadToken(f"String {self.string} cannot be converted to a controller token: {e}")
@@ -99,24 +93,6 @@ class ControllerToken(Token):
         return self._username
         
     @property
-    def token_type(self):
-        """The type of this token.
-        
-        Returns
-        -------
-        integer
-            ``Token.REFRESH`` or ``Token.SCRIPTING``.
-        
-        Raises
-        ------
-        CartaBadToken
-            If the token string is not a vaild JWT.
-        """
-        if not hasattr(self, "_token_type"):
-            self._decode_jwt()
-        return self._token_type
-    
-    @property
     def refresh(self):
         """Is this a refresh token?
         
@@ -130,8 +106,10 @@ class ControllerToken(Token):
         CartaBadToken
             If the token string is not a vaild JWT.
         """
-        return self.token_type == Token.REFRESH
-    
+        if not hasattr(self, "_refresh"):
+            self._decode_jwt()
+        return self._refresh
+        
     @property
     def scripting(self):
         """Is this a scripting token?
@@ -146,7 +124,9 @@ class ControllerToken(Token):
         CartaBadToken
             If the token string is not a vaild JWT.
         """
-        return self.token_type == Token.SCRIPTING
+        if not hasattr(self, "_scripting"):
+            self._decode_jwt()
+        return self._scripting
             
     @classmethod
     def from_file(cls, path):
@@ -164,7 +144,7 @@ class ControllerToken(Token):
         """
         with open(path) as f:
             string = f.read().strip()
-                
+                            
         return cls(string)
     
     def valid(self):
@@ -214,17 +194,9 @@ class ControllerToken(Token):
         CartaBadToken
             If the token string is not a valid JWT or if this is not a refresh token. 
         """
-        if not self.refresh:
-            raise CartaBadToken("Cannot convert a scripting token to a cookie. Refresh token expected.")
         
-        # TODO we probably don't need most of these fields at all
         return {
             "name": "Refresh-Token",
             "value": self.string,
-            #"path": "/api/auth/refresh",
             "domain": domain,
-            #"expires": self.expires.timestamp(),
-            #"secure": True,
-            #"httpOnly": True,
-            #"sameSite": "Strict",
         }
