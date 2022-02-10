@@ -294,8 +294,9 @@ class Protocol:
                 
         carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {args}"
         
-        # TODO unclear why setting a content type explicitly here causes a read timeout but only with a controller
-        headers = {}
+        headers = {
+            'Content-Type': 'application/json',
+        }
         
         if self.controller_auth:
             if not self.scripting_token.valid():
