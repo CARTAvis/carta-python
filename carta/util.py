@@ -56,7 +56,7 @@ class CartaBadResponse(CartaScriptingException):
 
 class Macro:
     """A placeholder for a target and a variable which will be evaluated dynamically by the frontend.
-    
+
     Parameters
     ----------
     target : str
@@ -74,7 +74,7 @@ class Macro:
     def __init__(self, target, variable):
         self.target = target
         self.variable = variable
-        
+
     def __repr__(self):
         return f"Macro('{self.target}', '{self.variable}')"
 
@@ -93,7 +93,7 @@ class CartaEncoder(json.JSONEncoder):
 
 def cached(func):
     """A decorator which transparently caches the return value of the decorated method on the parent object.
-    
+
     This should only be used on methods with return values which are not expected to change for the lifetime of the object.
     """
     @functools.wraps(func)
@@ -103,12 +103,12 @@ def cached(func):
 
         if func.__name__ not in self._cache:
             self._cache[func.__name__] = func(self, *args)
-            
+
         return self._cache[func.__name__]
-    
+
     if newfunc.__doc__ is not None:
         newfunc.__doc__ = newfunc.__doc__ + "\n\nThis value is transparently cached on the parent object."
-        
+
     return newfunc
 
 

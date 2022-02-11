@@ -40,7 +40,7 @@ class PaletteColor:
 
 class Overlay:
     """Overlay elements.
-    
+
     The values of these properties are paths to stores corresponding to these elements, relative to the overlay store.
     """
     BEAM = "beam.settingsForDisplay" # special case: an extra layer of indirection
@@ -48,11 +48,11 @@ class Overlay:
 for component in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels"):
     setattr(Overlay, component.upper(), component)
 
-    
+
 class SmoothingMode:
     """Contour smoothing modes."""
     NO_SMOOTHING, BLOCK_AVERAGE, GAUSSIAN_BLUR = range(3)
-    
+
 
 class ContourDashMode:
     """Contour dash modes."""

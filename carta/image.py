@@ -10,9 +10,9 @@ from .validation import validate, Number, Color, Constant, Boolean, NoneOr, Iter
 
 class Image:
     """This object corresponds to an image open in a CARTA frontend session.
-    
+
     This class should not be instantiated directly. Instead, use the session object's methods for opening new images or retrieving existing images.
-    
+
     Parameters
     ----------
     session : :obj:`carta.session.Session`
@@ -21,7 +21,7 @@ class Image:
         The ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
     file_name : string
         The file name of the image. This is not a full path.
-    
+
     Attributes
     ----------
     session : :obj:`carta.session.Session`
@@ -30,22 +30,22 @@ class Image:
         The ID identifying this image within the session.
     file_name : string
         The file name of the image.
-    
+
     """
     def __init__(self, session, image_id, file_name):
         self.session = session
         self.image_id = image_id
         self.file_name = file_name
-        
+
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
-    
+
     @classmethod
     def new(cls, session, path, hdu, append):
         """Open or append a new image in the session and return an image object associated with it.
-        
+
         This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image` and :obj:`carta.session.Session.append_image`.
-        
+
         Parameters
         ----------
         session : :obj:`carta.session.Session`
@@ -56,7 +56,7 @@ class Image:
             The HDU to open.
         append : boolean
             Whether the image should be appended. By default it is not, and all other open images are closed.
-        
+
         Returns
         -------
         :obj:`carta.image.Image`
@@ -65,37 +65,37 @@ class Image:
         path = session.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
         image_id = session.call_action("appendFile" if append else "openFile", directory, file_name, hdu, return_path="frameInfo.fileId")
-        
+
         return cls(session, image_id, file_name)
-    
+
     @classmethod
     def from_list(cls, session, image_list):
         """Create a list of image objects from a list of open images retrieved from the frontend.
-        
+
         This method should not be used directly. It is wrapped by :obj:`carta.session.Session.image_list`.
-        
+
         Parameters
         ----------
         session : :obj:`carta.session.Session`
             The session object.
         image_list : list of dicts
             The JSON object representing frame names retrieved from the frontend.
-            
+
         Returns
         -------
         list of :obj:`carta.image.Image`
             A list of new image objects.
         """
         return [cls(session, f["value"], f["label"].split(":")[1].strip()) for f in image_list]
-        
+
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
-    
+
     def call_action(self, path, *args, **kwargs):
         """Convenience wrapper for the session object's generic action method.
-        
+
         This method calls :obj:`carta.session.Session.call_action` after prepending this image's base path to the path parameter.
-        
+
         Parameters
         ----------
         path : string
@@ -104,110 +104,110 @@ class Image:
             A variable-length list of parameters. These are passed unmodified to the session method.
         **kwargs
             Arbitrary keyword parameters. These are passed unmodified to the session method.
-        
+
         Returns
         -------
             object or None
                 The unmodified return value of the session method.
         """
         return self.session.call_action(f"{self._base_path}.{path}", *args, **kwargs)
-    
+
     def get_value(self, path):
         """Convenience wrapper for the session object's generic method for retrieving attribute values.
-        
+
         This method calls :obj:`carta.session.Session.get_value` after prepending this image's base path to the path parameter.
-        
+
         Parameters
         ----------
         path : string
             The path to an attribute relative to this image's frame store.
-        
+
         Returns
         -------
             object
                 The unmodified return value of the session method.
         """
         return self.session.get_value(f"{self._base_path}.{path}")
-    
+
     # METADATA
-    
+
     @property
     @cached
     def directory(self):
         """The path to the directory containing the image."""
         return self.get_value("frameInfo.directory")
-    
+
     @property
     @cached
     def header(self):
         """The header of the image."""
         return self.get_value("frameInfo.fileInfoExtended.headerEntries")
-    
+
     @property
     @cached
     def shape(self):
         """The shape of the image."""
         return list(reversed([self.width, self.height, self.depth, self.stokes][:self.ndim]))
-    
+
     @property
     @cached
     def width(self):
         """The width of the image."""
         return self.get_value("frameInfo.fileInfoExtended.width")
-    
+
     @property
     @cached
     def height(self):
         """The height of the image."""
         return self.get_value("frameInfo.fileInfoExtended.height")
-    
+
     @property
     @cached
     def depth(self):
         """The depth of the image."""
         return self.get_value("frameInfo.fileInfoExtended.depth")
-    
+
     @property
     @cached
     def stokes(self):
         """The number of Stokes parameters of the image."""
         return self.get_value("frameInfo.fileInfoExtended.stokes")
-    
+
     @property
     @cached
     def ndim(self):
         """The number of dimensions of the image."""
         return self.get_value("frameInfo.fileInfoExtended.dimensions")
-    
+
     # SELECTION
-    
+
     def make_active(self):
         """Make this the active image."""
         self.session.call_action("setActiveFrameById", self.image_id)
-        
+
     def make_spatial_reference(self):
         """Make this image the spatial reference."""
         self.session.call_action("setSpatialReference", self._frame)
-        
+
     @validate(Boolean())
     def set_spatial_matching(self, state):
         """Enable or disable spatial matching.
-        
+
         Parameters
         ----------
         state : boolean
             The desired spatial matching state.
         """
         self.session.call_action("setSpatialMatchingEnabled", self._frame, state)
-        
+
     def make_spectral_reference(self):
         """Make this image the spectral reference."""
         self.session.call_action("setSpectralReference", self._frame)
-        
+
     @validate(Boolean())
     def set_spectral_matching(self, state):
         """Enable or disable spectral matching.
-        
+
         Parameters
         ----------
         state : boolean
@@ -220,7 +220,7 @@ class Image:
     @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(Number, 0, Attr("stokes"), Number.INCLUDE_MIN), Boolean())
     def set_channel_stokes(self, channel=None, stokes=None, recursive=True):
         """Set the channel and/or Stokes.
-        
+
         Parameters
         ----------
         channel : {0}
@@ -237,9 +237,9 @@ class Image:
     @validate(Number(), Number())
     def set_center(self, x, y):
         """Set the center position.
-        
+
         TODO: what are the units?
-        
+
         Parameters
         ----------
         x : {0}
@@ -248,13 +248,13 @@ class Image:
             The Y position.
         """
         self.call_action("setCenter", x, y)
-        
+
     @validate(Number(), Boolean())
     def set_zoom(self, zoom, absolute=True):
         """Set the zoom level.
-        
+
         TODO: explain this more rigorously.
-        
+
         Parameters
         ----------
         zoom : {0}
@@ -263,13 +263,13 @@ class Image:
             Whether the zoom level should be treated as absolute. By default it is adjusted by a scaling factor.
         """
         self.call_action("setZoom", zoom, absolute)
-        
+
     # STYLE
 
     @validate(Constant(Colormap), Boolean())
     def set_colormap(self, colormap, invert=False):
         """Set the colormap.
-        
+
         Parameters
         ----------
         colormap : {0}
@@ -279,12 +279,12 @@ class Image:
         """
         self.call_action("renderConfig.setColorMap", colormap)
         self.call_action("renderConfig.setInverted", invert)
-    
+
     # TODO check whether this works as expected
     @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
     def set_scaling(self, scaling, alpha=None, gamma=None, min=None, max=None):
         """Set the colormap scaling.
-        
+
         Parameters
         ----------
         scaling : {0}
@@ -305,32 +305,32 @@ class Image:
             self.call_action("renderConfig.setGamma", gamma)
         if min is not None and max is not None:
             self.call_action("renderConfig.setCustomScale", min, max)
-    
+
     @validate(Boolean())
     def set_raster_visible(self, state):
         """Set the raster image visibility.
-        
+
         Parameters
         ----------
         state : {0}
             The desired visibility state.
         """
         self.call_action("renderConfig.setVisible", state)
-        
+
     def show_raster(self):
         """Show the raster image."""
         self.set_raster_visible(True)
-        
+
     def hide_raster(self):
         """Hide the raster image."""
         self.set_raster_visible(False)
-    
+
     # CONTOURS
-    
+
     @validate(IterableOf(Number()), Constant(SmoothingMode), Number())
     def configure_contours(self, levels, smoothing_mode=SmoothingMode.GAUSSIAN_BLUR, smoothing_factor=4):
         """Configure contours.
-        
+
         Parameters
         ----------
         levels : {0}
@@ -341,11 +341,11 @@ class Image:
             The smoothing factor.
         """
         self.call_action("contourConfig.setContourConfiguration", levels, smoothing_mode, smoothing_factor)
-    
+
     @validate(NoneOr(Constant(ContourDashMode)), NoneOr(Number()))
     def set_contour_dash(self, dash_mode=None, thickness=None):
         """Set the contour dash style.
-        
+
         Parameters
         ----------
         dash_mode : {0}
@@ -357,13 +357,13 @@ class Image:
             self.call_action("contourConfig.setDashMode", dash_mode)
         if thickness is not None:
             self.call_action("contourConfig.setThickness", thickness)
-    
+
     @validate(Color())
     def set_contour_color(self, color):
         """Set the contour color.
-        
+
         This automatically disables use of the contour colormap.
-        
+
         Parameters
         ----------
         color : {0}
@@ -371,13 +371,13 @@ class Image:
         """
         self.call_action("contourConfig.setColor", color)
         self.call_action("contourConfig.setColormapEnabled", False)
-    
+
     @validate(Constant(Colormap), NoneOr(Number()), NoneOr(Number()))
     def set_contour_colormap(self, colormap, bias=None, contrast=None):
         """Set the contour colormap.
-        
+
         This automatically enables use of the contour colormap.
-        
+
         Parameters
         ----------
         colormap : {0}
@@ -393,71 +393,71 @@ class Image:
             self.call_action("contourConfig.setColormapBias", bias)
         if contrast is not None:
             self.call_action("contourConfig.setColormapContrast", contrast)
-    
+
     def apply_contours(self):
         """Apply the contour configuration."""
         self.call_action("applyContours")
-    
+
     def clear_contours(self):
         """Clear the contours."""
         self.call_action("clearContours", True)
-    
+
     @validate(Boolean())
     def set_contours_visible(self, state):
         """Set the contour visibility.
-        
+
         Parameters
         ----------
         state : {0}
             The desired visibility state.
         """
         self.call_action("contourConfig.setVisible", state)
-    
+
     def show_contours(self):
         """Show the contours."""
         self.set_contours_visible(True)
-        
+
     def hide_contours(self):
         """Hide the contours."""
         self.set_contours_visible(False)
-    
+
     # HISTOGRAM
-    
+
     @validate(Boolean())
     def use_cube_histogram(self, contours=False):
         """Use the cube histogram.
-        
+
         Parameters
         ----------
         contours : {0}
             Apply to the contours. By default this is applied to the raster image.
         """
         self.call_action(f"renderConfig.setUseCubeHistogram{'Contours' if contours else ''}", True)
-    
+
     @validate(Boolean())
     def use_channel_histogram(self, contours=False):
         """Use the channel histogram.
-        
+
         Parameters
         ----------
         contours : {0}
             Apply to the contours. By default this is applied to the raster image.
         """
         self.call_action(f"renderConfig.setUseCubeHistogram{'Contours' if contours else ''}", False)
-            
+
     @validate(Number(0, 100))
     def set_percentile_rank(self, rank):
         """Set the percentile rank.
-        
+
         Parameters
         ----------
         rank : {0}
             The percentile rank.
         """
         self.call_action("renderConfig.setPercentileRank", rank)
-    
+
     # CLOSE
-    
+
     def close(self):
         """Close this image."""
         self.session.call_action("closeFile", self._frame)
