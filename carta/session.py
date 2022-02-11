@@ -14,6 +14,7 @@ from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaScriptingException
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
 
+
 class Session:
     """This object corresponds to a CARTA frontend session.
 
@@ -36,6 +37,7 @@ class Session:
     debug_no_auth : boolean
         Disable authentication. This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
     """
+
     def __init__(self, session_id, protocol, browser=None, backend=None):
         self.session_id = session_id
         self._protocol = protocol
@@ -291,7 +293,7 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String("\d*"))
+    @validate(String(), String(r"\d*"))
     def open_image(self, path, hdu=""):
         """Open a new image, replacing any existing images.
 
@@ -304,7 +306,7 @@ class Session:
         """
         return Image.new(self, path, hdu, False)
 
-    @validate(String(), String("\d*"))
+    @validate(String(), String(r"\d*"))
     def append_image(self, path, hdu=""):
         """Append a new image, keeping any existing images.
 

@@ -8,6 +8,7 @@ from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode
 from .util import Macro, cached
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr
 
+
 class Image:
     """This object corresponds to an image open in a CARTA frontend session.
 
@@ -32,6 +33,7 @@ class Image:
         The file name of the image.
 
     """
+
     def __init__(self, session, image_id, file_name):
         self.session = session
         self.image_id = image_id

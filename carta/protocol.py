@@ -10,6 +10,7 @@ import json
 from .token import BackendToken, ControllerToken
 from .util import logger, CartaBadRequest, CartaRequestFailed, CartaActionFailed, CartaBadResponse, CartaBadToken, CartaBadUrl, CartaEncoder, split_action_path
 
+
 class AuthType:
     BACKEND, CONTROLLER, NONE = 0, 1, 2
 

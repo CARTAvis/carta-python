@@ -9,6 +9,7 @@ import signal
 
 from .token import BackendToken
 
+
 class Backend:
     """Helper class for managing a CARTA backend process.
 

@@ -11,6 +11,7 @@ from .util import CartaBadSession
 from .protocol import Protocol
 from .session import Session
 
+
 class Browser:
     """The top-level browser class.
 
@@ -28,6 +29,7 @@ class Browser:
     driver : :obj:`selenium.webdriver.remote.webdriver.WebDriver`
         The browser driver.
     """
+
     def __init__(self, driver_class, **kwargs):
         self.driver = driver_class(**kwargs)
 
@@ -89,7 +91,7 @@ class Browser:
             except (NoSuchElementException, ValueError) as e:
                 last_error = str(e)
                 time.sleep(1)
-                continue # retry
+                continue  # retry
 
         if not session_id:
             self.exit(f"Could not parse session ID from frontend. Last error: {last_error}")
@@ -161,6 +163,7 @@ class Chrome(Browser):
     options : iterable, optional
         Additional options. A list of strings, one per option (``--option`` or ``--option=argument``).
     """
+
     def __init__(self, headless=True, browser_path=None, driver_path=None, options=tuple()):
         chrome_options = Options()
         if headless:

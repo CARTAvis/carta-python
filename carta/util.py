@@ -71,6 +71,7 @@ class Macro:
     variable : str
         The variable on the target object.
     """
+
     def __init__(self, target, variable):
         self.target = target
         self.variable = variable
@@ -81,10 +82,11 @@ class Macro:
 
 class CartaEncoder(json.JSONEncoder):
     """A custom encoder to JSON which correctly serialises :obj:`carta.util.Macro` objects and numpy arrays."""
+
     def default(self, obj):
         """ This method is overridden from the parent class and performs the substitution."""
         if isinstance(obj, Macro):
-            return {"macroTarget" : obj.target, "macroVariable" : obj.variable}
+            return {"macroTarget": obj.target, "macroVariable": obj.variable}
         if type(obj).__module__ == "numpy" and type(obj).__name__ == "ndarray":
             # The condition is a workaround to avoid importing numpy
             return obj.tolist()

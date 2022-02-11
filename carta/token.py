@@ -7,8 +7,10 @@ import json
 
 from .util import CartaBadToken
 
+
 class Token:
     """The parent token class. This should not be instantiated directly."""
+
     def __init__(self, string):
         self.string = string
 
@@ -21,6 +23,7 @@ class BackendToken(Token):
     string : string
         The token string.
     """
+
     def __init__(self, string):
         super().__init__(string)
 
@@ -33,6 +36,7 @@ class ControllerToken(Token):
     string : string
         The token string.
     """
+
     def __init__(self, string):
         super().__init__(string)
 
@@ -40,7 +44,7 @@ class ControllerToken(Token):
         try:
             payload = self.string.split('.')[1]
 
-            payload = payload.ljust(4 * math.ceil(len(payload)/4), "=")
+            payload = payload.ljust(4 * math.ceil(len(payload) / 4), "=")
 
             decoded_payload = base64.b64decode(payload)
             decoded_dict = json.loads(decoded_payload.decode("utf-8"))
@@ -163,7 +167,6 @@ class ControllerToken(Token):
         if datetime.datetime.now() > self.expires:
             return False
         return True
-
 
     def save(self, path):
         """Save this token to a file.

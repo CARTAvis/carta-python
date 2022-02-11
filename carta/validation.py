@@ -6,6 +6,7 @@ import inspect
 
 from .util import CartaValidationFailed
 
+
 class Parameter:
     """The top-level class for parameter validation."""
 
@@ -34,6 +35,7 @@ class Parameter:
     def description(self):
         """A human-readable description of this parameter descriptor."""
         return "UNKNOWN"
+
 
 class String(Parameter):
     """A string parameter.
@@ -73,6 +75,7 @@ class String(Parameter):
         if self.regex:
             return f"`a string matching` ``{self.regex}``"
         return "a string"
+
 
 class Number(Parameter):
     """An integer or floating point scalar numeric parameter.
@@ -199,6 +202,7 @@ class OneOf(Parameter):
     normalize : function, optional
         A function for applying a transformation to the value before the comparison.
     """
+
     def __init__(self, *options, normalize=None):
         self.options = options
         self.normalize = normalize
@@ -234,6 +238,7 @@ class Union(Parameter):
     options : iterable of :obj:`carta.validation.Parameter` objects
         An iterable of valid descriptors for this parameter.
     """
+
     def __init__(self, options, description=None):
         self.options = options
         self._description = description
@@ -277,8 +282,9 @@ class Constant(OneOf):
     clazz : class
         The parameter must match one of the properties of this class.
     """
+
     def __init__(self, clazz):
-        options = set(v for k, v in inspect.getmembers(clazz, lambda x:not(inspect.isroutine(x))) if not k.startswith("__"))
+        options = set(v for k, v in inspect.getmembers(clazz, lambda x: not(inspect.isroutine(x))) if not k.startswith("__"))
         super().__init__(*options)
         self.clazz = clazz
 
@@ -304,6 +310,7 @@ class NoneOr(Union):
     param : :obj:`carta.validation.Parameter`
         The parameter descriptor.
     """
+
     def __init__(self, param):
         options = (
             param,
@@ -325,6 +332,7 @@ class IterableOf(Parameter):
     param : :obj:`carta.validation.Parameter`
         The parameter descriptor.
     """
+
     def __init__(self, param):
         self.param = param
 
@@ -393,9 +401,9 @@ class TupleColor(Parameter):
 
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
-        value = re.sub('\s', '', value)
+        value = re.sub(r'\s', '', value)
 
-        m = re.match('(hsla?|rgba?)\((.*)\)', value)
+        m = re.match(r'(hsla?|rgba?)\((.*)\)', value)
         if m is None:
             raise ValueError(f"{value} is not {self.description}.")
 
@@ -412,12 +420,13 @@ class TupleColor(Parameter):
 
 class Color(Union):
     """Any valid HTML color specification: a 3- or 6-digit hex triplet, an RBG(A) or HSL(A) tuple, or one of the 147 named colors."""
+
     def __init__(self):
         options = (
-            OneOf(*COLORNAMES, lambda v: v.lower()), # Named color
-            String("#[0-9a-f]{6}", re.IGNORECASE), # 6-digit hex
-            String("#[0-9a-f]{3}", re.IGNORECASE), # 3-digit hex
-            TupleColor(), # RGB, RGBA, HSL, HSLA
+            OneOf(*COLORNAMES, lambda v: v.lower()),  # Named color
+            String("#[0-9a-f]{6}", re.IGNORECASE),  # 6-digit hex
+            String("#[0-9a-f]{3}", re.IGNORECASE),  # 3-digit hex
+            TupleColor(),  # RGB, RGBA, HSL, HSLA
         )
         super().__init__(options, "an HTML color specification")
 
@@ -495,7 +504,7 @@ def validate(*vargs):
     """
 
     def decorator(func):
-        kwvargs = {k:v for (k, v) in zip(inspect.getfullargspec(func).args[1:], vargs)}
+        kwvargs = {k: v for (k, v) in zip(inspect.getfullargspec(func).args[1:], vargs)}
         STRIP_OBJ = re.compile(":obj:`(.*)`")
         STRIP_CODE = re.compile("``(.*)``")
         PRESERVE = re.compile("(:obj:`.+?`|``.+?``)")
