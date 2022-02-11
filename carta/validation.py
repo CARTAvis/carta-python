@@ -248,7 +248,7 @@ class Union(Parameter):
         for option in self.options:
             try:
                 option.validate(value, parent)
-            except:
+            except (ValueError, TypeError):
                 pass
             else:
                 valid = True
@@ -365,11 +365,11 @@ class TupleColor(Parameter):
         try:
             for p in params:
                 self._assert_percentage(p)
-        except:
+        except ValueError:
             try:
                 for p in params:
                     self._assert_between(p, 0, 255)
-            except:
+            except ValueError:
                 raise ValueError("parameters must either all be percentages or all be numbers between 0 and 255.")
     
     def _validate_rgba(self, params):
