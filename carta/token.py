@@ -9,7 +9,18 @@ from .util import CartaBadToken
 
 
 class Token:
-    """The parent token class. This should not be instantiated directly."""
+    """The parent token class. This should not be instantiated directly.
+
+    Parameters
+    ----------
+    string : string
+        The token string.
+
+    Attributes
+    ----------
+    string : string
+        The token string.
+    """
 
     def __init__(self, string):
         self.string = string

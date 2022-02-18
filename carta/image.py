@@ -31,7 +31,6 @@ class Image:
         The ID identifying this image within the session.
     file_name : string
         The file name of the image.
-
     """
 
     def __init__(self, session, image_id, file_name):
@@ -109,8 +108,8 @@ class Image:
 
         Returns
         -------
-            object or None
-                The unmodified return value of the session method.
+        object or None
+            The unmodified return value of the session method.
         """
         return self.session.call_action(f"{self._base_path}.{path}", *args, **kwargs)
 
@@ -126,8 +125,8 @@ class Image:
 
         Returns
         -------
-            object
-                The unmodified return value of the session method.
+        object
+            The unmodified return value of the session method.
         """
         return self.session.get_value(f"{self._base_path}.{path}")
 
@@ -136,49 +135,105 @@ class Image:
     @property
     @cached
     def directory(self):
-        """The path to the directory containing the image."""
+        """The path to the directory containing the image.
+
+        Returns
+        -------
+        string
+            The directory path.
+        """
         return self.get_value("frameInfo.directory")
 
     @property
     @cached
     def header(self):
-        """The header of the image."""
-        return self.get_value("frameInfo.fileInfoExtended.headerEntries")
+        """The header of the image.
+
+        Returns
+        -------
+        dict of string to string, integer, float or boolean
+            The header of the image, with field names as keys. T or F string values are automatically converted to booleans.
+        """
+        raw_header = self.get_value("frameInfo.fileInfoExtended.headerEntries")
+        header = {e["name"]: e.get("numericValue", e["value"]) for e in raw_header}
+        for k, v in header.items():
+            if v == 'T':
+                header[k] = True
+            elif v == 'F':
+                header[k] = False
+        return header
 
     @property
     @cached
     def shape(self):
-        """The shape of the image."""
+        """The shape of the image.
+
+        Returns
+        -------
+        list of integers
+            The shape of the image; dimensions ordered with width last.
+
+        """
         return list(reversed([self.width, self.height, self.depth, self.stokes][:self.ndim]))
 
     @property
     @cached
     def width(self):
-        """The width of the image."""
+        """The width of the image.
+
+        Returns
+        -------
+        integer
+            The width.
+        """
         return self.get_value("frameInfo.fileInfoExtended.width")
 
     @property
     @cached
     def height(self):
-        """The height of the image."""
+        """The height of the image.
+
+        Returns
+        -------
+        integer
+            The height.
+        """
         return self.get_value("frameInfo.fileInfoExtended.height")
 
     @property
     @cached
     def depth(self):
-        """The depth of the image."""
+        """The depth of the image.
+
+        Returns
+        -------
+        integer
+            The depth.
+        """
         return self.get_value("frameInfo.fileInfoExtended.depth")
 
     @property
     @cached
     def stokes(self):
-        """The number of Stokes parameters of the image."""
+        """The number of Stokes parameters of the image.
+
+        Returns
+        -------
+        integer
+            The number of Stokes parameters.
+        """
         return self.get_value("frameInfo.fileInfoExtended.stokes")
 
     @property
     @cached
     def ndim(self):
-        """The number of dimensions of the image."""
+        """The number of dimensions of the image.
+
+        Returns
+        -------
+        integer
+            The number of dimensions.
+        """
         return self.get_value("frameInfo.fileInfoExtended.dimensions")
 
     # SELECTION

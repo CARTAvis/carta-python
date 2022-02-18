@@ -3,6 +3,7 @@
 import logging
 import json
 import functools
+import re
 
 logger = logging.getLogger("carta_scripting")
 logger.setLevel(logging.WARN)
@@ -109,7 +110,7 @@ def cached(func):
         return self._cache[func.__name__]
 
     if newfunc.__doc__ is not None:
-        newfunc.__doc__ = newfunc.__doc__ + "\n\nThis value is transparently cached on the parent object."
+        newfunc.__doc__ = re.sub(r"($|\n)", r" This value is transparently cached on the parent object.\1", newfunc.__doc__, 1)
 
     return newfunc
 

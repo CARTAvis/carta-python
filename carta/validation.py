@@ -33,7 +33,13 @@ class Parameter:
 
     @property
     def description(self):
-        """A human-readable description of this parameter descriptor."""
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         return "UNKNOWN"
 
 
@@ -72,6 +78,13 @@ class String(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         if self.regex:
             return f"`a string matching` ``{self.regex}``"
         return "a string"
@@ -139,6 +152,13 @@ class Number(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         desc = ["a number"]
 
         if self.min is not None:
@@ -166,6 +186,13 @@ class Boolean(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         return "a boolean"
 
 
@@ -182,6 +209,13 @@ class NoneParameter(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         return "``None``"
 
 
@@ -220,6 +254,13 @@ class OneOf(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         return f"one of {', '.join(str(o) for o in self.options)}"
 
 
@@ -264,6 +305,13 @@ class Union(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         return self._description or " or ".join(o.description for o in self.options)
 
 
@@ -290,6 +338,13 @@ class Constant(OneOf):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         if self.clazz.__module__ is None or self.clazz.__module__ == str.__class__.__module__:
             fullname = self.clazz.__name__  # Avoid reporting __builtin__
         else:
@@ -346,6 +401,13 @@ class IterableOf(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         return f"an iterable of {self.param.description}"
 
 
@@ -415,6 +477,13 @@ class TupleColor(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         return "an HTML color tuple"
 
 
@@ -469,6 +538,13 @@ class Evaluate(Parameter):
 
     @property
     def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
         args = list(self.args)
         for i, arg in enumerate(args):
             if isinstance(arg, Attr):

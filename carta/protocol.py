@@ -25,9 +25,22 @@ class Protocol:
     frontend_url : string
         The URL of the frontend.
     token : :obj:`carta.token.Token`, optional
-        The security token used by the CARTA instance. May be omitted if the URL contains a token.
+        The security token used by the CARTA instance. May be omitted if the URL contains a token. If this is a controller token, it will be assumed to be a refresh token, and controller authentication will be enabled. If it's a backend token, backend authentication will be enabled.
     debug_no_auth : boolean
         Disable authentication. This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
+
+    Attributes
+    ----------
+    frontend_url : string
+        The URL of the frontend.
+    base_url : string
+        The base frontend URL (with the token parameter, if any, removed).
+    auth : integer
+        The authentication type. One of :obj:`carta.protocol.AuthType.BACKEND`,  :obj:`carta.protocol.AuthType.CONTROLLER` or  :obj:`carta.protocol.AuthType.NONE`.
+    refresh_token : :obj:`carta.token.ControllerToken`, optional
+        The controller refresh token. Will be set to the ``token`` parameter if it is a controller token.
+    backend_token : :obj:`carta.token.BackendToken`, optional
+        The backend token. Will be set to the ``token`` parameter if it is a backend token. If the ``token`` parameter is omitted, and a token string can be parsed from the URL, it will be created from that string.
 
     Raises
     ------
@@ -131,8 +144,8 @@ class Protocol:
 
         return token
 
-    @classmethod
-    def split_token_from_url(cls, url):
+    @staticmethod
+    def split_token_from_url(url):
         """Extract a backend token from a frontend URL.
 
         Parameters
@@ -171,7 +184,13 @@ class Protocol:
 
     @property
     def domain(self):
-        """The domain extracted from the frontend URL."""
+        """The domain extracted from the frontend URL.
+
+        Returns
+        -------
+        string
+            The domain.
+        """
         if not hasattr(self, "_domain"):
             parsed_url = urllib.parse.urlparse(self.frontend_url)
             self._domain = parsed_url.netloc
@@ -181,17 +200,35 @@ class Protocol:
 
     @property
     def controller_auth(self):
-        """Is controller authentication enabled?"""
+        """Is controller authentication enabled?
+
+        Returns
+        -------
+        boolean
+            Whether controller authentication is enabled.
+        """
         return self.auth == AuthType.CONTROLLER
 
     @property
     def backend_auth(self):
-        """Is backend authentication enabled?"""
+        """Is backend authentication enabled?
+
+        Returns
+        -------
+        boolean
+            Whether backend authentication is enabled.
+        """
         return self.auth == AuthType.BACKEND
 
     @property
     def no_auth(self):
-        """Is authentication disabled?"""
+        """Is authentication disabled?
+
+        Returns
+        -------
+        boolean
+            Whether authentication is disabled.
+        """
         return self.auth == AuthType.NONE
 
     def cookie(self):
@@ -243,7 +280,7 @@ class Protocol:
         if response.status_code != 200:
             raise CartaRequestFailed(f"Request for scripting token failed with status code {response.status_code}: {response_data['message']}.")
 
-        self.scripting_token = ControllerToken(response_data["access_token"])
+        self._scripting_token = ControllerToken(response_data["access_token"])
 
     def request_scripting_action(self, session_id, path, *args, **kwargs):
         """Call an action on the frontend through the backend's scripting interface.
@@ -300,10 +337,10 @@ class Protocol:
         }
 
         if self.controller_auth:
-            if not self.scripting_token.valid():
+            if not self._scripting_token.valid():
                 self.check_refresh_token()
                 self.request_scripting_token()
-            headers["Authorization"] = f"Bearer {self.scripting_token.string}"
+            headers["Authorization"] = f"Bearer {self._scripting_token.string}"
         elif self.backend_auth:
             headers["Authorization"] = f"Bearer {self.backend_token.string}"
 
