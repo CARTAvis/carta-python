@@ -23,7 +23,7 @@ copyright = '2020, Adrianna Pińska'
 author = 'Adrianna Pińska'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = '1.0.0-beta'
 
 
 # -- General configuration ---------------------------------------------------
@@ -40,8 +40,8 @@ napoleon_google_docstring = False
 napoleon_use_param = False
 napoleon_use_ivar = True
 
-# This mocks out the external grpc dependency and the protocol buffer files which are only generated when the package is installed
-autodoc_mock_imports = ["grpc", "selenium", "cartaproto"]
+# This mocks out the external dependencies
+autodoc_mock_imports = ["selenium", "requests"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
