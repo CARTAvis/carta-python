@@ -23,4 +23,7 @@ setuptools.setup(
     install_requires=[
         "requests",
     ],
+    setup_requires=[
+        "wheel",
+    ],
 )
