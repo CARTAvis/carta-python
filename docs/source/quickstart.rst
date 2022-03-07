@@ -14,9 +14,12 @@ Ensure that you're using a Python 3 installation and its corresponding ``pip``, 
     cd carta-python
     pip install .
 
-The required Python library dependency (``requests``) should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the ``selenium`` Python library.
+The required Python library dependencies should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the ``selenium`` Python library.
 
 You need access either to a CARTA backend executable, on the local host or on a remote host which you can access through SSH, or to a CARTA controller instance (a multi-user system with web-based authentication). You must be able to access the frontend served by this CARTA instance. If you are using your own backend executable, you must start it with the ``--enable_scripting`` commandline parameter to enable the scripting interface.
+
+.. note::
+   This version of the wrapper requires recent development versions of the CARTA backend, frontend and controller. If you would like to try the wrapper before the next CARTA beta release, you can install these components from source, or obtain test packages from the ``carta-testing`` PPA on Launchpad (``carta-beta`` for a local backend and frontend or just ``carta-backend-beta`` for a controller installation) and the ``dev`` tag of the ``carta-controller`` package on NPM (for a controller installation). Please note that these packages are not officially supported.
 
 If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
 
