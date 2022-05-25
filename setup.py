@@ -11,7 +11,7 @@ setuptools.setup(
     description="CARTA scripting wrapper written in Python",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/idia-astro/carta-python",
+    url="https://github.com/CARTAvis/carta-python",
     packages=["carta"],
     classifiers=[
         "Programming Language :: Python :: 3",
