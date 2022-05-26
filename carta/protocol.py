@@ -354,6 +354,7 @@ class Protocol:
             403: "Could not authenticate.",
             404: f"No session with ID {session_id} could be found.",
             500: "An internal error occurred, or the client cancelled the request.",
+            501: "Scripting is not enabled in the backend.",
         }
 
         if response.status_code != 200:
