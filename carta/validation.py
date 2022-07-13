@@ -322,6 +322,8 @@ class Constant(OneOf):
     ----------
     clazz : class
         The parameter must match one of the properties of this class.
+    exclude : iterable, optional
+        An iterable of properties to exclude.
 
     Attributes
     ----------
@@ -329,12 +331,16 @@ class Constant(OneOf):
         An iterable of the permitted options.
     clazz : class
         The parameter must match one of the properties of this class.
+    exclude : iterable
+        An iterable of properties which are excluded.
     """
 
-    def __init__(self, clazz):
+    def __init__(self, clazz, exclude=()):
         options = set(v for k, v in inspect.getmembers(clazz, lambda x: not(inspect.isroutine(x))) if not k.startswith("__"))
+        options -= set(exclude)
         super().__init__(*options)
         self.clazz = clazz
+        self.exclude = exclude
 
     @property
     def description(self):
@@ -349,7 +355,12 @@ class Constant(OneOf):
             fullname = self.clazz.__name__  # Avoid reporting __builtin__
         else:
             fullname = self.clazz.__module__ + '.' + self.clazz.__name__
-        return f"a class property of :obj:`{fullname}`"
+        if self.exclude:
+            exclude_list = ",".join(f"``{repr(e)}``" for e in self.exclude)
+            excluding = f" excluding {exclude_list}"
+        else:
+            excluding = ""
+        return f"a class property of :obj:`{fullname}`{excluding}"
 
 
 class NoneOr(Union):
