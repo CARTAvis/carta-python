@@ -475,7 +475,7 @@ class Session:
         if component not in (Overlay.GLOBAL, Overlay.BEAM):
             self.call_action(f"overlayStore.{component}.setCustomColor", True)
 
-    @validate(Constant(Overlay))
+    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)))
     def clear_color(self, component):
         """Clear the custom color from an overlay component.
 
@@ -484,14 +484,63 @@ class Session:
         component : {0}
             The overlay component.
         """
-        if component != Overlay.GLOBAL:
-            self.call_action(f"overlayStore.{component}.setCustomColor", False)
+        if component == Overlay.BEAM:
+            logger.warning("Cannot clear the color from the beam component. A color must be set on this component explicitly.")
+            return
 
-    @validate(Constant(Overlay), Boolean())
+        self.call_action(f"overlayStore.{component}.setCustomColor", False)
+
+    @validate(Constant(Overlay))
+    def color(self, component):
+        """The color of an overlay component.
+
+        If called on the global overlay options, this function returns the global (default) overlay color. For any single overlay component other than the beam, it returns its custom color if a custom color is enabled, otherwise None. For the beam it returns the beam color.
+
+        Parameters
+        ----------
+        component : {0}
+            The overlay component.
+
+        Returns
+        -------
+        A property of :obj:`carta.constants.PaletteColor` or None
+            The color of the component or None if no custom color is set on the component.
+        """
+        if component in (Overlay.GLOBAL, Overlay.BEAM) or self.get_value(f"overlayStore.{component}.customColor"):
+            return self.get_value(f"overlayStore.{component}.color")
+
+    @validate(Number(min=0, interval=Number.EXCLUDE), OneOf(Overlay.GRID, Overlay.BORDER, Overlay.TICKS, Overlay.AXES, Overlay.COLORBAR))
+    def set_width(self, width, component):
+        """Set the line width of an overlay component.
+
+        Parameters
+        ----------
+        component : {0}
+            The overlay component.
+        """
+        self.call_action(f"overlayStore.{component}.setWidth", width)
+
+    @validate(OneOf(Overlay.GRID, Overlay.BORDER, Overlay.TICKS, Overlay.AXES, Overlay.COLORBAR))
+    def width(self, component):
+        """The line width of an overlay component.
+
+        Parameters
+        ----------
+        component : {0}
+            The overlay component.
+
+        Returns
+        ----------
+        number
+            The line width of the component.
+        """
+        return self.get_value(f"overlayStore.{component}.width")
+
+    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)), Boolean())
     def set_visible(self, component, visible):
         """Set the visibility of an overlay component.
 
-        Ticks cannot be shown or hidden in AST.
+        Ticks cannot be shown or hidden in AST, but it is possible to set the width to a very small non-zero number to make them effectively invisible.
 
         Parameters
         ----------
@@ -504,10 +553,31 @@ class Session:
             logger.warning("Ticks cannot be shown or hidden.")
             return
 
-        if component != Overlay.GLOBAL:
-            self.call_action(f"overlayStore.{component}.setVisible", visible)
+        self.call_action(f"overlayStore.{component}.setVisible", visible)
 
-    @validate(Constant(Overlay))
+    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)))
+    def visible(self, component):
+        """Whether an overlay component is visible.
+
+        Ticks cannot be shown or hidden in AST.
+
+        Parameters
+        ----------
+        component : {0}
+            The overlay component.
+
+        Returns
+        -------
+        boolean or None
+            Whether the component is visible, or None for an invalid component.
+        """
+        if component == Overlay.TICKS:
+            logger.warning("Ticks cannot be shown or hidden.")
+            return
+
+        return self.get_value(f"overlayStore.{component}.visible")
+
+    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)))
     def show(self, component):
         """Show an overlay component.
 
@@ -518,7 +588,7 @@ class Session:
         """
         self.set_visible(component, True)
 
-    @validate(Constant(Overlay))
+    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)))
     def hide(self, component):
         """Hide an overlay component.
 
@@ -528,6 +598,43 @@ class Session:
             The overlay component.
         """
         self.set_visible(component, False)
+
+    def call_overlay_action(self, component, path, *args, **kwargs):
+        """Helper method for calling overlay component actions.
+
+        This method calls :obj:`carta.session.Session.call_action` after prepending this component's base path to the path parameter.
+
+        Parameters
+        ----------
+        component : a class property of :obj:`carta.constants.Overlay`
+            The overlay component to use as the base of the path.
+        path : string
+            The path to an action relative to this overlay component.
+        *args
+            A variable-length list of parameters. These are passed unmodified to :obj:`carta.Session.call_action`.
+        **kwargs
+            Arbitrary keyword parameters. These are passed unmodified to :obj:`carta.Session.call_action`.
+        """
+        self.call_action(f"overlayStore.{component}.{path}", *args, **kwargs)
+
+    def get_overlay_value(self, component, path):
+        """Helper method for retrieving the values of overlay component attributes.
+
+        This method calls :obj:`carta.session.Session.get_value` after prepending this component's base path to the path parameter.
+
+        Parameters
+        ----------
+        component : a class property of :obj:`carta.constants.Overlay`
+            The overlay component to use as the base of the path.
+        path : string
+            The path to an attribute relative to this overlay component.
+
+        Returns
+        -------
+        object
+            The value of the attribute, deserialized from a JSON string.
+        """
+        return self.get_value(f"overlayStore.{component}.{path}")
 
     def toggle_labels(self):
         """Toggle the overlay labels."""
@@ -539,7 +646,7 @@ class Session:
     def set_cursor(self, x, y):
         """Set the curson position.
 
-        TODO: this is a precursor to makinf z-profiles available, but currently the relevant functionality is not exposed by the frontend.
+        TODO: this is a precursor to making z-profiles available, but currently the relevant functionality is not exposed by the frontend.
 
         Parameters
         ----------

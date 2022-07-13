@@ -38,7 +38,11 @@ class BeamType:
 
 class PaletteColor:
     """Palette colours used for overlay elements."""
-    BLACK, WHITE, RED, GREEN, BLUE, TURQUOISE, VIOLET, GOLD, GRAY = range(9)
+    pass
+
+
+for color in ("blue", "orange", "green", "red", "violet", "sepia", "indigo", "gray", "lime", "turquoise", "forest", "gold", "cobalt", "light_gray", "dark_gray", "white", "black"):
+    setattr(PaletteColor, color.upper(), f"auto-{color}")
 
 
 class Overlay:
@@ -49,7 +53,7 @@ class Overlay:
     BEAM = "beam.settingsForDisplay"  # special case: an extra layer of indirection
 
 
-for component in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels"):
+for component in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar"):
     setattr(Overlay, component.upper(), component)
 
 
