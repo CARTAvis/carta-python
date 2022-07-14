@@ -323,9 +323,11 @@ class Image:
 
     # STYLE
 
-    @validate(Constant(Colormap), Boolean())
-    def set_colormap(self, colormap, invert=False):
+    @validate(Constant(Colormap), Boolean(), NoneOr(Number()), NoneOr(Number()))
+    def set_colormap(self, colormap, invert=False, bias=None, contrast=None):
         """Set the colormap.
+
+        By default the colormap is not inverted, and the bias and contrast are reset to the frontend defaults of ``0`` and ``1`` respectively.
 
         Parameters
         ----------
@@ -333,9 +335,21 @@ class Image:
             The colormap.
         invert : {1}
             Whether the colormap should be inverted.
+        bias : {2}
+            A custom bias.
+        contrast : {3}
+            A custom contrast.
         """
         self.call_action("renderConfig.setColorMap", colormap)
         self.call_action("renderConfig.setInverted", invert)
+        if bias is not None:
+            self.call_action("renderConfig.setBias", bias)
+        else:
+            self.call_action("renderConfig.resetBias")
+        if contrast is not None:
+            self.call_action("renderConfig.setContrast", contrast)
+        else:
+            self.call_action("renderConfig.resetContrast")
 
     # TODO check whether this works as expected
     @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
