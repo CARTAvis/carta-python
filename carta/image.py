@@ -272,6 +272,21 @@ class Image:
         """
         self.session.call_action("setSpectralMatchingEnabled", self._frame, state)
 
+    def make_raster_scaling_reference(self):
+        """Make this image the raster scaling reference."""
+        self.session.call_action("setRasterScalingReference", self._frame)
+
+    @validate(Boolean())
+    def set_raster_scaling_matching(self, state):
+        """Enable or disable raster scaling matching.
+
+        Parameters
+        ----------
+        state : boolean
+            The desired raster scaling matching state.
+        """
+        self.session.call_action("setRasterScalingMatchingEnabled", self._frame, state)
+
     # NAVIGATION
 
     @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(Number, 0, Attr("stokes"), Number.INCLUDE_MIN), Boolean())

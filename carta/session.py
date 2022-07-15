@@ -352,6 +352,10 @@ class Session:
         """Clear the spectral reference."""
         self.call_action("clearSpectralReference")
 
+    def clear_raster_scaling_reference(self):
+        """Clear the raster scaling reference."""
+        self.call_action("clearRasterScalingReference")
+
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
     def set_view_area(self, width, height):
