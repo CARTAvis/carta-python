@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="carta",
-    version="1.1.1",
+    version="1.1.2",
     author="Adrianna Pińska",
     author_email="adrianna.pinska@gmail.com",
     description="CARTA scripting wrapper written in Python",
