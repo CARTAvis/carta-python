@@ -33,9 +33,15 @@ Use the ``interact`` method if you want to use scripting to control a CARTA sess
     from carta.session import Session
     from carta.token import BackendToken
 
-    session = Session.interact("FRONTEND URL", 1, BackendToken("SECURITY TOKEN"))
+    session = Session.interact("FRONTEND URL", 123456, BackendToken("SECURITY TOKEN"))
 
-If you have launched a backend directly, the frontend URL and security token must match your running backend process. You have the option of using an environment variable, ``CARTA_AUTH_TOKEN``, to run CARTA with a fixed security token. Otherwise, a randomly generated token will be printed by the backend when it starts. If you include the security token in the URL, you may omit the security token parameter (it will be parsed from the URL automatically).
+If you have launched a backend directly, the frontend URL and security token must match your running backend process. You have the option of using an environment variable, ``CARTA_AUTH_TOKEN``, to run CARTA with a fixed security token. Otherwise, a randomly generated token will be printed by the backend when it starts. If you include the security token in the URL, you may omit the security token parameter (it will be parsed from the URL automatically):
+
+.. code-block:: python
+
+    session = Session.interact("http://HOSTNAME:PORT?token=SECURITY_TOKEN", 123456)
+
+The second parameter is the session ID, which must match the running frontend session -- you can find it by mousing over the status indicator at the top right of the CARTA window in your browser, or by reading the backend executable output.
 
 To connect to a controller instance, you must authenticate to obtain a controller security token. We recommend using the helper functions provided to save the token to a file and load it from a file. You may also be able to copy this token from an existing browser cookie. This is a long-lived refresh token which will be used automatically to obtain access tokens from the controller as required. You will only have to authenticate again when the long-lived token expires. Token lifetime is configured by the host of the controller.
 
@@ -50,9 +56,7 @@ To connect to a controller instance, you must authenticate to obtain a controlle
     # We recommend not automating this in a way that reveals the password!
     Protocol.request_refresh_token("FRONTEND URL", "USERNAME", "path/to/token")
 
-    session = Session.interact("FRONTEND URL", 1, ControllerToken.from_file("path/to/token"))
-
-The session ID must match the running frontend session -- you can find it by mousing over the status indicator at the top right of the CARTA window in your browser.
+    session = Session.interact("FRONTEND URL", 123456, ControllerToken.from_file("path/to/token"))
 
 Creating a new session
 ----------------------
