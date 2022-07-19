@@ -513,6 +513,26 @@ class Session:
         if component in (Overlay.GLOBAL, Overlay.BEAM) or self.get_value(f"overlayStore.{component}.customColor"):
             return self.get_value(f"overlayStore.{component}.color")
 
+    @validate(Constant(PaletteColor))
+    def palette_to_rgb(self, color):
+        """Convert a palette colour to RGB.
+
+        The RGB value depends on whether the session is using the light theme or the dark theme.
+
+        Parameters
+        ----------
+        color : {0}
+            The colour to convert.
+
+        Returns
+        -------
+        string
+            The RGB value of the palette colour in the session's current theme, as a 6-digit hexadecimal with a leading ``#``.
+        """
+        if self.get_value("darkTheme"):
+            return PaletteColor.DARK[color]
+        return PaletteColor.LIGHT[color]
+
     @validate(Number(min=0, interval=Number.EXCLUDE), OneOf(Overlay.GRID, Overlay.BORDER, Overlay.TICKS, Overlay.AXES, Overlay.COLORBAR))
     def set_width(self, width, component):
         """Set the line width of an overlay component.

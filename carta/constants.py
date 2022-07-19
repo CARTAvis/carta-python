@@ -38,11 +38,57 @@ class BeamType:
 
 class PaletteColor:
     """Palette colours used for overlay elements."""
-    pass
 
+    # Added manually so that they're available in the namespace for the dictionaries
+    BLUE, ORANGE, GREEN, RED, VERMILION, ROSE, VIOLET, SEPIA, INDIGO, GRAY, LIME, TURQUOISE, FOREST, GOLD, COBALT, LIGHT_GRAY, DARK_GRAY, WHITE, BLACK = "auto-blue", "auto-orange", "auto-green", "auto-red", "auto-vermilion", "auto-rose", "auto-violet", "auto-sepia", "auto-indigo", "auto-gray", "auto-lime", "auto-turquoise", "auto-forest", "auto-gold", "auto-cobalt", "auto-light_gray", "auto-dark_gray", "auto-white", "auto-black"
 
-for color in ("blue", "orange", "green", "red", "violet", "sepia", "indigo", "gray", "lime", "turquoise", "forest", "gold", "cobalt", "light_gray", "dark_gray", "white", "black"):
-    setattr(PaletteColor, color.upper(), f"auto-{color}")
+    # BlueprintJS colour palettes (2 and 4)
+    LIGHT = {
+        DARK_GRAY: "#252a31",
+        GRAY: "#738091",
+        LIGHT_GRAY: "#dce0e5",
+        BLUE: "#215db0",
+        GREEN: "#1c6e42",
+        ORANGE: "#935610",
+        RED: "#ac2f33",
+        VERMILION: "#b83211",
+        ROSE: "#c22762",
+        VIOLET: "#7c327c",
+        INDIGO: "#634dbf",
+        COBALT: "#2458b3",
+        TURQUOISE: "#007067",
+        FOREST: "#238c2c",
+        LIME: "#5a701a",
+        GOLD: "#866103",
+        SEPIA: "#7a542e",
+        WHITE: "#ffffff",
+        BLACK: "#000000",
+    }
+
+    DARK = {
+        DARK_GRAY: "#383e47",
+        GRAY: "#abb3bf",
+        LIGHT_GRAY: "#edeff2",
+        BLUE: "#4c90f0",
+        GREEN: "#32a467",
+        ORANGE: "#ec9a3c",
+        RED: "#e76a6e",
+        VERMILION: "#eb6847",
+        ROSE: "#f5498b",
+        VIOLET: "#bd6bbd",
+        INDIGO: "#9881f3",
+        COBALT: "#4580e6",
+        TURQUOISE: "#13c9ba",
+        FOREST: "#43bf4d",
+        LIME: "#b6d94c",
+        GOLD: "#f0b726",
+        SEPIA: "#af855a",
+        WHITE: "#ffffff",
+        BLACK: "#000000",
+    }
+
+    # Exclude these from validation of PaletteColor constants
+    IGNORE = {"LIGHT", "DARK"}
 
 
 class Overlay:
