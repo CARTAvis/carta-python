@@ -3,6 +3,7 @@
 import re
 import functools
 import inspect
+from collections import Hashable
 
 from .util import CartaValidationFailed
 
@@ -316,7 +317,7 @@ class Union(Parameter):
 
 
 class Constant(OneOf):
-    """A parameter which must match a class property on the provided class. Intended for use with the constants defined in :obj:`carta.constants`.
+    """A parameter which must match a class property on the provided class. Intended for use with the constants defined in :obj:`carta.constants`. Classes may define which class attributes are not constants and should be ignored. Attributes with unhashable values or with names that start with ``__`` are automatically ignored.
 
     Parameters
     ----------
@@ -336,11 +337,21 @@ class Constant(OneOf):
     """
 
     def __init__(self, clazz, exclude=()):
-        options = set(v for k, v in inspect.getmembers(clazz, lambda x: not(inspect.isroutine(x))) if not k.startswith("__"))
+        attrs = inspect.getmembers(clazz, lambda x: not(inspect.isroutine(x)))
+        options = set(v for k, v in attrs if not Constant.ignore(clazz, k) and isinstance(v, Hashable))
         options -= set(exclude)
         super().__init__(*options)
         self.clazz = clazz
         self.exclude = exclude
+
+    @staticmethod
+    def ignore(clazz, attrname):
+        if attrname.startswith("__"):
+            return True
+        if attrname == "IGNORE":
+            return True
+        if attrname in getattr(clazz, "IGNORE", set()):
+            return True
 
     @property
     def description(self):
