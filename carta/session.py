@@ -11,7 +11,7 @@ import base64
 from .image import Image
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
 from .protocol import Protocol
-from .util import logger, Macro, split_action_path, CartaScriptingException
+from .util import logger, Macro, split_action_path, CartaScriptingException, CartaBadID
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
 
 
@@ -62,7 +62,7 @@ class Session:
         frontend_url : string
             The frontend URL of the CARTA instance.
         session_id : integer
-            The ID of an existing CARTA frontend session.
+            The ID of an existing CARTA frontend session. You may supply this as a string of digits; it will be converted to an integer automatically.
         token : :obj:`carta.token.Token`, optional
             The security token used by the CARTA instance. You may omit this if the URL contains a token.
         debug_no_auth : boolean, optional
@@ -75,6 +75,8 @@ class Session:
 
         Raises
         ------
+        CartaBadID
+            If the ID provided cannot be converted to an integer
         CartaBadToken
             If an invalid token was provided.
         CartaBadUrl
@@ -82,6 +84,11 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         """
+        try:
+            session_id = int(session_id)
+        except ValueError:
+            raise CartaBadID(f"Session ID '{session_id}' is not a number.")
+
         return cls(session_id, Protocol(frontend_url, token, debug_no_auth=debug_no_auth))
 
     @classmethod
