@@ -20,6 +20,11 @@ class CartaBadSession(CartaScriptingException):
     pass
 
 
+class CartaBadID(CartaScriptingException):
+    """A session ID is invalid."""
+    pass
+
+
 class CartaBadToken(CartaScriptingException):
     """A token has expired or is invalid."""
     pass
