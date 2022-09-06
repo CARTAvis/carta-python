@@ -155,7 +155,7 @@ class Image:
             The header of the image, with field names as keys. T or F string values are automatically converted to booleans.
         """
         raw_header = self.get_value("frameInfo.fileInfoExtended.headerEntries")
-        header = {e["name"]: e.get("numericValue", e["value"]) for e in raw_header}
+        header = {e["name"]: e.get("numericValue", e.get("value", None)) for e in raw_header}
         for k, v in header.items():
             if v == 'T':
                 header[k] = True
