@@ -151,7 +151,9 @@ class Image:
 
         Entries with T or F string values are automatically converted to booleans.
 
-        ``HISTORY``, ``COMMENT`` and blank keyword entries are aggregated into single entries with list values and with ``'HISTORY'``, ``'COMMENT'`` and ``''`` as keys, respectively. An entry in the history list which begins with ``'>'`` will be concatenated with the previous entry. Adjacent ``COMMENT`` entries will be concatenated.
+        ``HISTORY``, ``COMMENT`` and blank keyword entries are aggregated into single entries with list values and with ``'HISTORY'``, ``'COMMENT'`` and ``''`` as keys, respectively. An entry in the history list which begins with ``'>'`` will be concatenated with the previous entry.
+
+        Adjacent ``COMMENT`` entries are not concatenated automatically.
 
         Any other header entries with no values are given values of ``None``.
 
@@ -166,7 +168,6 @@ class Image:
 
         history = []
         comment = []
-        last_comment_position = -2
         blank = []
 
         def header_value(raw_entry):
@@ -195,11 +196,7 @@ class Image:
                 continue
 
             if name.startswith("COMMENT "):
-                if i - last_comment_position == 1 and comment:
-                    comment[-1] = comment[-1] + name[8:]
-                else:
-                    comment.append(name[8:])
-                last_comment_position = i
+                comment.append(name[8:])
                 continue
 
             if name.startswith(" " * 8):
