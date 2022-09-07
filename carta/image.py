@@ -227,7 +227,7 @@ class Image:
             The shape of the image; dimensions ordered with width last.
 
         """
-        return list(reversed([self.width, self.height, self.depth, self.stokes][:self.ndim]))
+        return list(reversed([self.width, self.height, self.depth, self.num_stokes][:self.ndim]))
 
     @property
     @cached
@@ -267,7 +267,7 @@ class Image:
 
     @property
     @cached
-    def stokes(self):
+    def num_stokes(self):
         """The number of Stokes parameters of the image.
 
         Returns
@@ -342,7 +342,7 @@ class Image:
 
     # NAVIGATION
 
-    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(Number, 0, Attr("stokes"), Number.INCLUDE_MIN), Boolean())
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(Number, 0, Attr("num_stokes"), Number.INCLUDE_MIN), Boolean())
     def set_channel_stokes(self, channel=None, stokes=None, recursive=True):
         """Set the channel and/or Stokes.
 
@@ -351,7 +351,7 @@ class Image:
         channel : {0}
             The desired channel. Defaults to the current channel.
         stokes : {1}
-            The desired stokes. Defaults to the current Stokes.
+            The desired Stokes. Defaults to the current Stokes.
         recursive : {2}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
