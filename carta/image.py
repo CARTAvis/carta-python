@@ -149,18 +149,74 @@ class Image:
     def header(self):
         """The header of the image.
 
+        Entries with T or F string values are automatically converted to booleans.
+
+        ``HISTORY``, ``COMMENT`` and blank keyword entries are aggregated into single entries with list values and with ``'HISTORY'``, ``'COMMENT'`` and ``''`` as keys, respectively. An entry in the history list which begins with ``'>'`` will be concatenated with the previous entry. Adjacent ``COMMENT`` entries will be concatenated.
+
+        Any other header entries with no values are given values of ``None``.
+
         Returns
         -------
-        dict of string to string, integer, float or boolean
-            The header of the image, with field names as keys. T or F string values are automatically converted to booleans.
+        dict of string to string, integer, float, boolean, ``None`` or list of strings
+            The header of the image, with field names as keys.
         """
         raw_header = self.get_value("frameInfo.fileInfoExtended.headerEntries")
-        header = {e["name"]: e.get("numericValue", e["value"]) for e in raw_header}
-        for k, v in header.items():
-            if v == 'T':
-                header[k] = True
-            elif v == 'F':
-                header[k] = False
+
+        header = {}
+
+        history = []
+        comment = []
+        last_comment_position = -2
+        blank = []
+
+        def header_value(raw_entry):
+            try:
+                return raw_entry["numericValue"]
+            except KeyError:
+                try:
+                    value = raw_entry["value"]
+                    if value == 'T':
+                        return True
+                    if value == 'F':
+                        return False
+                    return value
+                except KeyError:
+                    return None
+
+        for i, raw_entry in enumerate(raw_header):
+            name = raw_entry["name"]
+
+            if name.startswith("HISTORY "):
+                line = name[8:]
+                if line.startswith(">") and history:
+                    history[-1] = history[-1] + line[1:]
+                else:
+                    history.append(line)
+                continue
+
+            if name.startswith("COMMENT "):
+                if i - last_comment_position == 1 and comment:
+                    comment[-1] = comment[-1] + name[8:]
+                else:
+                    comment.append(name[8:])
+                last_comment_position = i
+                continue
+
+            if name.startswith(" " * 8):
+                blank.append(name[8:])
+                continue
+
+            header[name] = header_value(raw_entry)
+
+        if history:
+            header["HISTORY"] = history
+
+        if comment:
+            header["COMMENT"] = comment
+
+        if blank:
+            header[""] = blank
+
         return header
 
     @property
