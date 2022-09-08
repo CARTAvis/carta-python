@@ -599,4 +599,4 @@ class Image:
 
     def close(self):
         """Close this image."""
-        self.session.call_action("closeFile", self._frame)
+        self.session.call_action("closeFile", self._frame, False)
