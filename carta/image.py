@@ -342,7 +342,7 @@ class Image:
 
     # NAVIGATION
 
-    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(Number, 0, Attr("num_stokes"), Number.INCLUDE_MIN), Boolean())
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(Number, 1, Attr("num_stokes")), Boolean())
     def set_channel_stokes(self, channel=None, stokes=None, recursive=True):
         """Set the channel and/or Stokes.
 
