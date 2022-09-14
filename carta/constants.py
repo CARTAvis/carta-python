@@ -113,3 +113,24 @@ class ContourDashMode:
     NONE = "None"
     DASHED = "Dashed"
     NEGATIVE_ONLY = "NegativeOnly"
+
+
+class Polarization:
+    """Polarizations, corresponding to the POLARIZATIONS enum in the frontend."""
+    YX = -8
+    XY = -7
+    YY = -6
+    XX = -5
+    LR = -4
+    RL = -3
+    LL = -2
+    RR = -1
+    I = 1
+    Q = 2
+    U = 3
+    V = 4
+    PTOTAL = 13
+    PLINEAR = 14
+    PFTOTAL = 15
+    PFLINEAR = 16
+    PANGLE = 17

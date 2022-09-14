@@ -527,6 +527,11 @@ class Attr(str):
     pass
 
 
+class Attrs(str):
+    """A wrapper for arguments to be passed to the :obj:`carta.validation.Evaluate` descriptor. These arguments are string names of properties on the parent object of the decorated method, which will be evaluated at runtime. Unlike `carta.validation.Attr`, the wrapped property is assumed to be an iterable which should be unpacked."""
+    pass
+
+
 class Evaluate(Parameter):
     """A descriptor which is constructed at runtime using properties of the parent object of the decorated method.
 
@@ -550,10 +555,14 @@ class Evaluate(Parameter):
         self.args = args
 
     def validate(self, value, parent):
-        args = list(self.args)
-        for i, arg in enumerate(args):
+        args = []
+        for arg in self.args:
             if isinstance(arg, Attr):
-                args[i] = getattr(parent, arg)
+                args.append(getattr(parent, arg))
+            elif isinstance(arg, Attrs):
+                args.extend(getattr(parent, arg))
+            else:
+                args.append(arg)
 
         param = self.paramclass(*args)
         param.validate(value, parent)
@@ -613,7 +622,6 @@ def validate(*vargs):
             try:
                 for param, value in zip(vargs, args):
                     param.validate(value, self)
-
                 for key, value in kwargs.items():
                     try:
                         param = kwvargs[key]

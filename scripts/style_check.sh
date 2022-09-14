@@ -1,5 +1,5 @@
 #!/bin/bash
 
-# Check for PEP8 code style violations, but ignore long lines
+# Check for PEP8 code style violations, but ignore long lines and ambiguous variable names
 
-pycodestyle carta/*.py | grep -v E501
+pycodestyle --ignore=E501,E741 carta/*.py

@@ -4,9 +4,9 @@ Image objects should not be instantiated directly, and should only be created th
 """
 import posixpath
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization
 from .util import Macro, cached
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
 
 
 class Image:
@@ -227,7 +227,7 @@ class Image:
             The shape of the image; dimensions ordered with width last.
 
         """
-        return list(reversed([self.width, self.height, self.depth, self.num_stokes][:self.ndim]))
+        return list(reversed([self.width, self.height, self.depth, self.num_polarizations][:self.ndim]))
 
     @property
     @cached
@@ -267,13 +267,13 @@ class Image:
 
     @property
     @cached
-    def num_stokes(self):
-        """The number of Stokes parameters of the image.
+    def num_polarizations(self):
+        """The number of polarizations of the image, excluding computed polarizations.
 
         Returns
         -------
         integer
-            The number of Stokes parameters.
+            The number of polarizations.
         """
         return self.get_value("frameInfo.fileInfoExtended.stokes")
 
@@ -288,6 +288,33 @@ class Image:
             The number of dimensions.
         """
         return self.get_value("frameInfo.fileInfoExtended.dimensions")
+
+    @property
+    @cached
+    def polarizations(self):
+        """The available polarizations of the image.
+
+        This includes Stokes parameters, correlations, and computed components.
+
+        Returns
+        -------
+        list of integers
+            The available polarizations.
+        """
+        return self.get_value("polarizations")
+
+    @validate(Constant(Polarization))
+    def has_polarization(self, polarization):
+        """Check whether a polarization is available.
+
+        This includes Stokes parameters, correlations, and computed components.
+
+        Returns
+        -------
+        boolean
+            Whether the polarization is available.
+        """
+        return polarization in self.polarizations
 
     # SELECTION
 
@@ -342,22 +369,29 @@ class Image:
 
     # NAVIGATION
 
-    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(Number, 1, Attr("num_stokes")), Boolean())
-    def set_channel_stokes(self, channel=None, stokes=None, recursive=True):
-        """Set the channel and/or Stokes.
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(OneOf, Attrs("polarizations")), Boolean())
+    def set_channel_polarization(self, channel=None, polarization=None, recursive=True):
+        """Set the channel and/or polarization.
 
         Parameters
         ----------
         channel : {0}
             The desired channel. Defaults to the current channel.
-        stokes : {1}
-            The desired Stokes. Defaults to the current Stokes.
+        polarization : {1}
+            The desired polarization. Defaults to the current polarization.
         recursive : {2}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
-        channel = channel or self.get_value("requiredChannel")
-        stokes = stokes or self.get_value("requiredStokes")
-        self.call_action("setChannels", channel, stokes, recursive)
+        if channel is None:
+            channel = self.get_value("requiredChannel")
+
+        if polarization is None:
+            polarization = self.get_value("requiredPolarization")
+
+        if polarization < Polarization.PTOTAL:
+            polarization = self.polarizations.index(polarization)
+
+        self.call_action("setChannels", channel, polarization, recursive)
 
     @validate(Number(), Number())
     def set_center(self, x, y):
