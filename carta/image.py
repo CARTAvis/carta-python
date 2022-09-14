@@ -309,6 +309,11 @@ class Image:
 
         This includes Stokes parameters, correlations, and computed components.
 
+        Parameters
+        ----------
+        polarization: {0}
+            The polarization to check.
+
         Returns
         -------
         boolean

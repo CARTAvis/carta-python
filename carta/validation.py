@@ -578,7 +578,7 @@ class Evaluate(Parameter):
         """
         args = list(self.args)
         for i, arg in enumerate(args):
-            if isinstance(arg, Attr):
+            if isinstance(arg, Attr) or isinstance(arg, Attrs):
                 args[i] = f"self.{arg}"
 
         # This is a bit magic, and relies on the lack of any kind of type checking in the constructors
