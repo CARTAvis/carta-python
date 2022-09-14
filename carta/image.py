@@ -374,24 +374,39 @@ class Image:
 
     # NAVIGATION
 
-    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Evaluate(OneOf, Attrs("polarizations")), Boolean())
-    def set_channel_polarization(self, channel=None, polarization=None, recursive=True):
-        """Set the channel and/or polarization.
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Boolean())
+    def set_channel(self, channel, recursive=True):
+        """Set the channel.
 
         Parameters
         ----------
         channel : {0}
             The desired channel. Defaults to the current channel.
-        polarization : {1}
-            The desired polarization. Defaults to the current polarization.
-        recursive : {2}
+        recursive : {1}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
         if channel is None:
             channel = self.get_value("requiredChannel")
 
-        if polarization is None:
-            polarization = self.get_value("requiredPolarization")
+        polarization = self.get_value("requiredPolarization")
+
+        if polarization < Polarization.PTOTAL:
+            polarization = self.polarizations.index(polarization)
+
+        self.call_action("setChannels", channel, polarization, recursive)
+
+    @validate(Evaluate(OneOf, Attrs("polarizations")), Boolean())
+    def set_polarization(self, polarization, recursive=True):
+        """Set the polarization.
+
+        Parameters
+        ----------
+        polarization : {0}
+            The desired polarization. Defaults to the current polarization.
+        recursive : {1}
+            Whether to perform the same change on all spectrally matched images. Defaults to True.
+        """
+        channel = self.get_value("requiredChannel")
 
         if polarization < Polarization.PTOTAL:
             polarization = self.polarizations.index(polarization)
