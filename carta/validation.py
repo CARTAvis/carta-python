@@ -3,7 +3,6 @@
 import re
 import functools
 import inspect
-from collections import Hashable
 
 from .util import CartaValidationFailed
 
@@ -317,41 +316,31 @@ class Union(Parameter):
 
 
 class Constant(OneOf):
-    """A parameter which must match a class property on the provided class. Intended for use with the constants defined in :obj:`carta.constants`. Classes may define which class attributes are not constants and should be ignored. Attributes with unhashable values or with names that start with ``__`` are automatically ignored.
+    """A parameter which must be a member of the given enum class. For consistency and compatibility, a parameter will be accepted if it evaluates as equal to a member of the enum. Intended for use with the string and integer constants defined in :obj:`carta.constants`.
 
     Parameters
     ----------
-    clazz : class
-        The parameter must match one of the properties of this class.
+    clazz : enum class
+        The parameter must be a member of this enum class or have the same value as a member of this enum class.
     exclude : iterable, optional
-        An iterable of properties to exclude.
+        An iterable of members to exclude.
 
     Attributes
     ----------
     options : iterable
         An iterable of the permitted options.
-    clazz : class
-        The parameter must match one of the properties of this class.
+    clazz : enum class
+        The parameter must be a member of this enum class or have the same value as a member of this enum class.
     exclude : iterable
-        An iterable of properties which are excluded.
+        An iterable of members which are excluded.
     """
 
     def __init__(self, clazz, exclude=()):
-        attrs = inspect.getmembers(clazz, lambda x: not(inspect.isroutine(x)))
-        options = set(v for k, v in attrs if not Constant.ignore(clazz, k) and isinstance(v, Hashable))
+        options = set(e for e in clazz)
         options -= set(exclude)
         super().__init__(*options)
         self.clazz = clazz
         self.exclude = exclude
-
-    @staticmethod
-    def ignore(clazz, attrname):
-        if attrname.startswith("__"):
-            return True
-        if attrname == "IGNORE":
-            return True
-        if attrname in getattr(clazz, "IGNORE", set()):
-            return True
 
     @property
     def description(self):
@@ -371,7 +360,7 @@ class Constant(OneOf):
             excluding = f" excluding {exclude_list}"
         else:
             excluding = ""
-        return f"a class property of :obj:`{fullname}`{excluding}"
+        return f"a member of :obj:`{fullname}`{excluding}"
 
 
 class NoneOr(Union):

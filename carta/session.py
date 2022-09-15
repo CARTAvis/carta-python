@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, LIGHT_THEME, DARK_THEME, Overlay
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaScriptingException, CartaBadID
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
@@ -514,11 +514,11 @@ class Session:
 
         Returns
         -------
-        A property of :obj:`carta.constants.PaletteColor` or None
+        A member of :obj:`carta.constants.PaletteColor` or None
             The color of the component or None if no custom color is set on the component.
         """
         if component in (Overlay.GLOBAL, Overlay.BEAM) or self.get_value(f"overlayStore.{component}.customColor"):
-            return self.get_value(f"overlayStore.{component}.color")
+            return PaletteColor(self.get_value(f"overlayStore.{component}.color"))
 
     @validate(Constant(PaletteColor))
     def palette_to_rgb(self, color):
@@ -537,8 +537,8 @@ class Session:
             The RGB value of the palette colour in the session's current theme, as a 6-digit hexadecimal with a leading ``#``.
         """
         if self.get_value("darkTheme"):
-            return PaletteColor.DARK[color]
-        return PaletteColor.LIGHT[color]
+            return DARK_THEME[color]
+        return LIGHT_THEME[color]
 
     @validate(Number(min=0, interval=Number.EXCLUDE), OneOf(Overlay.GRID, Overlay.BORDER, Overlay.TICKS, Overlay.AXES, Overlay.COLORBAR))
     def set_width(self, width, component):
@@ -637,7 +637,7 @@ class Session:
 
         Parameters
         ----------
-        component : a class property of :obj:`carta.constants.Overlay`
+        component : a member of :obj:`carta.constants.Overlay`
             The overlay component to use as the base of the path.
         path : string
             The path to an action relative to this overlay component.
@@ -655,7 +655,7 @@ class Session:
 
         Parameters
         ----------
-        component : a class property of :obj:`carta.constants.Overlay`
+        component : a member of :obj:`carta.constants.Overlay`
             The overlay component to use as the base of the path.
         path : string
             The path to an attribute relative to this overlay component.

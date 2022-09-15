@@ -298,28 +298,10 @@ class Image:
 
         Returns
         -------
-        list of integers
+        list of members of :obj:`carta.constants.Polarization`
             The available polarizations.
         """
-        return self.get_value("polarizations")
-
-    @validate(Constant(Polarization))
-    def has_polarization(self, polarization):
-        """Check whether a polarization is available.
-
-        This includes Stokes parameters, correlations, and computed components.
-
-        Parameters
-        ----------
-        polarization: {0}
-            The polarization to check.
-
-        Returns
-        -------
-        boolean
-            Whether the polarization is available.
-        """
-        return polarization in self.polarizations
+        return [Polarization(p) for p in self.get_value("polarizations")]
 
     # SELECTION
 
