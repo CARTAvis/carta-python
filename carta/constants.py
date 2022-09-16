@@ -30,59 +30,82 @@ class BeamType(str, Enum):
     SOLID = "Solid"
 
 
-PaletteColor = Enum("PaletteColor", {c.upper(): f"auto-{c}" for c in ("blue", "orange", "green", "red", "vermilion", "rose", "violet", "sepia", "indigo", "gray", "lime", "turquoise", "forest", "gold", "cobalt", "light_gray", "dark_gray", "white", "black")}, type=str)
-PaletteColor.__doc__ = """Palette colours used for overlay elements."""
-
 # BlueprintJS colour palettes (2 and 4)
 LIGHT_THEME = {
-    PaletteColor.DARK_GRAY: "#252a31",
-    PaletteColor.GRAY: "#738091",
-    PaletteColor.LIGHT_GRAY: "#dce0e5",
-    PaletteColor.BLUE: "#215db0",
-    PaletteColor.GREEN: "#1c6e42",
-    PaletteColor.ORANGE: "#935610",
-    PaletteColor.RED: "#ac2f33",
-    PaletteColor.VERMILION: "#b83211",
-    PaletteColor.ROSE: "#c22762",
-    PaletteColor.VIOLET: "#7c327c",
-    PaletteColor.INDIGO: "#634dbf",
-    PaletteColor.COBALT: "#2458b3",
-    PaletteColor.TURQUOISE: "#007067",
-    PaletteColor.FOREST: "#238c2c",
-    PaletteColor.LIME: "#5a701a",
-    PaletteColor.GOLD: "#866103",
-    PaletteColor.SEPIA: "#7a542e",
-    PaletteColor.WHITE: "#ffffff",
-    PaletteColor.BLACK: "#000000",
+    "DARK_GRAY": "#252a31",
+    "GRAY": "#738091",
+    "LIGHT_GRAY": "#dce0e5",
+    "BLUE": "#215db0",
+    "GREEN": "#1c6e42",
+    "ORANGE": "#935610",
+    "RED": "#ac2f33",
+    "VERMILION": "#b83211",
+    "ROSE": "#c22762",
+    "VIOLET": "#7c327c",
+    "INDIGO": "#634dbf",
+    "COBALT": "#2458b3",
+    "TURQUOISE": "#007067",
+    "FOREST": "#238c2c",
+    "LIME": "#5a701a",
+    "GOLD": "#866103",
+    "SEPIA": "#7a542e",
+    "WHITE": "#ffffff",
+    "BLACK": "#000000",
 }
 
 DARK_THEME = {
-    PaletteColor.DARK_GRAY: "#383e47",
-    PaletteColor.GRAY: "#abb3bf",
-    PaletteColor.LIGHT_GRAY: "#edeff2",
-    PaletteColor.BLUE: "#4c90f0",
-    PaletteColor.GREEN: "#32a467",
-    PaletteColor.ORANGE: "#ec9a3c",
-    PaletteColor.RED: "#e76a6e",
-    PaletteColor.VERMILION: "#eb6847",
-    PaletteColor.ROSE: "#f5498b",
-    PaletteColor.VIOLET: "#bd6bbd",
-    PaletteColor.INDIGO: "#9881f3",
-    PaletteColor.COBALT: "#4580e6",
-    PaletteColor.TURQUOISE: "#13c9ba",
-    PaletteColor.FOREST: "#43bf4d",
-    PaletteColor.LIME: "#b6d94c",
-    PaletteColor.GOLD: "#f0b726",
-    PaletteColor.SEPIA: "#af855a",
-    PaletteColor.WHITE: "#ffffff",
-    PaletteColor.BLACK: "#000000",
+    "DARK_GRAY": "#383e47",
+    "GRAY": "#abb3bf",
+    "LIGHT_GRAY": "#edeff2",
+    "BLUE": "#4c90f0",
+    "GREEN": "#32a467",
+    "ORANGE": "#ec9a3c",
+    "RED": "#e76a6e",
+    "VERMILION": "#eb6847",
+    "ROSE": "#f5498b",
+    "VIOLET": "#bd6bbd",
+    "INDIGO": "#9881f3",
+    "COBALT": "#4580e6",
+    "TURQUOISE": "#13c9ba",
+    "FOREST": "#43bf4d",
+    "LIME": "#b6d94c",
+    "GOLD": "#f0b726",
+    "SEPIA": "#af855a",
+    "WHITE": "#ffffff",
+    "BLACK": "#000000",
 }
+
+
+class PaletteColor(str, Enum):
+    """Palette colours used for overlay elements.
+
+    Members of this enum class have additional attributes.
+
+    Attributes
+    ----------
+    rgb_light : string
+        The RGB value of this palette colour in the light theme.
+    rgb_dark : string
+        The RGB value of this palette colour in the dark theme.
+
+    """
+
+    def __init__(self, value):
+        self.rgb_light = LIGHT_THEME[self.name]
+        self.rgb_dark = DARK_THEME[self.name]
+
+    _ignore_ = "PaletteColor c"
+
+    PaletteColor = vars()
+
+    for c in ('BLUE', 'ORANGE', 'GREEN', 'RED', 'VERMILION', 'ROSE', 'VIOLET', 'SEPIA', 'INDIGO', 'GRAY', 'LIME', 'TURQUOISE', 'FOREST', 'GOLD', 'COBALT', 'LIGHT_GRAY', 'DARK_GRAY', 'WHITE', 'BLACK'):
+        PaletteColor[c] = f"auto-{c.lower()}"
 
 
 Overlay = Enum('Overlay', [(c.upper(), c) for c in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar")] + [('BEAM', 'beam.settingsForDisplay')], type=str)
 Overlay.__doc__ = """Overlay elements.
 
-    The values of these properties are paths to stores corresponding to these elements, relative to the overlay store.
+    Member values are paths to stores corresponding to these elements, relative to the overlay store.
     """
 
 

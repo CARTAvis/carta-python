@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, LIGHT_THEME, DARK_THEME, Overlay
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaScriptingException, CartaBadID
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
@@ -536,9 +536,10 @@ class Session:
         string
             The RGB value of the palette colour in the session's current theme, as a 6-digit hexadecimal with a leading ``#``.
         """
+        color = PaletteColor(color)
         if self.get_value("darkTheme"):
-            return DARK_THEME[color]
-        return LIGHT_THEME[color]
+            return color.rgb_dark
+        return color.rgb_light
 
     @validate(Number(min=0, interval=Number.EXCLUDE), OneOf(Overlay.GRID, Overlay.BORDER, Overlay.TICKS, Overlay.AXES, Overlay.COLORBAR))
     def set_width(self, width, component):
