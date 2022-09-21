@@ -137,18 +137,22 @@ class Number(Parameter):
         if self.min is not None:
             if self.min_included:
                 if value < self.min:
-                    raise ValueError(f"{value} is smaller than minimum value {self.min}.")
+                    raise ValueError(f"{value} is smaller than lower bound {self.min}, but must be greater or equal.")
             else:
-                if value <= self.min:
-                    raise ValueError(f"{value} is smaller than or equal to minimum value {self.min}.")
+                if value == self.min:
+                    raise ValueError(f"{value} is equal to lower bound {self.min}, but must be greater.")
+                if value < self.min:
+                    raise ValueError(f"{value} is smaller than lower bound {self.min}, but must be greater.")
 
         if self.max is not None:
             if self.max_included:
                 if value > self.max:
-                    raise ValueError(f"{value} is greater than maximum value {self.max}.")
+                    raise ValueError(f"{value} is greater than upper bound {self.max}, but must be smaller or equal.")
             else:
-                if value >= self.max:
-                    raise ValueError(f"{value} is greater than or equal to maximum value {self.max}.")
+                if value == self.max:
+                    raise ValueError(f"{value} is equal to upper bound {self.max}, but must be smaller.")
+                if value > self.max:
+                    raise ValueError(f"{value} is greater than upper bound {self.max}, but must be smaller.")
 
     @property
     def description(self):

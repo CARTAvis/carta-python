@@ -367,9 +367,6 @@ class Image:
         recursive : {1}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
-        if channel is None:
-            channel = self.get_value("requiredChannel")
-
         polarization = self.get_value("requiredPolarization")
 
         if polarization < Polarization.PTOTAL:
