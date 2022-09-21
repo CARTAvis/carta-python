@@ -138,18 +138,22 @@ class Number(Parameter):
         if self.min is not None:
             if self.min_included:
                 if value < self.min:
-                    raise ValueError(f"{value} is smaller than minimum value {self.min}.")
+                    raise ValueError(f"{value} is smaller than lower bound {self.min}, but must be greater or equal.")
             else:
-                if value <= self.min:
-                    raise ValueError(f"{value} is smaller than or equal to minimum value {self.min}.")
+                if value == self.min:
+                    raise ValueError(f"{value} is equal to lower bound {self.min}, but must be greater.")
+                if value < self.min:
+                    raise ValueError(f"{value} is smaller than lower bound {self.min}, but must be greater.")
 
         if self.max is not None:
             if self.max_included:
                 if value > self.max:
-                    raise ValueError(f"{value} is greater than maximum value {self.max}.")
+                    raise ValueError(f"{value} is greater than upper bound {self.max}, but must be smaller or equal.")
             else:
-                if value >= self.max:
-                    raise ValueError(f"{value} is greater than or equal to maximum value {self.max}.")
+                if value == self.max:
+                    raise ValueError(f"{value} is equal to upper bound {self.max}, but must be smaller.")
+                if value > self.max:
+                    raise ValueError(f"{value} is greater than upper bound {self.max}, but must be smaller.")
 
     @property
     def description(self):
@@ -527,6 +531,11 @@ class Attr(str):
     pass
 
 
+class Attrs(str):
+    """A wrapper for arguments to be passed to the :obj:`carta.validation.Evaluate` descriptor. These arguments are string names of properties on the parent object of the decorated method, which will be evaluated at runtime. Unlike `carta.validation.Attr`, the wrapped property is assumed to be an iterable which should be unpacked."""
+    pass
+
+
 class Evaluate(Parameter):
     """A descriptor which is constructed at runtime using properties of the parent object of the decorated method.
 
@@ -550,10 +559,14 @@ class Evaluate(Parameter):
         self.args = args
 
     def validate(self, value, parent):
-        args = list(self.args)
-        for i, arg in enumerate(args):
+        args = []
+        for arg in self.args:
             if isinstance(arg, Attr):
-                args[i] = getattr(parent, arg)
+                args.append(getattr(parent, arg))
+            elif isinstance(arg, Attrs):
+                args.extend(getattr(parent, arg))
+            else:
+                args.append(arg)
 
         param = self.paramclass(*args)
         param.validate(value, parent)
@@ -569,7 +582,7 @@ class Evaluate(Parameter):
         """
         args = list(self.args)
         for i, arg in enumerate(args):
-            if isinstance(arg, Attr):
+            if isinstance(arg, Attr) or isinstance(arg, Attrs):
                 args[i] = f"self.{arg}"
 
         # This is a bit magic, and relies on the lack of any kind of type checking in the constructors
@@ -613,7 +626,6 @@ def validate(*vargs):
             try:
                 for param, value in zip(vargs, args):
                     param.validate(value, self)
-
                 for key, value in kwargs.items():
                     try:
                         param = kwvargs[key]

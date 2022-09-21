@@ -2,12 +2,12 @@
 
 # Fix PEP8 code style violations, but ignore long lines
 
-echo "Fixing issues automatically (except long lines)..."
+echo "Fixing issues automatically..."
 
 autopep8 --in-place --ignore E501 carta/*.py
 
-# Check for PEP8 code style violations, but ignore long lines
+# Check for PEP8 code style violations, but ignore long lines and ambiguous variable names
 
-echo "Outstanding issues (except long lines):"
+echo "Outstanding issues:"
 
-pycodestyle carta/*.py | grep -v E501
+pycodestyle --ignore=E501,E741 carta/*.py
