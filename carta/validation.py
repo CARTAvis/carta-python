@@ -3,7 +3,11 @@
 import re
 import functools
 import inspect
-from collections import Hashable
+
+try:
+    from collections.abc import Hashable
+except ImportError:
+    from collections import Hashable
 
 from .util import CartaValidationFailed
 
