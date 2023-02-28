@@ -23,8 +23,8 @@ You need access either to a CARTA backend executable, on the local host or on a 
 
 If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
 
-Connecting to an existing session
----------------------------------
+Connecting to an existing interactive session
+---------------------------------------------
 
 Use the ``interact`` method if you want to use scripting to control a CARTA session which you already have open in your browser.
 
@@ -58,10 +58,29 @@ To connect to a controller instance, you must authenticate to obtain a controlle
 
     session = Session.interact("FRONTEND URL", 123456, ControllerToken.from_file("path/to/token"))
 
-Creating a new session
-----------------------
+Creating a new interactive session
+----------------------------------
 
-Use the ``create`` method if you want to write a non-interactive script which starts a new session in a headless browser, performs a series of actions, and saves output, with no input from you.
+Use the ``start_and_interact`` method if you want to start the backend process from an interactive Python session and connect to the default CARTA session which is automatically opened in your browser on startup.
+
+This method parses the frontend URL and the session ID from the output of the backend process.
+
+The wrapper can start the backend process on your local computer, or on a remote host if your Unix user has the appropriate permissions to ssh to the remote host without entering a password. This method cannot be used with a controller.
+
+.. code-block:: python
+
+    from carta.session import Session
+
+    # New session, start local backend
+    session = Session.start_and_interact()
+
+    # New session, start remote backend
+    session = Session.start_and_interact(remote_host="REMOTE HOSTNAME OR IP")
+
+Creating a new non-interactive session
+--------------------------------------
+
+Use the ``create`` method if you want to write a non-interactive script which starts a new session in a headless browser, performs a series of actions, and saves output, with no input from you. The ``start_and_create`` method additionally starts a backend process first.
 
 The wrapper automatically parses the session ID from the frontend. If the wrapper also starts the backend process, it parses the frontend URL from the backend output. If you want to connect to an existing backend process, you must provide the frontend URL and the security token. You may omit the token if it is included in the URL.
 

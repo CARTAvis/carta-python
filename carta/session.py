@@ -10,8 +10,9 @@ import base64
 
 from .image import Image
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
+from .backend import Backend
 from .protocol import Protocol
-from .util import logger, Macro, split_action_path, CartaScriptingException, CartaBadID
+from .util import logger, Macro, split_action_path, CartaScriptingException, CartaBadID, CartaBadSession, CartaBadUrl
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
 
 
@@ -54,7 +55,7 @@ class Session:
         self.close()
 
     @classmethod
-    def interact(cls, frontend_url, session_id, token=None, debug_no_auth=False):
+    def interact(cls, frontend_url, session_id, token=None, debug_no_auth=False, backend=None):
         """Interact with an existing CARTA frontend session.
 
         Parameters
@@ -67,6 +68,8 @@ class Session:
             The security token used by the CARTA instance. You may omit this if the URL contains a token.
         debug_no_auth : boolean, optional
             Disable authentication. Set this if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
+        backend : :obj:`carta.backend.Backend`
+            The backend object associated with this session, if any. This is set if this method is called from :obj:`carta.session.Session.start_and_interact`.
 
         Returns
         -------
@@ -89,7 +92,54 @@ class Session:
         except ValueError:
             raise CartaBadID(f"Session ID '{session_id}' is not a number.")
 
-        return cls(session_id, Protocol(frontend_url, token, debug_no_auth=debug_no_auth))
+        return cls(session_id, Protocol(frontend_url, token, debug_no_auth=debug_no_auth), backend=backend)
+
+    @classmethod
+    def start_and_interact(cls, executable_path="carta", remote_host=None, params=tuple(), token=None, session_creation_timeout=10):
+        """Start a new CARTA backend instance and interact with the default CARTA frontend session which is created automatically in the user's browser. This method cannot be used with a CARTA controller instance.
+
+        Parameters
+        ----------
+        executable_path : string, optional
+            A custom path to the CARTA backend executable. The default is ``"carta"``.
+        remote_host : string, optional
+            A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
+        params : iterable, optional
+            Additional parameters to be passed to the backend process. By default scripting is enabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
+        token : :obj:`carta.token.Token`, optional
+            The security token to use. Parsed from the backend output by default.
+        session_creation_timeout : integer
+            How long to keep checking the output for a default session ID. 10 seconds by default.
+
+        Returns
+        -------
+        :obj:`carta.session.Session`
+            A session object associated with the frontend session provided.
+
+        Raises
+        ------
+        CartaBadID
+            If a valid ID cannot be obtained from the backend process output.
+        CartaBadToken
+            If a valid token cannot be obtained from the backend process output, or the provided token is invalid.
+        CartaBadUrl
+            If a valid URL cannot be obtained from the backend process output.
+        CartaBadSession
+            If the session object could not be created.
+        """
+        backend = Backend(("--enable_scripting", *params), executable_path, remote_host, token, session_creation_timeout=session_creation_timeout)
+        if not backend.start():
+            raise CartaBadSession(f"CARTA backend exited unexpectedly:\n{''.join(backend.errors)}")
+
+        if backend.frontend_url is None:
+            backend.stop()
+            raise CartaBadUrl("Could not parse CARTA frontend URL from backend output.")
+
+        if backend.last_session_id is None:
+            backend.stop()
+            raise CartaBadID("Could not parse default CARTA session ID from backend output.")
+
+        return cls.interact(backend.frontend_url, backend.last_session_id, token, backend.debug_no_auth, backend)
 
     @classmethod
     def create(cls, browser, frontend_url, token=None, timeout=10, debug_no_auth=False):
