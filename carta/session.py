@@ -95,7 +95,7 @@ class Session:
         return cls(session_id, Protocol(frontend_url, token, debug_no_auth=debug_no_auth), backend=backend)
 
     @classmethod
-    def start_and_interact(cls, executable_path="carta", remote_host=None, params=tuple(), token=None, session_creation_timeout=10):
+    def start_and_interact(cls, executable_path="carta", remote_host=None, params=tuple(), token=None, frontend_url_timeout=10, session_creation_timeout=10):
         """Start a new CARTA backend instance and interact with the default CARTA frontend session which is created automatically in the user's browser. This method cannot be used with a CARTA controller instance.
 
         Parameters
@@ -108,8 +108,10 @@ class Session:
             Additional parameters to be passed to the backend process. By default scripting is enabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
         token : :obj:`carta.token.Token`, optional
             The security token to use. Parsed from the backend output by default.
+        frontend_url_timeout : integer
+            How long to keep checking the backend output for the frontend URL. Default: 10 seconds.
         session_creation_timeout : integer
-            How long to keep checking the output for a default session ID. 10 seconds by default.
+            How long to keep checking the output for a default session ID. Default: 10 seconds.
 
         Returns
         -------
@@ -127,7 +129,7 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         """
-        backend = Backend(("--enable_scripting", *params), executable_path, remote_host, token, session_creation_timeout=session_creation_timeout)
+        backend = Backend(("--enable_scripting", *params), executable_path, remote_host, token, frontend_url_timeout, session_creation_timeout)
         if not backend.start():
             raise CartaBadSession(f"CARTA backend exited unexpectedly:\n{''.join(backend.errors)}")
 
@@ -175,7 +177,7 @@ class Session:
         return browser.new_session_from_url(frontend_url, token, backend=None, timeout=timeout, debug_no_auth=debug_no_auth)
 
     @classmethod
-    def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None):
+    def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10):
         """Start a new CARTA backend instance and create a new session. This method cannot be used with a CARTA controller instance (which already starts and stops backend instances for the user on demand).
 
         Parameters
@@ -192,6 +194,8 @@ class Session:
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
         token : :obj:`carta.token.Token`, optional
             The security token to use. Parsed from the backend output by default.
+        frontend_url_timeout : integer
+            How long to keep checking the backend output for the frontend URL. Default: 10 seconds.
 
         Returns
         -------
@@ -207,7 +211,7 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         """
-        return browser.new_session_with_backend(executable_path, remote_host, params, timeout, token)
+        return browser.new_session_with_backend(executable_path, remote_host, params, timeout, token, frontend_url_timeout)
 
     def __repr__(self):
         return f"Session(session_id={self.session_id}, uri={self._protocol.frontend_url})"

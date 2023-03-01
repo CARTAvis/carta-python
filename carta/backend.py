@@ -25,6 +25,8 @@ class Backend:
         If this is set, an attempt will be made to start the backend over ``ssh`` on this host.
     token : :obj:`carta.token.BackendToken`
         If this is set, this will be used as the security token and no attempt will be made to parse the token from the backend output.
+    frontend_url_timeout : integer
+        How long to keep checking the output for the frontend URL. Default: 10 seconds.
     session_creation_timeout : integer
         How long to keep checking the output for a default session ID. If this is set to zero (which is the default), no attempt is made to parse a session ID from the output. The calling function should set this to a non-zero value if parsing the session ID is required.
 
@@ -44,6 +46,8 @@ class Backend:
         Error output of the backend process, split into lines, terminated by newline characters.
     last_session_id : integer
         The ID of the last session connected to this backend process, parsed from the process output. This is likely to be the default session automatically created in the user's browser on startup, if this functionality was not suppressed with the ``--no_browser`` flag. This value is used by the :obj:`carta.session.Session.start_and_interact` method, which connects to this default session. It is not used by the session creation methods which use a wrapper-controlled headless browser, as those parse the session ID from the browser session.
+    frontend_url_timeout : integer
+        How long to keep checking the output for the frontend URL.
     session_creation_timeout : integer
         How long to keep checking the output for a default session ID. If this is set to zero, no attempt is made to parse a session ID from the output.
 
@@ -57,7 +61,7 @@ class Backend:
     FRONTEND_URL_NO_AUTH = re.compile(r"CARTA is accessible at (http://(.*?):\d+.*)")
     SESSION_ID = re.compile(r"Session (\d+) \[[\d.]+\] Connected.")
 
-    def __init__(self, params, executable_path="carta", remote_host=None, token=None, session_creation_timeout=0):
+    def __init__(self, params, executable_path="carta", remote_host=None, token=None, frontend_url_timeout=10, session_creation_timeout=0):
         self.proc = None
         self.frontend_url = None
         self.token = token
@@ -65,6 +69,7 @@ class Backend:
         self.output = []
         self.errors = []
         self.last_session_id = None
+        self.frontend_url_timeout = frontend_url_timeout
         self.session_creation_timeout = session_creation_timeout
 
         ssh_cmd = ("ssh", "-tt", remote_host) if remote_host is not None else tuple()
@@ -90,21 +95,30 @@ class Backend:
         self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, cwd=pathlib.Path.home(), preexec_fn=os.setpgrp)
         os.set_blocking(self.proc.stdout.fileno(), False)
 
-        time.sleep(1)
-        self.update_output()
-
-        if self.proc.poll() is not None:
-            return False
-
         frontend_url_re = self.FRONTEND_URL if not self.debug_no_auth else self.FRONTEND_URL_NO_AUTH
+        token_string = None
 
-        for line in self.output:
-            m = frontend_url_re.search(line)
-            if m:
-                self.frontend_url, token_string = m.groups()
+        start = time.time()
+
+        while self.frontend_url is None:
+            if time.time() - start > self.frontend_url_timeout:
                 break
 
-        if self.token is None and not self.debug_no_auth:
+            # Check for new output
+            self.update_output()
+
+            if self.proc.poll() is not None:
+                return False
+
+            for line in self.output:
+                m = frontend_url_re.search(line)
+                if m:
+                    self.frontend_url, token_string = m.groups()
+                    break
+
+            time.sleep(1)
+
+        if token_string is not None and self.token is None and not self.debug_no_auth:
             self.token = BackendToken(token_string)
 
         # Only try to parse the session ID if it has been requested
@@ -117,6 +131,9 @@ class Backend:
 
                 # Check for new output
                 self.update_output()
+
+                if self.proc.poll() is not None:
+                    return False
 
                 for line in self.output:
                     m = self.SESSION_ID.search(line)
