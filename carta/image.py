@@ -573,6 +573,48 @@ class Image:
         """Apply the contour configuration."""
         self.call_action("applyContours")
 
+    @validate(IterableOf(Number()), Constant(SmoothingMode), Number(), NoneOr(Constant(ContourDashMode)), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
+    def plot_contours(self, levels, smoothing_mode=SmoothingMode.GAUSSIAN_BLUR, smoothing_factor=4, dash_mode=None, thickness=None, color=None, colormap=None, bias=None, contrast=None):
+        """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
+
+        If both a colour and a colourmap are provided, the colourmap will be visible.
+
+        Parameters
+        ----------
+        levels : {0}
+            The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``.
+        smoothing_mode : {1}
+            The smoothing mode.
+        smoothing_factor : {2}
+            The smoothing factor.
+        dash_mode : {0}
+            The dash mode.
+        thickness : {1}
+            The dash thickness.
+        color : {0}
+            The color.
+        colormap : {0}
+            The colormap.
+        bias : {1}
+            The colormap bias.
+        contrast : {2}
+            The colormap contrast.
+        """
+        self.configure_contours(levels, smoothing_mode, smoothing_factor)
+        self.set_contour_dash(dash_mode, thickness)
+        if color is not None:
+            self.call_action("contourConfig.setColor", color)
+        if colormap is not None:
+            self.call_action("contourConfig.setColormap", colormap)
+            self.call_action("contourConfig.setColormapEnabled", True)
+            if bias is not None:
+                self.call_action("contourConfig.setColormapBias", bias)
+            if contrast is not None:
+                self.call_action("contourConfig.setColormapContrast", contrast)
+        else:
+            self.call_action("contourConfig.setColormapEnabled", False)
+        self.apply_contours()
+
     def clear_contours(self):
         """Clear the contours."""
         self.call_action("clearContours", True)
