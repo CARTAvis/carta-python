@@ -98,7 +98,7 @@ class Browser:
 
         return Session(session_id, protocol, browser=self, backend=backend)
 
-    def new_session_with_backend(self, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None):
+    def new_session_with_backend(self, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10):
         """Create a new session after launching a new backend process.
 
         You can use :obj:`carta.session.Session.start_and_create`, which wraps this method. This method starts a backend process, parses the frontend URL from the output, and calls :obj:`carta.browser.Browser.new_session_from_url`.
@@ -115,6 +115,8 @@ class Browser:
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
         token : :obj:`carta.token.BackendToken`, optional
             The security token to use. Parsed from the backend output by default.
+        frontend_url_timeout : integer
+            How long to keep checking the backend output for the frontend URL. Default: 10 seconds.
 
         Returns
         -------
@@ -131,7 +133,7 @@ class Browser:
             If the session object could not be created.
         """
 
-        backend = Backend(("--no_browser", "--enable_scripting", *params), executable_path, remote_host, token)
+        backend = Backend(("--no_browser", "--enable_scripting", *params), executable_path, remote_host, token, frontend_url_timeout=frontend_url_timeout, session_creation_timeout=0)
         if not backend.start():
             self.exit(f"CARTA backend exited unexpectedly:\n{''.join(backend.errors)}")
 
