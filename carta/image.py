@@ -298,10 +298,10 @@ class Image:
 
         Returns
         -------
-        list of integers
+        list of members of :obj:`carta.constants.Polarization`
             The available polarizations.
         """
-        return self.get_value("polarizations")
+        return [Polarization(p) for p in self.get_value("polarizations")]
 
     # SELECTION
 
@@ -367,9 +367,6 @@ class Image:
         recursive : {1}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
-        if channel is None:
-            channel = self.get_value("requiredChannel")
-
         polarization = self.get_value("requiredPolarization")
 
         if polarization < Polarization.PTOTAL:
