@@ -20,8 +20,8 @@ CoordinateSystem.__doc__ = """Coordinate systems."""
 
 class LabelType(str, Enum):
     """Label types."""
-    INTERNAL = "Internal"
-    EXTERNAL = "External"
+    INTERIOR = "Interior"
+    EXTERIOR = "Exterior"
 
 
 class BeamType(str, Enum):
