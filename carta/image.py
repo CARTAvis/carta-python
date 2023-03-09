@@ -593,6 +593,16 @@ class Image:
         """Hide the contours."""
         self.set_contours_visible(False)
 
+    # VECTOR OVERLAY
+
+    def apply_vector_overlay(self):
+        """Apply the vector overlay configuration."""
+        self.call_action("applyVectorOverlay")
+
+    def clear_vector_overlay(self):
+        """Clear the vector overlay configuration."""
+        self.call_action("clearVectorOverlay", True)    
+
     # HISTOGRAM
 
     @validate(Boolean())
