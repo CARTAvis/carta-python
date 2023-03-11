@@ -595,13 +595,49 @@ class Image:
 
     # VECTOR OVERLAY
 
+    @validate(Color())
+    def set_vector_overlay_color(self, color):
+        """Set the vector overlay color.
+
+        This automatically disables use of the vector overlay colormap.
+
+        Parameters
+        ----------
+        color : {0}
+            The color.
+        """
+        self.call_action("vectorOverlayConfig.setColor", color)
+        self.call_action("vectorOverlayConfig.setColormapEnabled", False)
+
+    @validate(Constant(Colormap), NoneOr(Number()), NoneOr(Number()))
+    def set_vector_overlay_colormap(self, colormap, bias=None, contrast=None):
+        """Set the contour colormap.
+
+        This automatically enables use of the vector overlay colormap.
+
+        Parameters
+        ----------
+        colormap : {0}
+            The colormap.
+        bias : {1}
+            The colormap bias.
+        contrast : {2}
+            The colormap contrast.
+        """
+        self.call_action("vectorOverlayConfig.setColormap", colormap)
+        self.call_action("vectorOverlayConfig.setColormapEnabled", True)
+        if bias is not None:
+            self.call_action("vectorOverlayConfig.setColormapBias", bias)
+        if contrast is not None:
+            self.call_action("vectorOverlayConfig.setColormapContrast", contrast)
+
     def apply_vector_overlay(self):
         """Apply the vector overlay configuration."""
         self.call_action("applyVectorOverlay")
 
     def clear_vector_overlay(self):
         """Clear the vector overlay configuration."""
-        self.call_action("clearVectorOverlay", True)    
+        self.call_action("clearVectorOverlay", True)
 
     # HISTOGRAM
 
