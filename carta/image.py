@@ -611,7 +611,7 @@ class Image:
 
     @validate(Constant(Colormap), NoneOr(Number()), NoneOr(Number()))
     def set_vector_overlay_colormap(self, colormap, bias=None, contrast=None):
-        """Set the contour colormap.
+        """Set the vector overlay colormap.
 
         This automatically enables use of the vector overlay colormap.
 
