@@ -4,7 +4,7 @@ Image objects should not be instantiated directly, and should only be created th
 """
 import posixpath
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, VectorOverlaySource
 from .util import Macro, cached
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
 
@@ -594,6 +594,35 @@ class Image:
         self.set_contours_visible(False)
 
     # VECTOR OVERLAY
+
+    @validate(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Boolean(), Boolean(), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()))
+    def configure_vector_overlay(self, angular_source=VectorOverlaySource.CURRENT, intensity_source=VectorOverlaySource.CURRENT, pixel_averaging_enabled=True, pixel_averaging=4, fractional_intensity=False, threshold_enabled=False, threshold=0, debiasing=False, qError=None, uError=None):
+        """Configure contours.
+
+        Parameters
+        ----------
+        angular_source : {0}
+            The angular source.
+        intensity_source : {1}
+            The intensity source.
+        pixel_averaging_enabled : {2}
+            To enable or disable pixel averaging.
+        pixel_averaging : {3}
+            The pixel averaging width.
+        fractional_intensity : {4}
+            Set polarization intensity to absolute or fractional.
+        threshold_enabled : {5}
+            To enable or disable threshold.
+        threshold : {6}
+            The threshold.
+        debiasing : {7}
+            To enable.
+        qError : {8}
+            The stoke Q Error.
+        uError : {9}
+            The stoke U Error.
+        """
+        self.call_action("contourConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, qError, uError)
 
     @validate(Color())
     def set_vector_overlay_color(self, color):

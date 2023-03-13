@@ -112,6 +112,8 @@ Overlay.__doc__ = """Overlay elements.
 SmoothingMode = Enum('SmoothingMode', ('NO_SMOOTHING', 'BLOCK_AVERAGE', 'GAUSSIAN_BLUR'), type=int, start=0)
 SmoothingMode.__doc__ = """Contour smoothing modes."""
 
+VectorOverlaySource = Enum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), type=int, start=-1)
+VectorOverlaySource.__doc__ = """Vector overlay source."""
 
 class ContourDashMode(str, Enum):
     """Contour dash modes."""
