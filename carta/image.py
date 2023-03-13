@@ -597,7 +597,7 @@ class Image:
 
     @validate(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Boolean(), Boolean(), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()))
     def configure_vector_overlay(self, angular_source=VectorOverlaySource.CURRENT, intensity_source=VectorOverlaySource.CURRENT, pixel_averaging_enabled=True, pixel_averaging=4, fractional_intensity=False, threshold_enabled=False, threshold=0, debiasing=False, qError=None, uError=None):
-        """Configure contours.
+        """Set the "Configuration" panel for the vector overlay except for Color and Colormap.
 
         Parameters
         ----------
@@ -616,7 +616,7 @@ class Image:
         threshold : {6}
             The threshold.
         debiasing : {7}
-            To enable.
+            To enable or disable debiasing.
         qError : {8}
             The stoke Q Error.
         uError : {9}
