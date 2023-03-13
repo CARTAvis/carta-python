@@ -595,9 +595,9 @@ class Image:
 
     # VECTOR OVERLAY
 
-    @validate(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Boolean(), Boolean(), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()))
-    def configure_vector_overlay(self, angular_source=VectorOverlaySource.CURRENT, intensity_source=VectorOverlaySource.CURRENT, pixel_averaging_enabled=True, pixel_averaging=4, fractional_intensity=False, threshold_enabled=False, threshold=0, debiasing=False, qError=None, uError=None):
-        """Set the "Configuration" panel for the vector overlay except for Color and Colormap.
+    @validate(Constant(VectorOverlaySource), Constant(VectorOverlaySource), NoneOr(Number()), Boolean(), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()))
+    def configure_vector_overlay(self, angular_source=VectorOverlaySource.CURRENT, intensity_source=VectorOverlaySource.CURRENT, pixel_averaging=4, fractional_intensity=False, threshold=None, debiasing=False, qError=None, uError=None):
+        """Configure vector overlay.
 
         Parameters
         ----------
@@ -605,23 +605,29 @@ class Image:
             The angular source.
         intensity_source : {1}
             The intensity source.
-        pixel_averaging_enabled : {2}
-            To enable or disable pixel averaging.
-        pixel_averaging : {3}
-            The pixel averaging width.
-        fractional_intensity : {4}
+        pixel_averaging : {2}
+            The pixel averaging width. Set it to None to disable the usage pixel averaging width.
+        fractional_intensity : {3}
             Set polarization intensity to absolute or fractional.
-        threshold_enabled : {5}
-            To enable or disable threshold.
-        threshold : {6}
-            The threshold.
-        debiasing : {7}
+        threshold : {4}
+            The threshold. Set it to None to disable the usage of threshold.
+        debiasing : {5}
             To enable or disable debiasing.
-        qError : {8}
+        qError : {6}
             The stoke Q Error.
-        uError : {9}
+        uError : {7}
             The stoke U Error.
         """
+        if pixel_averaging is not None:
+            pixel_averaging_enabled = True
+        else:
+            pixel_averaging_enabled = False
+
+        if threshold is not None:
+            threshold_enabled = True
+        else:
+            threshold_enabled = False
+
         self.call_action("contourConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, qError, uError)
 
     @validate(Color())
