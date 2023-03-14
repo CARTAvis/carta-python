@@ -595,40 +595,36 @@ class Image:
 
     # VECTOR OVERLAY
 
-    @validate(Constant(VectorOverlaySource), Constant(VectorOverlaySource), NoneOr(Number()), Boolean(), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()))
-    def configure_vector_overlay(self, angular_source=VectorOverlaySource.CURRENT, intensity_source=VectorOverlaySource.CURRENT, pixel_averaging=4, fractional_intensity=False, threshold=None, debiasing=False, qError=None, uError=None):
+    @validate(Constant(VectorOverlaySource), Constant(VectorOverlaySource), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
+    def configure_vector_overlay(self, angular_source=VectorOverlaySource.CURRENT, intensity_source=VectorOverlaySource.CURRENT, pixel_averaging=4, fractional_intensity=False, threshold=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
         Parameters
         ----------
         angular_source : {0}
-            The angular source.
+            The angular source. By default the current image is used.
         intensity_source : {1}
-            The intensity source.
+            The intensity source. By default the current image is used.
         pixel_averaging : {2}
-            The pixel averaging width. Set it to None to disable the usage pixel averaging width.
+            The pixel averaging width in pixel. Set to ``None`` to disable pixel averaging.
         fractional_intensity : {3}
-            Set polarization intensity to absolute or fractional.
+            Enable fractional polarization intensity. By default the absolute polarization intensity is used.
         threshold : {4}
-            The threshold. Set it to None to disable the usage of threshold.
-        debiasing : {5}
-            To enable or disable debiasing.
-        qError : {6}
-            The stoke Q Error.
-        uError : {7}
-            The stoke U Error.
+            The threshold in Jy/pixel. By default the threshold is disabled.
+        q_error : {5}
+            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. The debiasing is disabled by default.
+        u_error : {6}
+            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. The debiasing is disabled by default.
         """
-        if pixel_averaging is not None:
-            pixel_averaging_enabled = True
+        pixel_averaging_enabled = pixel_averaging is not None
+        threshold_enabled = threshold is not None
+        if q_error is not None and u_error is not None:
+            debiasing = True
+        elif q_error is None and u_error is None:
+            debiasing = False
         else:
-            pixel_averaging_enabled = False
-
-        if threshold is not None:
-            threshold_enabled = True
-        else:
-            threshold_enabled = False
-
-        self.call_action("contourConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, qError, uError)
+            print("q_error and  u_error must be both set to enable debiasing.")
+        self.call_action("contourConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
     @validate(Color())
     def set_vector_overlay_color(self, color):
