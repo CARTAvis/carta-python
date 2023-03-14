@@ -623,7 +623,7 @@ class Image:
         elif q_error is None and u_error is None:
             debiasing = False
         else:
-            print("q_error and  u_error must be both set to enable debiasing.")
+            print("q_error and u_error must be both set to enable debiasing.")
         self.call_action("contourConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
     @validate(Color())
