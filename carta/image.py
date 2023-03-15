@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, VectorOverlaySource
-from .util import Macro, cached
+from .util import logger, Macro, cached
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
 
 
@@ -595,36 +595,58 @@ class Image:
 
     # VECTOR OVERLAY
 
-    @validate(Constant(VectorOverlaySource), Constant(VectorOverlaySource), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
-    def configure_vector_overlay(self, angular_source=VectorOverlaySource.CURRENT, intensity_source=VectorOverlaySource.CURRENT, pixel_averaging=4, fractional_intensity=False, threshold=None, q_error=None, u_error=None):
+    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
+    def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging=4, fractional_intensity=False, threshold=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
         Parameters
         ----------
         angular_source : {0}
-            The angular source. By default the current image is used.
+            The angular source. If the image is with Stoke information, ``Computed PA`` is set by default; If the image is without Stoke information, ``Current image`` is set.
         intensity_source : {1}
-            The intensity source. By default the current image is used.
+            The intensity source. If the image is with Stoke information, ``Computed PI`` is set by default; If the image is without Stoke information, ``Current image`` is set.
         pixel_averaging : {2}
             The pixel averaging width in pixel. Set to ``None`` to disable pixel averaging.
         fractional_intensity : {3}
             Enable fractional polarization intensity. By default the absolute polarization intensity is used.
         threshold : {4}
-            The threshold in Jy/pixel. By default the threshold is disabled.
+            The threshold in Jy/pixels. By default is 4.
         q_error : {5}
-            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. The debiasing is disabled by default.
+            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Debiasing is disabled by default.
         u_error : {6}
-            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. The debiasing is disabled by default.
+            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Debiasing is disabled by default.
         """
         pixel_averaging_enabled = pixel_averaging is not None
         threshold_enabled = threshold is not None
-        if q_error is not None and u_error is not None:
-            debiasing = True
-        elif q_error is None and u_error is None:
-            debiasing = False
-        else:
-            print("q_error and u_error must be both set to enable debiasing.")
-        self.call_action("contourConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
+        debiasing = q_error is not None and u_error is not None
+        if not debiasing and (q_error is not None or u_error is not None):
+            logger.warning("The Stokes Q and the Stokes Q must both be set to enable debiasing.")
+        print(debiasing)
+        self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
+
+    @validate(Number(), NoneOr(Number()), NoneOr(Number()), Number(), Number(), Number())
+    def set_vector_overlay_style(self, thickness=1, intensity_min=None, intensity_max=None, length_min=0, length_max=20, rotation_offset=0):
+        """Set the styling (line thickness, intensity range, line length range, rotation offset) of vector overlay.
+
+        Parameters
+        ----------
+        thickness : {0}
+            The line thickness in pixels. By default is 1.
+        intensity_min : {1}
+            The minimum value of intensity in Jy/pixel.
+        intensity_min : {2}
+            The maximum value of intensity in Jy/pixel.
+        length_min : {3}
+            The minimum value of line length in pixels. By default is 0.
+        length_min : {4}
+            The maximum value of line length in pixels. By default is 20.
+        rotation_offset : {5}
+            The rotation offset in degrees. By default is 0.
+        """
+        self.call_action("vectorOverlayConfig.setThickness", thickness)
+        self.call_action("vectorOverlayConfig.setIntensityRange", [intensity_min, intensity_max])
+        self.call_action("vectorOverlayConfig.setLengthRange", [length_min, length_max])
+        self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
 
     @validate(Color())
     def set_vector_overlay_color(self, color):
@@ -666,9 +688,86 @@ class Image:
         """Apply the vector overlay configuration."""
         self.call_action("applyVectorOverlay")
 
+    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), Number(), NoneOr(Number()), NoneOr(Number()), Number(), Number(), Number(), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
+    def plot_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging=4, fractional_intensity=False, threshold=None, q_error=None, u_error=None, thickness=1, intensity_min=None, intensity_max=None, length_min=0, length_max=20, rotation_offset=0, color=None, colormap=None, bias=None, contrast=None):
+        """Set the vector overlay configuration, styling and colour or colourmap; and apply vector overlay; in a single step.
+
+        If both a colour and a colourmap are provided, the colourmap will be visible.
+
+        Parameters
+        ----------
+        angular_source : {0}
+            The angular source. If the image is with Stoke information, ``Computed PA`` is set by default; If the image is without Stoke information, ``Current image`` is set.
+        intensity_source : {1}
+            The intensity source. If the image is with Stoke information, ``Computed PI`` is set by default; If the image is without Stoke information, ``Current image`` is set.
+        pixel_averaging : {2}
+            The pixel averaging width in pixel. Set to ``None`` to disable pixel averaging.
+        fractional_intensity : {3}
+            Enable fractional polarization intensity. By default the absolute polarization intensity is used.
+        threshold : {4}
+            The threshold in Jy/pixels. By default is 4.
+        q_error : {5}
+            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Debiasing is disabled by default.
+        u_error : {6}
+            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Debiasing is disabled by default.
+            thickness : {0}
+            The line thickness in pixels. By default is 1.
+        intensity_min : {1}
+            The minimum value of intensity in Jy/pixel.
+        intensity_min : {2}
+            The maximum value of intensity in Jy/pixel.
+        length_min : {3}
+            The minimum value of line length in pixels. By default is 0.
+        length_min : {4}
+            The maximum value of line length in pixels. By default is 20.
+        rotation_offset : {5}
+            The rotation offset in degrees. By default is 0.
+        color : {0}
+            The color.
+        colormap : {0}
+            The colormap.
+        bias : {1}
+            The colormap bias.
+        contrast : {2}
+            The colormap contrast.
+        """
+        self.configure_vector_overlay(angular_source, intensity_source, pixel_averaging, fractional_intensity, threshold, q_error, u_error)
+        self.set_vector_overlay_style(thickness, intensity_min, intensity_max, length_min, length_max, rotation_offset)
+        if color is not None:
+            self.call_action("vectorOverlayConfig.setColor", color)
+        if colormap is not None:
+            self.call_action("vectorOverlayConfig.setColormap", colormap)
+            self.call_action("vectorOverlayConfig.setColormapEnabled", True)
+            if bias is not None:
+                self.call_action("vectorOverlayConfig.setColormapBias", bias)
+            if contrast is not None:
+                self.call_action("vectorOverlayConfig.setColormapContrast", contrast)
+        else:
+            self.call_action("vectorOverlayConfig.setColormapEnabled", False)
+        self.apply_vector_overlay()
+
     def clear_vector_overlay(self):
         """Clear the vector overlay configuration."""
         self.call_action("clearVectorOverlay", True)
+
+    @validate(Boolean())
+    def set_vector_overlay_visible(self, state):
+        """Set the vector overlay visibility.
+
+        Parameters
+        ----------
+        state : {0}
+            The desired visibility state.
+        """
+        self.call_action("vectorOverlayConfig.setVisible", state)
+
+    def show_vector_overlay(self):
+        """Show the contours."""
+        self.set_vector_overlay_visible(True)
+
+    def hide_vector_overlay(self):
+        """Hide the contours."""
+        self.set_vector_overlay_visible(False)
 
     # HISTOGRAM
 
