@@ -709,40 +709,33 @@ class Image:
             The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Debiasing is disabled by default.
         u_error : {6}
             The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Debiasing is disabled by default.
-            thickness : {0}
+        thickness : {7}
             The line thickness in pixels. By default is 1.
-        intensity_min : {1}
+        intensity_min : {8}
             The minimum value of intensity in Jy/pixel.
-        intensity_min : {2}
+        intensity_min : {9}
             The maximum value of intensity in Jy/pixel.
-        length_min : {3}
+        length_min : {10}
             The minimum value of line length in pixels. By default is 0.
-        length_min : {4}
+        length_min : {11}
             The maximum value of line length in pixels. By default is 20.
-        rotation_offset : {5}
+        rotation_offset : {12}
             The rotation offset in degrees. By default is 0.
-        color : {0}
+        color : {13}
             The color.
-        colormap : {0}
+        colormap : {14}
             The colormap.
-        bias : {1}
+        bias : {15}
             The colormap bias.
-        contrast : {2}
+        contrast : {16}
             The colormap contrast.
         """
         self.configure_vector_overlay(angular_source, intensity_source, pixel_averaging, fractional_intensity, threshold, q_error, u_error)
         self.set_vector_overlay_style(thickness, intensity_min, intensity_max, length_min, length_max, rotation_offset)
         if color is not None:
-            self.call_action("vectorOverlayConfig.setColor", color)
+            self.set_vector_overlay_color(color)
         if colormap is not None:
-            self.call_action("vectorOverlayConfig.setColormap", colormap)
-            self.call_action("vectorOverlayConfig.setColormapEnabled", True)
-            if bias is not None:
-                self.call_action("vectorOverlayConfig.setColormapBias", bias)
-            if contrast is not None:
-                self.call_action("vectorOverlayConfig.setColormapContrast", contrast)
-        else:
-            self.call_action("vectorOverlayConfig.setColormapEnabled", False)
+            self.set_vector_overlay_colormap(colormap, bias, contrast)
         self.apply_vector_overlay()
 
     def clear_vector_overlay(self):
