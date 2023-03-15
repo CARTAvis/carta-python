@@ -587,32 +587,25 @@ class Image:
             The smoothing mode.
         smoothing_factor : {2}
             The smoothing factor.
-        dash_mode : {0}
+        dash_mode : {3}
             The dash mode.
-        thickness : {1}
+        thickness : {4}
             The dash thickness.
-        color : {0}
+        color : {5}
             The color.
-        colormap : {0}
+        colormap : {6}
             The colormap.
-        bias : {1}
+        bias : {7}
             The colormap bias.
-        contrast : {2}
+        contrast : {8}
             The colormap contrast.
         """
         self.configure_contours(levels, smoothing_mode, smoothing_factor)
         self.set_contour_dash(dash_mode, thickness)
         if color is not None:
-            self.call_action("contourConfig.setColor", color)
+            self.set_contour_color(color)
         if colormap is not None:
-            self.call_action("contourConfig.setColormap", colormap)
-            self.call_action("contourConfig.setColormapEnabled", True)
-            if bias is not None:
-                self.call_action("contourConfig.setColormapBias", bias)
-            if contrast is not None:
-                self.call_action("contourConfig.setColormapContrast", contrast)
-        else:
-            self.call_action("contourConfig.setColormapEnabled", False)
+            self.set_contour_colormap(colormap, bias, contrast)
         self.apply_contours()
 
     def clear_contours(self):
