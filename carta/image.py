@@ -621,7 +621,6 @@ class Image:
         debiasing = q_error is not None and u_error is not None
         if not debiasing and (q_error is not None or u_error is not None):
             logger.warning("The Stokes Q and the Stokes Q must both be set to enable debiasing.")
-        print(debiasing)
         self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
     @validate(Number(), NoneOr(Number()), NoneOr(Number()), Number(), Number(), Number())
