@@ -643,8 +643,8 @@ class Image:
             The rotation offset in degrees. By default is 0.
         """
         self.call_action("vectorOverlayConfig.setThickness", thickness)
-        self.call_action("vectorOverlayConfig.setIntensityRange", [intensity_min, intensity_max])
-        self.call_action("vectorOverlayConfig.setLengthRange", [length_min, length_max])
+        self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
+        self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
         self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
 
     @validate(Color())
