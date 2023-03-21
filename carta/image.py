@@ -596,7 +596,7 @@ class Image:
     # VECTOR OVERLAY
 
     @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
-    def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging=4, fractional_intensity=False, threshold=None, q_error=None, u_error=None):
+    def configure_vector_overlay(self, angular_source=VectorOverlaySource.NONE, intensity_source=VectorOverlaySource.NONE, pixel_averaging=4, fractional_intensity=False, threshold=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
         Parameters
@@ -643,7 +643,8 @@ class Image:
             The rotation offset in degrees. By default is 0.
         """
         self.call_action("vectorOverlayConfig.setThickness", thickness)
-        self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
+        if intensity_min is not None and intensity_max is not None:
+            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
         self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
         self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
 
