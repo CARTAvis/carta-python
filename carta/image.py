@@ -339,6 +339,18 @@ class Image:
         """
         self.session.call_action("setSpectralMatchingEnabled", self._frame, state)
 
+    @validate(Boolean())
+    def set_cube_matching(self, state):
+        """Enable or disable spatial and spectral matching.
+
+        Parameters
+        ----------
+        state : boolean
+            The desired spatial and spectral matching state.
+        """
+        self.set_spatial_matching(state)
+        self.set_spectral_matching(state)
+
     def make_raster_scaling_reference(self):
         """Make this image the raster scaling reference."""
         self.session.call_action("setRasterScalingReference", self._frame)
