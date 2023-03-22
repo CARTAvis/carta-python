@@ -8,6 +8,7 @@ import pathlib
 import signal
 
 from .token import BackendToken
+from .util import logger
 
 
 class Backend:
@@ -150,7 +151,10 @@ class Backend:
 
         This method terminates the backend process if it exists and is running.
         """
-
-        pgrp = os.getpgid(self.proc.pid)
-        os.killpg(pgrp, signal.SIGINT)
-        self.proc.wait()
+        if self.proc is not None:
+            try:
+                pgrp = os.getpgid(self.proc.pid)
+                os.killpg(pgrp, signal.SIGINT)
+                self.proc.wait()
+            except ProcessLookupError:
+                logger.debug("Could not shut down backend because it was no longer running.")
