@@ -417,6 +417,11 @@ class Session:
         """Clear the raster scaling reference."""
         self.call_action("clearRasterScalingReference")
 
+    # VIEWER MODES
+    @validate(Boolean())
+    def set_viewer_mode(self, if_multiple=True):
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", if_multiple)
+
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
     def set_view_area(self, width, height):
