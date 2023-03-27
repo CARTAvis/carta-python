@@ -511,9 +511,9 @@ class Image:
         levels : {0}
             The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``.
         smoothing_mode : {1}
-            The smoothing mode.
+            The smoothing mode. The default is Gaussian blur.
         smoothing_factor : {2}
-            The smoothing factor.
+            The smoothing factor. The default is 4.
         """
         self.call_action("contourConfig.setContourConfiguration", levels, smoothing_mode, smoothing_factor)
 
@@ -584,9 +584,9 @@ class Image:
         levels : {0}
             The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``.
         smoothing_mode : {1}
-            The smoothing mode.
+            The smoothing mode. The default is Gaussian blur.
         smoothing_factor : {2}
-            The smoothing factor.
+            The smoothing factor. The default is 4.
         dash_mode : {3}
             The dash mode.
         thickness : {4}
