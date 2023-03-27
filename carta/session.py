@@ -422,6 +422,12 @@ class Session:
     def set_viewer_mode(self, if_multiple=True):
         self.call_action("widgetsStore.setImageMultiPanelEnabled", if_multiple)
 
+    def previous_page(self):
+        self.call_action("widgetsStore.onPreviousPageClick")
+
+    def next_page(self):
+        self.call_action("widgetsStore.onNextPageClick")
+
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
     def set_view_area(self, width, height):
