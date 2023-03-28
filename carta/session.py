@@ -426,33 +426,33 @@ class Session:
         Parameters
         ----------
         multiple : {0}
-            Whether to use multiple-panel mode. By default is ``True``.
+            Whether to use multiple-panel mode. Default is ``True``.
         """
         self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
 
     def previous_page(self):
-        """Go to previous page on viewer"""
+        """Go to previous page in viewer"""
         self.call_action("widgetsStore.onPreviousPageClick")
 
     def next_page(self):
-        """Go to next page on viewer"""
+        """Go to next page in viewer"""
         self.call_action("widgetsStore.onNextPageClick")
 
     @validate(Number(), Number())
-    def set_viewer_grid(self, n_columns=2, n_rows=2):
+    def set_viewer_grid(self, columns=2, rows=2):
         """
-        Set numbers of columns and rows for viewer grids.
+        Set number of columns and rows for viewer grid.
 
         Parameters
         ----------
-        n_column : {0}
-            Number of columns. By default is 2.
-        n_row : {1}
-            Number of rows. By default is 2.
+        columns : {0}
+            Number of columns. Default is 2.
+        rows : {1}
+            Number of rows. Default is 2.
         """
         self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
-        self.call_action("preferenceStore.setPreference", "imagePanelColumns", n_columns)
-        self.call_action("preferenceStore.setPreference", "imagePanelRows", n_rows)
+        self.call_action("preferenceStore.setPreference", "imagePanelColumns", columns)
+        self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
 
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
