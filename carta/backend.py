@@ -19,7 +19,7 @@ class Backend:
     Parameters
     ----------
     params : iterable
-        Parameters to pass to the CARTA backend process.
+        Parameters to pass to the CARTA backend process. Example: ["--verbosity", 5, "--port", 3010]
     executable_path : string
         The path to the backend executable. Default: ``"carta"``.
     remote_host : string
