@@ -633,6 +633,16 @@ class Image:
         debiasing = q_error is not None and u_error is not None
         if not debiasing and (q_error is not None or u_error is not None):
             logger.warning("The Stokes Q and the Stokes U must both be set to enable debiasing.")
+        if angular_source is None:
+            angular_source = "None"
+        if intensity_source is None:
+            intensity_source = "None"
+        if threshold is None:
+            threshold = "None"
+        if q_error is None:
+            q_error = "None"
+        if u_error is None:
+            u_error = "None"
         self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
     @validate(Number(), NoneOr(Number()), NoneOr(Number()), Number(), Number(), Number())
@@ -657,6 +667,10 @@ class Image:
         self.call_action("vectorOverlayConfig.setThickness", thickness)
         if intensity_min is not None and intensity_max is not None:
             self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
+        elif intensity_min is None and intensity_max is not None:
+            self.call_action("vectorOverlayConfig.setIntensityRange", "None", intensity_max)
+        elif intensity_min is not None and intensity_max is None:
+            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, "None")
         self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
         self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
 
