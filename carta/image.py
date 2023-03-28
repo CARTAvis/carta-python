@@ -465,8 +465,8 @@ class Image:
             self.call_action("renderConfig.resetContrast")
 
     # TODO check whether this works as expected
-    @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
-    def set_scaling(self, scaling, alpha=None, gamma=None, min=None, max=None):
+    @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
+    def set_scaling(self, scaling, alpha=None, gamma=None, clip=None, min=None, max=None):
         """Set the colormap scaling.
 
         Parameters
@@ -477,18 +477,27 @@ class Image:
             The alpha value (only applicable to ``LOG`` and ``POWER`` scaling types).
         gamma : {2}
             The gamma value (only applicable to the ``GAMMA`` scaling type).
-        min : {3}
-            The minimum of the scale. Only used if both *min* and *max* are set.
-        max : {4}
-            The maximum of the scale. Only used if both *min* and *max* are set.
+        clip : {3}
+            The scale clip. In percentage. Can not be used witn *min* and *max*.
+        min : {4}
+            The minimum of the scale. Only used if both *min* and *max* are set. Can not be used with *clip*.
+        max : {5}
+            The maximum of the scale. Only used if both *min* and *max* are set. Can not be used with *clip*.
         """
         self.call_action("renderConfig.setScaling", scaling)
         if scaling in (Scaling.LOG, Scaling.POWER) and alpha is not None:
             self.call_action("renderConfig.setAlpha", alpha)
         elif scaling == Scaling.GAMMA and gamma is not None:
             self.call_action("renderConfig.setGamma", gamma)
-        if min is not None and max is not None:
+        if clip is not None:
+            min = "None"
+            max = "None"
+            self.call_action("renderConfig.setPercentileRank", clip)
+        elif min is not None and max is not None:
+            clip = "None"
             self.call_action("renderConfig.setCustomScale", min, max)
+        # elif (clip is not None) and (min is not None or max is not None):
+        #     self.logger.warning(...)
 
     @validate(Boolean())
     def set_raster_visible(self, state):
