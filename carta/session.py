@@ -246,11 +246,7 @@ class Session:
         CartaBadResponse
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
-        try:
-            return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
-        except CartaScriptingException:
-            self.close()
-            raise
+        return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
 
     def get_value(self, path):
         """Get the value of an attribute from a frontend store.
