@@ -21,7 +21,12 @@ class Session:
 
     This class provides the core generic method for calling actions on the frontend (through the backend), as well as convenience methods which wrap this generic method and provide a more intuitive and user-friendly interface to frontend functionality associated with the session as a whole.
 
-    This class should not be instantiated directly. Three class methods are provided for creating different types of sessions with all the appropriate parameters set: :obj:`carta.session.Session.interact` for interacting with an existing CARTA session open in the user's browser, :obj:`carta.session.Session.create` for creating a new CARTA session in a headless browser by connecting to an existing CARTA backend or controller instance, and :obj:`carta.session.Session.start_and_create` for starting a new backend instance and then connecting to it to create a new session in a headless browser.
+    This class should not be instantiated directly. Four class methods are provided for creating different types of sessions with all the appropriate parameters set:
+
+    * :obj:`carta.session.Session.interact` for interacting with an existing CARTA session open in the user's browser.
+    * :obj:`carta.session.Session.start_and_interact` for starting a new backend instance and then interacting with the default session which is automatically opened by the backend in the user's browser.
+    * :obj:`carta.session.Session.create` for creating a new CARTA session in a headless browser by connecting to an existing CARTA backend or controller instance.
+    * :obj:`carta.session.Session.start_and_create` for starting a new backend instance and then connecting to it to create a new session in a headless browser.
 
     The session object can be used to create image objects, which provide analogous convenience methods for functionality associated with individual images.
 
@@ -797,11 +802,11 @@ class Session:
             f.write(self.rendered_view_data(background_color))
 
     def close(self):
-        """Close the browser session and stop the backend process, if applicable.
+        """Close any browser sessions and backend processes controlled by this session object.
 
-        If this session was newly created in a headless browser, close the browser session. If a new backend process was also started, stop the backend process.
+        If this session opened a CARTA frontend session in a headless browser, this method will close the browser together with that session. If this session is interacting with a session running in an external browser, that browser session will be unaffected. This includes the new CARTA frontend session which is started automatically when :obj:`carta.session.Session.start_and_interact` is used: that frontend session is opened in the user's browser, which is not controlled by this object.
 
-        If this session is interacting with an existing external browser session, this method has no effect.
+        If this session started a new backend process, this method will stop that process. If this session is interacting with an externally started backend process, that process will be unaffected.
         """
 
         if self._browser is not None:
