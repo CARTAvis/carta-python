@@ -419,16 +419,16 @@ class Session:
 
     # VIEWER MODES
     @validate(Boolean())
-    def set_viewer_mode(self, if_multiple=True):
+    def set_viewer_mode(self, multiple=True):
         """
         Switch between single-panel mode and multiple-panel mode.
 
         Parameters
         ----------
-        if_multiple : {0}
+        multiple : {0}
             Whether to use multiple-panel mode. By default is ``True``.
         """
-        self.call_action("widgetsStore.setImageMultiPanelEnabled", if_multiple)
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
 
     def previous_page(self):
         """Go to previous page on viewer"""
