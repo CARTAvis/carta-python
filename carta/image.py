@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization
-from .util import Macro, cached
+from .util import logger, Macro, cached
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
 
 
@@ -496,8 +496,6 @@ class Image:
         elif min is not None and max is not None:
             clip = "None"
             self.call_action("renderConfig.setCustomScale", min, max)
-        # elif (clip is not None) and (min is not None or max is not None):
-        #     self.logger.warning(...)
 
     @validate(Boolean())
     def set_raster_visible(self, state):
