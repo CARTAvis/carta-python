@@ -431,17 +431,17 @@ class Session:
         self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
 
     def previous_page(self):
-        """Go to previous page in viewer"""
+        """Go to previous page in viewer."""
         self.call_action("widgetsStore.onPreviousPageClick")
 
     def next_page(self):
-        """Go to next page in viewer"""
+        """Go to next page in viewer."""
         self.call_action("widgetsStore.onNextPageClick")
 
     @validate(Number(), Number())
     def set_viewer_grid(self, columns=2, rows=2):
         """
-        Set number of columns and rows for viewer grid.
+        Set number of columns and rows in viewer grid.
 
         Parameters
         ----------
