@@ -478,7 +478,7 @@ class Image:
         gamma : {2}
             The gamma value (only applicable to the ``GAMMA`` scaling type).
         rank : {3}
-            The percentile rank. If this is set, *min* and *max* are ignored, and will be calculated automatically.
+            The clip percentile rank. If this is set, *min* and *max* are ignored, and will be calculated automatically.
         min : {4}
             Custom clip minimum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
         max : {5}
@@ -490,7 +490,7 @@ class Image:
         elif scaling == Scaling.GAMMA and gamma is not None:
             self.call_action("renderConfig.setGamma", gamma)
         if rank is not None:
-            self.set_percentile_rank(rank)
+            self.set_clip_percentile(rank)
         elif min is not None and max is not None:
             self.call_action("renderConfig.setCustomScale", min, max)
 
@@ -634,8 +634,8 @@ class Image:
         self.call_action(f"renderConfig.setUseCubeHistogram{'Contours' if contours else ''}", False)
 
     @validate(Number(0, 100))
-    def set_percentile_rank(self, rank):
-        """Set the percentile rank.
+    def set_clip_percentile(self, rank):
+        """Set the clip percentile.
 
         Parameters
         ----------
