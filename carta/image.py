@@ -466,7 +466,7 @@ class Image:
 
     # TODO check whether this works as expected
     @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
-    def set_scaling(self, scaling, alpha=None, gamma=None, clip=None, min=None, max=None):
+    def set_scaling(self, scaling, alpha=None, gamma=None, rank=None, min=None, max=None):
         """Set the colormap scaling.
 
         Parameters
@@ -477,24 +477,21 @@ class Image:
             The alpha value (only applicable to ``LOG`` and ``POWER`` scaling types).
         gamma : {2}
             The gamma value (only applicable to the ``GAMMA`` scaling type).
-        clip : {3}
-            The scale clip. In percentage. Can not be used witn *min* and *max*.
+        rank : {3}
+            The percentile rank. If this is set, *min* and *max* are ignored, and will be calculated automatically.
         min : {4}
-            The minimum of the scale. Only used if both *min* and *max* are set. Can not be used with *clip*.
+            Custom clip minimum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
         max : {5}
-            The maximum of the scale. Only used if both *min* and *max* are set. Can not be used with *clip*.
+            Custom clip maximum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
         """
         self.call_action("renderConfig.setScaling", scaling)
         if scaling in (Scaling.LOG, Scaling.POWER) and alpha is not None:
             self.call_action("renderConfig.setAlpha", alpha)
         elif scaling == Scaling.GAMMA and gamma is not None:
             self.call_action("renderConfig.setGamma", gamma)
-        if clip is not None:
-            min = "None"
-            max = "None"
-            self.call_action("renderConfig.setPercentileRank", clip)
+        if rank is not None:
+            self.set_percentile_rank(rank)
         elif min is not None and max is not None:
-            clip = "None"
             self.call_action("renderConfig.setCustomScale", min, max)
 
     @validate(Boolean())
