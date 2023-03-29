@@ -383,6 +383,19 @@ class Session:
         """
         return Image.new(self, path, hdu, True)
 
+    def open_images(self, *paths):
+        """Open multiple images.
+
+        Parameters
+        ----------
+        paths : {0}
+            The paths to the image files, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory. Separate them with comma.
+        """
+        path_list = list(paths)
+        self.open_image(path_list[0])
+        for path in path_list[1:]:
+            self.append_image(path)
+
     def image_list(self):
         """Return the list of currently open images.
 
