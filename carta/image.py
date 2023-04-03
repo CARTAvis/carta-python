@@ -607,8 +607,8 @@ class Image:
 
     # VECTOR OVERLAY
 
-    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Number()), Boolean(), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
-    def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging=4, fractional_intensity=False, threshold=None, q_error=None, u_error=None):
+    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Boolean()), NoneOr(Number()), Boolean(), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()))
+    def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
         Parameters
@@ -617,32 +617,52 @@ class Image:
             The angular source. If the image is with Stoke information, ``Computed PA`` is set by default; If the image is without Stoke information, ``Current image`` is set.
         intensity_source : {1}
             The intensity source. If the image is with Stoke information, ``Computed PI`` is set by default; If the image is without Stoke information, ``Current image`` is set.
-        pixel_averaging : {2}
+        pixel_averaging_enabled : {2}
+            To enable pixel averaging.
+        pixel_averaging : {3}
             The pixel averaging width in pixel. Set to ``None`` to disable pixel averaging.
-        fractional_intensity : {3}
+        fractional_intensity : {4}
             Enable fractional polarization intensity. By default the absolute polarization intensity is used.
-        threshold : {4}
+        threshold_enabled : {5}
+            To enable threshold.
+        threshold : {6}
             The threshold in Jy/pixels. By default is 4.
-        q_error : {5}
+        debiasing : {7}
+            To enable debiasing.
+        q_error : {8}
             The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Debiasing is disabled by default.
-        u_error : {6}
+        u_error : {9}
             The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Debiasing is disabled by default.
         """
-        pixel_averaging_enabled = pixel_averaging is not None
-        threshold_enabled = threshold is not None
-        debiasing = q_error is not None and u_error is not None
-        if not debiasing and (q_error is not None or u_error is not None):
-            logger.warning("The Stokes Q and the Stokes U must both be set to enable debiasing.")
+        if pixel_averaging is not None and pixel_averaging_enabled is None:
+            pixel_averaging_enabled = True
+        if threshold is not None and threshold_enabled is None:
+            threshold_enabled = True
+        if q_error is not None and u_error is not None and debiasing is None:
+            debiasing = True
+        if (q_error is not None and u_error is None) or (q_error is None and u_error is not None):
+            debiasing = False
+            logger.warning("The Stokes Q error and Stokes U error must both be set to enable debiasing.")
         if angular_source is None:
-            angular_source = "None"
+            angular_source = Macro("vectorOverlayConfig", "angularSource")
         if intensity_source is None:
-            intensity_source = "None"
+            intensity_source = Macro("vectorOverlayConfig", "intensitySource")
+        if pixel_averaging_enabled is None:
+            pixel_averaging_enabled = Macro("vectorOverlayConfig", "pixelAveragingEnabled")
+        if pixel_averaging is None:
+            pixel_averaging = Macro("vectorOverlayConfig", "pixelAveraging")
+        if fractional_intensity is None:
+            fractional_intensity = Macro("vectorOverlayConfig", "fractionalIntensity")
+        if threshold_enabled is None:
+            threshold_enabled = Macro("vectorOverlayConfig", "thresholdEnabled")
         if threshold is None:
-            threshold = "None"
+            threshold = Macro("vectorOverlayConfig", "threshold")
+        if debiasing is None:
+            debiasing = Macro("vectorOverlayConfig", "debiasing")
         if q_error is None:
-            q_error = "None"
+            q_error = Macro("vectorOverlayConfig", "qError")
         if u_error is None:
-            u_error = "None"
+            u_error = Macro("vectorOverlayConfig", "uError")
         self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
     @validate(Number(), NoneOr(Number()), NoneOr(Number()), Number(), Number(), Number())
