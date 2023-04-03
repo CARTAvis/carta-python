@@ -4,7 +4,7 @@ Image objects should not be instantiated directly, and should only be created th
 """
 import posixpath
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, VectorOverlaySource
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, VectorOverlaySource, Auto
 from .util import logger, Macro, cached
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
 
@@ -607,7 +607,7 @@ class Image:
 
     # VECTOR OVERLAY
 
-    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Boolean()), NoneOr(Number()), Boolean(), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()))
+    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()))
     def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
@@ -665,8 +665,8 @@ class Image:
             u_error = Macro("vectorOverlayConfig", "uError")
         self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
-    @validate(Number(), NoneOr(Number()), NoneOr(Number()), Number(), Number(), Number())
-    def set_vector_overlay_style(self, thickness=1, intensity_min=None, intensity_max=None, length_min=0, length_max=20, rotation_offset=0):
+    @validate(NoneOr(Number()), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
+    def set_vector_overlay_style(self, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None):
         """Set the styling (line thickness, intensity range, line length range, rotation offset) of vector overlay.
 
         Parameters
@@ -674,9 +674,9 @@ class Image:
         thickness : {0}
             The line thickness in pixels. By default is 1.
         intensity_min : {1}
-            The minimum value of intensity in Jy/pixel.
+            The minimum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         intensity_min : {2}
-            The maximum value of intensity in Jy/pixel.
+            The maximum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         length_min : {3}
             The minimum value of line length in pixels. By default is 0.
         length_min : {4}
@@ -684,14 +684,22 @@ class Image:
         rotation_offset : {5}
             The rotation offset in degrees. By default is 0.
         """
+        if thickness is None:
+            thickness = Macro("vectorOverlayConfig", "thickness")
         self.call_action("vectorOverlayConfig.setThickness", thickness)
         if intensity_min is not None and intensity_max is not None:
             self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
         elif intensity_min is None and intensity_max is not None:
-            self.call_action("vectorOverlayConfig.setIntensityRange", "None", intensity_max)
+            self.call_action("vectorOverlayConfig.setIntensityRange", Macro("vectorOverlayConfig", "intensityMin"), intensity_max)
         elif intensity_min is not None and intensity_max is None:
-            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, "None")
+            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, Macro("vectorOverlayConfig", "intensityMax"))
+        if length_min is None:
+            length_min = Macro("vectorOverlayConfig", "lengthMin")
+        if length_max is None:
+            length_max = Macro("vectorOverlayConfig", "lengthMax")
         self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
+        if rotation_offset is None:
+            rotation_offset = Macro("vectorOverlayConfig", "rotationOffset")
         self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
 
     @validate(Color())
