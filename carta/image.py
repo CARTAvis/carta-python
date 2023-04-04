@@ -684,25 +684,18 @@ class Image:
         rotation_offset : {5}
             The rotation offset in degrees. By default is 0.
         """
-        if thickness is None:
-            thickness = Macro("vectorOverlayConfig", "thickness")
-        self.call_action("vectorOverlayConfig.setThickness", thickness)
+        if thickness is not None:
+            self.call_action("vectorOverlayConfig.setThickness", thickness)
         if intensity_min is not None and intensity_max is not None:
             self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
         elif intensity_min is None and intensity_max is not None:
             self.call_action("vectorOverlayConfig.setIntensityRange", Macro("vectorOverlayConfig", "intensityMin"), intensity_max)
         elif intensity_min is not None and intensity_max is None:
             self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, Macro("vectorOverlayConfig", "intensityMax"))
-        else:
-            self.call_action("vectorOverlayConfig.setIntensityRange", Macro("vectorOverlayConfig", "intensityMin"), Macro("vectorOverlayConfig", "intensityMax"))
-        if length_min is None:
-            length_min = Macro("vectorOverlayConfig", "lengthMin")
-        if length_max is None:
-            length_max = Macro("vectorOverlayConfig", "lengthMax")
-        self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
-        if rotation_offset is None:
-            rotation_offset = Macro("vectorOverlayConfig", "rotationOffset")
-        self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
+        if length_min is not None and length_max is None:
+            self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
+        if rotation_offset is not None:
+            self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
 
     @validate(Color())
     def set_vector_overlay_color(self, color):
