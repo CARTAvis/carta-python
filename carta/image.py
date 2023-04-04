@@ -675,11 +675,11 @@ class Image:
             The line thickness in pixels. By default is 1.
         intensity_min : {1}
             The minimum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
-        intensity_min : {2}
+        intensity_max : {2}
             The maximum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         length_min : {3}
             The minimum value of line length in pixels. By default is 0.
-        length_min : {4}
+        length_max : {4}
             The maximum value of line length in pixels. By default is 20.
         rotation_offset : {5}
             The rotation offset in degrees. By default is 0.
