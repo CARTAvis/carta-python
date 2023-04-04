@@ -725,7 +725,7 @@ class Image:
             u_error = Macro("vectorOverlayConfig", "uError")
         self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
-    @validate(NoneOr(Number()), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
+    @validate(NoneOr(Number()), NoneOr(Number(), Constant(Auto)), NoneOr(Number(), Constant(Auto)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
     def set_vector_overlay_style(self, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None):
         """Set the styling (line thickness, intensity range, line length range, rotation offset) of vector overlay.
 
