@@ -12,7 +12,7 @@ from .image import Image
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
 from .backend import Backend
 from .protocol import Protocol
-from .util import logger, Macro, split_action_path, CartaScriptingException, CartaBadID, CartaBadSession, CartaBadUrl
+from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
 
 
