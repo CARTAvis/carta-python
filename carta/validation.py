@@ -390,7 +390,7 @@ class NoneOr(Union):
             *options,
             NoneParameter(),
         )
-        super().__init__(*options, description)
+        super().__init__(*options, description=description)
 
 
 class IterableOf(Parameter):
@@ -516,7 +516,7 @@ class Color(Union):
             String("#[0-9a-f]{3}", re.IGNORECASE),  # 3-digit hex
             TupleColor(),  # RGB, RGBA, HSL, HSLA
         )
-        super().__init__(options, "an HTML color specification")
+        super().__init__(*options, description="an HTML color specification")
 
 
 class Attr(str):
