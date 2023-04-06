@@ -484,7 +484,7 @@ class Image:
             self.call_action("renderConfig.resetContrast")
 
     # TODO check whether this works as expected
-    @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
+    @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(0, 100)), NoneOr(Number()), NoneOr(Number()))
     def set_scaling(self, scaling, alpha=None, gamma=None, rank=None, min=None, max=None):
         """Set the colormap scaling.
 
@@ -702,7 +702,13 @@ class Image:
         rank : {0}
             The percentile rank.
         """
+        percentile_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
         self.call_action("renderConfig.setPercentileRank", rank)
+        min_val = self.get_value("renderConfig.scaleMinVal")
+        max_val = self.get_value("renderConfig.scaleMaxVal")
+        if rank not in percentile_ranks:
+            self.call_action("renderConfig.setCustomScale", min_val, max_val)
+
 
     # CLOSE
 
