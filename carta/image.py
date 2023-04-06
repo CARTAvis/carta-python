@@ -704,11 +704,8 @@ class Image:
         """
         percentile_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
         self.call_action("renderConfig.setPercentileRank", rank)
-        min_val = self.get_value("renderConfig.scaleMinVal")
-        max_val = self.get_value("renderConfig.scaleMaxVal")
         if rank not in percentile_ranks:
-            self.call_action("renderConfig.setCustomScale", min_val, max_val)
-
+            self.call_action("renderConfig.setPercentileRank", -1)
 
     # CLOSE
 
