@@ -116,7 +116,7 @@ class Image:
     def get_value(self, path):
         """Convenience wrapper for the session object's generic method for retrieving attribute values.
 
-        This method calls :obj:`carta.session.Session.get_value` after prepending this image's base path to the path parameter.
+        This method calls :obj:`carta.session.Session.get_value` after prepending this image's base path to the *path* parameter.
 
         Parameters
         ----------
@@ -129,6 +129,25 @@ class Image:
             The unmodified return value of the session method.
         """
         return self.session.get_value(f"{self._base_path}.{path}")
+
+    def macro(self, target, variable):
+        """Convenience wrapper for creating a :obj:carta.util.Macro for an image property.
+
+        This method prepends this image's base path to the *target* parameter.
+
+        Parameters
+        ----------
+        target : str
+            The target frontend object.
+        variable : str
+            The variable on the target object.
+
+        Returns
+        -------
+        :obj:carta.util.Macro
+            A placeholder for a variable which will be evaluated dynamically by the frontend.
+        """
+        return Macro(f"{self._base_path}.{target}", variable)
 
     # METADATA
 
@@ -515,19 +534,25 @@ class Image:
 
     # CONTOURS
 
-    @validate(IterableOf(Number()), Constant(SmoothingMode), Number())
-    def configure_contours(self, levels, smoothing_mode=SmoothingMode.GAUSSIAN_BLUR, smoothing_factor=4):
+    @validate(NoneOr(IterableOf(Number())), NoneOr(Constant(SmoothingMode)), NoneOr(Number()))
+    def configure_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None):
         """Configure contours.
 
         Parameters
         ----------
         levels : {0}
-            The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``.
+            The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``. If this is unset, the current configured levels will be used.
         smoothing_mode : {1}
-            The smoothing mode.
+            The smoothing mode. If this is unset, the frontend default will be used.
         smoothing_factor : {2}
-            The smoothing factor.
+            The smoothing kernel size in pixels. If this is unset, the frontend default will be used.
         """
+        if levels is None:
+            levels = self.macro("contourConfig", "levels")
+        if smoothing_mode is None:
+            smoothing_mode = self.macro("contourConfig", "smoothingMode")
+        if smoothing_factor is None:
+            smoothing_factor = self.macro("contourConfig", "smoothingFactor")
         self.call_action("contourConfig.setContourConfiguration", levels, smoothing_mode, smoothing_factor)
 
     @validate(NoneOr(Constant(ContourDashMode)), NoneOr(Number()))
@@ -585,6 +610,41 @@ class Image:
     def apply_contours(self):
         """Apply the contour configuration."""
         self.call_action("applyContours")
+
+    @validate(NoneOr(IterableOf(Number())), NoneOr(Constant(SmoothingMode)), NoneOr(Number()), NoneOr(Constant(ContourDashMode)), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
+    def plot_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, thickness=None, color=None, colormap=None, bias=None, contrast=None):
+        """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
+
+        If both a colour and a colourmap are provided, the colourmap will be visible.
+
+        Parameters
+        ----------
+        levels : {0}
+            The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``. If this is unset, the current configured levels will be used.
+        smoothing_mode : {1}
+            The smoothing mode. If this is unset, the frontend default will be used.
+        smoothing_factor : {2}
+            The smoothing kernel size in pixels. If this is unset, the frontend default will be used.
+        dash_mode : {3}
+            The dash mode.
+        thickness : {4}
+            The dash thickness.
+        color : {5}
+            The color.
+        colormap : {6}
+            The colormap.
+        bias : {7}
+            The colormap bias.
+        contrast : {8}
+            The colormap contrast.
+        """
+        self.configure_contours(levels, smoothing_mode, smoothing_factor)
+        self.set_contour_dash(dash_mode, thickness)
+        if color is not None:
+            self.set_contour_color(color)
+        if colormap is not None:
+            self.set_contour_colormap(colormap, bias, contrast)
+        self.apply_contours()
 
     def clear_contours(self):
         """Clear the contours."""
