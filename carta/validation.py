@@ -273,8 +273,8 @@ class Union(Parameter):
 
     Parameters
     ----------
-    options : iterable of :obj:`carta.validation.Parameter` objects
-        An iterable of valid descriptors for this parameter
+    *options : iterable of :obj:`carta.validation.Parameter` objects
+        An iterable of valid descriptors for this parameter.
     description : str, optional
         A custom description. The default is generated from the descriptions of the provided options.
 
@@ -284,7 +284,7 @@ class Union(Parameter):
         An iterable of valid descriptors for this parameter.
     """
 
-    def __init__(self, options, description=None):
+    def __init__(self, *options, description=None):
         self.options = options
         self._description = description
 
@@ -368,25 +368,29 @@ class Constant(OneOf):
 
 
 class NoneOr(Union):
-    """A parameter which can match the given descriptor or ``None``. Used for optional parameters which are ``None`` by default.
+    """A union of other parameter descriptors as well as ``None``.
+
+    In the most common use case, this is used with a single other parameter type for optional parameters which are ``None`` by default. In more complex cases this can be used as shorthand in place of a :obj:`carta.validation.Union` with an explicit :obj:`carta.validation.NoneParameter` option.
 
     Parameters
     ----------
-    param : :obj:`carta.validation.Parameter`
-        The parameter descriptor.
+    *options : iterable of :obj:`carta.validation.Parameter` objects
+        An iterable of valid descriptors for this parameter, in addition to ``None``.
+    description : str, optional
+        A custom description. The default is generated from the descriptions of the provided options.
 
     Attributes
     ----------
-    param : :obj:`carta.validation.Parameter`
-        The parameter descriptor.
+    options : iterable of :obj:`carta.validation.Parameter` objects
+        An iterable of valid descriptors for this parameter, in addition to ``None``.
     """
 
-    def __init__(self, param):
+    def __init__(self, *options, description=None):
         options = (
-            param,
+            *options,
             NoneParameter(),
         )
-        super().__init__(options)
+        super().__init__(*options, description=description)
 
 
 class IterableOf(Parameter):
@@ -512,7 +516,7 @@ class Color(Union):
             String("#[0-9a-f]{3}", re.IGNORECASE),  # 3-digit hex
             TupleColor(),  # RGB, RGBA, HSL, HSLA
         )
-        super().__init__(options, "an HTML color specification")
+        super().__init__(*options, description="an HTML color specification")
 
 
 class Attr(str):
