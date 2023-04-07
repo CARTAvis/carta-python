@@ -419,17 +419,21 @@ class Session:
         self.call_action("clearRasterScalingReference")
 
     # VIEWER MODES
-    @validate(Boolean())
-    def set_viewer_mode(self, multiple=True):
+    @validate(String())
+    def set_viewer_mode(self, panel="single"):
         """
         Switch between single-panel mode and multiple-panel mode.
 
         Parameters
         ----------
-        multiple : {0}
-            Whether to use multiple-panel mode. Default is ``True``.
+        panel : {0}
+            To use single-panel mode (``single``) or multiple-panel mode (``multiple``). Default is ``single``.
         """
-        self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
+        if panel is "single":
+            if_multiple = False
+        elif panel is "multiple":
+            if_multiple = True
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", if_multiple)
 
     def previous_page(self):
         """Go to previous page in viewer."""
