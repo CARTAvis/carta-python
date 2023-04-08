@@ -515,6 +515,40 @@ class Color(Union):
         super().__init__(options, "an HTML color specification")
 
 
+# class AngularSize(String):
+    #"""A string representation of an angular size in degrees."""
+
+    #UNITS = ('','','','')
+
+    # def __init__(self):
+        #allowed_units = "|".join(self.UNITS)
+        #super().__init__(regex=rf"-?\d+({allowed_units})", ignorecase=True)
+
+    # @property
+    # def description(self):
+        # """A human-readable description of this parameter descriptor.
+
+        # Returns
+        # -------
+        # string
+        # The description.
+        # """
+        # return "an angular size"
+
+
+# TODO move the regexes to a utility class; also do conversions in that class
+class Coordinate(Union):
+    """A string representation of a world coordinate in degrees, HMS or DMS."""
+
+    def __init__(self):
+        options = (
+            String(r"-?\d+deg", re.IGNORECASE),  # degrees
+            String(r"-?\d+h\d+m\d+(.\d+)?s", re.IGNORECASE),  # HMS
+            String(r"-?\d+d\d+m\d+(.\d+)?s", re.IGNORECASE),  # DMS
+        )
+        super().__init__(options, "a WCS coordinate string")
+
+
 class Attr(str):
     """A wrapper for arguments to be passed to the :obj:`carta.validation.Evaluate` descriptor. These arguments are string names of properties on the parent object of the decorated method, which will be evaluated at runtime."""
     pass
