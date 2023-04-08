@@ -427,12 +427,15 @@ class Session:
         Parameters
         ----------
         panel : {0}
-            To use single-panel mode (``single``) or multiple-panel mode (``multiple``). Default is ``single``.
+            To adopt single-panel mode (``single``) or multiple-panel mode (``multiple``). Default is ``single``.
         """
         if panel is "single":
             if_multiple = False
         elif panel is "multiple":
             if_multiple = True
+        else:
+            logger.warning('Cannot proceed with the input panel argument. Please set "single" or "multiple" for the argument.')
+            return
         self.call_action("widgetsStore.setImageMultiPanelEnabled", if_multiple)
 
     def previous_page(self):
@@ -443,8 +446,8 @@ class Session:
         """Go to next page in viewer."""
         self.call_action("widgetsStore.onNextPageClick")
 
-    @validate(Number(), Number())
-    def set_viewer_grid(self, columns=2, rows=2):
+    @validate(OneOf(*range(1, 101)), OneOf(*range(1, 101)), String())
+    def set_viewer_grid(self, columns=2, rows=2, mode="dynamic"):
         """
         Set number of columns and rows in viewer grid.
 
@@ -454,10 +457,17 @@ class Session:
             Number of columns. Default is 2.
         rows : {1}
             Number of rows. Default is 2.
+        mode : {2}
+            To adopt dynamic grid size mode (``dynamic``) or fixed grid size mode(``fixed``). ``dynamic`` is set as default.
         """
         self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
         self.call_action("preferenceStore.setPreference", "imagePanelColumns", columns)
         self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
+        if mode is "dynamic" or mode is "fixed":
+            self.call_action("preferenceStore.setPreference", "imagePanelMode", mode)
+        else:
+            logger.warning('Cannot proceed with the input mode argument. Please set "dynamic" or "fixed" for the argument')
+            return
 
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
