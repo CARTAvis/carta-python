@@ -358,8 +358,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"))
-    def open_image(self, path, hdu=""):
+    @validate(String(), String(r"\d*"), NoneOr(String()))
+    def open_image(self, path, hdu="", composite=None):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -369,10 +369,10 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         """
-        return Image.new(self, path, hdu, False)
+        return Image.new(self, path, hdu, False, composite)
 
-    @validate(String(), String(r"\d*"))
-    def append_image(self, path, hdu=""):
+    @validate(String(), String(r"\d*"), NoneOr(String()))
+    def append_image(self, path, hdu="", composite=None):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -382,7 +382,7 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         """
-        return Image.new(self, path, hdu, True)
+        return Image.new(self, path, hdu, True, composite)
 
     def image_list(self):
         """Return the list of currently open images.

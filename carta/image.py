@@ -42,7 +42,7 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, path, hdu, append):
+    def new(cls, session, path, hdu, append, composite=None):
         """Open or append a new image in the session and return an image object associated with it.
 
         This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image` and :obj:`carta.session.Session.append_image`.
@@ -65,6 +65,8 @@ class Image:
         """
         path = session.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
+        if composite is not None:
+            file_name = f'{composite}("{file_name}")'
         image_id = session.call_action("appendFile" if append else "openFile", directory, file_name, hdu, return_path="frameInfo.fileId")
 
         return cls(session, image_id, file_name)
