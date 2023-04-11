@@ -175,7 +175,8 @@ class Number(Parameter):
 
         if self.step is not None:
             if (value - self.offset) % self.step:
-                raise ValueError(f"{value} is not an increment of {self.step} offset by {self.offset}.")
+                offset = f" offset by {self.offset}" if self.offset else ""
+                raise ValueError(f"{value} is not an increment of {self.step}{offset}.")
 
     @property
     def description(self):
@@ -198,7 +199,8 @@ class Number(Parameter):
             desc.append(f"smaller than{' or equal to' if self.max_included else ''} ``{self.max}``")
 
         if self.step is not None:
-            desc.append(f"in increments of {self.step} starting from {self.offset}")
+            offset = f" offset by {self.offset}" if self.offset else ""
+            desc.append(f", in increments of {self.step}{offset}")
 
         return " ".join(desc)
 
@@ -563,19 +565,24 @@ class Evaluate(Parameter):
     paramclass : a :obj:`carta.validation.Parameter` class
         The class of the parameter descriptor to construct.
     *args : iterable
-        Arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
+        Positional arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
+    **kwargs : iterable
+        Keyword arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
 
     Attributes
     ----------
     paramclass : a :obj:`carta.validation.Parameter` class
         The class of the parameter descriptor to construct.
     args : iterable
-        Arguments to pass to the constructor.
+        Positional arguments to pass to the constructor.
+    kwargs : iterable
+        Keyword arguments to pass to the constructor.
     """
 
-    def __init__(self, paramclass, *args):
+    def __init__(self, paramclass, *args, **kwargs):
         self.paramclass = paramclass
         self.args = args
+        self.kwargs = kwargs
 
     def validate(self, value, parent):
         args = []
@@ -587,7 +594,14 @@ class Evaluate(Parameter):
             else:
                 args.append(arg)
 
-        param = self.paramclass(*args)
+        kwargs = {}
+        for key, arg in self.kwargs.items():
+            if isinstance(arg, Attr):
+                kwargs[key] = getattr(parent, arg)
+            else:
+                kwargs[key] = arg
+
+        param = self.paramclass(*args, **kwargs)
         param.validate(value, parent)
 
     @property
@@ -601,11 +615,18 @@ class Evaluate(Parameter):
         """
         args = list(self.args)
         for i, arg in enumerate(args):
-            if isinstance(arg, Attr) or isinstance(arg, Attrs):
+            if isinstance(arg, Attr):
                 args[i] = f"self.{arg}"
+            elif isinstance(arg, Attrs):
+                args[i] = f"*self.{arg}"
+
+        kwargs = dict(self.kwargs)
+        for key, arg in self.kwargs.items():
+            if isinstance(arg, Attr):
+                kwargs[key] = f"self.{arg}"
 
         # This is a bit magic, and relies on the lack of any kind of type checking in the constructors
-        param = self.paramclass(*args)
+        param = self.paramclass(*args, **kwargs)
         return f"{param.description}, evaluated at runtime"
 
 

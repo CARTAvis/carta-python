@@ -388,7 +388,7 @@ class Image:
 
     # NAVIGATION
 
-    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Boolean())
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1), Boolean())
     def set_channel(self, channel, recursive=True):
         """Set the channel.
 
