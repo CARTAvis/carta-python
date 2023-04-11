@@ -419,23 +419,20 @@ class Session:
         self.call_action("clearRasterScalingReference")
 
     # VIEWER MODES
-    @validate(String())
-    def set_viewer_mode(self, panel="single"):
+    @validate(OneOf(["single", "multiple"]))
+    def set_viewer_mode(self, mode):
         """
         Switch between single-panel mode and multiple-panel mode.
 
         Parameters
         ----------
         panel : {0}
-            To adopt single-panel mode (``single``) or multiple-panel mode (``multiple``). Default is ``single``.
+            To adopt single-panel mode (``single``) or multiple-panel mode (``multiple``).
         """
-        if panel is "single":
+        if mode is "single":
             if_multiple = False
-        elif panel is "multiple":
+        elif mode is "multiple":
             if_multiple = True
-        else:
-            logger.warning('Cannot proceed with the input panel argument. Please set "single" or "multiple" for the argument.')
-            return
         self.call_action("widgetsStore.setImageMultiPanelEnabled", if_multiple)
 
     def previous_page(self):
@@ -446,28 +443,24 @@ class Session:
         """Go to next page in viewer."""
         self.call_action("widgetsStore.onNextPageClick")
 
-    @validate(OneOf(*range(1, 101)), OneOf(*range(1, 101)), String())
-    def set_viewer_grid(self, columns=2, rows=2, mode="dynamic"):
+    @validate(OneOf(*range(1, 11)), OneOf(*range(1, 11)), OneOf(["dynamic", "fixed"]))
+    def set_viewer_grid(self, rows, columns, mode="fixed"):
         """
         Set number of columns and rows in viewer grid.
 
         Parameters
         ----------
-        columns : {0}
-            Number of columns. Default is 2.
-        rows : {1}
-            Number of rows. Default is 2.
+        rows : {0}
+            Number of rows.
+        columns : {1}
+            Number of columns.
         mode : {2}
-            To adopt dynamic grid size mode (``dynamic``) or fixed grid size mode(``fixed``). ``dynamic`` is set as default.
+            To adopt dynamic grid size mode (``dynamic``) or fixed grid size mode(``fixed``). Default is ``fixed``.
         """
         self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
-        self.call_action("preferenceStore.setPreference", "imagePanelColumns", columns)
         self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
-        if mode is "dynamic" or mode is "fixed":
-            self.call_action("preferenceStore.setPreference", "imagePanelMode", mode)
-        else:
-            logger.warning('Cannot proceed with the input mode argument. Please set "dynamic" or "fixed" for the argument')
-            return
+        self.call_action("preferenceStore.setPreference", "imagePanelColumns", columns)
+        self.call_action("preferenceStore.setPreference", "imagePanelMode", mode)
 
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
