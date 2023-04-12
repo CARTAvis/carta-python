@@ -42,7 +42,7 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, path, hdu, append, composite=None):
+    def new(cls, session, path, hdu, append, complex=None):
         """Open or append a new image in the session and return an image object associated with it.
 
         This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image` and :obj:`carta.session.Session.append_image`.
@@ -57,6 +57,8 @@ class Image:
             The HDU to open.
         append : boolean
             Whether the image should be appended. By default it is not, and all other open images are closed.
+        complex : None or string
+            Complex value to open a comlex-valued image. The valid options are ``AMPLITUDE``, ``PHASE``, ``REAL`` and ``IMAGINARY``. Default is ``AMPLITUDE``.
 
         Returns
         -------
@@ -65,10 +67,12 @@ class Image:
         """
         path = session.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
-        if composite is not None:
-            file_name = f'{composite}("{file_name}")'
-        image_id = session.call_action("appendFile" if append else "openFile", directory, file_name, hdu, return_path="frameInfo.fileId")
-
+        if complex is not None:
+            file_name = f'{complex}("{file_name}")'
+            image_arithmetic = "true"
+            image_id = session.call_action("appendFile" if append else "openFile", directory, file_name, hdu, image_arithmetic, return_path="frameInfo.fileId")
+        else:
+            image_id = session.call_action("appendFile" if append else "openFile", directory, file_name, hdu, return_path="frameInfo.fileId")
         return cls(session, image_id, file_name)
 
     @classmethod

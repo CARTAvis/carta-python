@@ -358,8 +358,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), NoneOr(String()))
-    def open_image(self, path, hdu="", composite=None):
+    @validate(String(), String(r"\d*"), NoneOr(OneOf("AMPLITUDE", "PHASE", "REAL", "IMAGINARY")))
+    def open_image(self, path, hdu="", complex=None):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -368,11 +368,13 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
+        complex : {2}
+            Complex value to open a comlex-valued image. The valid options are ``AMPLITUDE``, ``PHASE``, ``REAL`` and ``IMAGINARY``. Default is ``AMPLITUDE``.
         """
-        return Image.new(self, path, hdu, False, composite)
+        return Image.new(self, path, hdu, False, complex)
 
-    @validate(String(), String(r"\d*"), NoneOr(String()))
-    def append_image(self, path, hdu="", composite=None):
+    @validate(String(), String(r"\d*"), NoneOr(OneOf("AMPLITUDE", "PHASE", "REAL", "IMAGINARY")))
+    def append_image(self, path, hdu="", complex=None):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -381,8 +383,10 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
+        complex : {2}
+            Complex value to append a comlex-valued image. The valid options are ``AMPLITUDE``, ``PHASE``, ``REAL`` and ``IMAGINARY``. Default is ``AMPLITUDE``.
         """
-        return Image.new(self, path, hdu, True, composite)
+        return Image.new(self, path, hdu, True, complex)
 
     def image_list(self):
         """Return the list of currently open images.
