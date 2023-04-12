@@ -131,7 +131,7 @@ class Image:
         return self.session.get_value(f"{self._base_path}.{path}")
 
     def macro(self, target, variable):
-        """Convenience wrapper for creating a :obj:carta.util.Macro for an image property.
+        """Convenience wrapper for creating a :obj:`carta.util.Macro` for an image property.
 
         This method prepends this image's base path to the *target* parameter. If *target* is the empty string, the base path will be substituted.
 
