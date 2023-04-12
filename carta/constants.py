@@ -139,3 +139,11 @@ class Polarization(IntEnum):
     PFTOTAL = 15
     PFLINEAR = 16
     PANGLE = 17
+
+PanelMode = Enum('PanelMode', ('SINGLE', 'MULTIPLE'), type=int, start=0)
+PanelMode.__doc__ = """Panel modes."""
+
+class GridMode(str, Enum):
+    """Grid modes."""
+    DYNAMIC = "dynamic"
+    FIXED = "fixed"

@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -419,21 +419,21 @@ class Session:
         self.call_action("clearRasterScalingReference")
 
     # VIEWER MODES
-    @validate(OneOf(["single", "multiple"]))
-    def set_viewer_mode(self, mode):
+    @validate(Constant(PanelMode))
+    def set_viewer_mode(self, panel_mode):
         """
         Switch between single-panel mode and multiple-panel mode.
 
         Parameters
         ----------
-        panel : {0}
-            To adopt single-panel mode (``single``) or multiple-panel mode (``multiple``).
+        panel_mode : {0}
+            To adopt single-panel mode (``0``) or multiple-panel mode (``1``).
         """
-        if mode is "single":
-            if_multiple = False
-        elif mode is "multiple":
-            if_multiple = True
-        self.call_action("widgetsStore.setImageMultiPanelEnabled", if_multiple)
+        if panel_mode == PanelMode.SINGLE.value:
+            multiple = False
+        elif panel_mode == PanelMode.MULTIPLE.value:
+            multiple = True
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
 
     def previous_page(self):
         """Go to previous page in viewer."""
@@ -443,8 +443,8 @@ class Session:
         """Go to next page in viewer."""
         self.call_action("widgetsStore.onNextPageClick")
 
-    @validate(OneOf(*range(1, 11)), OneOf(*range(1, 11)), OneOf(["dynamic", "fixed"]))
-    def set_viewer_grid(self, rows, columns, mode="fixed"):
+    @validate(OneOf(*range(1, 11)), OneOf(*range(1, 11)), Constant(GridMode))
+    def set_viewer_grid(self, rows, columns, grid_mode=GridMode.FIXED.value):
         """
         Set number of columns and rows in viewer grid.
 
@@ -454,13 +454,13 @@ class Session:
             Number of rows.
         columns : {1}
             Number of columns.
-        mode : {2}
+        grid_mode : {2}
             To adopt dynamic grid size mode (``dynamic``) or fixed grid size mode(``fixed``). Default is ``fixed``.
         """
         self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
         self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
         self.call_action("preferenceStore.setPreference", "imagePanelColumns", columns)
-        self.call_action("preferenceStore.setPreference", "imagePanelMode", mode)
+        self.call_action("preferenceStore.setPreference", "imagePanelMode", grid_mode)
 
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
