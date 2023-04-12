@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, ComplexValue
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -358,7 +358,7 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), NoneOr(OneOf("AMPLITUDE", "PHASE", "REAL", "IMAGINARY")))
+    @validate(String(), String(r"\d*"), NoneOr(Constant(ComplexValue)))
     def open_image(self, path, hdu="", complex=None):
         """Open a new image, replacing any existing images.
 
@@ -373,7 +373,7 @@ class Session:
         """
         return Image.new(self, path, hdu, False, complex)
 
-    @validate(String(), String(r"\d*"), NoneOr(OneOf("AMPLITUDE", "PHASE", "REAL", "IMAGINARY")))
+    @validate(String(), String(r"\d*"), NoneOr(Constant(ComplexValue)))
     def append_image(self, path, hdu="", complex=None):
         """Append a new image, keeping any existing images.
 
