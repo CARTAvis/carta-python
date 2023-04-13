@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, ComplexValue
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, ArithmeticExpression
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -358,7 +358,7 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), NoneOr(Constant(ComplexValue)))
+    @validate(String(), String(r"\d*"), NoneOr(Constant(ArithmeticExpression)))
     def open_image(self, path, hdu="", complex=None):
         """Open a new image, replacing any existing images.
 
@@ -369,11 +369,11 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         complex : {2}
-            Complex value to open a comlex-valued image. The valid options are ``AMPLITUDE``, ``PHASE``, ``REAL`` and ``IMAGINARY``. Default is ``AMPLITUDE``.
+            Arithmetic expression to use if opening a complex-valued image. A member of :obj:`carta.constants.ArithmeticExpression` or ``None``. By default the image is assumed not to be complex.
         """
         return Image.new(self, path, hdu, False, complex)
 
-    @validate(String(), String(r"\d*"), NoneOr(Constant(ComplexValue)))
+    @validate(String(), String(r"\d*"), NoneOr(Constant(ArithmeticExpression)))
     def append_image(self, path, hdu="", complex=None):
         """Append a new image, keeping any existing images.
 
@@ -384,7 +384,7 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         complex : {2}
-            Complex value to append a comlex-valued image. The valid options are ``AMPLITUDE``, ``PHASE``, ``REAL`` and ``IMAGINARY``. Default is ``AMPLITUDE``.
+            Arithmetic expression to use if appending a complex-valued image. A member of :obj:`carta.constants.ArithmeticExpression` or ``None``. By default the image is assumed not to be complex.
         """
         return Image.new(self, path, hdu, True, complex)
 
