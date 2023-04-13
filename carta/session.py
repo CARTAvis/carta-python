@@ -427,11 +427,11 @@ class Session:
         Parameters
         ----------
         panel_mode : {0}
-            To adopt single-panel mode (``0``) or multiple-panel mode (``1``).
+            To adopt single-panel mode (:obj:`carta.constants.PanelMode.SINGLE`) or multiple-panel mode (:obj:`carta.constants.PanelMode.MULTIPLE`).
         """
-        if panel_mode == PanelMode.SINGLE.value:
+        if panel_mode == PanelMode.SINGLE:
             multiple = False
-        elif panel_mode == PanelMode.MULTIPLE.value:
+        elif panel_mode == PanelMode.MULTIPLE:
             multiple = True
         self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
 
@@ -444,7 +444,7 @@ class Session:
         self.call_action("widgetsStore.onNextPageClick")
 
     @validate(OneOf(*range(1, 11)), OneOf(*range(1, 11)), Constant(GridMode))
-    def set_viewer_grid(self, rows, columns, grid_mode=GridMode.FIXED.value):
+    def set_viewer_grid(self, rows, columns, grid_mode=GridMode.FIXED):
         """
         Set number of columns and rows in viewer grid.
 
@@ -455,7 +455,7 @@ class Session:
         columns : {1}
             Number of columns.
         grid_mode : {2}
-            To adopt dynamic grid size mode (``dynamic``) or fixed grid size mode(``fixed``). Default is ``fixed``.
+            To adopt dynamic grid size mode (:obj:`grid_mode=GridMode.DYNAMIC`) or fixed grid size mode(:obj:`grid_mode=GridMode.FIXED`). Default is :obj:`grid_mode=GridMode.FIXED`.
         """
         self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
         self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
