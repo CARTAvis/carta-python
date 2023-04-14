@@ -705,7 +705,7 @@ class Image:
         preset_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
         self.call_action("renderConfig.setPercentileRank", rank)
         if rank not in preset_ranks:
-            self.call_action("renderConfig.setPercentileRank", -1) # select 'custom' rank button
+            self.call_action("renderConfig.setPercentileRank", -1)  # select 'custom' rank button
 
     # CLOSE
 
