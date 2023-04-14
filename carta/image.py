@@ -56,9 +56,9 @@ class Image:
         hdu : string
             The HDU to open.
         append : boolean
-            Whether the image should be appended. By default it is not, and all other open images are closed.
+            Whether the image should be appended.
         complex : a member of :obj:`carta.constants.ArithmeticExpression` or ``None``
-            Arithmetic expression to use if opening a complex-valued image. By default the image is assumed not to be complex.
+            Arithmetic expression to use if opening a complex-valued image. Set to ``None`` if the image is not complex, or to show the default amplitude if the image is complex.
 
         Returns
         -------

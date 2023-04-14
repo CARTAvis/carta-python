@@ -369,7 +369,7 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         complex : {2}
-            Arithmetic expression to use if opening a complex-valued image. A member of :obj:`carta.constants.ArithmeticExpression` or ``None``. By default the image is assumed not to be complex.
+            Arithmetic expression to use if opening a complex-valued image. By default, the amplitude will be shown if the image is complex.
         """
         return Image.new(self, path, hdu, False, complex)
 
@@ -384,7 +384,7 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         complex : {2}
-            Arithmetic expression to use if appending a complex-valued image. A member of :obj:`carta.constants.ArithmeticExpression` or ``None``. By default the image is assumed not to be complex.
+            Arithmetic expression to use if appending a complex-valued image. By default, the amplitude will be shown if the image is complex.
         """
         return Image.new(self, path, hdu, True, complex)
 
