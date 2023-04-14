@@ -133,7 +133,7 @@ class Image:
     def macro(self, target, variable):
         """Convenience wrapper for creating a :obj:carta.util.Macro for an image property.
 
-        This method prepends this image's base path to the *target* parameter.
+        This method prepends this image's base path to the *target* parameter. If *target* is the empty string, the base path will be substituted.
 
         Parameters
         ----------
@@ -147,7 +147,8 @@ class Image:
         :obj:carta.util.Macro
             A placeholder for a variable which will be evaluated dynamically by the frontend.
         """
-        return Macro(f"{self._base_path}.{target}", variable)
+        target = f"{self._base_path}.{target}" if target else self._base_path
+        return Macro(target, variable)
 
     # METADATA
 
@@ -394,16 +395,11 @@ class Image:
         Parameters
         ----------
         channel : {0}
-            The desired channel. Defaults to the current channel.
+            The desired channel.
         recursive : {1}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
-        polarization = self.get_value("requiredPolarization")
-
-        if polarization < Polarization.PTOTAL:
-            polarization = self.polarizations.index(polarization)
-
-        self.call_action("setChannels", channel, polarization, recursive)
+        self.call_action("setChannels", channel, self.macro("", "requiredStokes"), recursive)
 
     @validate(Evaluate(OneOf, Attrs("polarizations")), Boolean())
     def set_polarization(self, polarization, recursive=True):
@@ -412,16 +408,14 @@ class Image:
         Parameters
         ----------
         polarization : {0}
-            The desired polarization. Defaults to the current polarization.
+            The desired polarization.
         recursive : {1}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
-        channel = self.get_value("requiredChannel")
-
         if polarization < Polarization.PTOTAL:
             polarization = self.polarizations.index(polarization)
 
-        self.call_action("setChannels", channel, polarization, recursive)
+        self.call_action("setChannels", self.macro("", "requiredChannel"), polarization, recursive)
 
     @validate(Number(), Number())
     def set_center(self, x, y):
