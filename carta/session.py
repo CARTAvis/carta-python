@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -417,6 +417,50 @@ class Session:
     def clear_raster_scaling_reference(self):
         """Clear the raster scaling reference."""
         self.call_action("clearRasterScalingReference")
+
+    # VIEWER MODES
+    @validate(Constant(PanelMode))
+    def set_viewer_mode(self, panel_mode):
+        """
+        Switch between single-panel mode and multiple-panel mode.
+
+        Parameters
+        ----------
+        panel_mode : {0}
+            The panel mode to adopt.
+        """
+        if panel_mode == PanelMode.SINGLE:
+            multiple = False
+        elif panel_mode == PanelMode.MULTIPLE:
+            multiple = True
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
+
+    def previous_page(self):
+        """Go to previous page in viewer."""
+        self.call_action("widgetsStore.onPreviousPageClick")
+
+    def next_page(self):
+        """Go to next page in viewer."""
+        self.call_action("widgetsStore.onNextPageClick")
+
+    @validate(OneOf(*range(1, 11)), OneOf(*range(1, 11)), Constant(GridMode))
+    def set_viewer_grid(self, rows, columns, grid_mode=GridMode.FIXED):
+        """
+        Set number of columns and rows in viewer grid.
+
+        Parameters
+        ----------
+        rows : {0}
+            Number of rows.
+        columns : {1}
+            Number of columns.
+        grid_mode : {2}
+            The grid mode to adopt. The default is :obj:`carta.constants.GridMode.FIXED`.
+        """
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
+        self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
+        self.call_action("preferenceStore.setPreference", "imagePanelColumns", columns)
+        self.call_action("preferenceStore.setPreference", "imagePanelMode", grid_mode)
 
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
