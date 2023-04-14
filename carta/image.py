@@ -702,10 +702,10 @@ class Image:
         rank : {0}
             The percentile rank.
         """
-        percentile_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
+        preset_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
         self.call_action("renderConfig.setPercentileRank", rank)
-        if rank not in percentile_ranks:
-            self.call_action("renderConfig.setPercentileRank", -1)
+        if rank not in preset_ranks:
+            self.call_action("renderConfig.setPercentileRank", -1) # select 'custom' rank button
 
     # CLOSE
 
