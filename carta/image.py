@@ -131,7 +131,7 @@ class Image:
         return self.session.get_value(f"{self._base_path}.{path}")
 
     def macro(self, target, variable):
-        """Convenience wrapper for creating a :obj:carta.util.Macro for an image property.
+        """Convenience wrapper for creating a :obj:`carta.util.Macro` for an image property.
 
         This method prepends this image's base path to the *target* parameter. If *target* is the empty string, the base path will be substituted.
 
@@ -388,7 +388,7 @@ class Image:
 
     # NAVIGATION
 
-    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Boolean())
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1), Boolean())
     def set_channel(self, channel, recursive=True):
         """Set the channel.
 

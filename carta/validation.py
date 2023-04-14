@@ -101,6 +101,10 @@ class Number(Parameter):
         The upper bound.
     interval : int
         A bitmask which describes whether the bounds are included or excluded. The constant attributes defined on this class should be used. By default both bounds are included.
+    step : number, optional
+        A step size to which the value must conform. May be a fractional value. If this is unset, any value within the range is permitted.
+    offset : number, optional
+        A step offset. Ignored if a step size is not set. By default permitted values are aligned with the lower bound if it is set, otherwise with zero.
 
     Attributes
     ----------
@@ -112,15 +116,30 @@ class Number(Parameter):
         Whether the lower bound is included.
     max_included : bool
         Whether the upper bound is included.
+    step : number, optional
+        The step size.
+    offset : number, optional
+        The step offset.
     """
 
     EXCLUDE, INCLUDE_MIN, INCLUDE_MAX, INCLUDE = range(4)
 
-    def __init__(self, min=None, max=None, interval=INCLUDE):
+    def __init__(self, min=None, max=None, interval=INCLUDE, step=None, offset=None):
         self.min = min
         self.max = max
         self.min_included = bool(interval & self.INCLUDE_MIN)
         self.max_included = bool(interval & self.INCLUDE_MAX)
+        if step is not None:
+            self.step = step
+            if offset is not None:
+                self.offset = offset
+            elif min is not None:
+                self.offset = min
+            else:
+                self.offset = 0
+        else:
+            self.step = None
+            self.offset = None
 
     def validate(self, value, parent):
         """Check if the value is a number and falls within any bounds that were provided.
@@ -154,6 +173,11 @@ class Number(Parameter):
                 if value > self.max:
                     raise ValueError(f"{value} is greater than upper bound {self.max}, but must be smaller.")
 
+        if self.step is not None:
+            if (value - self.offset) % self.step:
+                offset = f" offset by {self.offset}" if self.offset else ""
+                raise ValueError(f"{value} is not an increment of {self.step}{offset}.")
+
     @property
     def description(self):
         """A human-readable description of this parameter descriptor.
@@ -173,6 +197,10 @@ class Number(Parameter):
 
         if self.max is not None:
             desc.append(f"smaller than{' or equal to' if self.max_included else ''} ``{self.max}``")
+
+        if self.step is not None:
+            offset = f" offset by {self.offset}" if self.offset else ""
+            desc.append(f", in increments of {self.step}{offset}")
 
         return " ".join(desc)
 
@@ -537,19 +565,24 @@ class Evaluate(Parameter):
     paramclass : a :obj:`carta.validation.Parameter` class
         The class of the parameter descriptor to construct.
     *args : iterable
-        Arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
+        Positional arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
+    **kwargs : iterable
+        Keyword arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
 
     Attributes
     ----------
     paramclass : a :obj:`carta.validation.Parameter` class
         The class of the parameter descriptor to construct.
     args : iterable
-        Arguments to pass to the constructor.
+        Positional arguments to pass to the constructor.
+    kwargs : iterable
+        Keyword arguments to pass to the constructor.
     """
 
-    def __init__(self, paramclass, *args):
+    def __init__(self, paramclass, *args, **kwargs):
         self.paramclass = paramclass
         self.args = args
+        self.kwargs = kwargs
 
     def validate(self, value, parent):
         args = []
@@ -561,7 +594,14 @@ class Evaluate(Parameter):
             else:
                 args.append(arg)
 
-        param = self.paramclass(*args)
+        kwargs = {}
+        for key, arg in self.kwargs.items():
+            if isinstance(arg, Attr):
+                kwargs[key] = getattr(parent, arg)
+            else:
+                kwargs[key] = arg
+
+        param = self.paramclass(*args, **kwargs)
         param.validate(value, parent)
 
     @property
@@ -575,11 +615,18 @@ class Evaluate(Parameter):
         """
         args = list(self.args)
         for i, arg in enumerate(args):
-            if isinstance(arg, Attr) or isinstance(arg, Attrs):
+            if isinstance(arg, Attr):
                 args[i] = f"self.{arg}"
+            elif isinstance(arg, Attrs):
+                args[i] = f"*self.{arg}"
+
+        kwargs = dict(self.kwargs)
+        for key, arg in self.kwargs.items():
+            if isinstance(arg, Attr):
+                kwargs[key] = f"self.{arg}"
 
         # This is a bit magic, and relies on the lack of any kind of type checking in the constructors
-        param = self.paramclass(*args)
+        param = self.paramclass(*args, **kwargs)
         return f"{param.description}, evaluated at runtime"
 
 
