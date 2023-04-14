@@ -427,7 +427,7 @@ class Session:
         Parameters
         ----------
         panel_mode : {0}
-            To adopt single-panel mode (:obj:`carta.constants.PanelMode.SINGLE`) or multiple-panel mode (:obj:`carta.constants.PanelMode.MULTIPLE`).
+            The panel mode to adopt.
         """
         if panel_mode == PanelMode.SINGLE:
             multiple = False
@@ -455,7 +455,7 @@ class Session:
         columns : {1}
             Number of columns.
         grid_mode : {2}
-            To adopt dynamic grid size mode (:obj:`grid_mode=GridMode.DYNAMIC`) or fixed grid size mode(:obj:`grid_mode=GridMode.FIXED`). Default is :obj:`grid_mode=GridMode.FIXED`.
+            The grid mode to adopt. The default is :obj:`carta.constants.GridMode.FIXED`.
         """
         self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
         self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
