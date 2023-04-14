@@ -134,7 +134,7 @@ class Number(Parameter):
             if offset is not None:
                 self.offset = offset
             elif min is not None:
-                self.offset = min
+                self.offset = min % step
             else:
                 self.offset = 0
         else:
