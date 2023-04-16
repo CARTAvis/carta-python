@@ -369,7 +369,7 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         complex : {2}
-            Whether the image is complex.
+            Whether the image is complex. Set to ``False`` by default.
         expression : {3}
             Arithmetic expression to use if opening a complex-valued image. By default, the amplitude will be shown if the image is complex.
         """
@@ -386,7 +386,7 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         complex : {2}
-            Whether the image is complex.
+            Whether the image is complex. Set to ``False`` by default.
         expression : {3}
             Arithmetic expression to use if appending a complex-valued image. By default, the amplitude will be shown if the image is complex.
         """

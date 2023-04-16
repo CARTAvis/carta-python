@@ -58,7 +58,7 @@ class Image:
         append : boolean
             Whether the image should be appended.
         complex : boolean
-            Whether the image is complex.
+            Whether the image is complex. Set to ``False`` by default.
         expression : a member of :obj:`carta.constants.ArithmeticExpression` or ``None``
             Arithmetic expression to use if opening a complex-valued image. Set to ``None`` if the image is not complex, or to show the default amplitude if the image is complex.
 
