@@ -358,8 +358,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), NoneOr(Constant(ArithmeticExpression)))
-    def open_image(self, path, hdu="", complex=None):
+    @validate(String(), String(r"\d*"), Boolean(), NoneOr(Constant(ArithmeticExpression)))
+    def open_image(self, path, hdu="", complex=False, expression=None):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -369,12 +369,14 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         complex : {2}
+            Whether the image is complex.
+        expression : {3}
             Arithmetic expression to use if opening a complex-valued image. By default, the amplitude will be shown if the image is complex.
         """
-        return Image.new(self, path, hdu, False, complex)
+        return Image.new(self, path, hdu, False, complex, expression)
 
-    @validate(String(), String(r"\d*"), NoneOr(Constant(ArithmeticExpression)))
-    def append_image(self, path, hdu="", complex=None):
+    @validate(String(), String(r"\d*"), Boolean(), NoneOr(Constant(ArithmeticExpression)))
+    def append_image(self, path, hdu="", complex=False, expression=None):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -384,9 +386,11 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         complex : {2}
+            Whether the image is complex.
+        expression : {3}
             Arithmetic expression to use if appending a complex-valued image. By default, the amplitude will be shown if the image is complex.
         """
-        return Image.new(self, path, hdu, True, complex)
+        return Image.new(self, path, hdu, True, complex, expression)
 
     def image_list(self):
         """Return the list of currently open images.
