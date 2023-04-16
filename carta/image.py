@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization
-from .util import Macro, cached
+from .util import logger, Macro, cached
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
 
 
@@ -138,9 +138,9 @@ class Image:
         return self.session.get_value(f"{self._base_path}.{path}")
 
     def macro(self, target, variable):
-        """Convenience wrapper for creating a :obj:carta.util.Macro for an image property.
+        """Convenience wrapper for creating a :obj:`carta.util.Macro` for an image property.
 
-        This method prepends this image's base path to the *target* parameter.
+        This method prepends this image's base path to the *target* parameter. If *target* is the empty string, the base path will be substituted.
 
         Parameters
         ----------
@@ -154,7 +154,8 @@ class Image:
         :obj:carta.util.Macro
             A placeholder for a variable which will be evaluated dynamically by the frontend.
         """
-        return Macro(f"{self._base_path}.{target}", variable)
+        target = f"{self._base_path}.{target}" if target else self._base_path
+        return Macro(target, variable)
 
     # METADATA
 
@@ -394,23 +395,18 @@ class Image:
 
     # NAVIGATION
 
-    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN), Boolean())
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1), Boolean())
     def set_channel(self, channel, recursive=True):
         """Set the channel.
 
         Parameters
         ----------
         channel : {0}
-            The desired channel. Defaults to the current channel.
+            The desired channel.
         recursive : {1}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
-        polarization = self.get_value("requiredPolarization")
-
-        if polarization < Polarization.PTOTAL:
-            polarization = self.polarizations.index(polarization)
-
-        self.call_action("setChannels", channel, polarization, recursive)
+        self.call_action("setChannels", channel, self.macro("", "requiredStokes"), recursive)
 
     @validate(Evaluate(OneOf, Attrs("polarizations")), Boolean())
     def set_polarization(self, polarization, recursive=True):
@@ -419,16 +415,14 @@ class Image:
         Parameters
         ----------
         polarization : {0}
-            The desired polarization. Defaults to the current polarization.
+            The desired polarization.
         recursive : {1}
             Whether to perform the same change on all spectrally matched images. Defaults to True.
         """
-        channel = self.get_value("requiredChannel")
-
         if polarization < Polarization.PTOTAL:
             polarization = self.polarizations.index(polarization)
 
-        self.call_action("setChannels", channel, polarization, recursive)
+        self.call_action("setChannels", self.macro("", "requiredChannel"), polarization, recursive)
 
     @validate(Number(), Number())
     def set_center(self, x, y):
@@ -491,8 +485,8 @@ class Image:
             self.call_action("renderConfig.resetContrast")
 
     # TODO check whether this works as expected
-    @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
-    def set_scaling(self, scaling, alpha=None, gamma=None, min=None, max=None):
+    @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(0, 100)), NoneOr(Number()), NoneOr(Number()))
+    def set_scaling(self, scaling, alpha=None, gamma=None, rank=None, min=None, max=None):
         """Set the colormap scaling.
 
         Parameters
@@ -503,17 +497,21 @@ class Image:
             The alpha value (only applicable to ``LOG`` and ``POWER`` scaling types).
         gamma : {2}
             The gamma value (only applicable to the ``GAMMA`` scaling type).
-        min : {3}
-            The minimum of the scale. Only used if both *min* and *max* are set.
-        max : {4}
-            The maximum of the scale. Only used if both *min* and *max* are set.
+        rank : {3}
+            The clip percentile rank. If this is set, *min* and *max* are ignored, and will be calculated automatically.
+        min : {4}
+            Custom clip minimum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
+        max : {5}
+            Custom clip maximum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
         """
         self.call_action("renderConfig.setScaling", scaling)
         if scaling in (Scaling.LOG, Scaling.POWER) and alpha is not None:
             self.call_action("renderConfig.setAlpha", alpha)
         elif scaling == Scaling.GAMMA and gamma is not None:
             self.call_action("renderConfig.setGamma", gamma)
-        if min is not None and max is not None:
+        if rank is not None:
+            self.set_clip_percentile(rank)
+        elif min is not None and max is not None:
             self.call_action("renderConfig.setCustomScale", min, max)
 
     @validate(Boolean())
@@ -697,15 +695,18 @@ class Image:
         self.call_action(f"renderConfig.setUseCubeHistogram{'Contours' if contours else ''}", False)
 
     @validate(Number(0, 100))
-    def set_percentile_rank(self, rank):
-        """Set the percentile rank.
+    def set_clip_percentile(self, rank):
+        """Set the clip percentile.
 
         Parameters
         ----------
         rank : {0}
             The percentile rank.
         """
+        preset_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
         self.call_action("renderConfig.setPercentileRank", rank)
+        if rank not in preset_ranks:
+            self.call_action("renderConfig.setPercentileRank", -1)  # select 'custom' rank button
 
     # CLOSE
 
