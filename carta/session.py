@@ -358,8 +358,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), Boolean(), NoneOr(Constant(ArithmeticExpression)))
-    def open_image(self, path, hdu="", complex=False, expression=None):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
+    def open_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -371,12 +371,12 @@ class Session:
         complex : {2}
             Whether the image is complex. Set to ``False`` by default.
         expression : {3}
-            Arithmetic expression to use if opening a complex-valued image. By default, the amplitude will be shown if the image is complex.
+            Arithmetic expression to use if opening a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
         return Image.new(self, path, hdu, False, complex, expression)
 
-    @validate(String(), String(r"\d*"), Boolean(), NoneOr(Constant(ArithmeticExpression)))
-    def append_image(self, path, hdu="", complex=False, expression=None):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
+    def append_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -388,7 +388,7 @@ class Session:
         complex : {2}
             Whether the image is complex. Set to ``False`` by default.
         expression : {3}
-            Arithmetic expression to use if appending a complex-valued image. By default, the amplitude will be shown if the image is complex.
+            Arithmetic expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
         return Image.new(self, path, hdu, True, complex, expression)
 

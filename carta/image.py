@@ -42,7 +42,7 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, path, hdu, append, complex=False, Expression=None):
+    def new(cls, session, path, hdu, append, complex, expression):
         """Open or append a new image in the session and return an image object associated with it.
 
         This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image` and :obj:`carta.session.Session.append_image`.
@@ -58,9 +58,9 @@ class Image:
         append : boolean
             Whether the image should be appended.
         complex : boolean
-            Whether the image is complex. Set to ``False`` by default.
-        expression : a member of :obj:`carta.constants.ArithmeticExpression` or ``None``
-            Arithmetic expression to use if opening a complex-valued image. Set to ``None`` if the image is not complex, or to show the default amplitude if the image is complex.
+            Whether the image is complex.
+        expression : a member of :obj:`carta.constants.ArithmeticExpression`
+            Arithmetic expression to use if opening a complex-valued image.
 
         Returns
         -------
@@ -74,9 +74,7 @@ class Image:
             image_arithmetic = False
         elif complex is True:
             image_arithmetic = "true"
-            if Expression is None:
-                Expression = "AMPLITUDE"
-            file_name = f'{Expression}("{file_name}")'
+            file_name = f'{expression}("{file_name}")'
         image_id = session.call_action(command, directory, file_name, hdu, image_arithmetic, return_path="frameInfo.fileId")
         return cls(session, image_id, file_name)
 
