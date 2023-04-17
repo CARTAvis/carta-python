@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -358,8 +358,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"))
-    def open_image(self, path, hdu=""):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
+    def open_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -368,11 +368,15 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
+        complex : {2}
+            Whether the image is complex. Set to ``False`` by default.
+        expression : {3}
+            Arithmetic expression to use if opening a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
-        return Image.new(self, path, hdu, False)
+        return Image.new(self, path, hdu, False, complex, expression)
 
-    @validate(String(), String(r"\d*"))
-    def append_image(self, path, hdu=""):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
+    def append_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -381,8 +385,12 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
+        complex : {2}
+            Whether the image is complex. Set to ``False`` by default.
+        expression : {3}
+            Arithmetic expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
-        return Image.new(self, path, hdu, True)
+        return Image.new(self, path, hdu, True, complex, expression)
 
     def image_list(self):
         """Return the list of currently open images.
