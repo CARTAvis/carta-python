@@ -70,11 +70,11 @@ class Image:
         path = session.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
         command = "appendFile" if append else "openFile"
-        if complex is False:
-            image_arithmetic = False
-        elif complex is True:
-            image_arithmetic = "true"
+        if complex:
+            image_arithmetic = True
             file_name = f'{expression}("{file_name}")'
+        else:
+            image_arithmetic = False
         image_id = session.call_action(command, directory, file_name, hdu, image_arithmetic, return_path="frameInfo.fileId")
         return cls(session, image_id, file_name)
 
