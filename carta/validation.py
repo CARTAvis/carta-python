@@ -86,7 +86,7 @@ class String(Parameter):
             The description.
         """
         if self.regex:
-            return f"`a string matching` ``{self.regex}``"
+            return f"a string matching ``{self.regex}``"
         return "a string"
 
 
