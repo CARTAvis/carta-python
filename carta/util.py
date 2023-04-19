@@ -85,14 +85,18 @@ class Macro:
     def __repr__(self):
         return f"Macro('{self.target}', '{self.variable}')"
 
+    def json(self):
+        """The JSON serialization of this object."""
+        return {"macroTarget": self.target, "macroVariable": self.variable}
+
 
 class CartaEncoder(json.JSONEncoder):
-    """A custom encoder to JSON which correctly serialises :obj:`carta.util.Macro` objects and numpy arrays."""
+    """A custom encoder to JSON which correctly serialises custom objects with a ``json`` method, and numpy arrays."""
 
     def default(self, obj):
         """ This method is overridden from the parent class and performs the substitution."""
-        if isinstance(obj, Macro):
-            return {"macroTarget": obj.target, "macroVariable": obj.variable}
+        if hasattr(obj, "json") and callable(obj.json):
+            return obj.json()
         if type(obj).__module__ == "numpy" and type(obj).__name__ == "ndarray":
             # The condition is a workaround to avoid importing numpy
             return obj.tolist()
