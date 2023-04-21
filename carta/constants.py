@@ -127,6 +127,31 @@ class ContourDashMode(str, Enum):
     NEGATIVE_ONLY = "NegativeOnly"
 
 
+PROTO_POLARIZATION = {
+    "I": 1,
+    "Q": 2,
+    "U": 3,
+    "V": 4,
+    "RR": 5,
+    "LL": 6,
+    "RL": 7,
+    "LR": 8,
+    "XX": 9,
+    "YY": 10,
+    "XY": 11,
+    "YX": 12,
+    "Ptotal": 13,
+    "Plinear": 14,
+    "PFtotal": 15,
+    "PFlinear": 16,
+    "PANGLE": 17,
+}
+
+
+def __init__(self, value):
+    self.proto_index = PROTO_POLARIZATION[self.name]
+
+
 class Polarization(IntEnum):
     """Polarizations, corresponding to the POLARIZATIONS enum in the frontend."""
     YX = -8

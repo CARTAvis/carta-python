@@ -7,6 +7,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 """
 
 import base64
+import posixpath
 
 from .image import Image
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression
@@ -391,31 +392,24 @@ class Session:
             Arithmetic expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
         return Image.new(self, path, hdu, True, complex, expression)
-    
-    def load_stokes_hypercube(self, output_direcory, directories, files, polarization_type, hdu="", append=False):
+
+    # @validate(IterableOf(InstanceOf(StokesImage), min_size=2), Boolean())
+    def load_stokes_hypercube(self, stokes_images, append=False):
         """Open or append a new Stokes hypercube with the selected Stokes images.
 
         Parameters
         ----------
-        output_direcory : {0}
-            The direcory to output the hypercube, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
-        directories : {1}
-            The list of paths to the images, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
-        files : {2}
-            The list of images for making the hypercube.
-        polarization_type : {3}
-            The list of the polarization types assigned to the respective images.
-        hdu : {4}
-            The HDU to select inside the file.
-        append : {5}
+        stokes_images : {0}
+            The list of the paths to the images, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        append : {1}
             Whether the hypercube should be appended. Default is ``False``.
         """
-        stokes_files = []
-        for i in range(len(directories)):
-            stoke_file = {"directory": directories[i], "file": files[i], "hdu": hdu, "polarizationType": polarization_type[i]}
-            stokes_files.append(stoke_file)
+        for image in stokes_images:
+            image.directory = self.resolve_file_path(image.directory)
+        output_directory = Macro("fileBrowserStore", "startingDirectory")
+        output_hdu = ""
         command = "appendConcatFile" if append else "openConcatFile"
-        self.call_action(command, stokes_files, output_direcory, hdu)
+        self.call_action(command, stokes_images, output_directory, output_hdu)
 
     def image_list(self):
         """Return the list of currently open images.
