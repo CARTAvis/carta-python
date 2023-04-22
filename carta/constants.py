@@ -140,20 +140,20 @@ PROTO_POLARIZATION = {
     "YY": 10,
     "XY": 11,
     "YX": 12,
-    "Ptotal": 13,
-    "Plinear": 14,
-    "PFtotal": 15,
-    "PFlinear": 16,
+    "PTOTAL": 13,
+    "PLINEAR": 14,
+    "PFTOTAL": 15,
+    "PFLINEAR": 16,
     "PANGLE": 17,
 }
 
 
-def __init__(self, value):
-    self.proto_index = PROTO_POLARIZATION[self.name]
-
-
 class Polarization(IntEnum):
     """Polarizations, corresponding to the POLARIZATIONS enum in the frontend."""
+
+    def __init__(self, value):
+        self.proto_index = PROTO_POLARIZATION[self.name]
+
     YX = -8
     XY = -7
     YY = -6

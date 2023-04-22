@@ -1,12 +1,34 @@
+"""This module provides a collection of helper objects for grouping related values together."""
+
 import posixpath
 
 from .validation import validate, String, Constant
-from .constants import Polarization, PROTO_POLARIZATION
+from .constants import Polarization
 
 
 class StokesImage:
+    '''An object which groups information about an image file to be used as a component in a Stokes hypercube.
 
-    @validate(Constant(PROTO_POLARIZATION), String(), String())
+    Parameters
+    ----------
+    stokes :
+        The Stokes type to be specied.
+    path : str
+        The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+    hdu : str
+        The HDU to open.
+
+    Attributes
+    ----------
+    stokes :
+        The Stokes type to be specified.
+    path : str
+        The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+    hdu : str
+        The HDU to open.
+    '''
+
+    @validate(Constant(Polarization), String(), String())
     def __init__(self, stokes, path, hdu=""):
         self.stokes = stokes
         self.directory, self.file_name = posixpath.split(path)

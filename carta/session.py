@@ -14,7 +14,8 @@ from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Over
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
-from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
+from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf, IterableOf, InstanceOf
+from .structs import StokesImage
 
 
 class Session:
@@ -393,14 +394,14 @@ class Session:
         """
         return Image.new(self, path, hdu, True, complex, expression)
 
-    # @validate(IterableOf(InstanceOf(StokesImage), min_size=2), Boolean())
+    @validate(IterableOf(InstanceOf(StokesImage), min_size=2), Boolean())
     def load_stokes_hypercube(self, stokes_images, append=False):
         """Open or append a new Stokes hypercube with the selected Stokes images.
 
         Parameters
         ----------
         stokes_images : {0}
-            The list of the paths to the images, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+            The list of images, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         append : {1}
             Whether the hypercube should be appended. Default is ``False``.
         """
