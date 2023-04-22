@@ -43,6 +43,47 @@ class Parameter:
         return "UNKNOWN"
 
 
+class InstanceOf(Parameter):
+    """A parameter which is an instance of the provided type or tuple of types.
+
+    This validator uses ``isinstance``, and has the same behaviour. An instance of a child class is also an instance of a parent class.
+
+    Parameters
+    ----------
+    types : type or tuple of types
+    """
+
+    def __init__(self, types):
+        if not isinstance(types, tuple):
+            types = (types,)
+        self.types = types
+
+    def validate(self, value, parent):
+        """Check if the value is an instance of the provided type or types.
+
+        See :obj:`carta.validation.Parameter.validate` for general information about this method.
+        """
+        if not isinstance(value, self.types):
+            raise TypeError(f"{value} has type {type(value)} but {self.description} was expected.")
+
+    @property
+    def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
+        names = [t.__name__ for t in self.types]
+
+        if len(names) == 1:
+            return f"an instance of {names[0]}"
+
+        names = names[:-2] + [" or ".join(names[-2:])]
+        return f"an instance of {', '.join(names)}"
+
+
 class String(Parameter):
     """A string parameter.
 
@@ -428,23 +469,47 @@ class IterableOf(Parameter):
     ----------
     param : :obj:`carta.validation.Parameter`
         The parameter descriptor.
+    min_size : integer, optional
+        The minimum size.
+    max_size : integer, optional
+        The maximum size.
 
     Attributes
     ----------
     param : :obj:`carta.validation.Parameter`
         The parameter descriptor.
+    min_size : integer, optional
+        The minimum size.
+    max_size : integer, optional
+        The maximum size.
     """
 
-    def __init__(self, param):
+    def __init__(self, param, min_size=None, max_size=None):
         self.param = param
+        self.min_size = min_size
+        self.max_size = max_size
 
     def validate(self, value, parent):
         """Check if each element of the iterable can be validated with the given descriptor.
 
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
-        for v in value:
-            self.param.validate(v, parent)
+
+        try:
+            for v in value:
+                self.param.validate(v, parent)
+        except TypeError as e:
+            if str(e).endswith("object is not iterable"):
+                raise ValueError(f"{value} is not iterable, but {self.description} was expected.")
+            raise e
+
+        if self.min_size is not None:
+            if len(value) < self.min_size:
+                raise ValueError(f"{value} has {len(value)} elements, but must have at least {self.min_size}.")
+
+        if self.max_size is not None:
+            if len(value) > self.max_size:
+                raise ValueError(f"{value} has {len(value)} elements, but may have at most {self.max_size}.")
 
     @property
     def description(self):
@@ -455,7 +520,17 @@ class IterableOf(Parameter):
         string
             The description.
         """
-        return f"an iterable of {self.param.description}"
+        size = []
+        size_desc = ""
+
+        if self.min_size is not None:
+            size.append(f"at least {self.min_size} elements")
+        if self.max_size is not None:
+            size.append(f"at most {self.max_size} elements")
+
+        if size:
+            size_desc = f"with {' and '.join(size)} "
+        return f"an iterable {size_desc}in which each element is {self.param.description}"
 
 
 COLORNAMES = ('aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki', 'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray', 'grey', 'green', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo', 'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon', 'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray', 'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow', 'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine', 'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab', 'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise', 'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue', 'purple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke', 'yellow', 'yellowgreen')
