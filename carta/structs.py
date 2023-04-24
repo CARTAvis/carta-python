@@ -12,18 +12,18 @@ class StokesImage:
     Parameters
     ----------
     stokes :
-        The Stokes type to be specied.
+        The Stokes type to specify.
     path : str
-        The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        The path to the image file.
     hdu : str
         The HDU to open.
 
     Attributes
     ----------
     stokes :
-        The Stokes type to be specified.
+        The Stokes type to specify.
     path : str
-        The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        The path to the image file.
     hdu : str
         The HDU to open.
     '''
