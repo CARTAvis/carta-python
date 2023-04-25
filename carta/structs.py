@@ -21,7 +21,7 @@ class StokesImage:
     Attributes
     ----------
     stokes :
-        The Stokes type to specify.
+        The Stokes type to specify. Must be a member of :obj:`carta.constants.Polarization`
     path : str
         The path to the image file.
     hdu : str
@@ -35,4 +35,5 @@ class StokesImage:
         self.hdu = hdu
 
     def json(self):
+        """The JSON serialization of this object."""
         return {"directory": self.directory, "file": self.file_name, "hdu": self.hdu, "polarizationType": self.stokes.proto_index}

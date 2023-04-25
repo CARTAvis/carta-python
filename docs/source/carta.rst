@@ -49,6 +49,14 @@ carta.session module
    :undoc-members:
    :show-inheritance:
 
+carta.structs module
+--------------------
+
+.. automodule:: carta.structs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.token module
 ------------------
 
