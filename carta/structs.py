@@ -11,8 +11,8 @@ class StokesImage:
 
     Parameters
     ----------
-    stokes :
-        The Stokes type to specify.
+    stokes : :obj:`carta.constants.Polarization`
+        The Stokes type to specify. Must be a member of :obj:`carta.constants.Polarization`
     path : str
         The path to the image file.
     hdu : str
@@ -20,7 +20,7 @@ class StokesImage:
 
     Attributes
     ----------
-    stokes :
+    stokes : :obj:`carta.constants.Polarization`
         The Stokes type to specify. Must be a member of :obj:`carta.constants.Polarization`
     path : str
         The path to the image file.
