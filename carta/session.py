@@ -392,6 +392,9 @@ class Session:
         """
         return Image.new(self, path, hdu, True, complex, expression)
 
+    def load_LEL_image(self, directory, expression, hdu="", complex=False):
+        return Image.new(self, directory, hdu, False, complex, expression)
+
     def image_list(self):
         """Return the list of currently open images.
 
