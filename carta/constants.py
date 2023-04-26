@@ -6,7 +6,7 @@ from enum import Enum, IntEnum
 # TODO make sure the __str__ is right for all the string values
 
 class ComplexExpression(str, Enum):
-    """Arithmetic expression."""
+    """Complex expression."""
     AMPLITUDE = "AMPLITUDE"
     PHASE = "PHASE"
     REAL = "REAL"
