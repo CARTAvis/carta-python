@@ -59,8 +59,8 @@ class Image:
             Whether the image should be appended.
         complex : boolean
             Whether the image is complex.
-        expression : a member of :obj:`carta.constants.ArithmeticExpression`
-            Arithmetic expression to use if opening a complex-valued image.
+        expression : string or a member of :obj:`carta.constants.ComplexExpression`
+            Arithmetic expression or complex expression to use if opening a complex-valued image.
 
         Returns
         -------
@@ -73,6 +73,9 @@ class Image:
         if complex:
             image_arithmetic = True
             file_name = f'{expression}("{file_name}")'
+        elif complex is False and file_name == "":
+            image_arithmetic = True
+            file_name = expression
         else:
             image_arithmetic = False
         image_id = session.call_action(command, directory, file_name, hdu, image_arithmetic, return_path="frameInfo.fileId")

@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ComplexExpression
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -358,8 +358,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
-    def open_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ComplexExpression))
+    def open_image(self, path, hdu="", complex=False, expression=ComplexExpression.AMPLITUDE):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -371,12 +371,12 @@ class Session:
         complex : {2}
             Whether the image is complex. Set to ``False`` by default.
         expression : {3}
-            Arithmetic expression to use if opening a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
+            Complex expression to use if opening a complex-valued image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
         """
         return Image.new(self, path, hdu, False, complex, expression)
 
-    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
-    def append_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ComplexExpression))
+    def append_image(self, path, hdu="", complex=False, expression=ComplexExpression.AMPLITUDE):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -388,12 +388,27 @@ class Session:
         complex : {2}
             Whether the image is complex. Set to ``False`` by default.
         expression : {3}
-            Arithmetic expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
+            Complex expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
         """
         return Image.new(self, path, hdu, True, complex, expression)
 
-    def load_LEL_image(self, directory, expression, hdu="", complex=False):
-        return Image.new(self, directory, hdu, False, complex, expression)
+    @validate(String(), String(), String(r"\d*"), Boolean())
+    def load_LEL_image(self, directory, expression, hdu="", append=False):
+        """Open or append a new image via the Lattice Expression Language (LEL) interface.
+
+        Parameters
+        ----------
+        directory : {0}
+            The directory of the image file(s), either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        expression : {1}
+            The LEL arithmetic expression.
+        hdu : {2}
+            The HDU to select inside the file.
+        append : {3}
+            Whether the image should be appended. Default is ``False``.
+        """
+        complex = False
+        return Image.new(self, directory, hdu, append, complex, expression)
 
     def image_list(self):
         """Return the list of currently open images.
