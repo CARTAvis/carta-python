@@ -7,6 +7,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 """
 
 import base64
+import posixpath
 
 from .image import Image
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ComplexExpression
@@ -358,9 +359,9 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), Boolean(), Constant(ComplexExpression))
-    def open_image(self, path, hdu="", complex=False, expression=ComplexExpression.AMPLITUDE):
-        """Open a new image, replacing any existing images.
+    @validate(String(), String(r"\d*"), Boolean())
+    def open_image(self, path, hdu="", append=False):
+        """Open or append a new image.
 
         Parameters
         ----------
@@ -368,47 +369,53 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
-        complex : {2}
-            Whether the image is complex. Set to ``False`` by default.
-        expression : {3}
-            Complex expression to use if opening a complex-valued image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
+        append : {2}
+            Whether the image should be appended. Default is ``False``.
         """
-        return Image.new(self, path, hdu, False, complex, expression)
-
-    @validate(String(), String(r"\d*"), Boolean(), Constant(ComplexExpression))
-    def append_image(self, path, hdu="", complex=False, expression=ComplexExpression.AMPLITUDE):
-        """Append a new image, keeping any existing images.
+        path = self.resolve_file_path(path)
+        directory, file_name = posixpath.split(path)
+        return Image.new(self, directory, file_name, hdu, append, False)
+    
+    @validate(String(), String(r"\d*"), Constant(ComplexExpression), Boolean())
+    def open_complex_image(self, path, expression=ComplexExpression.AMPLITUDE, hdu="", append=False):
+        """Open or append a new complex-valued image.
 
         Parameters
         ----------
         path : {0}
-            The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
-        hdu : {1}
-            The HDU to select inside the file.
-        complex : {2}
-            Whether the image is complex. Set to ``False`` by default.
-        expression : {3}
-            Complex expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
-        """
-        return Image.new(self, path, hdu, True, complex, expression)
-
-    @validate(String(), String(), String(r"\d*"), Boolean())
-    def load_LEL_image(self, directory, expression, hdu="", append=False):
-        """Open or append a new image via the Lattice Expression Language (LEL) interface.
-
-        Parameters
-        ----------
-        directory : {0}
-            The directory of the image file(s), either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+            The path to the complex-valued image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         expression : {1}
-            The LEL arithmetic expression.
+            The complex expression for opening a complex-valued image.
         hdu : {2}
             The HDU to select inside the file.
         append : {3}
             Whether the image should be appended. Default is ``False``.
         """
-        complex = False
-        return Image.new(self, directory, hdu, append, complex, expression)
+        path = self.resolve_file_path(path)
+        directory, file_name = posixpath.split(path)
+        file_name = f'{expression}("{file_name}")'
+        return Image.new(self, directory, file_name, hdu, append, True)
+
+    @validate(String(), String(), String(r"\d*"), Boolean())
+    def open_LEL_image(self, expression, directory, hdu="", append=False):
+        """Open or append a new image via the Lattice Expression Language (LEL) interface.
+
+        Parameters
+        ----------
+        expression : {0}
+            The LEL arithmetic expression.
+        directory : {1}
+            The directory to the image file(s), either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        hdu : {2}
+            The HDU to select inside the file.
+        append : {3}
+            Whether the image should be appended. Default is ``False``.
+        """
+        file_name = expression
+        if "/" in expression:
+            directory = self.pwd()
+        directory = self.resolve_file_path(directory)
+        return Image.new(self, directory, file_name, hdu, append, True)
 
     def image_list(self):
         """Return the list of currently open images.

@@ -42,42 +42,32 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, path, hdu, append, complex, expression):
+    def new(cls, session, directory, file_name, hdu, append, image_arithmetic):
         """Open or append a new image in the session and return an image object associated with it.
 
-        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image` and :obj:`carta.session.Session.append_image`.
+        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image`, :obj:`carta.session.Session.open_complex_image` and :obj:`carta.session.Session.open_complex_image`.
 
         Parameters
         ----------
         session : :obj:`carta.session.Session`
             The session object.
-        path : string
-            The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        directory : string
+            The directory to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        file_name : string
+            The name of the image file or the LEL expression for complex image and arithmeic image.
         hdu : string
             The HDU to open.
         append : boolean
             Whether the image should be appended.
-        complex : boolean
-            Whether the image is complex.
-        expression : string or a member of :obj:`carta.constants.ComplexExpression`
-            Arithmetic expression or complex expression to use if opening a complex-valued image.
+        image_arihmetic : boolean
+            Whether the LEL expression is used.
 
         Returns
         -------
         :obj:`carta.image.Image`
             A new image object.
         """
-        path = session.resolve_file_path(path)
-        directory, file_name = posixpath.split(path)
         command = "appendFile" if append else "openFile"
-        if complex:
-            image_arithmetic = True
-            file_name = f'{expression}("{file_name}")'
-        elif complex is False and file_name == "":
-            image_arithmetic = True
-            file_name = expression
-        else:
-            image_arithmetic = False
         image_id = session.call_action(command, directory, file_name, hdu, image_arithmetic, return_path="frameInfo.fileId")
         return cls(session, image_id, file_name)
 
