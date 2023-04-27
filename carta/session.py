@@ -375,7 +375,7 @@ class Session:
         path = self.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
         return Image.new(self, directory, file_name, hdu, append, False)
-    
+
     @validate(String(), String(r"\d*"), Constant(ComplexExpression), Boolean())
     def open_complex_image(self, path, expression=ComplexExpression.AMPLITUDE, hdu="", append=False):
         """Open or append a new complex-valued image.
@@ -414,7 +414,6 @@ class Session:
         file_name = expression
         if "/" in expression:
             directory = self.pwd()
-        directory = self.resolve_file_path(directory)
         return Image.new(self, directory, file_name, hdu, append, True)
 
     def image_list(self):
