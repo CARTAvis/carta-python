@@ -370,7 +370,7 @@ class Session:
         hdu : {1}
             The HDU to select inside the file.
         append : {2}
-            Whether the image should be appended. Default is ``False``.
+            Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
         """
         path = self.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
@@ -385,9 +385,9 @@ class Session:
         path : {0}
             The path to the complex-valued image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         expression : {1}
-            The complex expression for opening a complex-valued image.
+            The complex expression for opening a complex-valued image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
         append : {2}
-            Whether the image should be appended. Default is ``False``.
+            Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
         """
         path = self.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
@@ -405,7 +405,7 @@ class Session:
         directory : {1}
             The base directory for the LEL expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory. Defaults to the session's current directory.
         append : {2}
-            Whether the image should be appended. Default is ``False``.
+            Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
         """
         if directory is None:
             directory = self.pwd()

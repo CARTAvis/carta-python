@@ -6,7 +6,7 @@ import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization
 from .util import Macro, cached
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, String
 
 
 class Image:
@@ -42,25 +42,26 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
+    @validate(String(), String(), String(), Boolean(), Boolean())
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic):
         """Open or append a new image in the session and return an image object associated with it.
 
-        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image`, :obj:`carta.session.Session.open_complex_image` and :obj:`carta.session.Session.open_complex_image`.
+        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image`, :obj:`carta.session.Session.open_complex_image` and :obj:`carta.session.Session.open_LEL_image`.
 
         Parameters
         ----------
         session : :obj:`carta.session.Session`
             The session object.
-        directory : string
-            The directory to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
-        file_name : string
-            The name of the image file or the LEL expression for complex image and arithmeic image.
-        hdu : string
+        directory : {0}
+            The directory containing the image file, or the base directory for the LEL arithmetic expression, as an absolute path relative to the CARTA backend's root directory.
+        file_name : {1}
+            The name of the image file, or a LEL arithmetic expression.
+        hdu : {2}
             The HDU to open.
-        append : boolean
+        append : {3}
             Whether the image should be appended.
-        image_arihmetic : boolean
-            Whether the LEL expression is used.
+        image_arihmetic : {4}
+            Whether the file name should be interpreted as a LEL expression.
 
         Returns
         -------
