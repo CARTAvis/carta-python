@@ -407,7 +407,7 @@ class Session:
         """
         for image in stokes_images:
             image.directory = self.resolve_file_path(image.directory)
-        output_directory = Macro("fileBrowserStore", "startingDirectory")
+        output_directory = self.pwd()
         output_hdu = ""
         command = "appendConcatFile" if append else "openConcatFile"
         self.call_action(command, stokes_images, output_directory, output_hdu)
