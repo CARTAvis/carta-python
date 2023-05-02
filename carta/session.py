@@ -376,8 +376,8 @@ class Session:
         directory, file_name = posixpath.split(path)
         return Image.new(self, directory, file_name, hdu, append, False)
 
-    @validate(String(), String(r"\d*"), Constant(ComplexExpression), Boolean())
-    def open_complex_image(self, path, expression=ComplexExpression.AMPLITUDE, hdu="", append=False):
+    @validate(String(), Constant(ComplexExpression), Boolean())
+    def open_complex_image(self, path, expression=ComplexExpression.AMPLITUDE, append=False):
         """Open or append a new complex-valued image.
 
         Parameters
@@ -386,18 +386,16 @@ class Session:
             The path to the complex-valued image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         expression : {1}
             The complex expression for opening a complex-valued image.
-        hdu : {2}
-            The HDU to select inside the file.
-        append : {3}
+        append : {2}
             Whether the image should be appended. Default is ``False``.
         """
         path = self.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
         expression = f'{expression}("{file_name}")'
-        return Image.new(self, directory, expression, hdu, append, True)
+        return Image.new(self, directory, expression, "", append, True)
 
-    @validate(String(), String(), String(r"\d*"), Boolean())
-    def open_LEL_image(self, expression, directory=None, hdu="", append=False):
+    @validate(String(), String(), Boolean())
+    def open_LEL_image(self, expression, directory=None, append=False):
         """Open or append a new image via the Lattice Expression Language (LEL) interface.
 
         Parameters
@@ -406,15 +404,13 @@ class Session:
             The LEL arithmetic expression.
         directory : {1}
             The base directory for the LEL expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory. Defaults to the session's current directory.
-        hdu : {2}
-            The HDU to select inside the file.
-        append : {3}
+        append : {2}
             Whether the image should be appended. Default is ``False``.
         """
         if directory is None:
             directory = self.pwd()
         directory = self.resolve_file_path(directory)
-        return Image.new(self, directory, expression, hdu, append, True)
+        return Image.new(self, directory, expression, "", append, True)
 
     def image_list(self):
         """Return the list of currently open images.
