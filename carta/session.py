@@ -385,7 +385,7 @@ class Session:
         path : {0}
             The path to the complex-valued image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         expression : {1}
-            The complex expression for opening a complex-valued image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
+            The complex expression to use when opening the image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
         append : {2}
             Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
         """

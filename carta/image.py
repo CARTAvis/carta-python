@@ -42,7 +42,6 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    @validate(String(), String(), String(), Boolean(), Boolean())
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic):
         """Open or append a new image in the session and return an image object associated with it.
 
@@ -52,15 +51,15 @@ class Image:
         ----------
         session : :obj:`carta.session.Session`
             The session object.
-        directory : {0}
+        directory : string
             The directory containing the image file, or the base directory for the LEL arithmetic expression, as an absolute path relative to the CARTA backend's root directory.
-        file_name : {1}
+        file_name : string
             The name of the image file, or a LEL arithmetic expression.
-        hdu : {2}
+        hdu : string
             The HDU to open.
-        append : {3}
+        append : boolean
             Whether the image should be appended.
-        image_arihmetic : {4}
+        image_arihmetic : boolean
             Whether the file name should be interpreted as a LEL expression.
 
         Returns
