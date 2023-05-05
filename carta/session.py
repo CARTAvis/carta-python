@@ -9,10 +9,10 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression
 from .backend import Backend
 from .protocol import Protocol
-from .util import logger, Macro, split_action_path, CartaScriptingException, CartaBadID, CartaBadSession, CartaBadUrl
+from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
 
 
@@ -21,7 +21,12 @@ class Session:
 
     This class provides the core generic method for calling actions on the frontend (through the backend), as well as convenience methods which wrap this generic method and provide a more intuitive and user-friendly interface to frontend functionality associated with the session as a whole.
 
-    This class should not be instantiated directly. Three class methods are provided for creating different types of sessions with all the appropriate parameters set: :obj:`carta.session.Session.interact` for interacting with an existing CARTA session open in the user's browser, :obj:`carta.session.Session.create` for creating a new CARTA session in a headless browser by connecting to an existing CARTA backend or controller instance, and :obj:`carta.session.Session.start_and_create` for starting a new backend instance and then connecting to it to create a new session in a headless browser.
+    This class should not be instantiated directly. Four class methods are provided for creating different types of sessions with all the appropriate parameters set:
+
+    * :obj:`carta.session.Session.interact` for interacting with an existing CARTA session open in the user's browser.
+    * :obj:`carta.session.Session.start_and_interact` for starting a new backend instance and then interacting with the default session which is automatically opened by the backend in the user's browser.
+    * :obj:`carta.session.Session.create` for creating a new CARTA session in a headless browser by connecting to an existing CARTA backend or controller instance.
+    * :obj:`carta.session.Session.start_and_create` for starting a new backend instance and then connecting to it to create a new session in a headless browser.
 
     The session object can be used to create image objects, which provide analogous convenience methods for functionality associated with individual images.
 
@@ -105,7 +110,7 @@ class Session:
         remote_host : string, optional
             A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
         params : iterable, optional
-            Additional parameters to be passed to the backend process. By default scripting is enabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
+            Additional parameters to be passed to the backend process. By default scripting is enabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included. Example: ``["--verbosity", 5, "--port", 3010]``
         token : :obj:`carta.token.Token`, optional
             The security token to use. Parsed from the backend output by default.
         frontend_url_timeout : integer
@@ -189,7 +194,7 @@ class Session:
         remote_host : string, optional
             A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
         params : iterable, optional
-            Additional parameters to be passed to the backend process. By default scripting is enabled and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
+            Additional parameters to be passed to the backend process. By default scripting is enabled and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included. Example: ``["--verbosity", 5, "--port", 3010]``
         timeout : integer, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
         token : :obj:`carta.token.Token`, optional
@@ -246,11 +251,7 @@ class Session:
         CartaBadResponse
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
-        try:
-            return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
-        except CartaScriptingException:
-            self.close()
-            raise
+        return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
 
     def get_value(self, path):
         """Get the value of an attribute from a frontend store.
@@ -357,8 +358,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"))
-    def open_image(self, path, hdu=""):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
+    def open_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -367,11 +368,15 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
+        complex : {2}
+            Whether the image is complex. Set to ``False`` by default.
+        expression : {3}
+            Arithmetic expression to use if opening a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
-        return Image.new(self, path, hdu, False)
+        return Image.new(self, path, hdu, False, complex, expression)
 
-    @validate(String(), String(r"\d*"))
-    def append_image(self, path, hdu=""):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
+    def append_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -380,8 +385,12 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
+        complex : {2}
+            Whether the image is complex. Set to ``False`` by default.
+        expression : {3}
+            Arithmetic expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
-        return Image.new(self, path, hdu, True)
+        return Image.new(self, path, hdu, True, complex, expression)
 
     def open_images(self, *paths):
         """Open multiple images.
@@ -429,6 +438,50 @@ class Session:
     def clear_raster_scaling_reference(self):
         """Clear the raster scaling reference."""
         self.call_action("clearRasterScalingReference")
+
+    # VIEWER MODES
+    @validate(Constant(PanelMode))
+    def set_viewer_mode(self, panel_mode):
+        """
+        Switch between single-panel mode and multiple-panel mode.
+
+        Parameters
+        ----------
+        panel_mode : {0}
+            The panel mode to adopt.
+        """
+        if panel_mode == PanelMode.SINGLE:
+            multiple = False
+        elif panel_mode == PanelMode.MULTIPLE:
+            multiple = True
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
+
+    def previous_page(self):
+        """Go to previous page in viewer."""
+        self.call_action("widgetsStore.onPreviousPageClick")
+
+    def next_page(self):
+        """Go to next page in viewer."""
+        self.call_action("widgetsStore.onNextPageClick")
+
+    @validate(Number(1, 10, step=1), Number(1, 10, step=1), Constant(GridMode))
+    def set_viewer_grid(self, rows, columns, grid_mode=GridMode.FIXED):
+        """
+        Set number of columns and rows in viewer grid.
+
+        Parameters
+        ----------
+        rows : {0}
+            Number of rows.
+        columns : {1}
+            Number of columns.
+        grid_mode : {2}
+            The grid mode to adopt. The default is :obj:`carta.constants.GridMode.FIXED`.
+        """
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
+        self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
+        self.call_action("preferenceStore.setPreference", "imagePanelColumns", columns)
+        self.call_action("preferenceStore.setPreference", "imagePanelMode", grid_mode)
 
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
@@ -814,11 +867,11 @@ class Session:
             f.write(self.rendered_view_data(background_color))
 
     def close(self):
-        """Close the browser session and stop the backend process, if applicable.
+        """Close any browser sessions and backend processes controlled by this session object.
 
-        If this session was newly created in a headless browser, close the browser session. If a new backend process was also started, stop the backend process.
+        If this session opened a CARTA frontend session in a headless browser, this method will close the browser together with that session. If this session is interacting with a session running in an external browser, that browser session will be unaffected. This includes the new CARTA frontend session which is started automatically when :obj:`carta.session.Session.start_and_interact` is used: that frontend session is opened in the user's browser, which is not controlled by this object.
 
-        If this session is interacting with an existing external browser session, this method has no effect.
+        If this session started a new backend process, this method will stop that process. If this session is interacting with an externally started backend process, that process will be unaffected.
         """
 
         if self._browser is not None:

@@ -110,7 +110,7 @@ class Browser:
         remote_host : string, optional
             A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
         params : iterable, optional
-            Additional parameters to be passed to the backend process. By default scripting is enabled and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included.
+            Additional parameters to be passed to the backend process. By default scripting is enabled and the automatic browser is disabled. The parameters are appended to the end of the command, so a positional parameter for a data directory can be included. Example: ``["--verbosity", 5, "--port", 3010]``
         timeout : number, optional
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
         token : :obj:`carta.token.BackendToken`, optional
