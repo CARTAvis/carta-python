@@ -129,3 +129,92 @@ def split_action_path(path):
     """
     parts = path.split('.')
     return '.'.join(parts[:-1]), parts[-1]
+
+
+class SizeUnit:
+    """Parses angular or pixel sizes."""
+    NORMALIZED_UNIT = {
+        "arcmin": "'",
+        "arcsec": '"',
+        "deg": "deg",
+        "degree": "deg",
+        "degrees": "deg",
+        "px": "px",
+        "pix": "px",
+        "pixel": "px",
+        "pixels": "px",
+        "": '"',
+        '"': "",
+        "'": "'",
+    }
+
+    SYMBOL_UNITS = {"", "'", '"'}
+    WORD_UNITS = NORMALIZED_UNIT.keys() - SYMBOL_UNITS
+
+    SYMBOL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)({'|'.join(SYMBOL_UNITS)})$"
+    WORD_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(WORD_UNITS)})$"
+
+    @classmethod
+    def normalized(cls, size):
+        try:
+            size = float(size)
+            return str(size), "deg"  # number or numeric string with no units = degrees
+        except ValueError:
+            m = re.match(cls.WORD_UNIT_REGEX, size, re.IGNORECASE)
+            if m is None:
+                m = re.match(cls.SYMBOL_UNIT_REGEX, size, re.IGNORECASE)
+                if m is None:
+                    raise ValueError(f"{repr(size)} is not in a recognized size format.")
+            value, unit = m.groups()
+            unit = cls.NORMALIZED_UNIT[unit]
+            return value, unit  # Any other allowed unit
+
+
+class CoordinateUnit:
+    """Parses image or world coordinates."""
+
+    X = "X"
+    Y = "Y"
+
+    PIXEL_UNITS = {k for k, v in SizeUnit.NORMALIZED_UNIT.items() if v == "px"}
+    PIXEL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(PIXEL_UNITS)})$"
+    HMS_COLON_REGEX = r"^-?\d{0,2}:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
+    HMS_LETTER_REGEX = r"^(-?\d{0,2})h(\d{0,2})m(\d{1,2}(?:\.\d+)?s)?$"
+    DMS_COLON_REGEX = r"^-?\d*:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
+    DMS_LETTER_REGEX = r"^(-?\d*)d(\d{0,2})m(\d{1,2}(?:\.\d+)?s)?$"
+    DECIMAL_REGEX = r"^-?\d+(\.\d+)?$"  # Unused here, but used in validation
+
+    @classmethod
+    def normalized(cls, coord, xy):
+        if xy == cls.X:
+            HMS_DMS_COLON_REGEX = cls.HMS_COLON_REGEX
+            HMS_DMS_LETTER_REGEX = cls.HMS_LETTER_REGEX
+        elif xy == cls.Y:
+            HMS_DMS_COLON_REGEX = cls.DMS_COLON_REGEX
+            HMS_DMS_LETTER_REGEX = cls.DMS_LETTER_REGEX
+        else:
+            raise ValueError(f"Invalid coordinate type {xy}.")
+        try:
+            coord = float(coord)
+            return str(coord), "d"  # number or numeric string with no units = degrees
+        except ValueError:
+            m = re.match(cls.PIXEL_UNIT_REGEX, coord, re.IGNORECASE)
+            if m is not None:
+                return m.group(1), "px"  # pixels
+            m = re.match(HMS_DMS_COLON_REGEX, coord, re.IGNORECASE)
+            if m is not None:
+                return coord, "hms" if xy == cls.X else "dms"  # H:M:S or D:M:S
+            m = re.match(HMS_DMS_LETTER_REGEX, coord, re.IGNORECASE)
+            if m is not None:
+                HD, M, S = m.groups()
+                return f"{HD}:{M}:{S}", "hms" if xy == cls.X else "dms"  # H:M:S or D:M:S
+            else:
+                raise ValueError(f"{repr(coord)} is not in a recognized {xy} coordinate format.")
+
+    @classmethod
+    def normalized_x(cls, coord):
+        return cls.normalized(coord, cls.X)
+
+    @classmethod
+    def normalized_y(cls, coord):
+        return cls.normalized(coord, cls.Y)

@@ -495,6 +495,16 @@ class Session:
         """
         self.call_action("overlayStore.global.setSystem", system)
 
+    def coordinate_system(self):
+        """Get the coordinate system.
+
+        Returns
+        ----------
+        :obj:`carta.constants.CoordinateSystem`
+            The coordinate system.
+        """
+        return CoordinateSystem(self.get_value("overlayStore.global.system"))
+
     @validate(Constant(LabelType))
     def set_label_type(self, label_type):
         """Set the label type.

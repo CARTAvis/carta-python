@@ -4,7 +4,7 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed
+from .util import CartaValidationFailed, SizeUnit, CoordinateUnit
 
 
 class Parameter:
@@ -91,20 +91,20 @@ class String(Parameter):
     ----------
     regex : str, optional
         A regular expression string which the parameter must match.
-    ignorecase : bool, optional
-        Whether the regular expression match should be case-insensitive.
+    flags : int, optional
+        The flags to use when matching the regular expression. Set to zero (no flags) by default.
 
     Attributes
     ----------
     regex : str
         A regular expression string which the parameter must match.
     flags : int
-        The flags to use when matching the regular expression. This is set to :obj:`re.IGNORECASE` or zero.
+        The flags to use when matching the regular expression.
     """
 
-    def __init__(self, regex=None, ignorecase=False):
+    def __init__(self, regex=None, flags=0):
         self.regex = regex
-        self.flags = re.IGNORECASE if ignorecase else 0
+        self.flags = flags
 
     def validate(self, value, parent):
         """Check if the value is a string and if it matches a regex if one was provided.
@@ -622,38 +622,44 @@ class Color(Union):
         super().__init__(*options, description="an HTML color specification")
 
 
-# class AngularSize(String):
-    #"""A string representation of an angular size in degrees."""
-
-    #UNITS = ('','','','')
-
-    # def __init__(self):
-        #allowed_units = "|".join(self.UNITS)
-        #super().__init__(regex=rf"-?\d+({allowed_units})", ignorecase=True)
-
-    # @property
-    # def description(self):
-        # """A human-readable description of this parameter descriptor.
-
-        # Returns
-        # -------
-        # string
-        # The description.
-        # """
-        # return "an angular size"
-
-
-# TODO move the regexes to a utility class; also do conversions in that class
-class Coordinate(Union):
-    """A string representation of a world coordinate in degrees, HMS or DMS."""
+class Size(Union):
+    """A representation of an angular size in arcsec, arcmin or degrees; or a size in pixels. Can be a string or a number."""
 
     def __init__(self):
         options = (
-            String(r"-?\d+deg", re.IGNORECASE),  # degrees
-            String(r"-?\d+h\d+m\d+(.\d+)?s", re.IGNORECASE),  # HMS
-            String(r"-?\d+d\d+m\d+(.\d+)?s", re.IGNORECASE),  # DMS
+            Number(),
+            String(SizeUnit.WORD_UNIT_REGEX, re.IGNORECASE),  # word units (whitespace allowed)
+            String(SizeUnit.SYMBOL_UNIT_REGEX, re.IGNORECASE),  # symbol units (no whitespace)
         )
-        super().__init__(options, "a WCS coordinate string")
+        super().__init__(*options, description="a number or a numeric string with units")
+
+
+class CoordinateX(Union):
+    """A string representation of a world coordinate or image coordinate. Can be a string or a number."""
+
+    def __init__(self):
+        options = (
+            Number(),
+            String(CoordinateUnit.DECIMAL_REGEX, re.IGNORECASE),  # decimal
+            String(CoordinateUnit.HMS_COLON_REGEX, re.IGNORECASE),  # HMS with colon as separator
+            String(CoordinateUnit.HMS_LETTER_REGEX, re.IGNORECASE),  # HMS with letters as separators
+            String(CoordinateUnit.PIXEL_UNIT_REGEX, re.IGNORECASE),  # pixels
+        )
+        super().__init__(options, "a number or a string in H:M:S or decimal format")
+
+
+class CoordinateY(Union):
+    """A string representation of a world coordinate or image coordinate. Can be a string or a number."""
+
+    def __init__(self):
+        options = (
+            Number(),
+            String(CoordinateUnit.DECIMAL_REGEX, re.IGNORECASE),  # decimal
+            String(CoordinateUnit.DMS_COLON_REGEX, re.IGNORECASE),  # DMS with colon as separator
+            String(CoordinateUnit.DMS_LETTER_REGEX, re.IGNORECASE),  # DMS with letters as separators
+            String(CoordinateUnit.PIXEL_UNIT_REGEX, re.IGNORECASE),  # pixels
+        )
+        super().__init__(options, "a number or a string in D:M:S or decimal format")
 
 
 class Attr(str):
