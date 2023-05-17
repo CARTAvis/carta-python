@@ -480,9 +480,8 @@ class Image:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information.")
 
-            number_format_x = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
+            number_format_x, number_format_y, _ = self.session.number_format()
             x_value = CoordinateUnit.normalized(str(x), number_format_x)
-            number_format_y = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
             y_value = CoordinateUnit.normalized(str(y), number_format_y)
             self.call_action("setCenterWcs", x_value, y_value)
 

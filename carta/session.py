@@ -585,6 +585,23 @@ class Session:
         """Disable the custom X and Y number format."""
         self.call_overlay_action(Overlay.NUMBERS, "setCustomFormat", False)
 
+    def number_format(self):
+        """Return the current X and Y number formats, and whether they are a custom setting.
+
+        If the image has no WCS information, both the X and Y formats will be ``None``.
+
+        If a custom number format is not set, the format is derived from the coordinate system.
+
+        Returns
+        -------
+        tuple (a member of:obj:`carta.constants.NumberFormat` or ``None``, a member of:obj:`carta.constants.NumberFormat` or ``None``, boolean)
+            A tuple containing the X format, the Y format, and whether a custom format is set.
+        """
+        number_format_x = self.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
+        number_format_y = self.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
+        custom_format = self.get_overlay_value(Overlay.NUMBERS, "customFormat")
+        return number_format_x, number_format_y, custom_format
+
     @validate(NoneOr(Constant(BeamType)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
     def set_beam(self, beam_type=None, width=None, shift_x=None, shift_y=None):
         """Set the beam properties.

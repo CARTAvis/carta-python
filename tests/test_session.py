@@ -83,6 +83,11 @@ def test_set_coordinate_system_invalid(session):
         session.set_coordinate_system("invalid")
     assert "Invalid function parameter" in str(e.value)
 
+def test_coordinate_system(session, mock_get_value):
+    mock_get_value.return_value = "AUTO"
+    system = session.coordinate_system()
+    mock_get_value.assert_called_with("overlayStore.global.system")
+    assert isinstance(system, CoordinateSystem)
 
 @pytest.mark.parametrize("x", NF)
 @pytest.mark.parametrize("y", NF)
@@ -109,3 +114,11 @@ def test_set_custom_number_format_invalid(session, x, y):
 def test_clear_custom_number_format(session, mock_call_action):
     session.clear_custom_number_format()
     mock_call_action.assert_called_with("overlayStore.numbers.setCustomFormat", False)
+
+def test_number_system(session, mock_get_value, mocker):
+    session.number_format()
+    mock_get_value.assert_has_calls([
+        mocker.call("overlayStore.numbers.formatTypeX"),
+        mocker.call("overlayStore.numbers.formatTypeY"),
+        mocker.call("overlayStore.numbers.customFormat"),
+    ])

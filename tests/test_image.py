@@ -155,7 +155,7 @@ def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
 ])
 def test_set_center_valid_wcs(image, mock_property, mock_session_method, mock_call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
     mock_property("valid_wcs", True)
-    mock_session_method("get_overlay_value", [x_fmt, y_fmt])
+    mock_session_method("number_format", [(x_fmt, y_fmt, None)])
 
     image.set_center(x, y)
     mock_call_action.assert_called_with("setCenterWcs", x_norm, y_norm)
@@ -163,7 +163,7 @@ def test_set_center_valid_wcs(image, mock_property, mock_session_method, mock_ca
 
 def test_set_center_valid_change_system(image, mock_property, mock_session_method, mock_call_action, mock_session_call_action):
     mock_property("valid_wcs", True)
-    mock_session_method("get_overlay_value", [NF.DEGREES, NF.DEGREES])
+    mock_session_method("number_format", [(NF.DEGREES, NF.DEGREES, None)])
 
     image.set_center("123", "123", CoordinateSystem.GALACTIC)
 
@@ -186,7 +186,7 @@ def test_set_center_invalid(image, mock_property, mock_session_method, mock_call
     mock_property("width", 200)
     mock_property("height", 200)
     mock_property("valid_wcs", wcs)
-    mock_session_method("get_overlay_value", [x_fmt, y_fmt])
+    mock_session_method("number_format", [(x_fmt, y_fmt, None)])
 
     with pytest.raises(Exception) as e:
         image.set_center(x, y)
