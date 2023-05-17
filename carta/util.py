@@ -5,6 +5,8 @@ import json
 import functools
 import re
 
+from .constants import NumberFormat
+
 logger = logging.getLogger("carta_scripting")
 logger.setLevel(logging.WARN)
 logger.addHandler(logging.StreamHandler())
@@ -84,6 +86,9 @@ class Macro:
 
     def __repr__(self):
         return f"Macro('{self.target}', '{self.variable}')"
+
+    def __eq__(self, other):
+        return repr(self) == repr(other)
 
     def json(self):
         """The JSON serialization of this object."""
@@ -173,11 +178,11 @@ class SizeUnit:
 class CoordinateUnit:
     """Parses image or world coordinates."""
 
-    X = "X"
-    Y = "Y"
-
     PIXEL_UNITS = {k for k, v in SizeUnit.NORMALIZED_UNIT.items() if v == "px"}
-    PIXEL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(PIXEL_UNITS)})$"
+    DEGREE_UNITS = {k for k, v in SizeUnit.NORMALIZED_UNIT.items() if v == "deg"}
+
+    PIXEL_UNIT_REGEX = rf"^(\d+)\s*({'|'.join(PIXEL_UNITS)})$"
+    DEGREE_UNIT_REGEX = rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$"
     HMS_COLON_REGEX = r"^-?\d{0,2}:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
     HMS_LETTER_REGEX = r"^(-?\d{0,2})h(\d{0,2})m(\d{1,2}(?:\.\d+)?s)?$"
     DMS_COLON_REGEX = r"^-?\d*:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
@@ -185,31 +190,36 @@ class CoordinateUnit:
     DECIMAL_REGEX = r"^-?\d+(\.\d+)?$"  # Unused here, but used in validation
 
     @classmethod
-    def normalized(cls, coord, xy):
-        if xy == cls.X:
-            HMS_DMS_COLON_REGEX = cls.HMS_COLON_REGEX
-            HMS_DMS_LETTER_REGEX = cls.HMS_LETTER_REGEX
-        elif xy == cls.Y:
-            HMS_DMS_COLON_REGEX = cls.DMS_COLON_REGEX
-            HMS_DMS_LETTER_REGEX = cls.DMS_LETTER_REGEX
-        else:
-            raise ValueError(f"Invalid coordinate type {xy}.")
+    def normalized(cls, coord):
         try:
             coord = float(coord)
-            return str(coord), "d"  # number or numeric string with no units = degrees
+            return str(coord), NumberFormat.DEGREES  # number or numeric string with no units = degrees
         except ValueError:
             m = re.match(cls.PIXEL_UNIT_REGEX, coord, re.IGNORECASE)
             if m is not None:
-                return m.group(1), "px"  # pixels
-            m = re.match(HMS_DMS_COLON_REGEX, coord, re.IGNORECASE)
+                return m.group(1), None  # pixels
+
+            m = re.match(cls.DEGREE_UNIT_REGEX, coord, re.IGNORECASE)
             if m is not None:
-                return coord, "hms" if xy == cls.X else "dms"  # H:M:S or D:M:S
-            m = re.match(HMS_DMS_LETTER_REGEX, coord, re.IGNORECASE)
+                return m.group(1), NumberFormat.DEGREES  # degrees
+
+            m = re.match(cls.HMS_COLON_REGEX, coord, re.IGNORECASE)
             if m is not None:
-                HD, M, S = m.groups()
-                return f"{HD}:{M}:{S}", "hms" if xy == cls.X else "dms"  # H:M:S or D:M:S
+                return coord, NumberFormat.HMS  # H:M:S
+            m = re.match(cls.HMS_LETTER_REGEX, coord, re.IGNORECASE)
+            if m is not None:
+                H, M, S = m.groups()
+                return f"{H}:{M}:{S}", NumberFormat.HMS  # H:M:S
+
+            m = re.match(cls.DMS_COLON_REGEX, coord, re.IGNORECASE)
+            if m is not None:
+                return coord, NumberFormat.DMS  # D:M:S
+            m = re.match(cls.DMS_LETTER_REGEX, coord, re.IGNORECASE)
+            if m is not None:
+                D, M, S = m.groups()
+                return f"{D}:{M}:{S}", NumberFormat.DMS  # D:M:S
             else:
-                raise ValueError(f"{repr(coord)} is not in a recognized {xy} coordinate format.")
+                raise ValueError(f"{repr(coord)} is not in a recognized coordinate format.")
 
     @classmethod
     def normalized_x(cls, coord):

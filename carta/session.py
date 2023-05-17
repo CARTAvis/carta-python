@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, NumberFormat
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -563,6 +563,27 @@ class Session:
             self.call_action(f"overlayStore.{component}.setFont", font)
         if font_size is not None:
             self.call_action(f"overlayStore.{component}.setFontSize", font_size)
+
+    @validate(NoneOr(Constant(NumberFormat)), NoneOr(Constant(NumberFormat)))
+    def set_custom_number_format(self, x_format=None, y_format=None):
+        """Set a custom X and Y number format. By default the number formats are set automatically by the coordinate system.
+
+        Parameters
+        ----------
+        x_format : {0}
+            The X format. If this is unset, the custom X format will be initialised to the system default.
+        x_format : {1}
+            The Y format. If this is unset, the custom Y format will be initialised to the system default.
+        """
+        if x_format is not None:
+            self.call_overlay_action(Overlay.NUMBERS, "setXFormat", x_format)
+        if y_format is not None:
+            self.call_overlay_action(Overlay.NUMBERS, "setYFormat", y_format)
+        self.call_overlay_action(Overlay.NUMBERS, "setCustomFormat", True)
+
+    def clear_custom_number_format(self):
+        """Disable the custom X and Y number format."""
+        self.call_overlay_action(Overlay.NUMBERS, "setCustomFormat", False)
 
     @validate(NoneOr(Constant(BeamType)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
     def set_beam(self, beam_type=None, width=None, shift_x=None, shift_y=None):

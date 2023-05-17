@@ -634,7 +634,7 @@ class Size(Union):
         super().__init__(*options, description="a number or a numeric string with units")
 
 
-class CoordinateX(Union):
+class Coordinate(Union):
     """A string representation of a world coordinate or image coordinate. Can be a string or a number."""
 
     def __init__(self):
@@ -643,23 +643,12 @@ class CoordinateX(Union):
             String(CoordinateUnit.DECIMAL_REGEX, re.IGNORECASE),  # decimal
             String(CoordinateUnit.HMS_COLON_REGEX, re.IGNORECASE),  # HMS with colon as separator
             String(CoordinateUnit.HMS_LETTER_REGEX, re.IGNORECASE),  # HMS with letters as separators
-            String(CoordinateUnit.PIXEL_UNIT_REGEX, re.IGNORECASE),  # pixels
-        )
-        super().__init__(options, "a number or a string in H:M:S or decimal format")
-
-
-class CoordinateY(Union):
-    """A string representation of a world coordinate or image coordinate. Can be a string or a number."""
-
-    def __init__(self):
-        options = (
-            Number(),
-            String(CoordinateUnit.DECIMAL_REGEX, re.IGNORECASE),  # decimal
             String(CoordinateUnit.DMS_COLON_REGEX, re.IGNORECASE),  # DMS with colon as separator
             String(CoordinateUnit.DMS_LETTER_REGEX, re.IGNORECASE),  # DMS with letters as separators
             String(CoordinateUnit.PIXEL_UNIT_REGEX, re.IGNORECASE),  # pixels
+            String(CoordinateUnit.DEGREE_UNIT_REGEX, re.IGNORECASE),  # degrees
         )
-        super().__init__(options, "a number or a string in D:M:S or decimal format")
+        super().__init__(*options, description="a number or a string in H:M:S, D:M:S, or decimal format")
 
 
 class Attr(str):

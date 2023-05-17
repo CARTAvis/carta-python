@@ -25,6 +25,13 @@ CoordinateSystem = Enum('CoordinateSystem', ("AUTO", "ECLIPTIC", "FK4", "FK5", "
 CoordinateSystem.__doc__ = """Coordinate systems."""
 
 
+class NumberFormat(str, Enum):
+    """Number formats."""
+    DEGREES = "d"
+    HMS = "hms"
+    DMS = "dms"
+
+
 class LabelType(str, Enum):
     """Label types."""
     INTERIOR = "Interior"

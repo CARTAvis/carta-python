@@ -4,9 +4,9 @@ Image objects should not be instantiated directly, and should only be created th
 """
 import posixpath
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, Overlay
 from .util import Macro, cached, SizeUnit, CoordinateUnit
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, CoordinateX, CoordinateY
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
 
 
 class Image:
@@ -261,7 +261,7 @@ class Image:
     @property
     @cached
     def width(self):
-        """The width of the image.
+        """The width of the image in pixels.
 
         Returns
         -------
@@ -273,7 +273,7 @@ class Image:
     @property
     @cached
     def height(self):
-        """The height of the image.
+        """The height of the image in pixels.
 
         Returns
         -------
@@ -438,11 +438,11 @@ class Image:
         """
         return self.get_value("validWcs")
 
-    @validate(CoordinateX(), CoordinateY(), NoneOr(Constant(CoordinateSystem)))
+    @validate(Coordinate(), Coordinate(), NoneOr(Constant(CoordinateSystem)))
     def set_center(self, x, y, system=None):
-        """Set the center position, in image or WCS coordinates. Optionally change the session-wide coordinate system.
+        """Set the center position, in image or world coordinates. Optionally change the session-wide coordinate system.
 
-        Coordinates must either both be image coordinates or match the current number format. Numbers and numeric strings with no units are interpreted as degrees.
+        Coordinates must either both be image coordinates or match the current number formats. Numbers and numeric strings with no units are interpreted as degrees.
 
         Parameters
         ----------
@@ -456,21 +456,26 @@ class Image:
         if system is not None:
             self.session.set_coordinate_system(system)
 
-        x_value, x_fmt = CoordinateUnit.normalized_x(x)
-        y_value, y_fmt = CoordinateUnit.normalized_y(y)
+        x_value, x_fmt = CoordinateUnit.normalized(x)
+        y_value, y_fmt = CoordinateUnit.normalized(y)
 
-        if x_fmt == y_fmt == "px":
+        if x_fmt is None and y_fmt is None:
             # Image coordinates
-            self.call_action("setCenter", x_value, y_value)
+            if 0 <= x_value < self.width and 0 <= y_value < self.height:
+                self.call_action("setCenter", x_value, y_value)
+            else:
+                raise ValueError(f"Pixel coordinates ({x_value}, {y_value}) are outside the bounds of the image ({self.width} x {self.height}).")
+        elif x_fmt is None or y_fmt is None:
+            raise ValueError("Cannot mix image and world coordinates.")
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information.")
 
-            number_format_x = self.get_value("overlayStore.numbers.formatTypeX")
+            number_format_x = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
             if x_fmt != number_format_x:
                 raise ValueError(f"X coordinate format {x_fmt} does not match expected format {number_format_x}.")
 
-            number_format_y = self.get_value("overlayStore.numbers.formatTypeY")
+            number_format_y = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
             if y_fmt != number_format_y:
                 raise ValueError(f"Y coordinate format {y_fmt} does not match expected format {number_format_y}.")
 
