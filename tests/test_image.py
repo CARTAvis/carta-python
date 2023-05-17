@@ -4,6 +4,7 @@ from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed
 
+
 # FIXTURES
 
 
@@ -31,6 +32,14 @@ def mock_call_action(image, mocker):
 def mock_session_call_action(session, mocker):
     return mocker.patch.object(session, "call_action")
 
+
+@pytest.fixture
+def mock_property(mocker):
+    def func(property_name, mock_value):
+        mocker.patch(f"carta.image.Image.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
+    return func
+
+
 # TESTS
 
 
@@ -49,23 +58,23 @@ def test_make_active(image, mock_session_call_action):
 
 
 @pytest.mark.parametrize("channel", [0, 10, 19])
-def test_set_channel_valid(image, channel, mock_call_action, mocker):
-    mocker.patch("carta.image.Image.depth", new_callable=mocker.PropertyMock, return_value=20)
+def test_set_channel_valid(image, channel, mock_call_action, mock_property):
+    mock_property("depth", 20)
 
     image.set_channel(channel)
     mock_call_action.assert_called_with("setChannels", channel, image.macro("", "requiredStokes"), True)
 
 
 @pytest.mark.parametrize("channel,error_contains", [(20, "must be smaller"), (1.5, "not an increment of 1"), (-3, "must be greater or equal")])
-def test_set_channel_invalid(image, channel, error_contains, mocker):
-    mocker.patch("carta.image.Image.depth", new_callable=mocker.PropertyMock, return_value=20)
+def test_set_channel_invalid(image, channel, error_contains, mock_property):
+    mock_property("depth", 20)
 
     with pytest.raises(CartaValidationFailed) as e:
         image.set_channel(channel)
         assert error_contains in e
 
 # def test_set_center_valid_pixels():
-    # pass # TODO check XY bounds, because we can?
+    # pass
 
 # def test_set_center_valid_hms_dms():
     # pass
@@ -74,7 +83,7 @@ def test_set_channel_invalid(image, channel, error_contains, mocker):
     # pass
 
 # def test_set_center_valid_change_system():
-    # pass # TODO also add parameters for setting custom number format?
+    # pass
 
 # def test_set_center_invalid():
     # pass # wrong format, no wcs info, xy mismatch
