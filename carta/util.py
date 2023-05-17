@@ -140,7 +140,7 @@ class SizeUnit:
     """Parses angular or pixel sizes."""
     NORMALIZED_UNIT = {
         "arcmin": "'",
-        "arcsec": '"',
+        "arcsec": "\"",
         "deg": "deg",
         "degree": "deg",
         "degrees": "deg",
@@ -148,12 +148,12 @@ class SizeUnit:
         "pix": "px",
         "pixel": "px",
         "pixels": "px",
-        "": '"',
-        '"': "",
+        "": "\"",  # No units = arcsec
+        "\"": "\"",
         "'": "'",
     }
 
-    SYMBOL_UNITS = {"", "'", '"'}
+    SYMBOL_UNITS = {"", "'", "\""}
     WORD_UNITS = NORMALIZED_UNIT.keys() - SYMBOL_UNITS
 
     SYMBOL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)({'|'.join(SYMBOL_UNITS)})$"
@@ -161,18 +161,14 @@ class SizeUnit:
 
     @classmethod
     def normalized(cls, size):
-        try:
-            size = float(size)
-            return str(size), "deg"  # number or numeric string with no units = degrees
-        except ValueError:
-            m = re.match(cls.WORD_UNIT_REGEX, size, re.IGNORECASE)
+        m = re.match(cls.WORD_UNIT_REGEX, size, re.IGNORECASE)
+        if m is None:
+            m = re.match(cls.SYMBOL_UNIT_REGEX, size, re.IGNORECASE)
             if m is None:
-                m = re.match(cls.SYMBOL_UNIT_REGEX, size, re.IGNORECASE)
-                if m is None:
-                    raise ValueError(f"{repr(size)} is not in a recognized size format.")
-            value, unit = m.groups()
-            unit = cls.NORMALIZED_UNIT[unit]
-            return value, unit  # Any other allowed unit
+                raise ValueError(f"{repr(size)} is not in a recognized size format.")
+        value, unit = m.groups()
+        unit = cls.NORMALIZED_UNIT[unit]
+        return value, unit  # Any other allowed unit
 
 
 class CoordinateUnit:
@@ -181,13 +177,13 @@ class CoordinateUnit:
     PIXEL_UNITS = {k for k, v in SizeUnit.NORMALIZED_UNIT.items() if v == "px"}
     DEGREE_UNITS = {k for k, v in SizeUnit.NORMALIZED_UNIT.items() if v == "deg"}
 
-    PIXEL_UNIT_REGEX = rf"^(\d+)\s*({'|'.join(PIXEL_UNITS)})$"
+    PIXEL_UNIT_REGEX = rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(PIXEL_UNITS)})$"
     DEGREE_UNIT_REGEX = rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$"
     HMS_COLON_REGEX = r"^-?\d{0,2}:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
     HMS_LETTER_REGEX = r"^(-?\d{0,2})h(\d{0,2})m(?:(\d{1,2}(?:\.\d+)?)s)?$"
     DMS_COLON_REGEX = r"^-?\d*:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
     DMS_LETTER_REGEX = r"^(-?\d*)d(\d{0,2})m(?:(\d{1,2}(?:\.\d+)?)s)?$"
-    DECIMAL_REGEX = r"^-?\d+(\.\d+)?$"
+    DECIMAL_REGEX = r"^-?\d+(\.\d+)?$"  # No units = degrees
 
     @classmethod
     def normalized_pixel(cls, coord):

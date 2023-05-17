@@ -1,3 +1,4 @@
+import types
 import pytest
 
 from carta.session import Session
@@ -10,31 +11,41 @@ from carta.constants import NumberFormat as NF, CoordinateSystem
 
 @pytest.fixture
 def session():
+    """Return a session object.
+
+    The session's protocol is set to None, so any tests that use this must also mock the session's call_action and/or higher-level functions which call it.
+    """
     return Session(0, None)
 
 
 @pytest.fixture
 def image(session):
+    """Return an image object which uses the session fixture.
+    """
     return Image(session, 0, "")
 
 
 @pytest.fixture
 def mock_get_value(image, mocker):
+    """Return a mock for image's get_value."""
     return mocker.patch.object(image, "get_value")
 
 
 @pytest.fixture
 def mock_call_action(image, mocker):
+    """Return a mock for image's call_action."""
     return mocker.patch.object(image, "call_action")
 
 
 @pytest.fixture
 def mock_session_call_action(session, mocker):
+    """Return a mock for session's call_action."""
     return mocker.patch.object(session, "call_action")
 
 
 @pytest.fixture
 def mock_property(mocker):
+    """Return a helper function to mock the value of a decorated image property using a simple syntax."""
     def func(property_name, mock_value):
         mocker.patch(f"carta.image.Image.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
     return func
@@ -42,6 +53,7 @@ def mock_property(mocker):
 
 @pytest.fixture
 def mock_method(image, mocker):
+    """Return a helper function to mock the return value(s) of an image method using a simple syntax."""
     def func(method_name, return_values):
         mocker.patch.object(image, method_name, side_effect=return_values)
     return func
@@ -49,20 +61,41 @@ def mock_method(image, mocker):
 
 @pytest.fixture
 def mock_session_method(session, mocker):
+    """Return a helper function to mock the return value(s) of a session method using a simple syntax."""
     def func(method_name, return_values):
         mocker.patch.object(session, method_name, side_effect=return_values)
     return func
 
 # TESTS
 
+# DOCSTRINGS
+
+
+def test_image_class_has_docstring():
+    assert Image.__doc__ is not None
+
+
+@pytest.mark.parametrize("member", [getattr(Image, m) for m in dir(Image) if not m.startswith('__') and isinstance(getattr(Image, m), types.FunctionType)])
+def test_image_class_methods_have_docstrings(member):
+    assert member.__doc__ is not None
+
+
+@pytest.mark.parametrize("member", [getattr(Image, m).fget for m in dir(Image) if not m.startswith('__') and isinstance(getattr(Image, m), property)])
+def test_image_class_properties_have_docstrings(member):
+    assert member.__doc__ is not None
+
+# SIMPLE PROPERTIES TODO to be completed.
+
 
 @pytest.mark.parametrize("property_name,expected_path", [
     ("directory", "frameInfo.directory"),
     ("width", "frameInfo.fileInfoExtended.width"),
 ])
-def test_simple_parameters(image, property_name, expected_path, mock_get_value):
+def test_simple_properties(image, property_name, expected_path, mock_get_value):
     getattr(image, property_name)
     mock_get_value.assert_called_with(expected_path)
+
+# TODO tests for all existing functions to be filled in
 
 
 def test_make_active(image, mock_session_call_action):
@@ -145,4 +178,32 @@ def test_set_center_invalid(image, mock_property, mock_session_method, mock_call
 
     with pytest.raises(Exception) as e:
         image.set_center(x, y)
+    assert error_contains in str(e.value)
+
+
+@pytest.mark.parametrize("dim", ["x", "y"])
+@pytest.mark.parametrize("val,action,norm", [
+    ("123px", "zoomToSize{0}", "123"),
+    ("123arcsec", "zoomToSize{0}Wcs", "123\""),
+    ("123\"", "zoomToSize{0}Wcs", "123\""),
+    ("123", "zoomToSize{0}Wcs", "123\""),
+    ("123arcmin", "zoomToSize{0}Wcs", "123'"),
+    ("123deg", "zoomToSize{0}Wcs", "123deg"),
+    ("123 deg", "zoomToSize{0}Wcs", "123deg"),
+])
+def test_zoom_to_size(image, mock_property, mock_call_action, dim, val, action, norm):
+    mock_property("valid_wcs", True)
+    getattr(image, f"zoom_to_size_{dim}")(val)
+    mock_call_action.assert_called_with(action.format(dim.upper()), norm)
+
+
+@pytest.mark.parametrize("dim", ["x", "y"])
+@pytest.mark.parametrize("val,wcs,error_contains", [
+    ("abc", True, "Invalid function parameter"),
+    ("123arcsec", False, "does not contain valid WCS information"),
+])
+def test_zoom_to_size_invalid(image, mock_property, dim, val, wcs, error_contains):
+    mock_property("valid_wcs", wcs)
+    with pytest.raises(Exception) as e:
+        getattr(image, f"zoom_to_size_{dim}")(val)
     assert error_contains in str(e.value)
