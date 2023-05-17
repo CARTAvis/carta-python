@@ -478,12 +478,12 @@ class Image:
             number_format_x = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
             x_value = CoordinateUnit.normalized(str(x), number_format_x)
             if x_value is None:
-                raise ValueError(f"X coordinate format {x_fmt} does not match expected format {number_format_x}.")
+                raise ValueError(f"X coordinate does not match expected format {number_format_x}.")
 
             number_format_y = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
             y_value = CoordinateUnit.normalized(str(y), number_format_y)
             if y_value is None:
-                raise ValueError(f"Y coordinate format {y_fmt} does not match expected format {number_format_y}.")
+                raise ValueError(f"Y coordinate does not match expected format {number_format_y}.")
 
             self.call_action("setCenterWcs", x_value, y_value)
 
