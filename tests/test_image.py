@@ -87,6 +87,11 @@ def test_image_methods_have_docstrings(member):
     assert member.__doc__ is not None
 
 
+@pytest.mark.parametrize("member", find_members(Image, member_type=types.MethodType))
+def test_image_classmethods_have_docstrings(member):
+    assert member.__doc__ is not None
+
+
 @pytest.mark.parametrize("member", [m.fget for m in find_members(Image, member_type=property)])
 def test_image_properties_have_docstrings(member):
     assert member.__doc__ is not None

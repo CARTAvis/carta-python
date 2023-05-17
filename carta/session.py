@@ -566,14 +566,14 @@ class Session:
 
     @validate(NoneOr(Constant(NumberFormat)), NoneOr(Constant(NumberFormat)))
     def set_custom_number_format(self, x_format=None, y_format=None):
-        """Set a custom X and Y number format. By default the number formats are set automatically by the coordinate system.
+        """Set a custom X and Y number format.
 
         Parameters
         ----------
         x_format : {0}
-            The X format. If this is unset, the custom X format will be initialised to the system default.
+            The X format. If this is unset, the last custom X format to be set will be restored.
         x_format : {1}
-            The Y format. If this is unset, the custom Y format will be initialised to the system default.
+            The Y format. If this is unset, the last custom Y format to be set will be restored.
         """
         if x_format is not None:
             self.call_overlay_action(Overlay.NUMBERS, "setXFormat", x_format)
