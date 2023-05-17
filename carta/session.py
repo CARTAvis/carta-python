@@ -816,6 +816,7 @@ class Session:
             A data URL for the rendered image in PNG format, base64-encoded.
 
         """
+        self.call_action("resetImageRatio")
         self.call_action("setIsExportingImage", True)
         self.call_action("setImageRatio", image_ratio)
         self.call_action("waitForImageData")
@@ -824,6 +825,7 @@ class Session:
             args.append(background_color)
         image_data_url = self.call_action(*args, response_expected=True)
         self.call_action("setIsExportingImage", False)
+        self.call_action("resetImageRatio")
         return image_data_url
 
     @validate(NoneOr(Color()), Number())
@@ -860,10 +862,8 @@ class Session:
         image_ratio : {2}
             The desired image ratio to output. Default is 1.
         """
-        self.call_action("resetImageRatio")
         with open(file_name, 'wb') as f:
             f.write(self.rendered_view_data(background_color, image_ratio))
-        self.call_action("resetImageRatio")
 
     def close(self):
         """Close any browser sessions and backend processes controlled by this session object.
