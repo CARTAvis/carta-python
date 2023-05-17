@@ -799,8 +799,8 @@ class Session:
 
     # SAVE IMAGE
 
-    @validate(NoneOr(Color()))
-    def rendered_view_url(self, background_color=None):
+    @validate(NoneOr(Color()), Number())
+    def rendered_view_url(self, background_color=None, image_ratio=1):
         """Get a data URL of the rendered active image.
 
         Parameters
@@ -814,14 +814,19 @@ class Session:
             A data URL for the rendered image in PNG format, base64-encoded.
 
         """
+        self.call_action("setIsExportingImage", True)
+        self.call_action("setImageRatio", image_ratio)
         self.call_action("waitForImageData")
         args = ["getImageDataUrl"]
         if background_color:
             args.append(background_color)
-        return self.call_action(*args, response_expected=True)
+        image_data_url = self.call_action(*args, response_expected=True)
+        self.call_action("setIsExportingImage", False)
+        self.call_action("resetImageRatio")
+        return image_data_url
 
-    @validate(NoneOr(Color()))
-    def rendered_view_data(self, background_color=None):
+    @validate(NoneOr(Color()), Number())
+    def rendered_view_data(self, background_color=None, image_ratio=1):
         """Get the decoded data of the rendered active image.
 
         Parameters
@@ -835,7 +840,7 @@ class Session:
             The decoded PNG image data.
 
         """
-        uri = self.rendered_view_url(background_color)
+        uri = self.rendered_view_url(background_color, image_ratio)
         data = uri.split(",")[1]
         return base64.b64decode(data)
 
@@ -849,15 +854,9 @@ class Session:
             The name of the file.
         background_color : {1}
             The background color. By default the background will be transparent.
-        image_ratio : {2}
-            The desired image ratio to output. Default is 1.
         """
-        self.call_action("setIsExportingImage", True)
-        self.call_action("setImageRatio", image_ratio)
         with open(file_name, 'wb') as f:
-            f.write(self.rendered_view_data(background_color))
-        self.call_action("setIsExportingImage", False)
-        self.call_action("resetImageRatio")
+            f.write(self.rendered_view_data(background_color, image_ratio))
 
     def close(self):
         """Close any browser sessions and backend processes controlled by this session object.
