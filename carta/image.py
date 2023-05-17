@@ -452,23 +452,28 @@ class Image:
             The Y position.
         system : {2}
             The coordinate system. If this parameter is provided, the coordinate system will be changed session-wide before the X and Y coordinates are parsed.
+
+        Raises
+        ------
+        ValueError
+            If image coordinates are outside the bounds of the image, if a mix of image and world coordinates is provided, or if world coordinates do not match the session-wide number format.
         """
         if system is not None:
             self.session.set_coordinate_system(system)
 
-        x_value = CoordinateUnit.normalized_pixel(str(x))
-        y_value = CoordinateUnit.normalized_pixel(str(y))
+        x_is_pixel = CoordinateUnit.is_pixel(str(x))
+        y_is_pixel = CoordinateUnit.is_pixel(str(y))
 
-        if x_value is not None and y_value is not None:
+        if x_is_pixel and y_is_pixel:
             # Image coordinates
-            x_value = int(x_value)
-            y_value = int(y_value)
-            if 0 <= x_value < self.width and 0 <= y_value < self.height:
+            x_value = CoordinateUnit.pixel_value(str(x))
+            y_value = CoordinateUnit.pixel_value(str(y))
+            if 0 <= float(x_value) < self.width and 0 <= float(y_value) < self.height:
                 self.call_action("setCenter", x_value, y_value)
             else:
-                raise ValueError(f"Pixel coordinates ({x_value}, {y_value}) are outside the bounds of the image ({self.width} x {self.height}).")
+                raise ValueError(f"Image coordinates ({x_value}, {y_value}) are outside the bounds of the image ({self.width} x {self.height}).")
 
-        elif x_value is not None or y_value is not None:
+        elif x_is_pixel or y_is_pixel:
             raise ValueError("Cannot mix image and world coordinates.")
 
         else:
@@ -477,14 +482,8 @@ class Image:
 
             number_format_x = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
             x_value = CoordinateUnit.normalized(str(x), number_format_x)
-            if x_value is None:
-                raise ValueError(f"X coordinate does not match expected format {number_format_x}.")
-
             number_format_y = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
             y_value = CoordinateUnit.normalized(str(y), number_format_y)
-            if y_value is None:
-                raise ValueError(f"Y coordinate does not match expected format {number_format_y}.")
-
             self.call_action("setCenterWcs", x_value, y_value)
 
     @validate(Size())

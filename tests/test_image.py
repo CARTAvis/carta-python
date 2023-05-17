@@ -75,13 +75,20 @@ def test_image_class_has_docstring():
     assert Image.__doc__ is not None
 
 
-@pytest.mark.parametrize("member", [getattr(Image, m) for m in dir(Image) if not m.startswith('__') and isinstance(getattr(Image, m), types.FunctionType)])
-def test_image_class_methods_have_docstrings(member):
+def find_members(*classes, member_type=types.FunctionType):
+    for clazz in classes:
+        for name in dir(clazz):
+            if not name.startswith('__') and isinstance(getattr(clazz, name), member_type):
+                yield getattr(clazz, name)
+
+
+@pytest.mark.parametrize("member", find_members(Image))
+def test_image_methods_have_docstrings(member):
     assert member.__doc__ is not None
 
 
-@pytest.mark.parametrize("member", [getattr(Image, m).fget for m in dir(Image) if not m.startswith('__') and isinstance(getattr(Image, m), property)])
-def test_image_class_properties_have_docstrings(member):
+@pytest.mark.parametrize("member", [m.fget for m in find_members(Image, member_type=property)])
+def test_image_properties_have_docstrings(member):
     assert member.__doc__ is not None
 
 # SIMPLE PROPERTIES TODO to be completed.
@@ -131,7 +138,7 @@ def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
     mock_property("height", 20)
 
     image.set_center(f"{x}px", f"{y}px")
-    mock_call_action.assert_called_with("setCenter", x, y)
+    mock_call_action.assert_called_with("setCenter", str(x), str(y))
 
 
 @pytest.mark.parametrize("x,y,x_fmt,y_fmt,x_norm,y_norm", [
@@ -163,8 +170,8 @@ def test_set_center_valid_change_system(image, mock_property, mock_session_metho
 @pytest.mark.parametrize("x,y,wcs,x_fmt,y_fmt,error_contains", [
     ("abc", "def", True, NF.DEGREES, NF.DEGREES, "Invalid function parameter"),
     ("123", "123", False, NF.DEGREES, NF.DEGREES, "does not contain valid WCS information"),
-    ("123", "123", True, NF.HMS, NF.DMS, "X coordinate does not match expected format"),
-    ("123", "123", True, NF.DEGREES, NF.DMS, "Y coordinate does not match expected format"),
+    ("123", "123", True, NF.HMS, NF.DMS, "does not match expected format"),
+    ("123", "123", True, NF.DEGREES, NF.DMS, "does not match expected format"),
     ("123px", "123", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
     ("123", "123px", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
     ("123px", "2000px", True, NF.DEGREES, NF.DEGREES, "outside the bounds of the image"),
