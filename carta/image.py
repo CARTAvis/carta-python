@@ -456,27 +456,33 @@ class Image:
         if system is not None:
             self.session.set_coordinate_system(system)
 
-        x_value, x_fmt = CoordinateUnit.normalized(x)
-        y_value, y_fmt = CoordinateUnit.normalized(y)
+        x_value = CoordinateUnit.normalized_pixel(x)
+        y_value = CoordinateUnit.normalized_pixel(y)
 
-        if x_fmt is None and y_fmt is None:
+        if x_value is not None and y_value is not None:
             # Image coordinates
+            x_value = int(x_value)
+            y_value = int(y_value)
             if 0 <= x_value < self.width and 0 <= y_value < self.height:
                 self.call_action("setCenter", x_value, y_value)
             else:
                 raise ValueError(f"Pixel coordinates ({x_value}, {y_value}) are outside the bounds of the image ({self.width} x {self.height}).")
-        elif x_fmt is None or y_fmt is None:
+
+        elif x_value is not None or y_value is not None:
             raise ValueError("Cannot mix image and world coordinates.")
+
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information.")
 
             number_format_x = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
-            if x_fmt != number_format_x:
+            x_value = CoordinateUnit.normalized(x, number_format_x)
+            if x_value is None:
                 raise ValueError(f"X coordinate format {x_fmt} does not match expected format {number_format_x}.")
 
             number_format_y = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
-            if y_fmt != number_format_y:
+            y_value = CoordinateUnit.normalized(y, number_format_y)
+            if y_value is None:
                 raise ValueError(f"Y coordinate format {y_fmt} does not match expected format {number_format_y}.")
 
             self.call_action("setCenterWcs", x_value, y_value)

@@ -190,7 +190,7 @@ class Number(Parameter):
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
         try:
-            float(value)
+            float(value)  # TODO: this will allow strings and probably other types, but they will fail below. Coerce to float??
         except TypeError:
             raise TypeError(f"{value} has type {type(value)} but a number was expected.")
 

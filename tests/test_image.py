@@ -40,6 +40,19 @@ def mock_property(mocker):
     return func
 
 
+@pytest.fixture
+def mock_method(image, mocker):
+    def func(method_name, return_values):
+        mocker.patch.object(image, method_name, side_effect=return_values)
+    return func
+
+
+@pytest.fixture
+def mock_session_method(session, mocker):
+    def func(method_name, return_values):
+        mocker.patch.object(session, method_name, side_effect=return_values)
+    return func
+
 # TESTS
 
 
@@ -73,17 +86,33 @@ def test_set_channel_invalid(image, channel, error_contains, mock_property):
         image.set_channel(channel)
         assert error_contains in e
 
-# def test_set_center_valid_pixels():
-    # pass
 
-# def test_set_center_valid_hms_dms():
-    # pass
+@pytest.mark.parametrize("x", [0, 10, 19])
+@pytest.mark.parametrize("y", [0, 10, 19])
+def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
+    mock_property("width", 20)
+    mock_property("height", 20)
 
-# def test_set_center_valid_deg():
-    # pass
+    image.set_center(f"{x}px", f"{y}px")
+    mock_call_action.assert_called_with("setCenter", x, y)
 
-# def test_set_center_valid_change_system():
+
+@pytest.mark.parametrize("x,y,x_fmt,y_fmt,x_norm,y_norm", [
+    ("123", "123", "d", "d", "123.0", "123.0"),
+    (123, 123, "d", "d", "123.0", "123.0"),
+    ("123deg", "123 deg", "d", "d", "123", "123"),
+    ("12:34:56.789", "12:34:56.789", "hms", "dms", "12:34:56.789", "12:34:56.789"),
+    ("12h34m56.789s", "12d34m56.789s", "hms", "dms", "12:34:56.789", "12:34:56.789"),
+])
+def test_set_center_valid_wcs(image, mock_property, mock_session_method, mock_call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
+    mock_property("valid_wcs", True)
+    mock_session_method("get_overlay_value", [x_fmt, y_fmt])
+
+    image.set_center(x, y)
+    mock_call_action.assert_called_with("setCenterWcs", x_norm, y_norm)
+
+# def test_set_center_valid_wcs_change_system():
     # pass
 
 # def test_set_center_invalid():
-    # pass # wrong format, no wcs info, xy mismatch
+    # pass # validation failure, wrong format, no wcs info, xy mismatch, pixels outside image
