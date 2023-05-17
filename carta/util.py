@@ -187,11 +187,11 @@ class CoordinateUnit:
     HMS_LETTER_REGEX = r"^(-?\d{0,2})h(\d{0,2})m(?:(\d{1,2}(?:\.\d+)?)s)?$"
     DMS_COLON_REGEX = r"^-?\d*:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
     DMS_LETTER_REGEX = r"^(-?\d*)d(\d{0,2})m(?:(\d{1,2}(?:\.\d+)?)s)?$"
-    DECIMAL_REGEX = r"^-?\d+(\.\d+)?$"  # Unused here, but used in validation
+    DECIMAL_REGEX = r"^-?\d+(\.\d+)?$"
 
     @classmethod
     def normalized_pixel(cls, coord):
-        m = re.match(cls.PIXEL_UNIT_REGEX, str(coord), re.IGNORECASE)
+        m = re.match(cls.PIXEL_UNIT_REGEX, coord, re.IGNORECASE)
         if m is not None:
             return m.group(1)
         return None
@@ -199,14 +199,13 @@ class CoordinateUnit:
     @classmethod
     def normalized(cls, coord, number_format):
         if number_format == NumberFormat.DEGREES:
-            try:
-                coord = float(coord)
-                return str(coord)  # number or numeric string with no units = degrees
-            except ValueError:
-                m = re.match(cls.DEGREE_UNIT_REGEX, coord, re.IGNORECASE)
-                if m is not None:
-                    return m.group(1)
-                return None
+            m = re.match(cls.DECIMAL_REGEX, coord, re.IGNORECASE)
+            if m is not None:
+                return coord
+            m = re.match(cls.DEGREE_UNIT_REGEX, coord, re.IGNORECASE)
+            if m is not None:
+                return m.group(1)
+            return None
 
         if number_format == NumberFormat.HMS:
             m = re.match(cls.HMS_COLON_REGEX, coord, re.IGNORECASE)

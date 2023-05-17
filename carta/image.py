@@ -456,8 +456,8 @@ class Image:
         if system is not None:
             self.session.set_coordinate_system(system)
 
-        x_value = CoordinateUnit.normalized_pixel(x)
-        y_value = CoordinateUnit.normalized_pixel(y)
+        x_value = CoordinateUnit.normalized_pixel(str(x))
+        y_value = CoordinateUnit.normalized_pixel(str(y))
 
         if x_value is not None and y_value is not None:
             # Image coordinates
@@ -476,12 +476,12 @@ class Image:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information.")
 
             number_format_x = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
-            x_value = CoordinateUnit.normalized(x, number_format_x)
+            x_value = CoordinateUnit.normalized(str(x), number_format_x)
             if x_value is None:
                 raise ValueError(f"X coordinate format {x_fmt} does not match expected format {number_format_x}.")
 
             number_format_y = self.session.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
-            y_value = CoordinateUnit.normalized(y, number_format_y)
+            y_value = CoordinateUnit.normalized(str(y), number_format_y)
             if y_value is None:
                 raise ValueError(f"Y coordinate format {y_fmt} does not match expected format {number_format_y}.")
 
