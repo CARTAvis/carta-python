@@ -807,6 +807,8 @@ class Session:
         ----------
         background_color : {0}
             The background color. By default the background will be transparent.
+        image_ratio : {1}
+            The desired image ratio to output. Default is 1.
 
         Returns
         -------
@@ -822,7 +824,6 @@ class Session:
             args.append(background_color)
         image_data_url = self.call_action(*args, response_expected=True)
         self.call_action("setIsExportingImage", False)
-        self.call_action("resetImageRatio")
         return image_data_url
 
     @validate(NoneOr(Color()), Number())
@@ -833,6 +834,8 @@ class Session:
         ----------
         background_color : {0}
             The background color. By default the background will be transparent.
+        image_ratio : {1}
+            The desired image ratio to output. Default is 1.
 
         Returns
         -------
@@ -854,9 +857,13 @@ class Session:
             The name of the file.
         background_color : {1}
             The background color. By default the background will be transparent.
+        image_ratio : {2}
+            The desired image ratio to output. Default is 1.
         """
+        self.call_action("resetImageRatio")
         with open(file_name, 'wb') as f:
             f.write(self.rendered_view_data(background_color, image_ratio))
+        self.call_action("resetImageRatio")
 
     def close(self):
         """Close any browser sessions and backend processes controlled by this session object.
