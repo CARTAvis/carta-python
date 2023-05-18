@@ -201,9 +201,9 @@ class CoordinateUnit:
     PIXEL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(PIXEL_UNITS)})$"
     DEGREE_UNIT_REGEX = rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$"
     HMS_COLON_REGEX = r"^-?\d{0,2}:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
-    HMS_LETTER_REGEX = r"^(-?\d{0,2})h(\d{0,2})m(?:(\d{1,2}(?:\.\d+)?)s)?$"
+    HMS_LETTER_REGEX = r"^(?:(-?\d{1,2})h)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$"
     DMS_COLON_REGEX = r"^-?\d*:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
-    DMS_LETTER_REGEX = r"^(-?\d*)d(\d{0,2})m(?:(\d{1,2}(?:\.\d+)?)s)?$"
+    DMS_LETTER_REGEX = r"^(?:(-?\d+)d)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$"
     DECIMAL_REGEX = r"^-?\d+(\.\d+)?$"  # No units = degrees
 
     @classmethod
@@ -283,13 +283,16 @@ class CoordinateUnit:
                 return m.group(1)
             raise ValueError(f"Coordinate {coord} does not match expected format {number_format}.")
 
+        def empty_if_none(*strs):
+            return tuple("" if s is None else s for s in strs)
+
         if number_format == NumberFormat.HMS:
             m = re.match(cls.HMS_COLON_REGEX, coord, re.IGNORECASE)
             if m is not None:
                 return coord
             m = re.match(cls.HMS_LETTER_REGEX, coord, re.IGNORECASE)
             if m is not None:
-                H, M, S = m.groups()
+                H, M, S = empty_if_none(*m.groups())
                 return f"{H}:{M}:{S}"
             raise ValueError(f"Coordinate {coord} does not match expected format {number_format}.")
 
@@ -299,6 +302,6 @@ class CoordinateUnit:
                 return coord
             m = re.match(cls.DMS_LETTER_REGEX, coord, re.IGNORECASE)
             if m is not None:
-                D, M, S = m.groups()
+                D, M, S = empty_if_none(*m.groups())
                 return f"{D}:{M}:{S}"
             raise ValueError(f"Coordinate {coord} does not match expected format {number_format}.")

@@ -21,7 +21,7 @@ Scaling = Enum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'),
 Scaling.__doc__ = """Colormap scaling types."""
 
 
-CoordinateSystem = Enum('CoordinateSystem', {c : c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")}, type=str)
+CoordinateSystem = Enum('CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")}, type=str)
 CoordinateSystem.__doc__ = """Coordinate systems."""
 
 

@@ -89,6 +89,23 @@ def test_coordinate_unit_pixel_value_invalid(coord):
     ("12:34:56.789", NF.DMS, "12:34:56.789"),
     ("12h34m56.789s", NF.HMS, "12:34:56.789"),
     ("12d34m56.789s", NF.DMS, "12:34:56.789"),
+    ("12h34m56s", NF.HMS, "12:34:56"),
+    ("12h34m", NF.HMS, "12:34:"),
+    ("34m56.789s", NF.HMS, ":34:56.789"),
+    ("12h", NF.HMS, "12::"),
+    ("34m", NF.HMS, ":34:"),
+    ("56.789s", NF.HMS, "::56.789"),
+    ("12h56.789s", NF.HMS, "12::56.789"),
+    ("", NF.HMS, "::"),
+    ("12d34m56s", NF.DMS, "12:34:56"),
+    ("12d34m", NF.DMS, "12:34:"),
+    ("34m56.789s", NF.DMS, ":34:56.789"),
+    ("12d", NF.DMS, "12::"),
+    ("34m", NF.DMS, ":34:"),
+    ("56.789s", NF.DMS, "::56.789"),
+    ("12d56.789s", NF.DMS, "12::56.789"),
+    ("", NF.DMS, "::"),
+    ("123d", NF.DMS, "123::"),
 ])
 def test_size_unit_normalized(coord, fmt, norm):
     assert CoordinateUnit.normalized(coord, fmt) == norm
@@ -97,6 +114,9 @@ def test_size_unit_normalized(coord, fmt, norm):
 @pytest.mark.parametrize("coord,fmt", [
     ("123deg", NF.HMS),
     ("12:34:56.789", NF.DEGREES),
+    ("123:45:67", NF.HMS),
+    ("123h45m67s", NF.HMS),
+    ("123d45m67s", NF.HMS),
 ])
 def test_size_unit_normalized_invalid(coord, fmt):
     with pytest.raises(ValueError) as e:

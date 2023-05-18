@@ -631,7 +631,7 @@ class Size(Union):
             String(SizeUnit.WORD_UNIT_REGEX, re.IGNORECASE),  # word units (whitespace allowed)
             String(SizeUnit.SYMBOL_UNIT_REGEX, re.IGNORECASE),  # symbol units (no whitespace)
         )
-        super().__init__(*options, description="a number or a numeric string with units")
+        super().__init__(*options, description="a number or a numeric string with valid size units")
 
 
 class Coordinate(Union):
@@ -648,7 +648,7 @@ class Coordinate(Union):
             String(CoordinateUnit.PIXEL_UNIT_REGEX, re.IGNORECASE),  # pixels
             String(CoordinateUnit.DEGREE_UNIT_REGEX, re.IGNORECASE),  # degrees
         )
-        super().__init__(*options, description="a number or a string in H:M:S, D:M:S, or decimal format")
+        super().__init__(*options, description="a number, a string in H:M:S or D:M:S format, or a numeric string with degree units")
 
 
 class Attr(str):
