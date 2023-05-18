@@ -96,8 +96,8 @@ def test_coordinate_system(session, mock_get_value):
 def test_set_custom_number_format(mocker, session, mock_call_action, x, y):
     session.set_custom_number_format(x, y)
     mock_call_action.assert_has_calls([
-        mocker.call("overlayStore.numbers.setXFormat", x),
-        mocker.call("overlayStore.numbers.setYFormat", y),
+        mocker.call("overlayStore.numbers.setFormatX", x),
+        mocker.call("overlayStore.numbers.setFormatY", y),
         mocker.call("overlayStore.numbers.setCustomFormat", True),
     ])
 

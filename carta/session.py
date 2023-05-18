@@ -576,9 +576,9 @@ class Session:
             The Y format. If this is unset, the last custom Y format to be set will be restored.
         """
         if x_format is not None:
-            self.call_overlay_action(Overlay.NUMBERS, "setXFormat", x_format)
+            self.call_overlay_action(Overlay.NUMBERS, "setFormatX", x_format)
         if y_format is not None:
-            self.call_overlay_action(Overlay.NUMBERS, "setYFormat", y_format)
+            self.call_overlay_action(Overlay.NUMBERS, "setFormatY", y_format)
         self.call_overlay_action(Overlay.NUMBERS, "setCustomFormat", True)
 
     def clear_custom_number_format(self):
