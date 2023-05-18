@@ -623,7 +623,7 @@ class Color(Union):
 
 
 class Size(Union):
-    """A representation of an angular size in arcsec, arcmin or degrees; or a size in pixels. Can be a string or a number."""
+    """A representation of an angular size or a size in pixels. Can be a number or a numeric string with valid size units. Validates inputs using regular expression patters from :obj:`carta.util.SizeUnit`."""
 
     def __init__(self):
         options = (
@@ -635,7 +635,7 @@ class Size(Union):
 
 
 class Coordinate(Union):
-    """A string representation of a world coordinate or image coordinate. Can be a string or a number."""
+    """A string representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units. Validates inputs using regular expression patters from :obj:`carta.util.CoordinateUnit`."""
 
     def __init__(self):
         options = (

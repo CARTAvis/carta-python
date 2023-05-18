@@ -594,7 +594,7 @@ class Session:
 
         Returns
         -------
-        tuple (a member of:obj:`carta.constants.NumberFormat` or ``None``, a member of:obj:`carta.constants.NumberFormat` or ``None``, boolean)
+        tuple (a member of :obj:`carta.constants.NumberFormat` or ``None``, a member of :obj:`carta.constants.NumberFormat` or ``None``, boolean)
             A tuple containing the X format, the Y format, and whether a custom format is set.
         """
         number_format_x = self.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
