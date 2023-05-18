@@ -466,9 +466,9 @@ class Image:
 
         if x_is_pixel and y_is_pixel:
             # Image coordinates
-            x_value = CoordinateUnit.pixel_value(str(x))
-            y_value = CoordinateUnit.pixel_value(str(y))
-            if 0 <= float(x_value) < self.width and 0 <= float(y_value) < self.height:
+            x_value = float(CoordinateUnit.pixel_value(str(x)))
+            y_value = float(CoordinateUnit.pixel_value(str(y)))
+            if 0 <= x_value < self.width and 0 <= y_value < self.height:
                 self.call_action("setCenter", x_value, y_value)
             else:
                 raise ValueError(f"Image coordinates ({x_value}, {y_value}) are outside the bounds of the image ({self.width} x {self.height}).")
@@ -493,9 +493,9 @@ class Image:
         ----------
         size : {0}
         """
-        x_value, x_unit = SizeUnit.normalized(size)
+        x_value, x_unit = SizeUnit.normalized(str(size))
         if x_unit == "px":
-            self.call_action("zoomToSizeX", x_value)
+            self.call_action("zoomToSizeX", float(x_value))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
@@ -509,9 +509,9 @@ class Image:
         ----------
         size : {0}
         """
-        y_value, y_unit = SizeUnit.normalized(size)
+        y_value, y_unit = SizeUnit.normalized(str(size))
         if y_unit == "px":
-            self.call_action("zoomToSizeY", y_value)
+            self.call_action("zoomToSizeY", float(y_value))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")

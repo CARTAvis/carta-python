@@ -143,7 +143,7 @@ def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
     mock_property("height", 20)
 
     image.set_center(f"{x}px", f"{y}px")
-    mock_call_action.assert_called_with("setCenter", str(x), str(y))
+    mock_call_action.assert_called_with("setCenter", float(x), float(y))
 
 
 @pytest.mark.parametrize("x,y,x_fmt,y_fmt,x_norm,y_norm", [
@@ -195,7 +195,7 @@ def test_set_center_invalid(image, mock_property, mock_session_method, mock_call
 
 @pytest.mark.parametrize("dim", ["x", "y"])
 @pytest.mark.parametrize("val,action,norm", [
-    ("123px", "zoomToSize{0}", "123"),
+    ("123px", "zoomToSize{0}", 123.0),
     ("123arcsec", "zoomToSize{0}Wcs", "123\""),
     ("123\"", "zoomToSize{0}Wcs", "123\""),
     ("123", "zoomToSize{0}Wcs", "123\""),
