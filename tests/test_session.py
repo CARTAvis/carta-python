@@ -118,10 +118,13 @@ def test_clear_custom_number_format(session, mock_call_action):
     mock_call_action.assert_called_with("overlayStore.numbers.setCustomFormat", False)
 
 
-def test_number_system(session, mock_get_value, mocker):
-    session.number_format()
+def test_number_format(session, mock_get_value, mocker):
+    mock_get_value.side_effect = [NF.DEGREES, NF.DEGREES, False]
+    x, y, _ = session.number_format()
     mock_get_value.assert_has_calls([
         mocker.call("overlayStore.numbers.formatTypeX"),
         mocker.call("overlayStore.numbers.formatTypeY"),
         mocker.call("overlayStore.numbers.customFormat"),
     ])
+    assert isinstance(x, NF)
+    assert isinstance(y, NF)

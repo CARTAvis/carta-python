@@ -600,7 +600,7 @@ class Session:
         number_format_x = self.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
         number_format_y = self.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
         custom_format = self.get_overlay_value(Overlay.NUMBERS, "customFormat")
-        return number_format_x, number_format_y, custom_format
+        return NumberFormat(number_format_x), NumberFormat(number_format_y), custom_format
 
     @validate(NoneOr(Constant(BeamType)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
     def set_beam(self, beam_type=None, width=None, shift_x=None, shift_y=None):
