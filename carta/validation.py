@@ -43,6 +43,47 @@ class Parameter:
         return "UNKNOWN"
 
 
+class InstanceOf(Parameter):
+    """A parameter which is an instance of the provided type or tuple of types.
+
+    This validator uses ``isinstance``, and has the same behaviour. An instance of a child class is also an instance of a parent class.
+
+    Parameters
+    ----------
+    types : type or tuple of types
+    """
+
+    def __init__(self, types):
+        if not isinstance(types, tuple):
+            types = (types,)
+        self.types = types
+
+    def validate(self, value, parent):
+        """Check if the value is an instance of the provided type or types.
+
+        See :obj:`carta.validation.Parameter.validate` for general information about this method.
+        """
+        if not isinstance(value, self.types):
+            raise TypeError(f"{value} has type {type(value)} but {self.description} was expected.")
+
+    @property
+    def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
+        names = [t.__name__ for t in self.types]
+
+        if len(names) == 1:
+            return f"an instance of {names[0]}"
+
+        names = names[:-2] + [" or ".join(names[-2:])]
+        return f"an instance of {', '.join(names)}"
+
+
 class String(Parameter):
     """A string parameter.
 
@@ -86,7 +127,7 @@ class String(Parameter):
             The description.
         """
         if self.regex:
-            return f"`a string matching` ``{self.regex}``"
+            return f"a string matching ``{self.regex}``"
         return "a string"
 
 
@@ -101,6 +142,10 @@ class Number(Parameter):
         The upper bound.
     interval : int
         A bitmask which describes whether the bounds are included or excluded. The constant attributes defined on this class should be used. By default both bounds are included.
+    step : number, optional
+        A step size to which the value must conform. May be a fractional value. If this is unset, any value within the range is permitted.
+    offset : number, optional
+        A step offset. Ignored if a step size is not set. By default permitted values are aligned with the lower bound if it is set, otherwise with zero.
 
     Attributes
     ----------
@@ -112,15 +157,30 @@ class Number(Parameter):
         Whether the lower bound is included.
     max_included : bool
         Whether the upper bound is included.
+    step : number, optional
+        The step size.
+    offset : number, optional
+        The step offset.
     """
 
     EXCLUDE, INCLUDE_MIN, INCLUDE_MAX, INCLUDE = range(4)
 
-    def __init__(self, min=None, max=None, interval=INCLUDE):
+    def __init__(self, min=None, max=None, interval=INCLUDE, step=None, offset=None):
         self.min = min
         self.max = max
         self.min_included = bool(interval & self.INCLUDE_MIN)
         self.max_included = bool(interval & self.INCLUDE_MAX)
+        if step is not None:
+            self.step = step
+            if offset is not None:
+                self.offset = offset
+            elif min is not None:
+                self.offset = min % step
+            else:
+                self.offset = 0
+        else:
+            self.step = None
+            self.offset = None
 
     def validate(self, value, parent):
         """Check if the value is a number and falls within any bounds that were provided.
@@ -154,6 +214,11 @@ class Number(Parameter):
                 if value > self.max:
                     raise ValueError(f"{value} is greater than upper bound {self.max}, but must be smaller.")
 
+        if self.step is not None:
+            if (value - self.offset) % self.step:
+                offset = f" offset by {self.offset}" if self.offset else ""
+                raise ValueError(f"{value} is not an increment of {self.step}{offset}.")
+
     @property
     def description(self):
         """A human-readable description of this parameter descriptor.
@@ -173,6 +238,10 @@ class Number(Parameter):
 
         if self.max is not None:
             desc.append(f"smaller than{' or equal to' if self.max_included else ''} ``{self.max}``")
+
+        if self.step is not None:
+            offset = f" offset by {self.offset}" if self.offset else ""
+            desc.append(f", in increments of {self.step}{offset}")
 
         return " ".join(desc)
 
@@ -400,23 +469,47 @@ class IterableOf(Parameter):
     ----------
     param : :obj:`carta.validation.Parameter`
         The parameter descriptor.
+    min_size : integer, optional
+        The minimum size.
+    max_size : integer, optional
+        The maximum size.
 
     Attributes
     ----------
     param : :obj:`carta.validation.Parameter`
         The parameter descriptor.
+    min_size : integer, optional
+        The minimum size.
+    max_size : integer, optional
+        The maximum size.
     """
 
-    def __init__(self, param):
+    def __init__(self, param, min_size=None, max_size=None):
         self.param = param
+        self.min_size = min_size
+        self.max_size = max_size
 
     def validate(self, value, parent):
         """Check if each element of the iterable can be validated with the given descriptor.
 
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
-        for v in value:
-            self.param.validate(v, parent)
+
+        try:
+            for v in value:
+                self.param.validate(v, parent)
+        except TypeError as e:
+            if str(e).endswith("object is not iterable"):
+                raise ValueError(f"{value} is not iterable, but {self.description} was expected.")
+            raise e
+
+        if self.min_size is not None:
+            if len(value) < self.min_size:
+                raise ValueError(f"{value} has {len(value)} elements, but must have at least {self.min_size}.")
+
+        if self.max_size is not None:
+            if len(value) > self.max_size:
+                raise ValueError(f"{value} has {len(value)} elements, but may have at most {self.max_size}.")
 
     @property
     def description(self):
@@ -427,7 +520,17 @@ class IterableOf(Parameter):
         string
             The description.
         """
-        return f"an iterable of {self.param.description}"
+        size = []
+        size_desc = ""
+
+        if self.min_size is not None:
+            size.append(f"at least {self.min_size} elements")
+        if self.max_size is not None:
+            size.append(f"at most {self.max_size} elements")
+
+        if size:
+            size_desc = f"with {' and '.join(size)} "
+        return f"an iterable {size_desc}in which each element is {self.param.description}"
 
 
 COLORNAMES = ('aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki', 'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray', 'grey', 'green', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo', 'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon', 'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray', 'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow', 'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine', 'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab', 'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise', 'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue', 'purple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke', 'yellow', 'yellowgreen')
@@ -537,19 +640,24 @@ class Evaluate(Parameter):
     paramclass : a :obj:`carta.validation.Parameter` class
         The class of the parameter descriptor to construct.
     *args : iterable
-        Arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
+        Positional arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
+    **kwargs : iterable
+        Keyword arguments to pass to the constructor; either literals or :obj:`carta.validation.Attr` objects which will be evaluated from properties on the parent object at runtime.
 
     Attributes
     ----------
     paramclass : a :obj:`carta.validation.Parameter` class
         The class of the parameter descriptor to construct.
     args : iterable
-        Arguments to pass to the constructor.
+        Positional arguments to pass to the constructor.
+    kwargs : iterable
+        Keyword arguments to pass to the constructor.
     """
 
-    def __init__(self, paramclass, *args):
+    def __init__(self, paramclass, *args, **kwargs):
         self.paramclass = paramclass
         self.args = args
+        self.kwargs = kwargs
 
     def validate(self, value, parent):
         args = []
@@ -561,7 +669,14 @@ class Evaluate(Parameter):
             else:
                 args.append(arg)
 
-        param = self.paramclass(*args)
+        kwargs = {}
+        for key, arg in self.kwargs.items():
+            if isinstance(arg, Attr):
+                kwargs[key] = getattr(parent, arg)
+            else:
+                kwargs[key] = arg
+
+        param = self.paramclass(*args, **kwargs)
         param.validate(value, parent)
 
     @property
@@ -575,11 +690,18 @@ class Evaluate(Parameter):
         """
         args = list(self.args)
         for i, arg in enumerate(args):
-            if isinstance(arg, Attr) or isinstance(arg, Attrs):
+            if isinstance(arg, Attr):
                 args[i] = f"self.{arg}"
+            elif isinstance(arg, Attrs):
+                args[i] = f"*self.{arg}"
+
+        kwargs = dict(self.kwargs)
+        for key, arg in self.kwargs.items():
+            if isinstance(arg, Attr):
+                kwargs[key] = f"self.{arg}"
 
         # This is a bit magic, and relies on the lack of any kind of type checking in the constructors
-        param = self.paramclass(*args)
+        param = self.paramclass(*args, **kwargs)
         return f"{param.description}, evaluated at runtime"
 
 

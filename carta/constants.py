@@ -5,6 +5,13 @@ from enum import Enum, IntEnum
 
 # TODO make sure the __str__ is right for all the string values
 
+class ArithmeticExpression(str, Enum):
+    """Arithmetic expression."""
+    AMPLITUDE = "AMPLITUDE"
+    PHASE = "PHASE"
+    REAL = "REAL"
+    IMAG = "IMAG"
+
 
 Colormap = Enum('Colormap', {c.upper(): c for c in ('copper', 'paired', 'gist_heat', 'brg', 'cool', 'summer', 'OrRd', 'tab20c', 'purples', 'gray', 'terrain', 'RdPu', 'set2', 'spring', 'gist_yarg', 'RdYlBu', 'reds', 'winter', 'Wistia', 'rainbow', 'dark2', 'oranges', 'BuPu', 'gist_earth', 'PuBu', 'pink', 'PuOr', 'pastel2', 'PiYG', 'gist_ncar', 'PuRd', 'plasma', 'gist_stern', 'hot', 'PuBuGn', 'YlOrRd', 'accent', 'magma', 'set1', 'GnBu', 'greens', 'CMRmap', 'gist_rainbow', 'prism', 'hsv', 'Blues', 'viridis', 'YlGn', 'spectral', 'RdBu', 'tab20', 'greys', 'flag', 'jet', 'seismic', 'PRGn', 'coolwarm', 'YlOrBr', 'RdYlGn', 'bone', 'autumn', 'BrBG', 'gnuplot2', 'RdGy', 'binary', 'gnuplot', 'BuGn', 'gist_gray', 'nipy_spectral', 'set3', 'tab20b', 'pastel1', 'afmhot', 'cubehelix', 'YlGnBu', 'ocean', 'tab10', 'bwr', 'inferno')}, type=str)
 Colormap.__doc__ = """All available colormaps."""
@@ -145,3 +152,13 @@ class Polarization(IntEnum):
     PFTOTAL = 15
     PFLINEAR = 16
     PANGLE = 17
+
+
+PanelMode = Enum('PanelMode', ('SINGLE', 'MULTIPLE'), type=int, start=0)
+PanelMode.__doc__ = """Panel modes."""
+
+
+class GridMode(str, Enum):
+    """Grid modes."""
+    DYNAMIC = "dynamic"
+    FIXED = "fixed"

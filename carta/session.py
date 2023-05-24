@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -358,8 +358,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"))
-    def open_image(self, path, hdu=""):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
+    def open_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -368,11 +368,15 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
+        complex : {2}
+            Whether the image is complex. Set to ``False`` by default.
+        expression : {3}
+            Arithmetic expression to use if opening a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
-        return Image.new(self, path, hdu, False)
+        return Image.new(self, path, hdu, False, complex, expression)
 
-    @validate(String(), String(r"\d*"))
-    def append_image(self, path, hdu=""):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
+    def append_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -381,8 +385,12 @@ class Session:
             The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : {1}
             The HDU to select inside the file.
+        complex : {2}
+            Whether the image is complex. Set to ``False`` by default.
+        expression : {3}
+            Arithmetic expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
         """
-        return Image.new(self, path, hdu, True)
+        return Image.new(self, path, hdu, True, complex, expression)
 
     def image_list(self):
         """Return the list of currently open images.
@@ -417,6 +425,50 @@ class Session:
     def clear_raster_scaling_reference(self):
         """Clear the raster scaling reference."""
         self.call_action("clearRasterScalingReference")
+
+    # VIEWER MODES
+    @validate(Constant(PanelMode))
+    def set_viewer_mode(self, panel_mode):
+        """
+        Switch between single-panel mode and multiple-panel mode.
+
+        Parameters
+        ----------
+        panel_mode : {0}
+            The panel mode to adopt.
+        """
+        if panel_mode == PanelMode.SINGLE:
+            multiple = False
+        elif panel_mode == PanelMode.MULTIPLE:
+            multiple = True
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", multiple)
+
+    def previous_page(self):
+        """Go to previous page in viewer."""
+        self.call_action("widgetsStore.onPreviousPageClick")
+
+    def next_page(self):
+        """Go to next page in viewer."""
+        self.call_action("widgetsStore.onNextPageClick")
+
+    @validate(Number(1, 10, step=1), Number(1, 10, step=1), Constant(GridMode))
+    def set_viewer_grid(self, rows, columns, grid_mode=GridMode.FIXED):
+        """
+        Set number of columns and rows in viewer grid.
+
+        Parameters
+        ----------
+        rows : {0}
+            Number of rows.
+        columns : {1}
+            Number of columns.
+        grid_mode : {2}
+            The grid mode to adopt. The default is :obj:`carta.constants.GridMode.FIXED`.
+        """
+        self.call_action("widgetsStore.setImageMultiPanelEnabled", True)
+        self.call_action("preferenceStore.setPreference", "imagePanelRows", rows)
+        self.call_action("preferenceStore.setPreference", "imagePanelColumns", columns)
+        self.call_action("preferenceStore.setPreference", "imagePanelMode", grid_mode)
 
     # CANVAS AND OVERLAY
     @validate(Number(), Number())
