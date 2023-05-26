@@ -711,25 +711,25 @@ class Image:
             debiasing = False
             logger.warning("The Stokes Q error and Stokes U error must both be set to enable debiasing.")
         if angular_source is None:
-            angular_source = Macro("vectorOverlayConfig", "angularSource")
+            angular_source = self.macro("vectorOverlayConfig", "angularSource")
         if intensity_source is None:
-            intensity_source = Macro("vectorOverlayConfig", "intensitySource")
+            intensity_source = self.macro("vectorOverlayConfig", "intensitySource")
         if pixel_averaging_enabled is None:
-            pixel_averaging_enabled = Macro("vectorOverlayConfig", "pixelAveragingEnabled")
+            pixel_averaging_enabled = self.macro("vectorOverlayConfig", "pixelAveragingEnabled")
         if pixel_averaging is None:
-            pixel_averaging = Macro("vectorOverlayConfig", "pixelAveraging")
+            pixel_averaging = self.macro("vectorOverlayConfig", "pixelAveraging")
         if fractional_intensity is None:
-            fractional_intensity = Macro("vectorOverlayConfig", "fractionalIntensity")
+            fractional_intensity = self.macro("vectorOverlayConfig", "fractionalIntensity")
         if threshold_enabled is None:
-            threshold_enabled = Macro("vectorOverlayConfig", "thresholdEnabled")
+            threshold_enabled = self.macro("vectorOverlayConfig", "thresholdEnabled")
         if threshold is None:
-            threshold = Macro("vectorOverlayConfig", "threshold")
+            threshold = self.macro("vectorOverlayConfig", "threshold")
         if debiasing is None:
-            debiasing = Macro("vectorOverlayConfig", "debiasing")
+            debiasing = self.macro("vectorOverlayConfig", "debiasing")
         if q_error is None:
-            q_error = Macro("vectorOverlayConfig", "qError")
+            q_error = self.macro("vectorOverlayConfig", "qError")
         if u_error is None:
-            u_error = Macro("vectorOverlayConfig", "uError")
+            u_error = self.macro("vectorOverlayConfig", "uError")
         self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
     @validate(NoneOr(Number()), NoneOr(Number(), Constant(Auto)), NoneOr(Number(), Constant(Auto)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
@@ -756,10 +756,10 @@ class Image:
         if intensity_min is not None and intensity_max is not None:
             self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
         elif intensity_min is None and intensity_max is not None:
-            self.call_action("vectorOverlayConfig.setIntensityRange", Macro("vectorOverlayConfig", "intensityMin"), intensity_max)
+            self.call_action("vectorOverlayConfig.setIntensityRange", self.macro("vectorOverlayConfig", "intensityMin"), intensity_max)
         elif intensity_min is not None and intensity_max is None:
-            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, Macro("vectorOverlayConfig", "intensityMax"))
-        if length_min is not None and length_max is None:
+            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, self.macro("vectorOverlayConfig", "intensityMax"))
+        if length_min is not None and length_max is not None:
             self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
         if rotation_offset is not None:
             self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
