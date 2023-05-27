@@ -136,18 +136,67 @@ def split_action_path(path):
     return '.'.join(parts[:-1]), parts[-1]
 
 
-class SizeUnit:
-    """Parses angular or pixel sizes."""
+class PixelString:
+    """Parses pixel values."""
+
+    UNITS = {"px", "pix", "pixel", "pixels"}
+    UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*(?:{'|'.join(UNITS)})$"
+
+    @classmethod
+    def valid(cls, value):
+        """Whether the input string is a numeric value followed by a pixel unit.
+
+        Permitted pixel unit strings are stored in :obj:`carta.util.PixelString.UNITS`. Whitespace is permitted after the number and before the unit.
+
+        Parameters
+        ----------
+        value : string
+            The input string.
+
+        Returns
+        -------
+        boolean
+            Whether the input string is a pixel value.
+        """
+        m = re.match(cls.UNIT_REGEX, value, re.IGNORECASE)
+        return m is not None
+
+    @classmethod
+    def normalized(cls, value):
+        """Parse a string containing a numeric value followed by a pixel unit, and return the numeric part (as a string).
+
+        Permitted pixel unit strings are stored in :obj:`carta.util.PixelString.UNITS`. Whitespace is permitted after the number and before the unit.
+
+        Parameters
+        ----------
+        value : string
+            The string representation of the pixel value.
+
+        Returns
+        -------
+        string
+            The numeric portion of the pixel value.
+
+        Raises
+        ------
+        ValueError
+            If the input string is not in a recognized format.
+        """
+        m = re.match(cls.UNIT_REGEX, value, re.IGNORECASE)
+        if m is None:
+            raise ValueError(f"{repr(value)} is not in a recognized pixel format.")
+        return m.group(1)
+
+
+class AngularSizeString:
+    """Parses angular sizes."""
+
     NORMALIZED_UNIT = {
         "arcmin": "'",
         "arcsec": "\"",
         "deg": "deg",
         "degree": "deg",
         "degrees": "deg",
-        "px": "px",
-        "pix": "px",
-        "pixel": "px",
-        "pixels": "px",
         "": "\"",  # No units = arcsec
         "\"": "\"",
         "'": "'",
@@ -160,108 +209,99 @@ class SizeUnit:
     WORD_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(WORD_UNITS)})$"
 
     @classmethod
-    def normalized(cls, size):
-        """Parse a string containing a numeric size and a unit, and return the size and the normalized unit.
+    def valid(cls, value):
+        """Whether the input string is a numeric value followed by an angular size unit.
 
-        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.SizeUnit.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
+        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.AngularSizeString.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
 
         Parameters
         ----------
-        size : string
-            The string representation of the size.
+        value : string
+            The input string.
+
+        Returns
+        -------
+        boolean
+            Whether the input string is an angular size.
+        """
+        return any((re.match(cls.WORD_UNIT_REGEX, value, re.IGNORECASE), re.match(cls.SYMBOL_UNIT_REGEX, value, re.IGNORECASE)))
+
+    @classmethod
+    def normalized(cls, value):
+        """Parse a string containing a numeric size and a unit, and return the size and the normalized unit.
+
+        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.AngularSizeString.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
+
+        Parameters
+        ----------
+        value : string
+            The string representation of the angular size.
 
         Returns
         -------
         string
-            The numeric portion of the size string.
+            The numeric portion of the angular size string.
         string
             The normalized unit.
 
         Raises
         ------
         ValueError
-            If the size string is not in a recognized format.
+            If the angular size string is not in a recognized format.
         """
-        m = re.match(cls.WORD_UNIT_REGEX, size, re.IGNORECASE)
+        m = re.match(cls.WORD_UNIT_REGEX, value, re.IGNORECASE)
         if m is None:
-            m = re.match(cls.SYMBOL_UNIT_REGEX, size, re.IGNORECASE)
+            m = re.match(cls.SYMBOL_UNIT_REGEX, value, re.IGNORECASE)
             if m is None:
-                raise ValueError(f"{repr(size)} is not in a recognized size format.")
+                raise ValueError(f"{repr(value)} is not in a recognized angular size format.")
         value, unit = m.groups()
         unit = cls.NORMALIZED_UNIT[unit]
-        return value, unit  # Any other allowed unit
+        return value, unit
 
 
-class CoordinateUnit:
-    """Parses image or world coordinates."""
+class WorldCoordinateString:
+    """Parses world coordinates."""
 
-    PIXEL_UNITS = {k for k, v in SizeUnit.NORMALIZED_UNIT.items() if v == "px"}
-    DEGREE_UNITS = {k for k, v in SizeUnit.NORMALIZED_UNIT.items() if v == "deg"}
+    DEGREE_UNITS = {k for k, v in AngularSizeString.NORMALIZED_UNIT.items() if v == "deg"}
 
-    PIXEL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(PIXEL_UNITS)})$"
-    DEGREE_UNIT_REGEX = rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$"
-    HMS_COLON_REGEX = r"^-?\d{0,2}:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
-    HMS_LETTER_REGEX = r"^(?:(-?\d{1,2})h)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$"
-    DMS_COLON_REGEX = r"^-?\d*:\d{0,2}:(\d{1,2}(\.\d+)?)?$"
-    DMS_LETTER_REGEX = r"^(?:(-?\d+)d)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$"
-    DECIMAL_REGEX = r"^-?\d+(\.\d+)?$"  # No units = degrees
+    REGEX = {
+        "DEGREE_UNIT": rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$",
+        "HMS_COLON": r"^-?\d{0,2}:\d{0,2}:(\d{1,2}(\.\d+)?)?$",
+        "HMS_LETTER": r"^(?:(-?\d{1,2})h)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$",
+        "DMS_COLON": r"^-?\d*:\d{0,2}:(\d{1,2}(\.\d+)?)?$",
+        "DMS_LETTER": r"^(?:(-?\d+)d)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$",
+        "DECIMAL": r"^-?\d+(\.\d+)?$",  # No units = degrees
+    }
 
     @classmethod
-    def is_pixel(cls, coord):
-        """Whether the coordinate string is an image coordinate in pixels.
+    def valid(cls, value):
+        """Whether the input string is a world coordinate string in any of the recognised formats.
 
-        Permitted pixel unit strings are stored in :obj:`carta.util.CoordinateUnit.PIXEL_UNITS`.
+        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.WorldCoordinateString.DEGREE_UNITS`.
 
         Parameters
         ----------
-        coord : string
-            The string representation of the coordinate.
+        value : string
+            The input string.
 
         Returns
         -------
         boolean
-            Whether the coordinate string is an image coordinate.
+            Whether the input string is an world coordinate.
         """
-        m = re.match(cls.PIXEL_UNIT_REGEX, coord, re.IGNORECASE)
-        return m is not None
+        return any(re.match(exp, value, re.IGNORECASE) for exp in cls.REGEX.values())
 
     @classmethod
-    def pixel_value(cls, coord):
-        """Extract a pixel value from an image coordinate string.
-
-        Permitted pixel unit strings are stored in :obj:`carta.util.CoordinateUnit.PIXEL_UNITS`.
-
-        Parameters
-        ----------
-        coord : string
-            The string representation of the coordinate.
-
-        Returns
-        -------
-        string
-            The numeric portion of the coordinate string.
-
-        Raises
-        ------
-        ValueError
-            If the coordinate string could not be parsed.
-        """
-        m = re.match(cls.PIXEL_UNIT_REGEX, coord, re.IGNORECASE)
-        if m is not None:
-            return m.group(1)
-        raise ValueError(f"Coordinate {coord} could not be parsed as a pixel coordinate.")
-
-    @classmethod
-    def normalized(cls, coord, number_format):
+    def normalized(cls, value, fmt):
         """Parse a world coordinate string using the specified format.
 
-        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.CoordinateUnit.DEGREE_UNITS`.
+        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.WorldCoordinateString.DEGREE_UNITS`.
 
         Parameters
         ----------
-        coord : string
+        value : string
             The string representation of the coordinate.
-        number_format : :obj:`carta.constants.NumberFormat`
+        fmt : :obj:`carta.constants.NumberFormat`
             The expected number format of the coordinate string.
 
         Returns
@@ -274,34 +314,34 @@ class CoordinateUnit:
         ValueError
             If the coordinate string could not be parsed using the specified number format.
         """
-        if number_format == NumberFormat.DEGREES:
-            m = re.match(cls.DECIMAL_REGEX, coord, re.IGNORECASE)
+        if fmt == NumberFormat.DEGREES:
+            m = re.match(cls.REGEX["DECIMAL"], value, re.IGNORECASE)
             if m is not None:
-                return coord
-            m = re.match(cls.DEGREE_UNIT_REGEX, coord, re.IGNORECASE)
+                return value
+            m = re.match(cls.REGEX["DEGREE_UNIT"], value, re.IGNORECASE)
             if m is not None:
                 return m.group(1)
-            raise ValueError(f"Coordinate {coord} does not match expected format {number_format}.")
+            raise ValueError(f"Coordinate string {value} does not match expected format {fmt}.")
 
         def empty_if_none(*strs):
             return tuple("" if s is None else s for s in strs)
 
-        if number_format == NumberFormat.HMS:
-            m = re.match(cls.HMS_COLON_REGEX, coord, re.IGNORECASE)
+        if fmt == NumberFormat.HMS:
+            m = re.match(cls.REGEX["HMS_COLON"], value, re.IGNORECASE)
             if m is not None:
-                return coord
-            m = re.match(cls.HMS_LETTER_REGEX, coord, re.IGNORECASE)
+                return value
+            m = re.match(cls.REGEX["HMS_LETTER"], value, re.IGNORECASE)
             if m is not None:
                 H, M, S = empty_if_none(*m.groups())
                 return f"{H}:{M}:{S}"
-            raise ValueError(f"Coordinate {coord} does not match expected format {number_format}.")
+            raise ValueError(f"Coordinate string {value} does not match expected format {fmt}.")
 
-        if number_format == NumberFormat.DMS:
-            m = re.match(cls.DMS_COLON_REGEX, coord, re.IGNORECASE)
+        if fmt == NumberFormat.DMS:
+            m = re.match(cls.REGEX["DMS_COLON"], value, re.IGNORECASE)
             if m is not None:
-                return coord
-            m = re.match(cls.DMS_LETTER_REGEX, coord, re.IGNORECASE)
+                return value
+            m = re.match(cls.REGEX["DMS_LETTER"], value, re.IGNORECASE)
             if m is not None:
                 D, M, S = empty_if_none(*m.groups())
                 return f"{D}:{M}:{S}"
-            raise ValueError(f"Coordinate {coord} does not match expected format {number_format}.")
+            raise ValueError(f"Coordinate string {value} does not match expected format {fmt}.")

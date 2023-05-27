@@ -4,8 +4,8 @@ Image objects should not be instantiated directly, and should only be created th
 """
 import posixpath
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, Overlay
-from .util import Macro, cached, SizeUnit, CoordinateUnit
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem
+from .util import Macro, cached, PixelString, AngularSizeString, WorldCoordinateString
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
 
 
@@ -461,13 +461,13 @@ class Image:
         if system is not None:
             self.session.set_coordinate_system(system)
 
-        x_is_pixel = CoordinateUnit.is_pixel(str(x))
-        y_is_pixel = CoordinateUnit.is_pixel(str(y))
+        x_is_pixel = PixelString.valid(str(x))
+        y_is_pixel = PixelString.valid(str(y))
 
         if x_is_pixel and y_is_pixel:
             # Image coordinates
-            x_value = float(CoordinateUnit.pixel_value(str(x)))
-            y_value = float(CoordinateUnit.pixel_value(str(y)))
+            x_value = float(PixelString.normalized(str(x)))
+            y_value = float(PixelString.normalized(str(y)))
             if 0 <= x_value < self.width and 0 <= y_value < self.height:
                 self.call_action("setCenter", x_value, y_value)
             else:
@@ -481,40 +481,45 @@ class Image:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information.")
 
             number_format_x, number_format_y, _ = self.session.number_format()
-            x_value = CoordinateUnit.normalized(str(x), number_format_x)
-            y_value = CoordinateUnit.normalized(str(y), number_format_y)
+            x_value = WorldCoordinateString.normalized(str(x), number_format_x)
+            y_value = WorldCoordinateString.normalized(str(y), number_format_y)
             self.call_action("setCenterWcs", x_value, y_value)
 
     @validate(Size())
     def zoom_to_size_x(self, size):
         """Zoom to the given X size.
 
+        Numbers and numeric strings with no units are interpreted as arcseconds.
+
         Parameters
         ----------
         size : {0}
         """
-        x_value, x_unit = SizeUnit.normalized(str(size))
-        if x_unit == "px":
-            self.call_action("zoomToSizeX", float(x_value))
+        if PixelString.valid(str(size)):
+            self.call_action("zoomToSizeX", float(PixelString.normalized(str(size))))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
+
+            x_value, x_unit = AngularSizeString.normalized(str(size))
             self.call_action("zoomToSizeXWcs", f"{x_value}{x_unit}")
 
     @validate(Size())
     def zoom_to_size_y(self, size):
         """Zoom to the given Y size.
 
+        Numbers and numeric strings with no units are interpreted as arcseconds.
+
         Parameters
         ----------
         size : {0}
         """
-        y_value, y_unit = SizeUnit.normalized(str(size))
-        if y_unit == "px":
-            self.call_action("zoomToSizeY", float(y_value))
+        if PixelString.valid(str(size)):
+            self.call_action("zoomToSizeY", float(PixelString.normalized(str(size))))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
+            y_value, y_unit = AngularSizeString.normalized(str(size))
             self.call_action("zoomToSizeYWcs", f"{y_value}{y_unit}")
 
     @validate(Number(), Boolean())

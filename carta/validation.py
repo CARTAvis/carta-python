@@ -4,7 +4,7 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed, SizeUnit, CoordinateUnit
+from .util import CartaValidationFailed, PixelString, AngularSizeString, WorldCoordinateString
 
 
 class Parameter:
@@ -623,32 +623,51 @@ class Color(Union):
 
 
 class Size(Union):
-    """A representation of an angular size or a size in pixels. Can be a number or a numeric string with valid size units. Validates inputs using regular expression patters from :obj:`carta.util.SizeUnit`."""
+    """A representation of an angular size or a size in pixels. Can be a number or a numeric string with valid size units. Validates strings using :obj:`carta.util.PixelString` and :obj:`carta.util.AngularSizeString`."""
+
+    class PixelValue(String):
+        """Helper validator class which uses :obj:`carta.util.PixelString` to validate strings."""
+
+        def validate(self, value, parent):
+            super().validate(value, parent)
+            if not PixelString.valid(value):
+                raise ValueError(f"{value} is not a pixel value.")
+
+    class AngularSize(String):
+        """Helper validator class which uses :obj:`carta.util.AngularSizeString` to validate strings."""
+
+        def validate(self, value, parent):
+            super().validate(value, parent)
+            if not AngularSizeString.valid(value):
+                raise ValueError(f"{value} is not an angular size.")
 
     def __init__(self):
         options = (
             Number(),
-            String(SizeUnit.WORD_UNIT_REGEX, re.IGNORECASE),  # word units (whitespace allowed)
-            String(SizeUnit.SYMBOL_UNIT_REGEX, re.IGNORECASE),  # symbol units (no whitespace)
+            self.PixelValue(),
+            self.AngularSize(),
         )
         super().__init__(*options, description="a number or a numeric string with valid size units")
 
 
 class Coordinate(Union):
-    """A string representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units. Validates inputs using regular expression patters from :obj:`carta.util.CoordinateUnit`."""
+    """A string representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units. Validates strings using :obj:`carta.util.PixelString` and :obj:`carta.util.WorldCoordinateString`."""
+
+    class WorldCoordinate(String):
+        """Helper validator class which uses :obj:`carta.util.WorldCoordinateString` to validate strings."""
+
+        def validate(self, value, parent):
+            super().validate(value, parent)
+            if not WorldCoordinateString.valid(value):
+                raise ValueError(f"{value} is not a world coordinate.")
 
     def __init__(self):
         options = (
             Number(),
-            String(CoordinateUnit.DECIMAL_REGEX, re.IGNORECASE),  # decimal
-            String(CoordinateUnit.HMS_COLON_REGEX, re.IGNORECASE),  # HMS with colon as separator
-            String(CoordinateUnit.HMS_LETTER_REGEX, re.IGNORECASE),  # HMS with letters as separators
-            String(CoordinateUnit.DMS_COLON_REGEX, re.IGNORECASE),  # DMS with colon as separator
-            String(CoordinateUnit.DMS_LETTER_REGEX, re.IGNORECASE),  # DMS with letters as separators
-            String(CoordinateUnit.PIXEL_UNIT_REGEX, re.IGNORECASE),  # pixels
-            String(CoordinateUnit.DEGREE_UNIT_REGEX, re.IGNORECASE),  # degrees
+            Size.PixelValue(),
+            self.WorldCoordinate(),
         )
-        super().__init__(*options, description="a number, a string in H:M:S or D:M:S format, or a numeric string with degree units")
+        super().__init__(*options, description="a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units")
 
 
 class Attr(str):

@@ -23,9 +23,9 @@ def test_coordinate_valid(val):
     v.validate(val, None)
 
 
-@pytest.mark.parametrize('val', ["123abc", "abc", "12:345:67", "12:34:567", "12:34", "hms", "hm", "ms", "h", "m", "s", "hs", "12hms", "12h34ms", "h12m34s" "100h", "12:34:56,7"])
+@pytest.mark.parametrize('val', ["123abc", "abc", "12:345:67", "12:34:567", "12:34", "hms", "hm", "ms", "h", "m", "s", "hs", "12hms", "12h34ms", "h12m34s", "100h", "12:34:56,7"])
 def test_coordinate_invalid(val):
     v = Coordinate()
     with pytest.raises(ValueError) as e:
         v.validate(val, None)
-    assert "not a number, a string in H:M:S or D:M:S format, or a numeric string with degree units" in str(e.value)
+    assert "not a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units" in str(e.value)
