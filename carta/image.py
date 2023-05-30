@@ -753,18 +753,19 @@ class Image:
         """
         if thickness is not None:
             self.call_action("vectorOverlayConfig.setThickness", thickness)
-        if intensity_min is not None and intensity_max is not None:
-            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
-        elif intensity_min is None and intensity_max is not None:
-            self.call_action("vectorOverlayConfig.setIntensityRange", self.macro("vectorOverlayConfig", "intensityMin"), intensity_max)
-        elif intensity_min is not None and intensity_max is None:
-            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, self.macro("vectorOverlayConfig", "intensityMax"))
-        elif intensity_min is Auto.AUTO and intensity_max is Auto.AUTO:
-            self.call_action("vectorOverlayConfig.setIntensityRange", Undefined(), Undefined())
-        elif intensity_min is not Auto.AUTO and intensity_max is Auto.AUTO:
-            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, Undefined())
-        elif intensity_min is Auto.AUTO and intensity_max is not Auto.AUTO:
-            self.call_action("vectorOverlayConfig.setIntensityRange", Undefined(), intensity_max)
+        if intensity_min is None:
+            intensity_min = self.macro("vectorOverlayConfig", "intensityMin")
+        elif intensity_min is Auto.AUTO:
+            intensity_min = Undefined()
+        else:
+            intensity_min = intensity_min
+        if intensity_max is None:
+            intensity_max = self.macro("vectorOverlayConfig", "intensityMax")
+        elif intensity_max is Auto.AUTO:
+            intensity_max = Undefined()
+        else:
+            intensity_max = intensity_max
+        self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
         if length_min is not None and length_max is not None:
             self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
         if rotation_offset is not None:
