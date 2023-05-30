@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, VectorOverlaySource, Auto
-from .util import logger, Macro, cached
+from .util import logger, Macro, cached, Undefined
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
 
 
@@ -759,6 +759,12 @@ class Image:
             self.call_action("vectorOverlayConfig.setIntensityRange", self.macro("vectorOverlayConfig", "intensityMin"), intensity_max)
         elif intensity_min is not None and intensity_max is None:
             self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, self.macro("vectorOverlayConfig", "intensityMax"))
+        elif intensity_min is Auto.AUTO and intensity_max is Auto.AUTO:
+            self.call_action("vectorOverlayConfig.setIntensityRange", Undefined(), Undefined())
+        elif intensity_min is not Auto.AUTO and intensity_max is Auto.AUTO:
+            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, Undefined())
+        elif intensity_min is Auto.AUTO and intensity_max is not Auto.AUTO:
+            self.call_action("vectorOverlayConfig.setIntensityRange", Undefined(), intensity_max)
         if length_min is not None and length_max is not None:
             self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
         if rotation_offset is not None:
