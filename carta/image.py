@@ -681,21 +681,21 @@ class Image:
         Parameters
         ----------
         angular_source : {0}
-            The angular source. If the image is with Stoke information, ``Computed PA`` is set by default; If the image is without Stoke information, ``Current image`` is set.
+            The angular source. This is initially set to computed PA if the image contains Stokes information, otherwise to the current image.
         intensity_source : {1}
             The intensity source. If the image is with Stoke information, ``Computed PI`` is set by default; If the image is without Stoke information, ``Current image`` is set.
         pixel_averaging_enabled : {2}
-            To enable pixel averaging.
+            Enable pixel averaging.
         pixel_averaging : {3}
-            The pixel averaging width in pixel. Set to ``None`` to disable pixel averaging.
+            The pixel averaging width in pixel.
         fractional_intensity : {4}
             Enable fractional polarization intensity. By default the absolute polarization intensity is used.
         threshold_enabled : {5}
-            To enable threshold.
+            Enable threshold.
         threshold : {6}
-            The threshold in Jy/pixels. By default is 4.
+            The threshold in Jy/pixels.
         debiasing : {7}
-            To enable debiasing.
+            Enable debiasing.
         q_error : {8}
             The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Debiasing is disabled by default.
         u_error : {9}
@@ -757,14 +757,10 @@ class Image:
             intensity_min = self.macro("vectorOverlayConfig", "intensityMin")
         elif intensity_min is Auto.AUTO:
             intensity_min = Undefined()
-        else:
-            intensity_min = intensity_min
         if intensity_max is None:
             intensity_max = self.macro("vectorOverlayConfig", "intensityMax")
         elif intensity_max is Auto.AUTO:
             intensity_max = Undefined()
-        else:
-            intensity_max = intensity_max
         self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
         if length_min is not None and length_max is not None:
             self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
@@ -820,7 +816,7 @@ class Image:
         Parameters
         ----------
         angular_source : {0}
-            The angular source. If the image is with Stoke information, ``Computed PA`` is set by default; If the image is without Stoke information, ``Current image`` is set.
+            The angular source. This is initially set to computed PA if the image contains Stokes information, otherwise to the current image.
         intensity_source : {1}
             The intensity source. If the image is with Stoke information, ``Computed PI`` is set by default; If the image is without Stoke information, ``Current image`` is set.
         pixel_averaging_enabled: {2}
