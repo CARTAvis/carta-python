@@ -208,8 +208,20 @@ class AngularSizeString:
         "'": "'",
     }
 
+    SMALL_UNIT_FACTOR = {
+        "milliarcseconds": 1e-3,
+        "milliarcsecond": 1e-3,
+        "milliarcsec": 1e-3,
+        "mas": 1e-3,
+        "microarcseconds": 1e-6,
+        "microarcsecond": 1e-6,
+        "microarcsec": 1e-6,
+        "µas": 1e-6,
+        "uas": 1e-6,
+    }
+
     SYMBOL_UNITS = {"", "'", "\""}
-    WORD_UNITS = NORMALIZED_UNIT.keys() - SYMBOL_UNITS
+    WORD_UNITS = (NORMALIZED_UNIT.keys() | SMALL_UNIT_FACTOR.keys()) - SYMBOL_UNITS
 
     SYMBOL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)({'|'.join(SYMBOL_UNITS)})$"
     WORD_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(WORD_UNITS)})$"
@@ -261,6 +273,11 @@ class AngularSizeString:
             if m is None:
                 raise ValueError(f"{repr(value)} is not in a recognized angular size format.")
         value, unit = m.groups()
+
+        if unit in cls.SMALL_UNIT_FACTOR:
+            value = f"{(float(value) * cls.SMALL_UNIT_FACTOR[unit]):g}"
+            unit = "\""
+
         unit = cls.NORMALIZED_UNIT[unit]
         return value, unit
 
