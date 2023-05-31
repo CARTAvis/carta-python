@@ -192,8 +192,14 @@ class AngularSizeString:
     """Parses angular sizes."""
 
     NORMALIZED_UNIT = {
+        "arcminutes": "'",
+        "arcminute": "'",
         "arcmin": "'",
+        "amin": "'",
+        "arcseconds": "\"",
+        "arcsecond": "\"",
         "arcsec": "\"",
+        "asec": "\"",
         "deg": "deg",
         "degree": "deg",
         "degrees": "deg",
