@@ -4,7 +4,7 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed, PixelString, AngularSizeString, WorldCoordinateString
+from .util import CartaValidationFailed, PixelString, AngularSizeString, WorldCoordinate
 
 
 class Parameter:
@@ -651,14 +651,14 @@ class Size(Union):
 
 
 class Coordinate(Union):
-    """A string representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units. Validates strings using :obj:`carta.util.PixelString` and :obj:`carta.util.WorldCoordinateString`."""
+    """A string representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units. Validates strings using :obj:`carta.util.PixelString` and :obj:`carta.util.WorldCoordinate`."""
 
     class WorldCoordinate(String):
-        """Helper validator class which uses :obj:`carta.util.WorldCoordinateString` to validate strings."""
+        """Helper validator class which uses :obj:`carta.util.WorldCoordinate` to validate strings."""
 
         def validate(self, value, parent):
             super().validate(value, parent)
-            if not WorldCoordinateString.valid(value):
+            if not WorldCoordinate.valid(value):
                 raise ValueError(f"{value} is not a world coordinate.")
 
     def __init__(self):

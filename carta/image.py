@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem
-from .util import Macro, cached, PixelString, AngularSizeString, WorldCoordinateString
+from .util import Macro, cached, PixelString, AngularSizeString, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
 
 
@@ -481,8 +481,8 @@ class Image:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information.")
 
             number_format_x, number_format_y, _ = self.session.number_format()
-            x_value = WorldCoordinateString.normalized(str(x), number_format_x)
-            y_value = WorldCoordinateString.normalized(str(y), number_format_y)
+            x_value = WorldCoordinate.normalized(str(x), number_format_x)
+            y_value = WorldCoordinate.normalized(str(y), number_format_y)
             self.call_action("setCenterWcs", str(x_value), str(y_value))
 
     @validate(Size())

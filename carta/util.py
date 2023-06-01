@@ -282,7 +282,7 @@ class AngularSizeString:
         return value, unit
 
 
-class WorldCoordinateString:
+class WorldCoordinate:
     """Parses world coordinates."""
 
     FMT = None
@@ -298,7 +298,7 @@ class WorldCoordinateString:
     def valid(cls, value):
         """Whether the input string is a world coordinate string in any of the recognised formats.
 
-        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinateString.DEGREE_UNITS`.
+        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinate.DEGREE_UNITS`.
 
         Parameters
         ----------
@@ -310,7 +310,7 @@ class WorldCoordinateString:
         boolean
             Whether the input string is an world coordinate.
         """
-        if cls is WorldCoordinateString:
+        if cls is WorldCoordinate:
             return any(fmt.valid(value) for fmt in cls.FORMATS.values())
         return any(re.match(exp, value, re.IGNORECASE) for exp in cls.REGEX.values())
 
@@ -318,7 +318,7 @@ class WorldCoordinateString:
     def normalized(cls, value, fmt):
         """Parse a world coordinate string using the specified format.
 
-        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinateString.DEGREE_UNITS`.
+        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinate.DEGREE_UNITS`.
 
         Parameters
         ----------
@@ -329,7 +329,7 @@ class WorldCoordinateString:
 
         Returns
         -------
-        :obj:`carta.util.WorldCoordinateString`
+        :obj:`carta.util.WorldCoordinate`
             The normalized coordinate object.
 
         Raises
@@ -350,13 +350,13 @@ class WorldCoordinateString:
 
         Returns
         -------
-        :obj:`carta.util.WorldCoordinateString`
+        :obj:`carta.util.WorldCoordinate`
             The coordinate object.
         """
         raise NotImplementedError()
 
 
-class DegreesCoordinateString(WorldCoordinateString):
+class DegreesCoordinate(WorldCoordinate):
     """Parses world coordinates in decimal degree format."""
     FMT = NumberFormat.DEGREES
     DEGREE_UNITS = {k for k, v in AngularSizeString.NORMALIZED_UNIT.items() if v == "deg"}
@@ -376,7 +376,7 @@ class DegreesCoordinateString(WorldCoordinateString):
 
         Returns
         -------
-        :obj:`carta.util.DegreesCoordinateString`
+        :obj:`carta.util.DegreesCoordinate`
             The coordinate object.
         """
         m = re.match(cls.REGEX["DECIMAL"], value, re.IGNORECASE)
@@ -394,7 +394,7 @@ class DegreesCoordinateString(WorldCoordinateString):
         return f"{self.degrees:g}"
 
 
-class HexagesimalCoordinateString(WorldCoordinateString):
+class HexagesimalCoordinate(WorldCoordinate):
     """Common functionality for parsing world coordinates in hexagesimal format."""
     @classmethod
     def from_string(cls, value):
@@ -407,7 +407,7 @@ class HexagesimalCoordinateString(WorldCoordinateString):
 
         Returns
         -------
-        :obj:`carta.util.HexagesimalCoordinateString`
+        :obj:`carta.util.HexagesimalCoordinate`
             The coordinate object.
         """
         def to_float(strs):
@@ -434,7 +434,7 @@ class HexagesimalCoordinateString(WorldCoordinateString):
         return f"{HD}:{M}:{S}"
 
 
-class HMSCoordinateString(HexagesimalCoordinateString):
+class HMSCoordinate(HexagesimalCoordinate):
     """Parses world coordinates in HMS format."""
     FMT = NumberFormat.HMS
     REGEX = {
@@ -447,7 +447,7 @@ class HMSCoordinateString(HexagesimalCoordinateString):
         return self._hours_or_degrees
 
 
-class DMSCoordinateString(HexagesimalCoordinateString):
+class DMSCoordinate(HexagesimalCoordinate):
     """Parses world coordinates in DMS format."""
     FMT = NumberFormat.DMS
     REGEX = {

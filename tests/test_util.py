@@ -1,11 +1,11 @@
 import types
 import pytest
 
-from carta.util import PixelString, AngularSizeString, WorldCoordinateString
+from carta.util import PixelString, AngularSizeString, WorldCoordinate
 from carta.constants import NumberFormat as NF
 
 
-@pytest.mark.parametrize("clazz", [PixelString, AngularSizeString, WorldCoordinateString])
+@pytest.mark.parametrize("clazz", [PixelString, AngularSizeString, WorldCoordinate])
 def test_class_has_docstring(clazz):
     assert clazz.__doc__ is not None
 
@@ -17,7 +17,7 @@ def find_members(*classes, member_type=types.MethodType):
                 yield getattr(clazz, name)
 
 
-@pytest.mark.parametrize("member", find_members(PixelString, AngularSizeString, WorldCoordinateString))
+@pytest.mark.parametrize("member", find_members(PixelString, AngularSizeString, WorldCoordinate))
 def test_class_classmethods_have_docstrings(member):
     assert member.__doc__ is not None
 
@@ -220,7 +220,7 @@ def test_angular_size_string_normalized_invalid(size):
     ("12:34:56,7", False),
 ])
 def test_world_coordinate_string_valid(coord, valid):
-    assert WorldCoordinateString.valid(coord) == valid
+    assert WorldCoordinate.valid(coord) == valid
 
 
 @pytest.mark.parametrize("coord,fmt,norm", [
@@ -254,7 +254,7 @@ def test_world_coordinate_string_valid(coord, valid):
     ("123d", NF.DMS, "123::"),
 ])
 def test_world_coordinate_string_normalized(coord, fmt, norm):
-    assert str(WorldCoordinateString.normalized(coord, fmt)) == norm
+    assert str(WorldCoordinate.normalized(coord, fmt)) == norm
 
 
 @pytest.mark.parametrize("coord,fmt", [
@@ -266,5 +266,5 @@ def test_world_coordinate_string_normalized(coord, fmt, norm):
 ])
 def test_world_coordinate_string_normalized_invalid(coord, fmt):
     with pytest.raises(ValueError) as e:
-        WorldCoordinateString.normalized(coord, fmt)
+        WorldCoordinate.normalized(coord, fmt)
     assert "does not match expected format" in str(e.value)
