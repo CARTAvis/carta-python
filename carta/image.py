@@ -483,7 +483,7 @@ class Image:
             number_format_x, number_format_y, _ = self.session.number_format()
             x_value = WorldCoordinateString.normalized(str(x), number_format_x)
             y_value = WorldCoordinateString.normalized(str(y), number_format_y)
-            self.call_action("setCenterWcs", x_value, y_value)
+            self.call_action("setCenterWcs", str(x_value), str(y_value))
 
     @validate(Size())
     def zoom_to_size_x(self, size):

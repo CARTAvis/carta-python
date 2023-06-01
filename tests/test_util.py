@@ -254,7 +254,7 @@ def test_world_coordinate_string_valid(coord, valid):
     ("123d", NF.DMS, "123::"),
 ])
 def test_world_coordinate_string_normalized(coord, fmt, norm):
-    assert WorldCoordinateString.normalized(coord, fmt) == norm
+    assert str(WorldCoordinateString.normalized(coord, fmt)) == norm
 
 
 @pytest.mark.parametrize("coord,fmt", [

@@ -285,22 +285,20 @@ class AngularSizeString:
 class WorldCoordinateString:
     """Parses world coordinates."""
 
-    DEGREE_UNITS = {k for k, v in AngularSizeString.NORMALIZED_UNIT.items() if v == "deg"}
+    FMT = None
+    FORMATS = {}
 
-    REGEX = {
-        "DEGREE_UNIT": rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$",
-        "HMS_COLON": r"^-?\d{0,2}:\d{0,2}:(\d{1,2}(\.\d+)?)?$",
-        "HMS_LETTER": r"^(?:(-?\d{1,2})h)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$",
-        "DMS_COLON": r"^-?\d*:\d{0,2}:(\d{1,2}(\.\d+)?)?$",
-        "DMS_LETTER": r"^(?:(-?\d+)d)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$",
-        "DECIMAL": r"^-?\d+(\.\d+)?$",  # No units = degrees
-    }
+    def __init_subclass__(cls, **kwargs):
+        """Automatically register subclasses corresponding to number formats."""
+        super().__init_subclass__(**kwargs)
+        if isinstance(cls.FMT, NumberFormat):
+            super(cls, cls).FORMATS[cls.FMT] = cls
 
     @classmethod
     def valid(cls, value):
         """Whether the input string is a world coordinate string in any of the recognised formats.
 
-        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.WorldCoordinateString.DEGREE_UNITS`.
+        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinateString.DEGREE_UNITS`.
 
         Parameters
         ----------
@@ -312,13 +310,15 @@ class WorldCoordinateString:
         boolean
             Whether the input string is an world coordinate.
         """
+        if cls is WorldCoordinateString:
+            return any(fmt.valid(value) for fmt in cls.FORMATS.values())
         return any(re.match(exp, value, re.IGNORECASE) for exp in cls.REGEX.values())
 
     @classmethod
     def normalized(cls, value, fmt):
         """Parse a world coordinate string using the specified format.
 
-        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.WorldCoordinateString.DEGREE_UNITS`.
+        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinateString.DEGREE_UNITS`.
 
         Parameters
         ----------
@@ -329,42 +329,132 @@ class WorldCoordinateString:
 
         Returns
         -------
-        string
-            The normalized coordinate string.
+        :obj:`carta.util.WorldCoordinateString`
+            The normalized coordinate object.
 
         Raises
         ------
         ValueError
             If the coordinate string could not be parsed using the specified number format.
         """
-        if fmt == NumberFormat.DEGREES:
-            m = re.match(cls.REGEX["DECIMAL"], value, re.IGNORECASE)
-            if m is not None:
-                return value
-            m = re.match(cls.REGEX["DEGREE_UNIT"], value, re.IGNORECASE)
-            if m is not None:
-                return m.group(1)
-            raise ValueError(f"Coordinate string {value} does not match expected format {fmt}.")
+        return cls.FORMATS[fmt].from_string(value)
 
-        def empty_if_none(*strs):
-            return tuple("" if s is None else s for s in strs)
+    @classmethod
+    def from_string(cls, value):
+        """Construct a world coordinate object from a string.
 
-        if fmt == NumberFormat.HMS:
-            m = re.match(cls.REGEX["HMS_COLON"], value, re.IGNORECASE)
-            if m is not None:
-                return value
-            m = re.match(cls.REGEX["HMS_LETTER"], value, re.IGNORECASE)
-            if m is not None:
-                H, M, S = empty_if_none(*m.groups())
-                return f"{H}:{M}:{S}"
-            raise ValueError(f"Coordinate string {value} does not match expected format {fmt}.")
+        Parameters
+        ----------
+        value : string
+            The input string.
 
-        if fmt == NumberFormat.DMS:
-            m = re.match(cls.REGEX["DMS_COLON"], value, re.IGNORECASE)
-            if m is not None:
-                return value
-            m = re.match(cls.REGEX["DMS_LETTER"], value, re.IGNORECASE)
-            if m is not None:
-                D, M, S = empty_if_none(*m.groups())
-                return f"{D}:{M}:{S}"
-            raise ValueError(f"Coordinate string {value} does not match expected format {fmt}.")
+        Returns
+        -------
+        :obj:`carta.util.WorldCoordinateString`
+            The coordinate object.
+        """
+        raise NotImplementedError()
+
+
+class DegreesCoordinateString(WorldCoordinateString):
+    """Parses world coordinates in decimal degree format."""
+    FMT = NumberFormat.DEGREES
+    DEGREE_UNITS = {k for k, v in AngularSizeString.NORMALIZED_UNIT.items() if v == "deg"}
+    REGEX = {
+        "DEGREE_UNIT": rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$",
+        "DECIMAL": r"^-?\d+(\.\d+)?$",
+    }
+
+    @classmethod
+    def from_string(cls, value):
+        """Construct a world coordinate object in decimal degree format from a string.
+
+        Parameters
+        ----------
+        value : string
+            The input string.
+
+        Returns
+        -------
+        :obj:`carta.util.DegreesCoordinateString`
+            The coordinate object.
+        """
+        m = re.match(cls.REGEX["DECIMAL"], value, re.IGNORECASE)
+        if m is not None:
+            return cls(float(value))
+        m = re.match(cls.REGEX["DEGREE_UNIT"], value, re.IGNORECASE)
+        if m is not None:
+            return cls(float(m.group(1)))
+        raise ValueError(f"Coordinate string {value} does not match expected format {cls.FMT}.")
+
+    def __init__(self, degrees):
+        self.degrees = degrees
+
+    def __str__(self):
+        return f"{self.degrees:g}"
+
+
+class HexagesimalCoordinateString(WorldCoordinateString):
+    """Common functionality for parsing world coordinates in hexagesimal format."""
+    @classmethod
+    def from_string(cls, value):
+        """Construct a world coordinate object in hexagesimal format from a string.
+
+        Parameters
+        ----------
+        value : string
+            The input string.
+
+        Returns
+        -------
+        :obj:`carta.util.HexagesimalCoordinateString`
+            The coordinate object.
+        """
+        def to_float(strs):
+            return tuple(0 if s is None else float(s) for s in strs)
+
+        m = re.match(cls.REGEX["COLON"], value, re.IGNORECASE)
+        if m is not None:
+            return cls(*to_float(m.groups()))
+        m = re.match(cls.REGEX["LETTER"], value, re.IGNORECASE)
+        if m is not None:
+            return cls(*to_float(m.groups()))
+        raise ValueError(f"Coordinate string {value} does not match expected format {cls.FMT}.")
+
+    def __init__(self, hours_or_degrees, minutes, seconds):
+        self._hours_or_degrees = hours_or_degrees
+        self.minutes = minutes
+        self.seconds = seconds
+
+    def __str__(self):
+        def to_string(*floats):
+            return tuple("" if f == 0 else f"{f:g}" for f in floats)
+
+        HD, M, S = to_string(self._hours_or_degrees, self.minutes, self.seconds)
+        return f"{HD}:{M}:{S}"
+
+
+class HMSCoordinateString(HexagesimalCoordinateString):
+    """Parses world coordinates in HMS format."""
+    FMT = NumberFormat.HMS
+    REGEX = {
+        "COLON": r"^(-?\d{0,2}):(\d{0,2}):(\d{1,2}(?:\.\d+)?)?$",
+        "LETTER": r"^(?:(-?\d{1,2})h)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$",
+    }
+
+    @property
+    def hours(self):
+        return self._hours_or_degrees
+
+
+class DMSCoordinateString(HexagesimalCoordinateString):
+    """Parses world coordinates in DMS format."""
+    FMT = NumberFormat.DMS
+    REGEX = {
+        "COLON": r"^(-?\d*):(\d{0,2}):(\d{1,2}(?:\.\d+)?)?$",
+        "LETTER": r"^(?:(-?\d+)d)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$",
+    }
+
+    @property
+    def degrees(self):
+        return self._hours_or_degrees
