@@ -193,24 +193,24 @@ class AngularSize:
     FORMATS = {}
     SYMBOL_UNITS = []
     WORD_UNITS = []
-    
+
     def __init__(self, value):
         self.value = value
-    
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         base = AngularSize
-        
+
         for unit in cls.INPUT_UNITS:
             base.FORMATS[unit] = cls
             if len(unit) > 1:
                 base.WORD_UNITS.append(unit)
             else:
                 base.SYMBOL_UNITS.append(unit)
-        
+
         base.SYMBOL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)({'|'.join(base.SYMBOL_UNITS)})$"
         base.WORD_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(base.WORD_UNITS)})$"
-    
+
     @classmethod
     def valid(cls, value):
         """Whether the input string is a numeric value followed by an angular size unit.
@@ -228,7 +228,7 @@ class AngularSize:
             Whether the input string is an angular size.
         """
         return any((re.match(cls.WORD_UNIT_REGEX, value, re.IGNORECASE), re.match(cls.SYMBOL_UNIT_REGEX, value, re.IGNORECASE)))
-    
+
     @classmethod
     def from_string(cls, value):
         """Construct an angular size object from a string.
@@ -257,7 +257,7 @@ class AngularSize:
                 raise ValueError(f"{repr(value)} is not in a recognized angular size format.")
         value, unit = m.groups()
         return cls.FORMATS[unit](float(value))
-    
+
     def __str__(self):
         value = self.value * self.FACTOR
         return f"{value:g}{self.OUTPUT_UNIT}"
@@ -268,28 +268,28 @@ class DegreesSize(AngularSize):
     INPUT_UNITS = ("deg", "degree", "degrees")
     OUTPUT_UNIT = "deg"
     FACTOR = 1
-    
+
 
 class ArcminSize(AngularSize):
     """An angular size in arcminutes."""
-    INPUT_UNITS = ("'", "arcminutes", "arcminute", "arcmin", "amin")
+    INPUT_UNITS = ("'", "arcminutes", "arcminute", "arcmin", "amin", "′")
     OUTPUT_UNIT = "'"
     FACTOR = 1
-    
+
 
 class ArcsecSize(AngularSize):
     """An angular size in arcseconds."""
-    INPUT_UNITS = ("\"", "", "arcseconds", "arcsecond", "arcsec", "asec")
+    INPUT_UNITS = ("\"", "", "arcseconds", "arcsecond", "arcsec", "asec", "″")
     OUTPUT_UNIT = "\""
     FACTOR = 1
-    
+
 
 class MilliArcsecSize(AngularSize):
     """An angular size in milliarcseconds."""
     INPUT_UNITS = ("milliarcseconds", "milliarcsecond", "milliarcsec", "mas")
     OUTPUT_UNIT = "\""
     FACTOR = 1e-3
-    
+
 
 class MicroArcsecSize(AngularSize):
     """An angular size in microarcseconds."""
@@ -398,8 +398,8 @@ class DegreesCoordinate(WorldCoordinate):
 
 class HexagesimalCoordinate(WorldCoordinate):
     """A world coordinate in hexagesimal format.
-    
-    This class contains common functionality for parsing the HMS and DMS formats. 
+
+    This class contains common functionality for parsing the HMS and DMS formats.
     """
     @classmethod
     def from_string(cls, value):
