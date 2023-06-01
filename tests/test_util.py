@@ -1,11 +1,11 @@
 import types
 import pytest
 
-from carta.util import PixelString, AngularSize, WorldCoordinate
+from carta.util import PixelValue, AngularSize, WorldCoordinate
 from carta.constants import NumberFormat as NF
 
 
-@pytest.mark.parametrize("clazz", [PixelString, AngularSize, WorldCoordinate])
+@pytest.mark.parametrize("clazz", [PixelValue, AngularSize, WorldCoordinate])
 def test_class_has_docstring(clazz):
     assert clazz.__doc__ is not None
 
@@ -17,7 +17,7 @@ def find_members(*classes, member_type=types.MethodType):
                 yield getattr(clazz, name)
 
 
-@pytest.mark.parametrize("member", find_members(PixelString, AngularSize, WorldCoordinate))
+@pytest.mark.parametrize("member", find_members(PixelValue, AngularSize, WorldCoordinate))
 def test_class_classmethods_have_docstrings(member):
     assert member.__doc__ is not None
 
@@ -38,28 +38,30 @@ def test_class_classmethods_have_docstrings(member):
     ("123abc", False),
     ("-123px", False),
 ])
-def test_pixel_string_valid(value, valid):
-    assert PixelString.valid(value) == valid
+def test_pixel_value_valid(value, valid):
+    assert PixelValue.valid(value) == valid
 
 
 @pytest.mark.parametrize("value,num", [
-    ("123px", "123"),
-    ("123pix", "123"),
-    ("123pixel", "123"),
-    ("123pixels", "123"),
-    ("123 px", "123"),
-    ("123 pix", "123"),
-    ("123 pixel", "123"),
-    ("123 pixels", "123"),
+    ("123px", 123),
+    ("123pix", 123),
+    ("123pixel", 123),
+    ("123pixels", 123),
+    ("123 px", 123),
+    ("123 pix", 123),
+    ("123 pixel", 123),
+    ("123 pixels", 123),
+    ("123.45px", 123.45),
+    ("123.45 px", 123.45),
 ])
-def test_pixel_string_normalized(value, num):
-    assert PixelString.normalized(value) == num
+def test_pixel_value_as_float(value, num):
+    assert PixelValue.as_float(value) == num
 
 
 @pytest.mark.parametrize("value", ["123arcmin", "123deg", "abc", "123", "123abc", "-123px"])
-def test_pixel_string_normalized_invalid(value):
+def test_pixel_value_as_float_invalid(value):
     with pytest.raises(ValueError) as e:
-        PixelString.normalized(value)
+        PixelValue.as_float(value)
     assert "not in a recognized pixel format" in str(e.value)
 
 
@@ -112,7 +114,7 @@ def test_pixel_string_normalized_invalid(value):
     ("-123", False),
     ("123px", False),
 ])
-def test_angular_size_string_valid(size, valid):
+def test_angular_size_valid(size, valid):
     assert AngularSize.valid(size) == valid
 
 
@@ -161,12 +163,12 @@ def test_angular_size_string_valid(size, valid):
     ("123 µas", "0.000123", "\""),
     ("123 uas", "0.000123", "\""),
 ])
-def test_angular_size_string_normalized(size, num, unit):
+def test_angular_size_normalized(size, num, unit):
     assert AngularSize.normalized(size) == (num, unit)
 
 
 @pytest.mark.parametrize("size", ["123cm", "abc", "-123", "123px"])
-def test_angular_size_string_normalized_invalid(size):
+def test_angular_size_normalized_invalid(size):
     with pytest.raises(ValueError) as e:
         AngularSize.normalized(size)
     assert "not in a recognized angular size format" in str(e.value)
@@ -219,7 +221,7 @@ def test_angular_size_string_normalized_invalid(size):
     ("100h", False),
     ("12:34:56,7", False),
 ])
-def test_world_coordinate_string_valid(coord, valid):
+def test_world_coordinate_valid(coord, valid):
     assert WorldCoordinate.valid(coord) == valid
 
 
@@ -253,7 +255,7 @@ def test_world_coordinate_string_valid(coord, valid):
     ("", NF.DMS, "::"),
     ("123d", NF.DMS, "123::"),
 ])
-def test_world_coordinate_string_normalized(coord, fmt, norm):
+def test_world_coordinate_normalized(coord, fmt, norm):
     assert str(WorldCoordinate.normalized(coord, fmt)) == norm
 
 
@@ -264,7 +266,7 @@ def test_world_coordinate_string_normalized(coord, fmt, norm):
     ("123h45m67s", NF.HMS),
     ("123d45m67s", NF.HMS),
 ])
-def test_world_coordinate_string_normalized_invalid(coord, fmt):
+def test_world_coordinate_normalized_invalid(coord, fmt):
     with pytest.raises(ValueError) as e:
         WorldCoordinate.normalized(coord, fmt)
     assert "does not match expected format" in str(e.value)

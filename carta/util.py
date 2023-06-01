@@ -136,7 +136,7 @@ def split_action_path(path):
     return '.'.join(parts[:-1]), parts[-1]
 
 
-class PixelString:
+class PixelValue:
     """Parses pixel values."""
 
     UNITS = {"px", "pix", "pixel", "pixels"}
@@ -146,7 +146,7 @@ class PixelString:
     def valid(cls, value):
         """Whether the input string is a numeric value followed by a pixel unit.
 
-        Permitted pixel unit strings are stored in :obj:`carta.util.PixelString.UNITS`. Whitespace is permitted after the number and before the unit.
+        Permitted pixel unit strings are stored in :obj:`carta.util.PixelValue.UNITS`. Whitespace is permitted after the number and before the unit.
 
         Parameters
         ----------
@@ -162,10 +162,10 @@ class PixelString:
         return m is not None
 
     @classmethod
-    def normalized(cls, value):
-        """Parse a string containing a numeric value followed by a pixel unit, and return the numeric part (as a string).
+    def as_float(cls, value):
+        """Parse a string containing a numeric value followed by a pixel unit, and return the numeric part as a float.
 
-        Permitted pixel unit strings are stored in :obj:`carta.util.PixelString.UNITS`. Whitespace is permitted after the number and before the unit.
+        Permitted pixel unit strings are stored in :obj:`carta.util.PixelValue.UNITS`. Whitespace is permitted after the number and before the unit.
 
         Parameters
         ----------
@@ -174,7 +174,7 @@ class PixelString:
 
         Returns
         -------
-        string
+        float
             The numeric portion of the pixel value.
 
         Raises
@@ -185,7 +185,7 @@ class PixelString:
         m = re.match(cls.UNIT_REGEX, value, re.IGNORECASE)
         if m is None:
             raise ValueError(f"{repr(value)} is not in a recognized pixel format.")
-        return m.group(1)
+        return float(m.group(1))
 
 
 class AngularSize:

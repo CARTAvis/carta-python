@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem
-from .util import Macro, cached, PixelString, AngularSize, WorldCoordinate
+from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
 
 
@@ -461,13 +461,13 @@ class Image:
         if system is not None:
             self.session.set_coordinate_system(system)
 
-        x_is_pixel = PixelString.valid(str(x))
-        y_is_pixel = PixelString.valid(str(y))
+        x_is_pixel = PixelValue.valid(str(x))
+        y_is_pixel = PixelValue.valid(str(y))
 
         if x_is_pixel and y_is_pixel:
             # Image coordinates
-            x_value = float(PixelString.normalized(str(x)))
-            y_value = float(PixelString.normalized(str(y)))
+            x_value = PixelValue.as_float(str(x))
+            y_value = PixelValue.as_float(str(y))
             if 0 <= x_value < self.width and 0 <= y_value < self.height:
                 self.call_action("setCenter", x_value, y_value)
             else:
@@ -495,8 +495,8 @@ class Image:
         ----------
         size : {0}
         """
-        if PixelString.valid(str(size)):
-            self.call_action("zoomToSizeX", float(PixelString.normalized(str(size))))
+        if PixelValue.valid(str(size)):
+            self.call_action("zoomToSizeX", PixelValue.as_float(str(size)))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
@@ -514,8 +514,8 @@ class Image:
         ----------
         size : {0}
         """
-        if PixelString.valid(str(size)):
-            self.call_action("zoomToSizeY", float(PixelString.normalized(str(size))))
+        if PixelValue.valid(str(size)):
+            self.call_action("zoomToSizeY", PixelValue.as_float(str(size)))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
