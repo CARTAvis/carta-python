@@ -279,7 +279,7 @@ class AngularSize:
             unit = "\""
 
         unit = cls.NORMALIZED_UNIT[unit]
-        return value, unit
+        return f"{value}{unit}"
 
 
 class WorldCoordinate:
@@ -315,33 +315,17 @@ class WorldCoordinate:
         return any(re.match(exp, value, re.IGNORECASE) for exp in cls.REGEX.values())
 
     @classmethod
-    def normalized(cls, value, fmt):
-        """Parse a world coordinate string using the specified format.
-
-        Coordinates may be provided in HMS or DMS format (with colons or letters as separators), or in degrees (with or without an explicit unit). Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinate.DEGREE_UNITS`.
-
-        Parameters
-        ----------
-        value : string
-            The string representation of the coordinate.
-        fmt : :obj:`carta.constants.NumberFormat`
-            The expected number format of the coordinate string.
-
-        Returns
-        -------
-        :obj:`carta.util.WorldCoordinate`
-            The normalized coordinate object.
-
-        Raises
-        ------
-        ValueError
-            If the coordinate string could not be parsed using the specified number format.
-        """
-        return cls.FORMATS[fmt].from_string(value)
+    def with_format(cls, fmt):
+        """Return the subclass of :obj:`carta.util.WorldCoordinate` corresponding to the specified format."""
+        if isinstance(fmt, NumberFormat):
+            return cls.FORMATS[fmt]
+        raise ValueError(f"Unknown number format: {fmt}")
 
     @classmethod
     def from_string(cls, value):
         """Construct a world coordinate object from a string.
+
+        This is implemented in subclasses corresponding to different formats.
 
         Parameters
         ----------
@@ -368,6 +352,8 @@ class DegreesCoordinate(WorldCoordinate):
     @classmethod
     def from_string(cls, value):
         """Construct a world coordinate object in decimal degree format from a string.
+
+        Coordinates may be provided with or without an explicit unit. Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinate.DEGREE_UNITS`.
 
         Parameters
         ----------
@@ -399,6 +385,8 @@ class HexagesimalCoordinate(WorldCoordinate):
     @classmethod
     def from_string(cls, value):
         """Construct a world coordinate object in hexagesimal format from a string.
+
+        Coordinates may be provided in HMS or DMS format with colons or letters as separators.
 
         Parameters
         ----------

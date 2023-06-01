@@ -481,8 +481,8 @@ class Image:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information.")
 
             number_format_x, number_format_y, _ = self.session.number_format()
-            x_value = WorldCoordinate.normalized(str(x), number_format_x)
-            y_value = WorldCoordinate.normalized(str(y), number_format_y)
+            x_value = WorldCoordinate.with_format(number_format_x).from_string(str(x))
+            y_value = WorldCoordinate.with_format(number_format_y).from_string(str(y))
             self.call_action("setCenterWcs", str(x_value), str(y_value))
 
     @validate(Size())
@@ -500,9 +500,7 @@ class Image:
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
-
-            x_value, x_unit = AngularSize.normalized(str(size))
-            self.call_action("zoomToSizeXWcs", f"{x_value}{x_unit}")
+            self.call_action("zoomToSizeXWcs", AngularSize.normalized(str(size)))
 
     @validate(Size())
     def zoom_to_size_y(self, size):
@@ -519,8 +517,7 @@ class Image:
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
-            y_value, y_unit = AngularSize.normalized(str(size))
-            self.call_action("zoomToSizeYWcs", f"{y_value}{y_unit}")
+            self.call_action("zoomToSizeYWcs", AngularSize.normalized(str(size)))
 
     @validate(Number(), Boolean())
     def set_zoom_level(self, zoom, absolute=True):

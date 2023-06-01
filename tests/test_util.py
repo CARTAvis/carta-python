@@ -118,53 +118,53 @@ def test_angular_size_valid(size, valid):
     assert AngularSize.valid(size) == valid
 
 
-@pytest.mark.parametrize("size,num,unit", [
-    ("123arcminutes", "123", "'"),
-    ("123arcseconds", "123", "\""),
-    ("123arcminute", "123", "'"),
-    ("123arcsecond", "123", "\""),
-    ("123arcmin", "123", "'"),
-    ("123arcsec", "123", "\""),
-    ("123amin", "123", "'"),
-    ("123asec", "123", "\""),
-    ("123deg", "123", "deg"),
-    ("123degree", "123", "deg"),
-    ("123degrees", "123", "deg"),
-    ("123milliarcseconds", "0.123", "\""),
-    ("123milliarcsecond", "0.123", "\""),
-    ("123milliarcsec", "0.123", "\""),
-    ("123mas", "0.123", "\""),
-    ("123microarcseconds", "0.000123", "\""),
-    ("123microarcsecond", "0.000123", "\""),
-    ("123microarcsec", "0.000123", "\""),
-    ("123µas", "0.000123", "\""),
-    ("123uas", "0.000123", "\""),
-    ("123 arcminutes", "123", "'"),
-    ("123 arcseconds", "123", "\""),
-    ("123 arcminute", "123", "'"),
-    ("123 arcsecond", "123", "\""),
-    ("123 arcmin", "123", "'"),
-    ("123 arcsec", "123", "\""),
-    ("123 amin", "123", "'"),
-    ("123 asec", "123", "\""),
-    ("123 deg", "123", "deg"),
-    ("123 degree", "123", "deg"),
-    ("123 degrees", "123", "deg"),
-    ("123", "123", "\""),
-    ("123\"", "123", "\""),
-    ("123'", "123", "'"),
-    ("123 milliarcseconds", "0.123", "\""),
-    ("123 milliarcsecond", "0.123", "\""),
-    ("123 milliarcsec", "0.123", "\""),
-    ("123 mas", "0.123", "\""),
-    ("123 microarcseconds", "0.000123", "\""),
-    ("123 microarcsecond", "0.000123", "\""),
-    ("123 microarcsec", "0.000123", "\""),
-    ("123 µas", "0.000123", "\""),
-    ("123 uas", "0.000123", "\""),
+@pytest.mark.parametrize("size,norm", [
+    ("123arcminutes", "123'"),
+    ("123arcseconds", "123\""),
+    ("123arcminute", "123'"),
+    ("123arcsecond", "123\""),
+    ("123arcmin", "123'"),
+    ("123arcsec", "123\""),
+    ("123amin", "123'"),
+    ("123asec", "123\""),
+    ("123deg", "123deg"),
+    ("123degree", "123deg"),
+    ("123degrees", "123deg"),
+    ("123milliarcseconds", "0.123\""),
+    ("123milliarcsecond", "0.123\""),
+    ("123milliarcsec", "0.123\""),
+    ("123mas", "0.123\""),
+    ("123microarcseconds", "0.000123\""),
+    ("123microarcsecond", "0.000123\""),
+    ("123microarcsec", "0.000123\""),
+    ("123µas", "0.000123\""),
+    ("123uas", "0.000123\""),
+    ("123 arcminutes", "123'"),
+    ("123 arcseconds", "123\""),
+    ("123 arcminute", "123'"),
+    ("123 arcsecond", "123\""),
+    ("123 arcmin", "123'"),
+    ("123 arcsec", "123\""),
+    ("123 amin", "123'"),
+    ("123 asec", "123\""),
+    ("123 deg", "123deg"),
+    ("123 degree", "123deg"),
+    ("123 degrees", "123deg"),
+    ("123", "123\""),
+    ("123\"", "123\""),
+    ("123'", "123'"),
+    ("123 milliarcseconds", "0.123\""),
+    ("123 milliarcsecond", "0.123\""),
+    ("123 milliarcsec", "0.123\""),
+    ("123 mas", "0.123\""),
+    ("123 microarcseconds", "0.000123\""),
+    ("123 microarcsecond", "0.000123\""),
+    ("123 microarcsec", "0.000123\""),
+    ("123 µas", "0.000123\""),
+    ("123 uas", "0.000123\""),
 ])
-def test_angular_size_normalized(size, num, unit):
-    assert AngularSize.normalized(size) == (num, unit)
+def test_angular_size_normalized(size, norm):
+    assert AngularSize.normalized(size) == norm
 
 
 @pytest.mark.parametrize("size", ["123cm", "abc", "-123", "123px"])
@@ -255,8 +255,8 @@ def test_world_coordinate_valid(coord, valid):
     ("", NF.DMS, "::"),
     ("123d", NF.DMS, "123::"),
 ])
-def test_world_coordinate_normalized(coord, fmt, norm):
-    assert str(WorldCoordinate.normalized(coord, fmt)) == norm
+def test_world_coordinate_from_string(coord, fmt, norm):
+    assert str(WorldCoordinate.with_format(fmt).from_string(coord)) == norm
 
 
 @pytest.mark.parametrize("coord,fmt", [
@@ -268,5 +268,5 @@ def test_world_coordinate_normalized(coord, fmt, norm):
 ])
 def test_world_coordinate_normalized_invalid(coord, fmt):
     with pytest.raises(ValueError) as e:
-        WorldCoordinate.normalized(coord, fmt)
+        WorldCoordinate.with_format(fmt).from_string(coord)
     assert "does not match expected format" in str(e.value)
