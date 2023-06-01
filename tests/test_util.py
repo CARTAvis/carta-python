@@ -1,11 +1,11 @@
 import types
 import pytest
 
-from carta.util import PixelString, AngularSizeString, WorldCoordinate
+from carta.util import PixelString, AngularSize, WorldCoordinate
 from carta.constants import NumberFormat as NF
 
 
-@pytest.mark.parametrize("clazz", [PixelString, AngularSizeString, WorldCoordinate])
+@pytest.mark.parametrize("clazz", [PixelString, AngularSize, WorldCoordinate])
 def test_class_has_docstring(clazz):
     assert clazz.__doc__ is not None
 
@@ -17,7 +17,7 @@ def find_members(*classes, member_type=types.MethodType):
                 yield getattr(clazz, name)
 
 
-@pytest.mark.parametrize("member", find_members(PixelString, AngularSizeString, WorldCoordinate))
+@pytest.mark.parametrize("member", find_members(PixelString, AngularSize, WorldCoordinate))
 def test_class_classmethods_have_docstrings(member):
     assert member.__doc__ is not None
 
@@ -113,7 +113,7 @@ def test_pixel_string_normalized_invalid(value):
     ("123px", False),
 ])
 def test_angular_size_string_valid(size, valid):
-    assert AngularSizeString.valid(size) == valid
+    assert AngularSize.valid(size) == valid
 
 
 @pytest.mark.parametrize("size,num,unit", [
@@ -162,13 +162,13 @@ def test_angular_size_string_valid(size, valid):
     ("123 uas", "0.000123", "\""),
 ])
 def test_angular_size_string_normalized(size, num, unit):
-    assert AngularSizeString.normalized(size) == (num, unit)
+    assert AngularSize.normalized(size) == (num, unit)
 
 
 @pytest.mark.parametrize("size", ["123cm", "abc", "-123", "123px"])
 def test_angular_size_string_normalized_invalid(size):
     with pytest.raises(ValueError) as e:
-        AngularSizeString.normalized(size)
+        AngularSize.normalized(size)
     assert "not in a recognized angular size format" in str(e.value)
 
 

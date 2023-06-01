@@ -4,7 +4,7 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed, PixelString, AngularSizeString, WorldCoordinate
+from .util import CartaValidationFailed, PixelString, AngularSize, WorldCoordinate
 
 
 class Parameter:
@@ -623,7 +623,7 @@ class Color(Union):
 
 
 class Size(Union):
-    """A representation of an angular size or a size in pixels. Can be a number or a numeric string with valid size units. Validates strings using :obj:`carta.util.PixelString` and :obj:`carta.util.AngularSizeString`."""
+    """A representation of an angular size or a size in pixels. Can be a number or a numeric string with valid size units. Validates strings using :obj:`carta.util.PixelString` and :obj:`carta.util.AngularSize`."""
 
     class PixelValue(String):
         """Helper validator class which uses :obj:`carta.util.PixelString` to validate strings."""
@@ -634,11 +634,11 @@ class Size(Union):
                 raise ValueError(f"{value} is not a pixel value.")
 
     class AngularSize(String):
-        """Helper validator class which uses :obj:`carta.util.AngularSizeString` to validate strings."""
+        """Helper validator class which uses :obj:`carta.util.AngularSize` to validate strings."""
 
         def validate(self, value, parent):
             super().validate(value, parent)
-            if not AngularSizeString.valid(value):
+            if not AngularSize.valid(value):
                 raise ValueError(f"{value} is not an angular size.")
 
     def __init__(self):

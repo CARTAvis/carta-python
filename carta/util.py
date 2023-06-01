@@ -188,7 +188,7 @@ class PixelString:
         return m.group(1)
 
 
-class AngularSizeString:
+class AngularSize:
     """Parses angular sizes."""
 
     NORMALIZED_UNIT = {
@@ -230,7 +230,7 @@ class AngularSizeString:
     def valid(cls, value):
         """Whether the input string is a numeric value followed by an angular size unit.
 
-        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.AngularSizeString.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
+        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.AngularSize.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
 
         Parameters
         ----------
@@ -248,7 +248,7 @@ class AngularSizeString:
     def normalized(cls, value):
         """Parse a string containing a numeric size and a unit, and return the size and the normalized unit.
 
-        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.AngularSizeString.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
+        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.AngularSize.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
 
         Parameters
         ----------
@@ -359,7 +359,7 @@ class WorldCoordinate:
 class DegreesCoordinate(WorldCoordinate):
     """Parses world coordinates in decimal degree format."""
     FMT = NumberFormat.DEGREES
-    DEGREE_UNITS = {k for k, v in AngularSizeString.NORMALIZED_UNIT.items() if v == "deg"}
+    DEGREE_UNITS = {k for k, v in AngularSize.NORMALIZED_UNIT.items() if v == "deg"}
     REGEX = {
         "DEGREE_UNIT": rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$",
         "DECIMAL": r"^-?\d+(\.\d+)?$",
