@@ -495,12 +495,13 @@ class Image:
         ----------
         size : {0}
         """
-        if PixelValue.valid(str(size)):
-            self.call_action("zoomToSizeX", PixelValue.as_float(str(size)))
+        size = str(size)
+        if PixelValue.valid(size):
+            self.call_action("zoomToSizeX", PixelValue.as_float(size))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
-            self.call_action("zoomToSizeXWcs", AngularSize.normalized(str(size)))
+            self.call_action("zoomToSizeXWcs", str(AngularSize.from_string(size)))
 
     @validate(Size())
     def zoom_to_size_y(self, size):
@@ -512,12 +513,13 @@ class Image:
         ----------
         size : {0}
         """
-        if PixelValue.valid(str(size)):
-            self.call_action("zoomToSizeY", PixelValue.as_float(str(size)))
+        size = str(size)
+        if PixelValue.valid(size):
+            self.call_action("zoomToSizeY", PixelValue.as_float(size))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
-            self.call_action("zoomToSizeYWcs", AngularSize.normalized(str(size)))
+            self.call_action("zoomToSizeYWcs", str(AngularSize.from_string(size)))
 
     @validate(Number(), Boolean())
     def set_zoom_level(self, zoom, absolute=True):

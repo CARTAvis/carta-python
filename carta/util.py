@@ -189,48 +189,33 @@ class PixelValue:
 
 
 class AngularSize:
-    """Parses angular sizes."""
-
-    NORMALIZED_UNIT = {
-        "arcminutes": "'",
-        "arcminute": "'",
-        "arcmin": "'",
-        "amin": "'",
-        "arcseconds": "\"",
-        "arcsecond": "\"",
-        "arcsec": "\"",
-        "asec": "\"",
-        "deg": "deg",
-        "degree": "deg",
-        "degrees": "deg",
-        "": "\"",  # No units = arcsec
-        "\"": "\"",
-        "'": "'",
-    }
-
-    SMALL_UNIT_FACTOR = {
-        "milliarcseconds": 1e-3,
-        "milliarcsecond": 1e-3,
-        "milliarcsec": 1e-3,
-        "mas": 1e-3,
-        "microarcseconds": 1e-6,
-        "microarcsecond": 1e-6,
-        "microarcsec": 1e-6,
-        "µas": 1e-6,
-        "uas": 1e-6,
-    }
-
-    SYMBOL_UNITS = {"", "'", "\""}
-    WORD_UNITS = (NORMALIZED_UNIT.keys() | SMALL_UNIT_FACTOR.keys()) - SYMBOL_UNITS
-
-    SYMBOL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)({'|'.join(SYMBOL_UNITS)})$"
-    WORD_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(WORD_UNITS)})$"
-
+    "An angular size."
+    FORMATS = {}
+    SYMBOL_UNITS = []
+    WORD_UNITS = []
+    
+    def __init__(self, value):
+        self.value = value
+    
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        base = AngularSize
+        
+        for unit in cls.INPUT_UNITS:
+            base.FORMATS[unit] = cls
+            if len(unit) > 1:
+                base.WORD_UNITS.append(unit)
+            else:
+                base.SYMBOL_UNITS.append(unit)
+        
+        base.SYMBOL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)({'|'.join(base.SYMBOL_UNITS)})$"
+        base.WORD_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(base.WORD_UNITS)})$"
+    
     @classmethod
     def valid(cls, value):
         """Whether the input string is a numeric value followed by an angular size unit.
 
-        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.AngularSize.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
+        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in subclasses of :obj:`carta.util.AngularSize`. Whitespace is permitted after the number and before a unit which is a word, but not before a single-character unit.
 
         Parameters
         ----------
@@ -243,12 +228,12 @@ class AngularSize:
             Whether the input string is an angular size.
         """
         return any((re.match(cls.WORD_UNIT_REGEX, value, re.IGNORECASE), re.match(cls.SYMBOL_UNIT_REGEX, value, re.IGNORECASE)))
-
+    
     @classmethod
-    def normalized(cls, value):
-        """Parse a string containing a numeric size and a unit, and return the size and the normalized unit.
+    def from_string(cls, value):
+        """Construct an angular size object from a string.
 
-        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in :obj:`carta.util.AngularSize.NORMALIZED_UNIT`. Whitespace is permitted after the number and before a unit which is a word, but not before ``'`` or ``"``.
+        A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in subclasses of :obj:`carta.util.AngularSize`. Whitespace is permitted after the number and before a unit which is a word, but not before a single-character unit.
 
         Parameters
         ----------
@@ -257,10 +242,8 @@ class AngularSize:
 
         Returns
         -------
-        string
-            The numeric portion of the angular size string.
-        string
-            The normalized unit.
+        :obj:`carta.util.AngularSize`
+            The angular size object.
 
         Raises
         ------
@@ -273,17 +256,50 @@ class AngularSize:
             if m is None:
                 raise ValueError(f"{repr(value)} is not in a recognized angular size format.")
         value, unit = m.groups()
+        return cls.FORMATS[unit](float(value))
+    
+    def __str__(self):
+        value = self.value * self.FACTOR
+        return f"{value:g}{self.OUTPUT_UNIT}"
 
-        if unit in cls.SMALL_UNIT_FACTOR:
-            value = f"{(float(value) * cls.SMALL_UNIT_FACTOR[unit]):g}"
-            unit = "\""
 
-        unit = cls.NORMALIZED_UNIT[unit]
-        return f"{value}{unit}"
+class DegreesSize(AngularSize):
+    """An angular size in degrees."""
+    INPUT_UNITS = ("deg", "degree", "degrees")
+    OUTPUT_UNIT = "deg"
+    FACTOR = 1
+    
+
+class ArcminSize(AngularSize):
+    """An angular size in arcminutes."""
+    INPUT_UNITS = ("'", "arcminutes", "arcminute", "arcmin", "amin")
+    OUTPUT_UNIT = "'"
+    FACTOR = 1
+    
+
+class ArcsecSize(AngularSize):
+    """An angular size in arcseconds."""
+    INPUT_UNITS = ("\"", "", "arcseconds", "arcsecond", "arcsec", "asec")
+    OUTPUT_UNIT = "\""
+    FACTOR = 1
+    
+
+class MilliArcsecSize(AngularSize):
+    """An angular size in milliarcseconds."""
+    INPUT_UNITS = ("milliarcseconds", "milliarcsecond", "milliarcsec", "mas")
+    OUTPUT_UNIT = "\""
+    FACTOR = 1e-3
+    
+
+class MicroArcsecSize(AngularSize):
+    """An angular size in microarcseconds."""
+    INPUT_UNITS = ("microarcseconds", "microarcsecond", "microarcsec", "µas", "uas")
+    OUTPUT_UNIT = "\""
+    FACTOR = 1e-6
 
 
 class WorldCoordinate:
-    """Parses world coordinates."""
+    """A world coordinate."""
 
     FMT = None
     FORMATS = {}
@@ -341,9 +357,9 @@ class WorldCoordinate:
 
 
 class DegreesCoordinate(WorldCoordinate):
-    """Parses world coordinates in decimal degree format."""
+    """A world coordinate in decimal degree format."""
     FMT = NumberFormat.DEGREES
-    DEGREE_UNITS = {k for k, v in AngularSize.NORMALIZED_UNIT.items() if v == "deg"}
+    DEGREE_UNITS = DegreesSize.INPUT_UNITS
     REGEX = {
         "DEGREE_UNIT": rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$",
         "DECIMAL": r"^-?\d+(\.\d+)?$",
@@ -381,7 +397,10 @@ class DegreesCoordinate(WorldCoordinate):
 
 
 class HexagesimalCoordinate(WorldCoordinate):
-    """Common functionality for parsing world coordinates in hexagesimal format."""
+    """A world coordinate in hexagesimal format.
+    
+    This class contains common functionality for parsing the HMS and DMS formats. 
+    """
     @classmethod
     def from_string(cls, value):
         """Construct a world coordinate object in hexagesimal format from a string.
@@ -423,7 +442,7 @@ class HexagesimalCoordinate(WorldCoordinate):
 
 
 class HMSCoordinate(HexagesimalCoordinate):
-    """Parses world coordinates in HMS format."""
+    """A world coordinate in HMS format."""
     FMT = NumberFormat.HMS
     REGEX = {
         "COLON": r"^(-?\d{0,2}):(\d{0,2}):(\d{1,2}(?:\.\d+)?)?$",
@@ -436,7 +455,7 @@ class HMSCoordinate(HexagesimalCoordinate):
 
 
 class DMSCoordinate(HexagesimalCoordinate):
-    """Parses world coordinates in DMS format."""
+    """A world coordinate in DMS format."""
     FMT = NumberFormat.DMS
     REGEX = {
         "COLON": r"^(-?\d*):(\d{0,2}):(\d{1,2}(?:\.\d+)?)?$",

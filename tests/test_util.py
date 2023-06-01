@@ -163,14 +163,14 @@ def test_angular_size_valid(size, valid):
     ("123 µas", "0.000123\""),
     ("123 uas", "0.000123\""),
 ])
-def test_angular_size_normalized(size, norm):
-    assert AngularSize.normalized(size) == norm
+def test_angular_size_from_string(size, norm):
+    assert str(AngularSize.from_string(size)) == norm
 
 
 @pytest.mark.parametrize("size", ["123cm", "abc", "-123", "123px"])
-def test_angular_size_normalized_invalid(size):
+def test_angular_size_from_string_invalid(size):
     with pytest.raises(ValueError) as e:
-        AngularSize.normalized(size)
+        AngularSize.from_string(size)
     assert "not in a recognized angular size format" in str(e.value)
 
 
