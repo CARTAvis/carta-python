@@ -678,28 +678,32 @@ class Image:
     def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
+        All parameters are optional. For each option that is not provided, the value currently set in the frontend will be preserved. Initial frontend settings are noted below.
+
+        We deduce some boolean options. For example, providing an explicit pixel averaging width with the **pixel_averaging** parameter will automatically enable pixel averaging unless **pixel_averaging_enabled** is also explicitly set to ``False``. To disable pixel averaging, explicitly set **pixel_averaging_enabled** to ``False``.
+
         Parameters
         ----------
         angular_source : {0}
             The angular source. This is initially set to computed PA if the image contains Stokes information, otherwise to the current image.
         intensity_source : {1}
-            The intensity source. If the image is with Stoke information, ``Computed PI`` is set by default; If the image is without Stoke information, ``Current image`` is set.
+            The intensity source. This is initially set to computed PI if the image contains Stokes information, otherwise to the current image.
         pixel_averaging_enabled : {2}
-            Enable pixel averaging.
+            Enable pixel averaging. This is initially enabled if the pixel averaging width is positive.
         pixel_averaging : {3}
-            The pixel averaging width in pixel.
+            The pixel averaging width in pixels. The initial value can be configured in the frontend preferences (the default is ``4``).
         fractional_intensity : {4}
-            Enable fractional polarization intensity. By default the absolute polarization intensity is used.
+            Enable fractional polarization intensity. The initial value can be configured in the frontend preferences. By default this is disabled and the absolute polarization intensity is used.
         threshold_enabled : {5}
-            Enable threshold.
+            Enable threshold. Initially the threshold is disabled.
         threshold : {6}
-            The threshold in Jy/pixels.
+            The threshold in Jy/pixels. The initial value is zero.
         debiasing : {7}
-            Enable debiasing.
+            Enable debiasing. This is initially disabled.
         q_error : {8}
-            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Debiasing is disabled by default.
+            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Initially set to zero.
         u_error : {9}
-            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Debiasing is disabled by default.
+            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Initially set to zero.
         """
         if pixel_averaging is not None and pixel_averaging_enabled is None:
             pixel_averaging_enabled = True
@@ -739,17 +743,17 @@ class Image:
         Parameters
         ----------
         thickness : {0}
-            The line thickness in pixels. By default is 1.
+            The line thickness in pixels. The default is ``1``.
         intensity_min : {1}
             The minimum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         intensity_max : {2}
             The maximum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         length_min : {3}
-            The minimum value of line length in pixels. By default is 0.
+            The minimum value of line length in pixels. The defauly is ``0``.
         length_max : {4}
-            The maximum value of line length in pixels. By default is 20.
+            The maximum value of line length in pixels. The default is ``20``.
         rotation_offset : {5}
-            The rotation offset in degrees. By default is 0.
+            The rotation offset in degrees. The default is ``0``.
         """
         if thickness is not None:
             self.call_action("vectorOverlayConfig.setThickness", thickness)
@@ -809,44 +813,44 @@ class Image:
 
     @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()),NoneOr(Number()), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
     def plot_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None):
-        """Set the vector overlay configuration, styling and colour or colourmap; and apply vector overlay; in a single step.
+        """Set the vector overlay configuration, styling and color or colormap; and apply vector overlay; in a single step.
 
-        If both a colour and a colourmap are provided, the colourmap will be visible.
+        If both a color and a colormap are provided, the colormap will be visible.
 
         Parameters
         ----------
         angular_source : {0}
             The angular source. This is initially set to computed PA if the image contains Stokes information, otherwise to the current image.
         intensity_source : {1}
-            The intensity source. If the image is with Stoke information, ``Computed PI`` is set by default; If the image is without Stoke information, ``Current image`` is set.
-        pixel_averaging_enabled: {2}
-            To enable pixel averaging. Default is ``True``
+            The intensity source. This is initially set to computed PI if the image contains Stokes information, otherwise to the current image.
+        pixel_averaging_enabled : {2}
+            Enable pixel averaging. This is initially enabled if the pixel averaging width is positive.
         pixel_averaging : {3}
-            The pixel averaging width in pixel. Set to ``None`` to disable pixel averaging.
+            The pixel averaging width in pixels. The initial value can be configured in the frontend preferences (the default is ``4``).
         fractional_intensity : {4}
-            Enable fractional polarization intensity. By default the absolute polarization intensity is used.
+            Enable fractional polarization intensity. The initial value can be configured in the frontend preferences. By default this is disabled and the absolute polarization intensity is used.
         threshold_enabled : {5}
-            To enable pixel threshold. Default is ``False``
+            Enable threshold. Initially the threshold is disabled.
         threshold : {6}
-            The threshold in Jy/pixels. By default is 4.
+            The threshold in Jy/pixels. The initial value is zero.
         debiasing : {7}
-            To enable debiasing. Default is ``False``.
+            Enable debiasing. This is initially disabled.
         q_error : {8}
-            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Debiasing is disabled by default.
+            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Initially set to zero.
         u_error : {9}
-            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Debiasing is disabled by default.
+            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Initially set to zero.
         thickness : {10}
-            The line thickness in pixels. By default is 1.
+            The line thickness in pixels. The default is ``1``.
         intensity_min : {11}
-            The minimum value of intensity in Jy/pixel.
-        intensity_min : {12}
-            The maximum value of intensity in Jy/pixel.
+            The minimum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
+        intensity_max : {12}
+            The maximum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         length_min : {13}
-            The minimum value of line length in pixels. By default is 0.
-        length_min : {14}
-            The maximum value of line length in pixels. By default is 20.
+            The minimum value of line length in pixels. Defauly is ``0``.
+        length_max : {14}
+            The maximum value of line length in pixels. The default is ``20``.
         rotation_offset : {15}
-            The rotation offset in degrees. By default is 0.
+            The rotation offset in degrees. The default is ``0``.
         color : {16}
             The color.
         colormap : {17}
