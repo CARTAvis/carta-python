@@ -597,7 +597,7 @@ class Image:
         Parameters
         ----------
         colormap : {0}
-            The colormap.
+            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {1}
             The colormap bias.
         contrast : {2}
@@ -635,7 +635,7 @@ class Image:
         color : {5}
             The color.
         colormap : {6}
-            The colormap.
+            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {7}
             The colormap bias.
         contrast : {8}
@@ -794,11 +794,11 @@ class Image:
         Parameters
         ----------
         colormap : {0}
-            The colormap.
+            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {1}
-            The colormap bias.
+            The colormap bias. Set to ``0`` by default.
         contrast : {2}
-            The colormap contrast.
+            The colormap contrast. Set to ``1`` by default
         """
         self.call_action("vectorOverlayConfig.setColormap", colormap)
         self.call_action("vectorOverlayConfig.setColormapEnabled", True)
@@ -854,11 +854,11 @@ class Image:
         color : {16}
             The color.
         colormap : {17}
-            The colormap.
+            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {18}
-            The colormap bias.
+            The colormap bias. Set to ``0`` by default.
         contrast : {19}
-            The colormap contrast.
+            The colormap contrast. Set to ``1`` by default
         """
         self.configure_vector_overlay(angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
         self.set_vector_overlay_style(thickness, intensity_min, intensity_max, length_min, length_max, rotation_offset)
