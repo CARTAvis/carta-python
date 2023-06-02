@@ -583,7 +583,7 @@ class Image:
         Parameters
         ----------
         color : {0}
-            The color.
+            The color. The default value is ``#238551`` (a shade of green).
         """
         self.call_action("contourConfig.setColor", color)
         self.call_action("contourConfig.setColormapEnabled", False)
@@ -633,7 +633,7 @@ class Image:
         thickness : {4}
             The dash thickness.
         color : {5}
-            The color.
+            The color. The default value is ``#238551`` (a shade of green).
         colormap : {6}
             The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {7}
@@ -780,7 +780,7 @@ class Image:
         Parameters
         ----------
         color : {0}
-            The color.
+            The color. The default value is ``#238551`` (a shade of green).
         """
         self.call_action("vectorOverlayConfig.setColor", color)
         self.call_action("vectorOverlayConfig.setColormapEnabled", False)
@@ -852,7 +852,7 @@ class Image:
         rotation_offset : {15}
             The rotation offset in degrees. The default is ``0``.
         color : {16}
-            The color.
+            The color. The default value is ``#238551`` (a shade of green).
         colormap : {17}
             The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {18}
