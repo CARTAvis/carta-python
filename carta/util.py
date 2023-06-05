@@ -395,12 +395,12 @@ class DegreesCoordinate(WorldCoordinate):
                 fvalue = float(m.group(1))
             else:
                 raise ValueError(f"Coordinate string {value} does not match expected format {cls.FMT}.")
-        
+
         if axis == SpatialAxis.X and not 0 <= fvalue < 360:
             raise ValueError(f"Degrees coordinate string {value} is outside the permitted longitude range [0, 360).")
         if axis == SpatialAxis.Y and not -90 <= fvalue <= 90:
             raise ValueError(f"Degrees coordinate string {value} is outside the permitted latitude range [-90, 90].")
-        
+
         return cls(fvalue)
 
     def __init__(self, degrees):
@@ -415,7 +415,7 @@ class SexagesimalCoordinate(WorldCoordinate):
 
     This class contains common functionality for parsing the HMS and DMS formats.
     """
-    
+
     @classmethod
     def from_string(cls, value, axis):
         """Construct a world coordinate object in sexagesimal format from a string.
@@ -439,12 +439,12 @@ class SexagesimalCoordinate(WorldCoordinate):
 
         m = re.match(cls.REGEX["COLON"], value, re.IGNORECASE)
         if m is not None:
-           return cls(*to_float(m.groups()))
-        
+            return cls(*to_float(m.groups()))
+
         m = re.match(cls.REGEX["LETTER"], value, re.IGNORECASE)
         if m is not None:
             return cls(*to_float(m.groups()))
-    
+
         raise ValueError(f"Coordinate string {value} does not match expected format {cls.FMT}.")
 
     def __init__(self, hours_or_degrees, minutes, seconds):
@@ -453,10 +453,10 @@ class SexagesimalCoordinate(WorldCoordinate):
         self.seconds = seconds
 
     def __str__(self):
-        fractional_seconds, whole_seconds= math.modf(self.seconds)
+        fractional_seconds, whole_seconds = math.modf(self.seconds)
         fraction_string = f"{fractional_seconds:g}".lstrip("0") if fractional_seconds else ""
         return f"{self.hours_or_degrees:g}:{self.minutes:0>2.0f}:{whole_seconds:0>2.0f}{fraction_string}"
-    
+
     def as_tuple(self):
         return self.hours_or_degrees, self.minutes, self.seconds
 
@@ -469,7 +469,7 @@ class HMSCoordinate(SexagesimalCoordinate):
         "COLON": r"^(-?(?:\d|[01]\d|2[0-3])):([0-5]\d):([0-5]\d(?:\.\d+)?)$",
         "LETTER": r"^(-?(?:\d|[01]\d|2[0-3]))h([0-5]\d)m([0-5]\d(?:\.\d+)?)s$",
     }
-    
+
     @classmethod
     def from_string(cls, value, axis):
         """Construct a world coordinate object in HMS format from a string.
@@ -489,14 +489,14 @@ class HMSCoordinate(SexagesimalCoordinate):
             The coordinate object.
         """
         H, M, S = super().from_string(value, axis).as_tuple()
-        
+
         if axis == SpatialAxis.X and not 0 <= H < 24:
             raise ValueError(f"HMS coordinate string {value} is outside the permitted longitude range [0:00:00, 24:00:00).")
-        
-        if axis == SpatialAxis.Y: # Temporary; we can make this whole option invalid
+
+        if axis == SpatialAxis.Y:  # Temporary; we can make this whole option invalid
             if H < -6 or H > 6 or ((H in (-6, 6)) and (M or S)):
                 raise ValueError(f"HMS coordinate string {value} is outside the permitted latitude range [-6:00:00, 6:00:00].")
-            
+
         return cls(H, M, S)
 
 
@@ -507,7 +507,7 @@ class DMSCoordinate(SexagesimalCoordinate):
         "COLON": r"^(-?\d+):([0-5]\d):([0-5]\d(?:\.\d+)?)$",
         "LETTER": r"^(-?\d+)d([0-5]\d)m([0-5]\d(?:\.\d+)?)s$",
     }
-    
+
     @classmethod
     def from_string(cls, value, axis):
         """Construct a world coordinate object in DMS format from a string.
@@ -527,12 +527,12 @@ class DMSCoordinate(SexagesimalCoordinate):
             The coordinate object.
         """
         D, M, S = super().from_string(value, axis).as_tuple()
-        
+
         if axis == SpatialAxis.X and not 0 <= D < 360:
             raise ValueError(f"DMS coordinate string {value} is outside the permitted longitude range [0:00:00, 360:00:00).")
-        
+
         if axis == SpatialAxis.Y:
             if D < -90 or D > 90 or ((D in (-90, 90)) and (M or S)):
                 raise ValueError(f"DMS coordinate string {value} is outside the permitted latitude range [-90:00:00, 90:00:00].")
-            
+
         return cls(D, M, S)

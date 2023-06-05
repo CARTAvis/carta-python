@@ -198,6 +198,7 @@ def test_angular_size_from_string_invalid(size):
 def test_degrees_coordinate_valid(coord, valid):
     assert DegreesCoordinate.valid(coord) == valid
 
+
 @pytest.mark.parametrize("coord,valid", [
     ("00:00:00.0", True),
     ("00:00:00", True),
@@ -209,7 +210,7 @@ def test_degrees_coordinate_valid(coord, valid):
     ("-12h34m56.789s", True),
     ("12h34m56.789s", True),
     ("12h34m56s", True),
-    
+
     ("100:00:00", False),
     ("10:00:60", False),
     ("10:00:65", False),
@@ -246,7 +247,7 @@ def test_hms_coordinate_valid(coord, valid):
     ("12d34m56s", True),
     ("360:00:00", True),
     ("400:00:00", True),
-    
+
     ("10:00:60", False),
     ("10:00:65", False),
     ("10:60:00", False),
@@ -270,11 +271,11 @@ def test_world_coordinate_valid(mocker):
     degrees_valid = mocker.patch.object(DegreesCoordinate, "valid", return_value=True)
     hms_valid = mocker.patch.object(HMSCoordinate, "valid", return_value=True)
     dms_valid = mocker.patch.object(DMSCoordinate, "valid", return_value=True)
-    
-    assert WorldCoordinate.valid("example") # Valid because first child returned true
-    
-    degrees_valid.assert_called_with("example") # First child should have been called
-    assert not hms_valid.called # Subsequent children not called because any short-circuits
+
+    assert WorldCoordinate.valid("example")  # Valid because first child returned true
+
+    degrees_valid.assert_called_with("example")  # First child should have been called
+    assert not hms_valid.called  # Subsequent children not called because any short-circuits
     assert not dms_valid.called
 
 
@@ -282,96 +283,74 @@ def test_world_coordinate_invalid(mocker):
     degrees_valid = mocker.patch.object(DegreesCoordinate, "valid", return_value=False)
     hms_valid = mocker.patch.object(HMSCoordinate, "valid", return_value=False)
     dms_valid = mocker.patch.object(DMSCoordinate, "valid", return_value=False)
-    
-    assert not WorldCoordinate.valid("example") # Invalid because all children returned false
-    
-    degrees_valid.assert_called_with("example") # All children should have been called
+
+    assert not WorldCoordinate.valid("example")  # Invalid because all children returned false
+
+    degrees_valid.assert_called_with("example")  # All children should have been called
     hms_valid.assert_called_with("example")
     dms_valid.assert_called_with("example")
-    
-
-#@pytest.mark.parametrize("coord,axis,fmt,norm", [
-#])
-#def test_degrees_coordinate_from_string(coord, axis, fmt, norm):
-    #assert str(DegreesCoordinate.with_format(fmt).from_string(coord, axis)) == norm
 
 
-#@pytest.mark.parametrize("coord,axis,fmt,error", [
-#])
-#def test_degrees_coordinate_from_string_invalid(coord, axis, fmt, norm):
-    #assert str(DegreesCoordinate.with_format(fmt).from_string(coord, axis)) == norm
+@pytest.mark.parametrize("coord,axis,norm,error", [
+    ("123", SA.X, "123", None),
+    ("400", SA.X, None, "outside the permitted longitude range"),
+    ("-123", SA.X, None, "outside the permitted longitude range"),
+    ("12", SA.Y, "12", None),
+    ("-34.5", SA.Y, "-34.5", None),
+    ("123", SA.Y, None, "outside the permitted latitude range"),
+    ("-123", SA.Y, None, "outside the permitted latitude range"),
+])
+def test_degrees_coordinate_from_string(coord, axis, norm, error):
+    if norm is not None:
+        assert str(DegreesCoordinate.from_string(coord, axis)) == norm
+    else:
+        with pytest.raises(ValueError) as e:
+            DegreesCoordinate.from_string(coord, axis)
+        assert error in str(e.value)
 
 
-
-# TODO: this needs a complete refactoring. Use the individual subclasses.
-
-#@pytest.mark.parametrize("axis", [SA.X, SA.Y])
-#@pytest.mark.parametrize("coord,fmt,norm", [
-    #("123deg", NF.DEGREES, "123"),
-    #("123degree", NF.DEGREES, "123"),
-    #("123degrees", NF.DEGREES, "123"),
-    #("123 deg", NF.DEGREES, "123"),
-    #("123 degree", NF.DEGREES, "123"),
-    #("123 degrees", NF.DEGREES, "123"),
-    #("123", NF.DEGREES, "123"),
-    #("12:34:56.789", NF.HMS, "12:34:56.789"),
-    #("12:34:56.789", NF.DMS, "12:34:56.789"),
-    #("12h34m56.789s", NF.HMS, "12:34:56.789"),
-    #("12d34m56.789s", NF.DMS, "12:34:56.789"),
-    #("12h34m56s", NF.HMS, "12:34:56"),
-    #("12h34m", NF.HMS, "12:34:"),
-    #("34m56.789s", NF.HMS, ":34:56.789"),
-    #("12h", NF.HMS, "12::"),
-    #("34m", NF.HMS, ":34:"),
-    #("56.789s", NF.HMS, "::56.789"),
-    #("12h56.789s", NF.HMS, "12::56.789"),
-    #("", NF.HMS, "::"),
-    #("12d34m56s", NF.DMS, "12:34:56"),
-    #("12d34m", NF.DMS, "12:34:"),
-    #("34m56.789s", NF.DMS, ":34:56.789"),
-    #("12d", NF.DMS, "12::"),
-    #("34m", NF.DMS, ":34:"),
-    #("56.789s", NF.DMS, "::56.789"),
-    #("12d56.789s", NF.DMS, "12::56.789"),
-    #("", NF.DMS, "::"),
-    #("123d", NF.DMS, "123::"),
-#])
-#def test_world_coordinate_from_string_both_axes(coord, axis, fmt, norm):
-    #assert str(WorldCoordinate.with_format(fmt).from_string(coord, axis)) == norm
+@pytest.mark.parametrize("coord,axis,norm,error", [
+    ("12:34:56.7", SA.X, "12:34:56.7", None),
+    ("-12:34:56.7", SA.X, None, "outside the permitted longitude range"),
+    ("5:34:56.7", SA.Y, "5:34:56.7", None),
+    ("-5:34:56.7", SA.Y, "-5:34:56.7", None),
+    ("12:34:56.7", SA.Y, None, "outside the permitted latitude range"),
+    ("-12:34:56.7", SA.Y, None, "outside the permitted latitude range"),
+])
+def test_hms_coordinate_from_string(coord, axis, norm, error):
+    if norm is not None:
+        assert str(HMSCoordinate.from_string(coord, axis)) == norm
+    else:
+        with pytest.raises(ValueError) as e:
+            HMSCoordinate.from_string(coord, axis)
+        assert error in str(e.value)
 
 
-#@pytest.mark.parametrize("coord,axis,fmt,norm", [
-    
-#])
-#def test_world_coordinate_from_string_one_axis(coord, axis, fmt, norm):
-    #assert str(WorldCoordinate.with_format(fmt).from_string(coord, axis)) == norm
+@pytest.mark.parametrize("coord,axis,norm,error", [
+    ("12:34:56.7", SA.X, "12:34:56.7", None),
+    ("400:34:56.7", SA.X, None, "outside the permitted longitude range"),
+    ("-12:34:56.7", SA.X, None, "outside the permitted longitude range"),
+    ("12:34:56.7", SA.Y, "12:34:56.7", None),
+    ("-12:34:56.7", SA.Y, "-12:34:56.7", None),
+    ("100:34:56.7", SA.Y, None, "outside the permitted latitude range"),
+    ("-100:34:56.7", SA.Y, None, "outside the permitted latitude range"),
+])
+def test_dms_coordinate_from_string(coord, axis, norm, error):
+    if norm is not None:
+        assert str(DMSCoordinate.from_string(coord, axis)) == norm
+    else:
+        with pytest.raises(ValueError) as e:
+            DMSCoordinate.from_string(coord, axis)
+        assert error in str(e.value)
 
 
-#@pytest.mark.parametrize("axis", [SA.X, SA.Y])
-#@pytest.mark.parametrize("coord,fmt", [
-    #("123deg", NF.HMS),
-    #("12:34:56.789", NF.DEGREES),
-    #("123:45:67", NF.HMS),
-    #("123h45m67s", NF.HMS),
-    #("123d45m67s", NF.HMS),
-#])
-#def test_world_coordinate_from_string_invalid_both_axes(coord, axis, fmt):
-    #with pytest.raises(ValueError) as e:
-        #WorldCoordinate.with_format(fmt).from_string(coord, axis)
-    #assert any((
-            #"does not match expected format" in str(e.value),
-            #"has invalid" in str(e.value)
-            #))
+@pytest.mark.parametrize("fmt,expected_child", [
+    (NF.DEGREES, DegreesCoordinate),
+    (NF.HMS, HMSCoordinate),
+    (NF.DMS, DMSCoordinate),
+])
+def test_world_coordinate_with_format(fmt, expected_child):
+    assert WorldCoordinate.with_format(fmt) == expected_child
 
 
-#@pytest.mark.parametrize("coord,axis,fmt", [
-    #("", SA.X, NF.DEGREES),
-    #("", SA.X, NF.DEGREES),
-    #("", SA.Y, NF.DEGREES),
-    #("", SA.Y, NF.DEGREES),
-    #("", SA.Y, NF.DEGREES),
-#])
-#def test_world_coordinate_from_string_invalid(coord, axis, fmt):
-    #with pytest.raises(ValueError) as e:
-        #WorldCoordinate.with_format(fmt).from_string(coord)
-    #assert 
+# TODO restore removed support for empty H, M and S
