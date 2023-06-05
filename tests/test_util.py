@@ -1,7 +1,7 @@
 import types
 import pytest
 
-from carta.util import PixelValue, AngularSize, WorldCoordinate, DegreesCoordinate, HMSCoordinate, DMSCoordinate
+from carta.util import PixelValue, AngularSize, DegreesSize, ArcminSize, ArcsecSize, MilliarcsecSize, MicroarcsecSize, WorldCoordinate, DegreesCoordinate, HMSCoordinate, DMSCoordinate
 from carta.constants import NumberFormat as NF, SpatialAxis as SA
 
 
@@ -66,58 +66,116 @@ def test_pixel_value_as_float_invalid(value):
 
 
 @pytest.mark.parametrize("size,valid", [
-    ("123arcminutes", True),
-    ("123arcseconds", True),
-    ("123arcminute", True),
-    ("123arcsecond", True),
-    ("123arcmin", True),
-    ("123arcsec", True),
-    ("123amin", True),
-    ("123asec", True),
     ("123deg", True),
     ("123degree", True),
     ("123degrees", True),
-    ("123milliarcseconds", True),
-    ("123milliarcsecond", True),
-    ("123milliarcsec", True),
-    ("123mas", True),
-    ("123microarcseconds", True),
-    ("123microarcsecond", True),
-    ("123microarcsec", True),
-    ("123µas", True),
-    ("123uas", True),
-    ("123 arcminutes", True),
-    ("123 arcseconds", True),
-    ("123 arcminute", True),
-    ("123 arcsecond", True),
-    ("123 arcmin", True),
-    ("123 arcsec", True),
-    ("123 amin", True),
-    ("123 asec", True),
     ("123 deg", True),
     ("123 degree", True),
     ("123 degrees", True),
-    ("123 milliarcseconds", True),
-    ("123 milliarcsecond", True),
-    ("123 milliarcsec", True),
-    ("123 mas", True),
-    ("123 microarcseconds", True),
-    ("123 microarcsecond", True),
-    ("123 microarcsec", True),
-    ("123 µas", True),
-    ("123 uas", True),
-    ("123", True),
-    ("123\"", True),
-    ("123'", True),
-    ("123′", True),
-    ("123″", True),
+
+    ("123 arcmin", False),
     ("123cm", False),
     ("abc", False),
     ("-123", False),
     ("123px", False),
 ])
-def test_angular_size_valid(size, valid):
-    assert AngularSize.valid(size) == valid
+def test_degrees_size_valid(size, valid):
+    assert DegreesSize.valid(size) == valid
+    if valid:
+        assert AngularSize.valid(size) == valid
+
+
+@pytest.mark.parametrize("size,valid", [
+    ("123arcminutes", True),
+    ("123arcminute", True),
+    ("123arcmin", True),
+    ("123amin", True),
+    ("123 arcminutes", True),
+    ("123 arcminute", True),
+    ("123 arcmin", True),
+    ("123 amin", True),
+
+    ("123 degrees", False),
+    ("123cm", False),
+    ("abc", False),
+    ("-123", False),
+    ("123px", False),
+])
+def test_arcmin_size_valid(size, valid):
+    assert ArcminSize.valid(size) == valid
+    if valid:
+        assert AngularSize.valid(size) == valid
+
+
+@pytest.mark.parametrize("size,valid", [
+    ("123arcseconds", True),
+    ("123arcsecond", True),
+    ("123arcsec", True),
+    ("123asec", True),
+    ("123 arcseconds", True),
+    ("123 arcsecond", True),
+    ("123 arcsec", True),
+    ("123 asec", True),
+    ("123", True),
+    ("123\"", True),
+    ("123″", True),
+
+    ("123 degrees", False),
+    ("123cm", False),
+    ("abc", False),
+    ("-123", False),
+    ("123px", False),
+])
+def test_arcsec_size_valid(size, valid):
+    assert ArcsecSize.valid(size) == valid
+    if valid:
+        assert AngularSize.valid(size) == valid
+
+
+@pytest.mark.parametrize("size,valid", [
+    ("123milliarcseconds", True),
+    ("123milliarcsecond", True),
+    ("123milliarcsec", True),
+    ("123mas", True),
+    ("123 milliarcseconds", True),
+    ("123 milliarcsecond", True),
+    ("123 milliarcsec", True),
+    ("123 mas", True),
+
+    ("123 degrees", False),
+    ("123cm", False),
+    ("abc", False),
+    ("-123", False),
+    ("123px", False),
+])
+def test_milliarcsec_size_valid(size, valid):
+    assert MilliarcsecSize.valid(size) == valid
+    if valid:
+        assert AngularSize.valid(size) == valid
+
+
+@pytest.mark.parametrize("size,valid", [
+    ("123microarcseconds", True),
+    ("123microarcsecond", True),
+    ("123microarcsec", True),
+    ("123µas", True),
+    ("123uas", True),
+    ("123 microarcseconds", True),
+    ("123 microarcsecond", True),
+    ("123 microarcsec", True),
+    ("123 µas", True),
+    ("123 uas", True),
+
+    ("123 degrees", False),
+    ("123cm", False),
+    ("abc", False),
+    ("-123", False),
+    ("123px", False),
+])
+def test_microarcsec_size_valid(size, valid):
+    assert MicroarcsecSize.valid(size) == valid
+    if valid:
+        assert AngularSize.valid(size) == valid
 
 
 @pytest.mark.parametrize("size,norm", [

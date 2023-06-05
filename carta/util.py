@@ -190,33 +190,43 @@ class PixelValue:
 
 
 class AngularSize:
-    "An angular size."
+    """An angular size.
+
+    This class provides methods for parsing angular sizes with any known unit, and should not be instantiated directly. Child classes can be used directly if the unit is known.
+
+    Child class instances have a string representation in a normalized format which can be parsed by the frontend.
+    """
     FORMATS = {}
-    SYMBOL_UNITS = []
-    WORD_UNITS = []
+    NAME = "angular size"
 
     def __init__(self, value):
         self.value = value
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        base = AngularSize
+        cls._update_unit_regex(cls.INPUT_UNITS)
 
         for unit in cls.INPUT_UNITS:
-            base.FORMATS[unit] = cls
-            if len(unit) > 1:
-                base.WORD_UNITS.append(unit)
-            else:
-                base.SYMBOL_UNITS.append(unit)
+            AngularSize.FORMATS[unit] = cls
 
-        base.SYMBOL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)({'|'.join(base.SYMBOL_UNITS)})$"
-        base.WORD_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(base.WORD_UNITS)})$"
+        AngularSize._update_unit_regex(AngularSize.FORMATS.keys())
+
+    @classmethod
+    def _update_unit_regex(cls, units):
+        """Update the unit regexes using the provided unit set."""
+        symbols = {u for u in units if len(u) <= 1}
+        words = units - symbols
+
+        cls.SYMBOL_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)({'|'.join(symbols)})$"
+        cls.WORD_UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*({'|'.join(words)})$"
 
     @classmethod
     def valid(cls, value):
         """Whether the input string is a numeric value followed by an angular size unit.
 
         A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in subclasses of :obj:`carta.util.AngularSize`. Whitespace is permitted after the number and before a unit which is a word, but not before a single-character unit.
+
+        This method may also be used from child classes if a specific format is required.
 
         Parameters
         ----------
@@ -235,6 +245,8 @@ class AngularSize:
         """Construct an angular size object from a string.
 
         A number without a unit is assumed to be in arcseconds. Permitted unit strings and their mappings to normalized units are stored in subclasses of :obj:`carta.util.AngularSize`. Whitespace is permitted after the number and before a unit which is a word, but not before a single-character unit.
+
+        This method may also be used from child classes if a specific format is required.
 
         Parameters
         ----------
@@ -255,46 +267,55 @@ class AngularSize:
         if m is None:
             m = re.match(cls.SYMBOL_UNIT_REGEX, value, re.IGNORECASE)
             if m is None:
-                raise ValueError(f"{repr(value)} is not in a recognized angular size format.")
+                raise ValueError(f"{repr(value)} is not in a recognized {cls.NAME} format.")
         value, unit = m.groups()
-        return cls.FORMATS[unit](float(value))
+        if cls is AngularSize:
+            return cls.FORMATS[unit](float(value))
+        return cls(float(value))
 
     def __str__(self):
+        if type(self) is AngularSize:
+            raise NotImplementedError()
         value = self.value * self.FACTOR
         return f"{value:g}{self.OUTPUT_UNIT}"
 
 
 class DegreesSize(AngularSize):
     """An angular size in degrees."""
-    INPUT_UNITS = ("deg", "degree", "degrees")
+    NAME = "degree"
+    INPUT_UNITS = {"deg", "degree", "degrees"}
     OUTPUT_UNIT = "deg"
     FACTOR = 1
 
 
 class ArcminSize(AngularSize):
     """An angular size in arcminutes."""
-    INPUT_UNITS = ("'", "arcminutes", "arcminute", "arcmin", "amin", "′")
+    NAME = "arcminute"
+    INPUT_UNITS = {"'", "arcminutes", "arcminute", "arcmin", "amin", "′"}
     OUTPUT_UNIT = "'"
     FACTOR = 1
 
 
 class ArcsecSize(AngularSize):
     """An angular size in arcseconds."""
-    INPUT_UNITS = ("\"", "", "arcseconds", "arcsecond", "arcsec", "asec", "″")
+    NAME = "arcsecond"
+    INPUT_UNITS = {"\"", "", "arcseconds", "arcsecond", "arcsec", "asec", "″"}
     OUTPUT_UNIT = "\""
     FACTOR = 1
 
 
-class MilliArcsecSize(AngularSize):
+class MilliarcsecSize(AngularSize):
     """An angular size in milliarcseconds."""
-    INPUT_UNITS = ("milliarcseconds", "milliarcsecond", "milliarcsec", "mas")
+    NAME = "milliarcsecond"
+    INPUT_UNITS = {"milliarcseconds", "milliarcsecond", "milliarcsec", "mas"}
     OUTPUT_UNIT = "\""
     FACTOR = 1e-3
 
 
-class MicroArcsecSize(AngularSize):
+class MicroarcsecSize(AngularSize):
     """An angular size in microarcseconds."""
-    INPUT_UNITS = ("microarcseconds", "microarcsecond", "microarcsec", "µas", "uas")
+    NAME = "microarcsecond"
+    INPUT_UNITS = {"microarcseconds", "microarcsecond", "microarcsec", "µas", "uas"}
     OUTPUT_UNIT = "\""
     FACTOR = 1e-6
 
