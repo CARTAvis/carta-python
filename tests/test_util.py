@@ -94,6 +94,8 @@ def test_degrees_size_valid(size, valid):
     ("123 arcminute", True),
     ("123 arcmin", True),
     ("123 amin", True),
+    ("123'", True),
+    ("123′", True),
 
     ("123 degrees", False),
     ("123cm", False),
@@ -180,57 +182,99 @@ def test_microarcsec_size_valid(size, valid):
 
 @pytest.mark.parametrize("size,norm", [
     ("123arcminutes", "123'"),
-    ("123arcseconds", "123\""),
     ("123arcminute", "123'"),
-    ("123arcsecond", "123\""),
     ("123arcmin", "123'"),
-    ("123arcsec", "123\""),
     ("123amin", "123'"),
+    ("123 arcminutes", "123'"),
+    ("123 arcminute", "123'"),
+    ("123 arcmin", "123'"),
+    ("123 amin", "123'"),
+    ("123'", "123'"),
+    ("123′", "123'"),
+])
+def test_arcmin_size_from_string(size, norm):
+    assert str(ArcminSize.from_string(size)) == norm
+    assert str(AngularSize.from_string(size)) == norm
+
+
+@pytest.mark.parametrize("size,norm", [
+    ("123arcseconds", "123\""),
+    ("123arcsecond", "123\""),
+    ("123arcsec", "123\""),
     ("123asec", "123\""),
+    ("123 arcseconds", "123\""),
+    ("123 arcsecond", "123\""),
+    ("123 arcsec", "123\""),
+    ("123 asec", "123\""),
+    ("123", "123\""),
+    ("123\"", "123\""),
+    ("123″", "123\""),
+])
+def test_arcsec_size_from_string(size, norm):
+    assert str(ArcsecSize.from_string(size)) == norm
+    assert str(AngularSize.from_string(size)) == norm
+
+
+@pytest.mark.parametrize("size,norm", [
     ("123deg", "123deg"),
     ("123degree", "123deg"),
     ("123degrees", "123deg"),
+    ("123 deg", "123deg"),
+    ("123 degree", "123deg"),
+    ("123 degrees", "123deg"),
+])
+def test_degrees_size_from_string(size, norm):
+    assert str(DegreesSize.from_string(size)) == norm
+    assert str(AngularSize.from_string(size)) == norm
+
+
+@pytest.mark.parametrize("size,norm", [
     ("123milliarcseconds", "0.123\""),
     ("123milliarcsecond", "0.123\""),
     ("123milliarcsec", "0.123\""),
     ("123mas", "0.123\""),
+    ("123 milliarcseconds", "0.123\""),
+    ("123 milliarcsecond", "0.123\""),
+    ("123 milliarcsec", "0.123\""),
+    ("123 mas", "0.123\""),
+])
+def test_milliarcsec_size_from_string(size, norm):
+    assert str(MilliarcsecSize.from_string(size)) == norm
+    assert str(AngularSize.from_string(size)) == norm
+
+
+@pytest.mark.parametrize("size,norm", [
     ("123microarcseconds", "0.000123\""),
     ("123microarcsecond", "0.000123\""),
     ("123microarcsec", "0.000123\""),
     ("123µas", "0.000123\""),
     ("123uas", "0.000123\""),
-    ("123 arcminutes", "123'"),
-    ("123 arcseconds", "123\""),
-    ("123 arcminute", "123'"),
-    ("123 arcsecond", "123\""),
-    ("123 arcmin", "123'"),
-    ("123 arcsec", "123\""),
-    ("123 amin", "123'"),
-    ("123 asec", "123\""),
-    ("123 deg", "123deg"),
-    ("123 degree", "123deg"),
-    ("123 degrees", "123deg"),
-    ("123", "123\""),
-    ("123\"", "123\""),
-    ("123'", "123'"),
-    ("123″", "123\""),
-    ("123′", "123'"),
-    ("123 milliarcseconds", "0.123\""),
-    ("123 milliarcsecond", "0.123\""),
-    ("123 milliarcsec", "0.123\""),
-    ("123 mas", "0.123\""),
     ("123 microarcseconds", "0.000123\""),
     ("123 microarcsecond", "0.000123\""),
     ("123 microarcsec", "0.000123\""),
     ("123 µas", "0.000123\""),
     ("123 uas", "0.000123\""),
 ])
-def test_angular_size_from_string(size, norm):
+def test_microarcsec_size_from_string(size, norm):
+    assert str(MicroarcsecSize.from_string(size)) == norm
     assert str(AngularSize.from_string(size)) == norm
 
 
+@pytest.mark.parametrize("clazz,size", [
+    (DegreesSize, "123arcsec"),
+    (ArcminSize, "123degrees"),
+    (ArcsecSize, "123degrees"),
+    (MilliarcsecSize, "123degrees"),
+    (MicroarcsecSize, "123degrees"),
+])
+def test_angular_size_from_string_one_invalid(clazz, size):
+    with pytest.raises(ValueError) as e:
+        clazz.from_string(size)
+    assert "not in a recognized" in str(e.value)
+
+
 @pytest.mark.parametrize("size", ["123cm", "abc", "-123", "123px"])
-def test_angular_size_from_string_invalid(size):
+def test_angular_size_from_string_all_invalid(size):
     with pytest.raises(ValueError) as e:
         AngularSize.from_string(size)
     assert "not in a recognized angular size format" in str(e.value)
