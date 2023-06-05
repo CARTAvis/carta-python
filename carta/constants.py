@@ -1,6 +1,6 @@
 """This module provides a collection of enums corresponding to various enumerated types and other literal lists of options defined in the frontend. The members of these enums should be used in place of literal strings and numbers to represent these values; for example: ``Colormap.VIRIDIS`` rather than ``"viridis"``. """
 
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, auto
 
 
 # TODO make sure the __str__ is right for all the string values
@@ -30,6 +30,12 @@ class NumberFormat(str, Enum):
     DEGREES = "d"
     HMS = "hms"
     DMS = "dms"
+
+
+class SpatialAxis(Enum):
+    """Spatial axes. This is an internal enum."""
+    X = auto()
+    Y = auto()
 
 
 class LabelType(str, Enum):

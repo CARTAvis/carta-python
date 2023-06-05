@@ -4,8 +4,9 @@ import logging
 import json
 import functools
 import re
+import math
 
-from .constants import NumberFormat
+from .constants import NumberFormat, SpatialAxis
 
 logger = logging.getLogger("carta_scripting")
 logger.setLevel(logging.WARN)
@@ -324,7 +325,7 @@ class WorldCoordinate:
         Returns
         -------
         boolean
-            Whether the input string is an world coordinate.
+            Whether the input string is a valid world coordinate.
         """
         if cls is WorldCoordinate:
             return any(fmt.valid(value) for fmt in cls.FORMATS.values())
@@ -338,7 +339,7 @@ class WorldCoordinate:
         raise ValueError(f"Unknown number format: {fmt}")
 
     @classmethod
-    def from_string(cls, value):
+    def from_string(cls, value, axis):
         """Construct a world coordinate object from a string.
 
         This is implemented in subclasses corresponding to different formats.
@@ -347,6 +348,8 @@ class WorldCoordinate:
         ----------
         value : string
             The input string.
+        axis : :obj:`carta.constants.SpatialAxis`
+            The spatial axis of this coordinate.
 
         Returns
         -------
@@ -366,7 +369,7 @@ class DegreesCoordinate(WorldCoordinate):
     }
 
     @classmethod
-    def from_string(cls, value):
+    def from_string(cls, value, axis):
         """Construct a world coordinate object in decimal degree format from a string.
 
         Coordinates may be provided with or without an explicit unit. Permitted degree unit strings are stored in :obj:`carta.util.DegreesCoordinate.DEGREE_UNITS`.
@@ -375,6 +378,8 @@ class DegreesCoordinate(WorldCoordinate):
         ----------
         value : string
             The input string.
+        axis : :obj:`carta.constants.SpatialAxis`
+            The spatial axis of this coordinate.
 
         Returns
         -------
@@ -383,11 +388,20 @@ class DegreesCoordinate(WorldCoordinate):
         """
         m = re.match(cls.REGEX["DECIMAL"], value, re.IGNORECASE)
         if m is not None:
-            return cls(float(value))
-        m = re.match(cls.REGEX["DEGREE_UNIT"], value, re.IGNORECASE)
-        if m is not None:
-            return cls(float(m.group(1)))
-        raise ValueError(f"Coordinate string {value} does not match expected format {cls.FMT}.")
+            fvalue = float(value)
+        else:
+            m = re.match(cls.REGEX["DEGREE_UNIT"], value, re.IGNORECASE)
+            if m is not None:
+                fvalue = float(m.group(1))
+            else:
+                raise ValueError(f"Coordinate string {value} does not match expected format {cls.FMT}.")
+        
+        if axis == SpatialAxis.X and not 0 <= fvalue < 360:
+            raise ValueError(f"Degrees coordinate string {value} is outside the permitted longitude range [0, 360).")
+        if axis == SpatialAxis.Y and not -90 <= fvalue <= 90:
+            raise ValueError(f"Degrees coordinate string {value} is outside the permitted latitude range [-90, 90].")
+        
+        return cls(fvalue)
 
     def __init__(self, degrees):
         self.degrees = degrees
@@ -396,72 +410,129 @@ class DegreesCoordinate(WorldCoordinate):
         return f"{self.degrees:g}"
 
 
-class HexagesimalCoordinate(WorldCoordinate):
-    """A world coordinate in hexagesimal format.
+class SexagesimalCoordinate(WorldCoordinate):
+    """A world coordinate in sexagesimal format.
 
     This class contains common functionality for parsing the HMS and DMS formats.
     """
+    
     @classmethod
-    def from_string(cls, value):
-        """Construct a world coordinate object in hexagesimal format from a string.
+    def from_string(cls, value, axis):
+        """Construct a world coordinate object in sexagesimal format from a string.
 
-        Coordinates may be provided in HMS or DMS format with colons or letters as separators.
+        Coordinates may be provided in HMS or DMS format with colons or letters as separators. The value range will be validated for the provided spatial axis.
 
         Parameters
         ----------
         value : string
             The input string.
+        axis : :obj:`carta.constants.SpatialAxis`
+            The spatial axis of this coordinate.
 
         Returns
         -------
-        :obj:`carta.util.HexagesimalCoordinate`
+        :obj:`carta.util.SexagesimalCoordinate`
             The coordinate object.
         """
         def to_float(strs):
-            return tuple(0 if s is None else float(s) for s in strs)
+            return tuple(float(s) for s in strs)
 
         m = re.match(cls.REGEX["COLON"], value, re.IGNORECASE)
         if m is not None:
-            return cls(*to_float(m.groups()))
+           return cls(*to_float(m.groups()))
+        
         m = re.match(cls.REGEX["LETTER"], value, re.IGNORECASE)
         if m is not None:
             return cls(*to_float(m.groups()))
+    
         raise ValueError(f"Coordinate string {value} does not match expected format {cls.FMT}.")
 
     def __init__(self, hours_or_degrees, minutes, seconds):
-        self._hours_or_degrees = hours_or_degrees
+        self.hours_or_degrees = hours_or_degrees
         self.minutes = minutes
         self.seconds = seconds
 
     def __str__(self):
-        def to_string(*floats):
-            return tuple("" if f == 0 else f"{f:g}" for f in floats)
+        fractional_seconds, whole_seconds= math.modf(self.seconds)
+        fraction_string = f"{fractional_seconds:g}".lstrip("0") if fractional_seconds else ""
+        return f"{self.hours_or_degrees:g}:{self.minutes:0>2.0f}:{whole_seconds:0>2.0f}{fraction_string}"
+    
+    def as_tuple(self):
+        return self.hours_or_degrees, self.minutes, self.seconds
 
-        HD, M, S = to_string(self._hours_or_degrees, self.minutes, self.seconds)
-        return f"{HD}:{M}:{S}"
 
-
-class HMSCoordinate(HexagesimalCoordinate):
+class HMSCoordinate(SexagesimalCoordinate):
     """A world coordinate in HMS format."""
     FMT = NumberFormat.HMS
+    # Temporarily allow negative H values to account for frontend custom format oddity
     REGEX = {
-        "COLON": r"^(-?\d{0,2}):(\d{0,2}):(\d{1,2}(?:\.\d+)?)?$",
-        "LETTER": r"^(?:(-?\d{1,2})h)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$",
+        "COLON": r"^(-?(?:\d|[01]\d|2[0-3])):([0-5]\d):([0-5]\d(?:\.\d+)?)$",
+        "LETTER": r"^(-?(?:\d|[01]\d|2[0-3]))h([0-5]\d)m([0-5]\d(?:\.\d+)?)s$",
     }
+    
+    @classmethod
+    def from_string(cls, value, axis):
+        """Construct a world coordinate object in HMS format from a string.
 
-    @property
-    def hours(self):
-        return self._hours_or_degrees
+        Coordinates may be provided in HMS format with colons or letters as separators. The value range will be validated for the provided spatial axis.
+
+        Parameters
+        ----------
+        value : string
+            The input string.
+        axis : :obj:`carta.constants.SpatialAxis`
+            The spatial axis of this coordinate.
+
+        Returns
+        -------
+        :obj:`carta.util.HMSCoordinate`
+            The coordinate object.
+        """
+        H, M, S = super().from_string(value, axis).as_tuple()
+        
+        if axis == SpatialAxis.X and not 0 <= H < 24:
+            raise ValueError(f"HMS coordinate string {value} is outside the permitted longitude range [0:00:00, 24:00:00).")
+        
+        if axis == SpatialAxis.Y: # Temporary; we can make this whole option invalid
+            if H < -6 or H > 6 or ((H in (-6, 6)) and (M or S)):
+                raise ValueError(f"HMS coordinate string {value} is outside the permitted latitude range [-6:00:00, 6:00:00].")
+            
+        return cls(H, M, S)
 
 
-class DMSCoordinate(HexagesimalCoordinate):
+class DMSCoordinate(SexagesimalCoordinate):
     """A world coordinate in DMS format."""
     FMT = NumberFormat.DMS
     REGEX = {
-        "COLON": r"^(-?\d*):(\d{0,2}):(\d{1,2}(?:\.\d+)?)?$",
-        "LETTER": r"^(?:(-?\d+)d)?(?:(\d{1,2})m)?(?:(\d{1,2}(?:\.\d+)?)s)?$",
+        "COLON": r"^(-?\d+):([0-5]\d):([0-5]\d(?:\.\d+)?)$",
+        "LETTER": r"^(-?\d+)d([0-5]\d)m([0-5]\d(?:\.\d+)?)s$",
     }
+    
+    @classmethod
+    def from_string(cls, value, axis):
+        """Construct a world coordinate object in DMS format from a string.
 
-    @property
-    def degrees(self):
-        return self._hours_or_degrees
+        Coordinates may be provided in DMS format with colons or letters as separators. The value range will be validated for the provided spatial axis.
+
+        Parameters
+        ----------
+        value : string
+            The input string.
+        axis : :obj:`carta.constants.SpatialAxis`
+            The spatial axis of this coordinate.
+
+        Returns
+        -------
+        :obj:`carta.util.DMSCoordinate`
+            The coordinate object.
+        """
+        D, M, S = super().from_string(value, axis).as_tuple()
+        
+        if axis == SpatialAxis.X and not 0 <= D < 360:
+            raise ValueError(f"DMS coordinate string {value} is outside the permitted longitude range [0:00:00, 360:00:00).")
+        
+        if axis == SpatialAxis.Y:
+            if D < -90 or D > 90 or ((D in (-90, 90)) and (M or S)):
+                raise ValueError(f"DMS coordinate string {value} is outside the permitted latitude range [-90:00:00, 90:00:00].")
+            
+        return cls(D, M, S)

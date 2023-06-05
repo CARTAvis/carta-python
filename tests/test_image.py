@@ -147,11 +147,13 @@ def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
 
 
 @pytest.mark.parametrize("x,y,x_fmt,y_fmt,x_norm,y_norm", [
-    ("123", "123", NF.DEGREES, NF.DEGREES, "123", "123"),
-    (123, 123, NF.DEGREES, NF.DEGREES, "123", "123"),
-    ("123deg", "123 deg", NF.DEGREES, NF.DEGREES, "123", "123"),
+    ("123", "12", NF.DEGREES, NF.DEGREES, "123", "12"),
+    (123, 12, NF.DEGREES, NF.DEGREES, "123", "12"),
+    ("123deg", "12 deg", NF.DEGREES, NF.DEGREES, "123", "12"),
     ("12:34:56.789", "12:34:56.789", NF.HMS, NF.DMS, "12:34:56.789", "12:34:56.789"),
     ("12h34m56.789s", "12d34m56.789s", NF.HMS, NF.DMS, "12:34:56.789", "12:34:56.789"),
+    ("12h34m56.789s", "5h34m56.789s", NF.HMS, NF.HMS, "12:34:56.789", "5:34:56.789"),
+    ("12d34m56.789s", "12d34m56.789s", NF.DMS, NF.DMS, "12:34:56.789", "12:34:56.789"),
 ])
 def test_set_center_valid_wcs(image, mock_property, mock_session_method, mock_call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
     mock_property("valid_wcs", True)
@@ -165,11 +167,11 @@ def test_set_center_valid_change_system(image, mock_property, mock_session_metho
     mock_property("valid_wcs", True)
     mock_session_method("number_format", [(NF.DEGREES, NF.DEGREES, None)])
 
-    image.set_center("123", "123", CoordinateSystem.GALACTIC)
+    image.set_center("123", "12", CoordinateSystem.GALACTIC)
 
     # We're not testing if this system has the correct format; just that the function is called
     mock_session_call_action.assert_called_with("overlayStore.global.setSystem", CoordinateSystem.GALACTIC)
-    mock_call_action.assert_called_with("setCenterWcs", "123", "123")
+    mock_call_action.assert_called_with("setCenterWcs", "123", "12")
 
 
 @pytest.mark.parametrize("x,y,wcs,x_fmt,y_fmt,error_contains", [
