@@ -435,7 +435,7 @@ class SexagesimalCoordinate(WorldCoordinate):
             The coordinate object.
         """
         def to_float(strs):
-            return tuple(float(s) for s in strs)
+            return tuple(0 if s is None else float(s) for s in strs)
 
         m = re.match(cls.REGEX["COLON"], value, re.IGNORECASE)
         if m is not None:
@@ -466,8 +466,8 @@ class HMSCoordinate(SexagesimalCoordinate):
     FMT = NumberFormat.HMS
     # Temporarily allow negative H values to account for frontend custom format oddity
     REGEX = {
-        "COLON": r"^(-?(?:\d|[01]\d|2[0-3])):([0-5]\d):([0-5]\d(?:\.\d+)?)$",
-        "LETTER": r"^(-?(?:\d|[01]\d|2[0-3]))h([0-5]\d)m([0-5]\d(?:\.\d+)?)s$",
+        "COLON": r"^(-?(?:\d|[01]\d|2[0-3]))?:([0-5]?\d)?:([0-5]?\d(?:\.\d+)?)?$",
+        "LETTER": r"^(?:(-?(?:\d|[01]\d|2[0-3]))h)?(?:([0-5]?\d)m)?(?:([0-5]?\d(?:\.\d+)?)s)?$",
     }
 
     @classmethod
@@ -504,8 +504,8 @@ class DMSCoordinate(SexagesimalCoordinate):
     """A world coordinate in DMS format."""
     FMT = NumberFormat.DMS
     REGEX = {
-        "COLON": r"^(-?\d+):([0-5]\d):([0-5]\d(?:\.\d+)?)$",
-        "LETTER": r"^(-?\d+)d([0-5]\d)m([0-5]\d(?:\.\d+)?)s$",
+        "COLON": r"^(-?\d+)?:([0-5]?\d)?:([0-5]?\d(?:\.\d+)?)?$",
+        "LETTER": r"^(?:(-?\d+)d)?(?:([0-5]?\d)m)?(?:([0-5]?\d(?:\.\d+)?)s)?$",
     }
 
     @classmethod

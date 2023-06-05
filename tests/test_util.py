@@ -210,6 +210,15 @@ def test_degrees_coordinate_valid(coord, valid):
     ("-12h34m56.789s", True),
     ("12h34m56.789s", True),
     ("12h34m56s", True),
+    ("1:2:3", True),
+    ("12h34m", True),
+    ("12m34s", True),
+    ("12h34s", True),
+    ("12h", True),
+    ("12m", True),
+    ("12s", True),
+    ("::", True),
+    ("", True),
 
     ("100:00:00", False),
     ("10:00:60", False),
@@ -221,10 +230,7 @@ def test_degrees_coordinate_valid(coord, valid):
     ("12:345:67", False),
     ("12:34", False),
     ("123abc", False),
-    ("1:2:3", False),
     ("12d34m56.789s", False),
-    ("12h34m", False),
-    ("12m34s", False),
     ("24:00:00", False),
     ("30:00:00", False),
     ("abc", False),
@@ -247,6 +253,15 @@ def test_hms_coordinate_valid(coord, valid):
     ("12d34m56s", True),
     ("360:00:00", True),
     ("400:00:00", True),
+    ("1:2:3", True),
+    ("12d34m", True),
+    ("12m34s", True),
+    ("12d34s", True),
+    ("12d", True),
+    ("12m", True),
+    ("12s", True),
+    ("::", True),
+    ("", True),
 
     ("10:00:60", False),
     ("10:00:65", False),
@@ -257,10 +272,7 @@ def test_hms_coordinate_valid(coord, valid):
     ("12:345:67", False),
     ("12:34", False),
     ("123abc", False),
-    ("1:2:3", False),
-    ("12d34m", False),
     ("12h34m56.789s", False),
-    ("12m34s", False),
     ("abc", False),
 ])
 def test_dms_coordinate_valid(coord, valid):
@@ -316,6 +328,15 @@ def test_degrees_coordinate_from_string(coord, axis, norm, error):
     ("-5:34:56.7", SA.Y, "-5:34:56.7", None),
     ("12:34:56.7", SA.Y, None, "outside the permitted latitude range"),
     ("-12:34:56.7", SA.Y, None, "outside the permitted latitude range"),
+    ("1:2:3", SA.X, "1:02:03", None),
+    ("12h34m", SA.X, "12:34:00", None),
+    ("12m34s", SA.X, "0:12:34", None),
+    ("12h34s", SA.X, "12:00:34", None),
+    ("12h", SA.X, "12:00:00", None),
+    ("12m", SA.X, "0:12:00", None),
+    ("12s", SA.X, "0:00:12", None),
+    ("::", SA.X, "0:00:00", None),
+    ("", SA.X, "0:00:00", None),
 ])
 def test_hms_coordinate_from_string(coord, axis, norm, error):
     if norm is not None:
@@ -334,6 +355,15 @@ def test_hms_coordinate_from_string(coord, axis, norm, error):
     ("-12:34:56.7", SA.Y, "-12:34:56.7", None),
     ("100:34:56.7", SA.Y, None, "outside the permitted latitude range"),
     ("-100:34:56.7", SA.Y, None, "outside the permitted latitude range"),
+    ("1:2:3", SA.X, "1:02:03", None),
+    ("12d34m", SA.X, "12:34:00", None),
+    ("12m34s", SA.X, "0:12:34", None),
+    ("12d34s", SA.X, "12:00:34", None),
+    ("12d", SA.X, "12:00:00", None),
+    ("12m", SA.X, "0:12:00", None),
+    ("12s", SA.X, "0:00:12", None),
+    ("::", SA.X, "0:00:00", None),
+    ("", SA.X, "0:00:00", None),
 ])
 def test_dms_coordinate_from_string(coord, axis, norm, error):
     if norm is not None:
@@ -351,6 +381,3 @@ def test_dms_coordinate_from_string(coord, axis, norm, error):
 ])
 def test_world_coordinate_with_format(fmt, expected_child):
     assert WorldCoordinate.with_format(fmt) == expected_child
-
-
-# TODO restore removed support for empty H, M and S
