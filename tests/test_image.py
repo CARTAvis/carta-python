@@ -136,8 +136,8 @@ def test_set_channel_invalid(image, channel, error_contains, mock_property):
     assert error_contains in str(e.value)
 
 
-@pytest.mark.parametrize("x", [0, 10, 19])
-@pytest.mark.parametrize("y", [0, 10, 19])
+@pytest.mark.parametrize("x", [-0.5, 0, 10, 19, 19.5])
+@pytest.mark.parametrize("y", [-0.5, 0, 10, 19, 19.5])
 def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
     mock_property("width", 20)
     mock_property("height", 20)
@@ -183,6 +183,8 @@ def test_set_center_valid_change_system(image, mock_property, mock_session_metho
     ("123", "123px", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
     ("123px", "2000px", True, NF.DEGREES, NF.DEGREES, "outside the bounds of the image"),
     ("2000px", "123px", True, NF.DEGREES, NF.DEGREES, "outside the bounds of the image"),
+    ("-1px", "123px", True, NF.DEGREES, NF.DEGREES, "outside the bounds of the image"),
+    ("123px", "200px", True, NF.DEGREES, NF.DEGREES, "outside the bounds of the image"),
 ])
 def test_set_center_invalid(image, mock_property, mock_session_method, mock_call_action, x, y, wcs, x_fmt, y_fmt, error_contains):
     mock_property("width", 200)

@@ -141,13 +141,13 @@ class PixelValue:
     """Parses pixel values."""
 
     UNITS = {"px", "pix", "pixel", "pixels"}
-    UNIT_REGEX = rf"^(\d+(?:\.\d+)?)\s*(?:{'|'.join(UNITS)})$"
+    UNIT_REGEX = rf"^(-?\d+(?:\.\d+)?)\s*(?:{'|'.join(UNITS)})$"
 
     @classmethod
     def valid(cls, value):
         """Whether the input string is a numeric value followed by a pixel unit.
 
-        Permitted pixel unit strings are stored in :obj:`carta.util.PixelValue.UNITS`. Whitespace is permitted after the number and before the unit.
+        Permitted pixel unit strings are stored in :obj:`carta.util.PixelValue.UNITS`. Whitespace is permitted after the number and before the unit. Pixel values may be negative.
 
         Parameters
         ----------

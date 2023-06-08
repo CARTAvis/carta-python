@@ -468,7 +468,8 @@ class Image:
             # Image coordinates
             x_value = PixelValue.as_float(str(x))
             y_value = PixelValue.as_float(str(y))
-            if 0 <= x_value < self.width and 0 <= y_value < self.height:
+            # Each pixel coordinate is in the centre of the pixel
+            if 0 <= (x_value + 0.5) <= self.width and 0 <= (y_value + 0.5) <= self.height:
                 self.call_action("setCenter", x_value, y_value)
             else:
                 raise ValueError(f"Image coordinates ({x_value}, {y_value}) are outside the bounds of the image ({self.width} x {self.height}).")

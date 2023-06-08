@@ -24,6 +24,7 @@ def test_class_classmethods_have_docstrings(member):
 
 @pytest.mark.parametrize("value,valid", [
     ("123px", True),
+    ("123.4px", True),
     ("123pix", True),
     ("123pixel", True),
     ("123pixels", True),
@@ -31,12 +32,14 @@ def test_class_classmethods_have_docstrings(member):
     ("123 pix", True),
     ("123 pixel", True),
     ("123 pixels", True),
+    ("-123px", True),
+    ("-123.4px", True),
+
     ("123arcmin", False),
     ("123deg", False),
     ("abc", False),
     ("123", False),
     ("123abc", False),
-    ("-123px", False),
 ])
 def test_pixel_value_valid(value, valid):
     assert PixelValue.valid(value) == valid
@@ -53,12 +56,14 @@ def test_pixel_value_valid(value, valid):
     ("123 pixels", 123),
     ("123.45px", 123.45),
     ("123.45 px", 123.45),
+    ("-123.45px", -123.45),
+    ("-123.45 px", -123.45),
 ])
 def test_pixel_value_as_float(value, num):
     assert PixelValue.as_float(value) == num
 
 
-@pytest.mark.parametrize("value", ["123arcmin", "123deg", "abc", "123", "123abc", "-123px"])
+@pytest.mark.parametrize("value", ["123arcmin", "123deg", "abc", "123", "123abc"])
 def test_pixel_value_as_float_invalid(value):
     with pytest.raises(ValueError) as e:
         PixelValue.as_float(value)
