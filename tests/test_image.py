@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, CoordinateSystem
+from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA
 
 # FIXTURES
 
@@ -197,7 +197,7 @@ def test_set_center_invalid(image, mock_property, mock_session_method, mock_call
     assert error_contains in str(e.value)
 
 
-@pytest.mark.parametrize("dim", ["x", "y"])
+@pytest.mark.parametrize("axis", [SA.X, SA.Y])
 @pytest.mark.parametrize("val,action,norm", [
     ("123px", "zoomToSize{0}", 123.0),
     ("123arcsec", "zoomToSize{0}Wcs", "123\""),
@@ -207,19 +207,19 @@ def test_set_center_invalid(image, mock_property, mock_session_method, mock_call
     ("123deg", "zoomToSize{0}Wcs", "123deg"),
     ("123 deg", "zoomToSize{0}Wcs", "123deg"),
 ])
-def test_zoom_to_size(image, mock_property, mock_call_action, dim, val, action, norm):
+def test_zoom_to_size(image, mock_property, mock_call_action, axis, val, action, norm):
     mock_property("valid_wcs", True)
-    getattr(image, f"zoom_to_size_{dim}")(val)
-    mock_call_action.assert_called_with(action.format(dim.upper()), norm)
+    image.zoom_to_size(val, axis)
+    mock_call_action.assert_called_with(action.format(axis.upper()), norm)
 
 
-@pytest.mark.parametrize("dim", ["x", "y"])
+@pytest.mark.parametrize("axis", [SA.X, SA.Y])
 @pytest.mark.parametrize("val,wcs,error_contains", [
     ("abc", True, "Invalid function parameter"),
     ("123arcsec", False, "does not contain valid WCS information"),
 ])
-def test_zoom_to_size_invalid(image, mock_property, dim, val, wcs, error_contains):
+def test_zoom_to_size_invalid(image, mock_property, axis, val, wcs, error_contains):
     mock_property("valid_wcs", wcs)
     with pytest.raises(Exception) as e:
-        getattr(image, f"zoom_to_size_{dim}")(val)
+        image.zoom_to_size(val, axis)
     assert error_contains in str(e.value)

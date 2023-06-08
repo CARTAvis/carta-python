@@ -32,10 +32,10 @@ class NumberFormat(str, Enum):
     DMS = "dms"
 
 
-class SpatialAxis(Enum):
-    """Spatial axes. This is an internal enum."""
-    X = auto()
-    Y = auto()
+class SpatialAxis(str, Enum):
+    """Spatial axes."""
+    X = "x"
+    Y = "y"
 
 
 class LabelType(str, Enum):

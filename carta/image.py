@@ -456,7 +456,7 @@ class Image:
         Raises
         ------
         ValueError
-            If image coordinates are outside the bounds of the image, if a mix of image and world coordinates is provided, or if world coordinates do not match the session-wide number format.
+            If image coordinates are outside the bounds of the image, if a mix of image and world coordinates is provided, if world coordinates are provided and the image has no valid WCS information, or if world coordinates do not match the session-wide number format.
         """
         if system is not None:
             self.session.set_coordinate_system(system)
@@ -486,41 +486,32 @@ class Image:
             y_value = WorldCoordinate.with_format(number_format_y).from_string(str(y), SpatialAxis.Y)
             self.call_action("setCenterWcs", str(x_value), str(y_value))
 
-    @validate(Size())
-    def zoom_to_size_x(self, size):
-        """Zoom to the given X size.
+    @validate(Size(), Constant(SpatialAxis))
+    def zoom_to_size(self, size, axis):
+        """Zoom to the given size along the specified axis.
 
         Numbers and numeric strings with no units are interpreted as arcseconds.
 
         Parameters
         ----------
         size : {0}
+            The size to zoom to.
+        axis : {1}
+            The spatial axis to use.
+
+        Raises
+        ------
+        ValueError
+            If world coordinates are provided and the image has no valid WCS information.
         """
         size = str(size)
+
         if PixelValue.valid(size):
-            self.call_action("zoomToSizeX", PixelValue.as_float(size))
+            self.call_action(f"zoomToSize{axis.upper()}", PixelValue.as_float(size))
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information. Please use a pixel size instead.")
-            self.call_action("zoomToSizeXWcs", str(AngularSize.from_string(size)))
-
-    @validate(Size())
-    def zoom_to_size_y(self, size):
-        """Zoom to the given Y size.
-
-        Numbers and numeric strings with no units are interpreted as arcseconds.
-
-        Parameters
-        ----------
-        size : {0}
-        """
-        size = str(size)
-        if PixelValue.valid(size):
-            self.call_action("zoomToSizeY", PixelValue.as_float(size))
-        else:
-            if not self.valid_wcs:
-                raise ValueError("Cannot parse angular size. This image does not contain valid WCS information. Please use a pixel size instead.")
-            self.call_action("zoomToSizeYWcs", str(AngularSize.from_string(size)))
+            self.call_action(f"zoomToSize{axis.upper()}Wcs", str(AngularSize.from_string(size)))
 
     @validate(Number(), Boolean())
     def set_zoom_level(self, zoom, absolute=True):
