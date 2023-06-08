@@ -456,7 +456,7 @@ class Image:
         Raises
         ------
         ValueError
-            If image coordinates are outside the bounds of the image, if a mix of image and world coordinates is provided, if world coordinates are provided and the image has no valid WCS information, or if world coordinates do not match the session-wide number format.
+            If a mix of image and world coordinates is provided, if world coordinates are provided and the image has no valid WCS information, or if world coordinates do not match the session-wide number format.
         """
         if system is not None:
             self.session.set_coordinate_system(system)
@@ -468,11 +468,7 @@ class Image:
             # Image coordinates
             x_value = PixelValue.as_float(str(x))
             y_value = PixelValue.as_float(str(y))
-            # Each pixel coordinate is in the centre of the pixel
-            if 0 <= (x_value + 0.5) <= self.width and 0 <= (y_value + 0.5) <= self.height:
-                self.call_action("setCenter", x_value, y_value)
-            else:
-                raise ValueError(f"Image coordinates ({x_value}, {y_value}) are outside the bounds of the image ({self.width} x {self.height}).")
+            self.call_action("setCenter", x_value, y_value)
 
         elif x_is_pixel or y_is_pixel:
             raise ValueError("Cannot mix image and world coordinates.")
