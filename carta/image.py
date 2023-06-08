@@ -479,7 +479,7 @@ class Image:
 
         else:
             if not self.valid_wcs:
-                raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information.")
+                raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information. Please use image coordinates (in pixels) instead.")
 
             number_format_x, number_format_y, _ = self.session.number_format()
             x_value = WorldCoordinate.with_format(number_format_x).from_string(str(x), SpatialAxis.X)
@@ -501,7 +501,7 @@ class Image:
             self.call_action("zoomToSizeX", PixelValue.as_float(size))
         else:
             if not self.valid_wcs:
-                raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
+                raise ValueError("Cannot parse angular size. This image does not contain valid WCS information. Please use a pixel size instead.")
             self.call_action("zoomToSizeXWcs", str(AngularSize.from_string(size)))
 
     @validate(Size())
@@ -519,7 +519,7 @@ class Image:
             self.call_action("zoomToSizeY", PixelValue.as_float(size))
         else:
             if not self.valid_wcs:
-                raise ValueError("Cannot parse angular size. This image does not contain valid WCS information.")
+                raise ValueError("Cannot parse angular size. This image does not contain valid WCS information. Please use a pixel size instead.")
             self.call_action("zoomToSizeYWcs", str(AngularSize.from_string(size)))
 
     @validate(Number(), Boolean())
