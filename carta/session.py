@@ -779,6 +779,11 @@ class Session:
         """Toggle the overlay labels."""
         self.call_action("overlayStore.toggleLabels")
 
+
+    # COLORBAR
+    def colorbar_visibility(self, visible, interaction, position, width, offset, ticks_density, enable_color, color):
+        self.set_visible("colorbar", visible)
+
     # PROFILES (TODO)
 
     @validate(Number(), Number())
