@@ -779,10 +779,37 @@ class Session:
         """Toggle the overlay labels."""
         self.call_action("overlayStore.toggleLabels")
 
-
     # COLORBAR
-    def colorbar_visibility(self, visible, interaction, position, width, offset, ticks_density, enable_color, color):
-        self.set_visible("colorbar", visible)
+
+    @validate(Boolean(), Boolean(), String(), Number(), Number(), Number(), Boolean(), Constant(PaletteColor))
+    def configure_colorbar(self, visible=None, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None):
+        """Set colorbar visibility.
+
+        Parameters
+        ----------
+        """
+        if visible is not None:
+            self.set_visible(component="colorbar", visible=visible)
+            if visible is True:
+                if interactive is not None:
+                    self.call_action("overlayStore.colorbar.setInteractive", interactive)
+                if position is not None:
+                    self.call_action("overlayStore.colorbar.setPosition", position)
+                if width is not None:
+                    self.set_width(width=width, component="colorbar")
+                if offset is not None:
+                    self.call_action("overlayStore.colorbar.setOffset", offset)
+                if tick_density is not None:
+                    self.call_action("overlayStore.colorbar.setTickDensity", tick_density)
+                if custom_color is not None:
+                    self.call_action("overlayStore.colorbar.setCustomColor", custom_color)
+                    if custom_color is True:
+                        if color is not None:
+                            self.set_color(color=color, component="colorbar")
+                    if custom_color is False:
+                        return
+            if visible is False:
+                return
 
     # PROFILES (TODO)
 
