@@ -156,3 +156,10 @@ class GridMode(str, Enum):
     """Grid modes."""
     DYNAMIC = "dynamic"
     FIXED = "fixed"
+
+
+class ColorbarPosition (str, Enum):
+    """Colorbar position"""
+    Right = "right"
+    Top = "top"
+    Bottom = "bottom"

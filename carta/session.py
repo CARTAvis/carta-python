@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, ColorbarPosition
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -781,35 +781,44 @@ class Session:
 
     # COLORBAR
 
-    @validate(Boolean(), Boolean(), String(), Number(), Number(), Number(), Boolean(), Constant(PaletteColor))
-    def configure_colorbar(self, visible=None, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None):
+    @validate(Boolean(), Boolean(), Constant(ColorbarPosition), Number(), Number(), Number(), Boolean(), Constant(PaletteColor),
+              Boolean(), Number())
+    def configure_colorbar(self, visible=True, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None,
+                           label_visible=None, label_rotation=None):
         """Set colorbar visibility.
 
         Parameters
         ----------
         """
-        if visible is not None:
-            self.set_visible(component="colorbar", visible=visible)
-            if visible is True:
-                if interactive is not None:
-                    self.call_action("overlayStore.colorbar.setInteractive", interactive)
-                if position is not None:
-                    self.call_action("overlayStore.colorbar.setPosition", position)
-                if width is not None:
-                    self.set_width(width=width, component="colorbar")
-                if offset is not None:
-                    self.call_action("overlayStore.colorbar.setOffset", offset)
-                if tick_density is not None:
-                    self.call_action("overlayStore.colorbar.setTickDensity", tick_density)
-                if custom_color is not None:
-                    self.call_action("overlayStore.colorbar.setCustomColor", custom_color)
-                    if custom_color is True:
-                        if color is not None:
-                            self.set_color(color=color, component="colorbar")
-                    if custom_color is False:
-                        return
-            if visible is False:
-                return
+
+        self.set_visible(component="colorbar", visible=visible)
+        if visible is True:
+            if interactive is not None:
+                self.call_action("overlayStore.colorbar.setInteractive", interactive)
+            if position is not None:
+                self.call_action("overlayStore.colorbar.setPosition", position)
+            if width is not None:
+                self.set_width(width=width, component="colorbar")
+            if offset is not None:
+                self.call_action("overlayStore.colorbar.setOffset", offset)
+            if tick_density is not None:
+                self.call_action("overlayStore.colorbar.setTickDensity", tick_density)
+            if custom_color is not None:
+                self.call_action("overlayStore.colorbar.setCustomColor", custom_color)
+                if custom_color is True:
+                    if color is not None:
+                        self.set_color(color=color, component="colorbar")
+                if custom_color is False:
+                    return
+            if label_visible is not None:
+                self.call_action("overlayStore.colorbar.setLabelVisible", label_visible)
+                if label_visible is True:
+                    if label_rotation is not None:
+                        self.call_action("overlayStore.colorbar.setLabelRotation", label_rotation)
+                if label_visible is False:
+                    return
+        if visible is False:
+            return
 
     # PROFILES (TODO)
 
