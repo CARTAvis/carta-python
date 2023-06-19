@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, ColorbarPosition
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, ColorbarPosition, ColorbarLabelRotation
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -782,10 +782,10 @@ class Session:
     # COLORBAR
 
     @validate(Boolean(), Boolean(), Constant(ColorbarPosition), Number(), Number(), Number(), Boolean(), Constant(PaletteColor),
-              Boolean(), Number())
+              Boolean(), Constant(ColorbarLabelRotation), Number(), Number(), Boolean(), String(), Boolean(), Constant(PaletteColor),)
     def configure_colorbar(self, visible=True, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None,
-                           label_visible=None, label_rotation=None):
-        """Set colorbar visibility.
+                           label_visible=None, label_rotation=None, label_font=None, label_font_size=None, label_custom_text=None, label_text=None, label_custom_color=None, label_color=None):
+        """Configure colorbar
 
         Parameters
         ----------
@@ -815,6 +815,24 @@ class Session:
                 if label_visible is True:
                     if label_rotation is not None:
                         self.call_action("overlayStore.colorbar.setLabelRotation", label_rotation)
+                    if label_font is not None:
+                        self.call_action("overlayStore.colorbar.setLabelFont", label_font)
+                    if label_font_size is not None:
+                        self.call_action("overlayStore.colorbar.setLabelFontSize", label_font_size)
+                    if label_custom_text is not None:
+                        self.call_action("overlayStore.colorbar.setLabelCustomText", label_custom_text)
+                        if label_custom_text is True:
+                            if label_text is not None:
+                                self.active_frame().call_action("setColorbarLabelCustomText", label_text)
+                        if label_custom_text is False:
+                            return
+                    if label_custom_color is not None:
+                        self.call_action("overlayStore.colorbar.setLabelCustomColor", label_custom_color)
+                        if label_custom_color is True:
+                            if label_color is not None:
+                                self.call_action("overlayStore.colorbar.setLabelColor", label_color)
+                        if label_custom_color is False:
+                            return
                 if label_visible is False:
                     return
         if visible is False:

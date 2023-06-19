@@ -160,6 +160,10 @@ class GridMode(str, Enum):
 
 class ColorbarPosition (str, Enum):
     """Colorbar position"""
-    Right = "right"
-    Top = "top"
-    Bottom = "bottom"
+    RIGHT = "right"
+    TOP = "top"
+    BOTTOM = "bottom"
+
+class ColorbarLabelRotation(IntEnum):
+    MINUS90 = -90
+    POSITIVE90 = 90
