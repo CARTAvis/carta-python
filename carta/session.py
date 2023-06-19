@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, ColorbarPosition, ColorbarLabelRotation
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, ColorbarPosition, ColorbarRotation
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -782,15 +782,16 @@ class Session:
     # COLORBAR
 
     @validate(Boolean(), Boolean(), Constant(ColorbarPosition), Number(), Number(), Number(), Boolean(), Constant(PaletteColor),
-              Boolean(), Constant(ColorbarLabelRotation), Number(), Number(), Boolean(), String(), Boolean(), Constant(PaletteColor),)
+              Boolean(), Constant(ColorbarRotation), Number(), Number(), Boolean(), String(), Boolean(), Constant(PaletteColor),
+              Boolean(), Constant(ColorbarRotation), Number(), Number(), Boolean(), Number(), Boolean(), Constant(PaletteColor),)
     def configure_colorbar(self, visible=True, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None,
-                           label_visible=None, label_rotation=None, label_font=None, label_font_size=None, label_custom_text=None, label_text=None, label_custom_color=None, label_color=None):
+                           label_visible=None, label_rotation=None, label_font=None, label_font_size=None, label_custom_text=None, label_text=None, label_custom_color=None, label_color=None,
+                           number_visible=None, number_rotation=None, number_font=None, number_font_size=None, number_custom_precision=None, number_precision=None, number_custom_color=None, number_color=None,):
         """Configure colorbar
 
         Parameters
         ----------
         """
-
         self.set_visible(component="colorbar", visible=visible)
         if visible is True:
             if interactive is not None:
@@ -834,6 +835,31 @@ class Session:
                         if label_custom_color is False:
                             return
                 if label_visible is False:
+                    return
+            if number_visible is not None:
+                self.call_action("overlayStore.colorbar.setNumberVisible", number_visible)
+                if number_visible is True:
+                    if number_rotation is not None:
+                        self.call_action("overlayStore.colorbar.setNumberRotation", number_rotation)
+                    if number_font is not None:
+                        self.call_action("overlayStore.colorbar.setNumberFont", number_font)
+                    if number_font_size is not None:
+                        self.call_action("overlayStore.colorbar.setNumberFontSize", number_font_size)
+                    if number_custom_precision is not None:
+                        self.call_action("overlayStore.colorbar.setNumberCustomPrecision", number_custom_precision)
+                        if number_custom_precision is True:
+                            if number_precision is not None:
+                                self.call_action("overlayStore.colorbar.setNumberPrecision", number_precision)
+                        if number_custom_precision is False:
+                            return
+                    if number_custom_color is not None:
+                        self.call_action("overlayStore.colorbar.setNumberCustomColor", number_custom_color)
+                        if number_custom_color is True:
+                            if number_color is not None:
+                                self.call_action("overlayStore.colorbar.setNumberColor", number_color)
+                        if number_custom_color is False:
+                            return
+                if number_visible is False:
                     return
         if visible is False:
             return
