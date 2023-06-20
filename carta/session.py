@@ -786,7 +786,7 @@ class Session:
               NoneOr(Boolean()), NoneOr(Constant(ColorbarRotation)), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
               NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
               NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)))
-    def configure_colorbar(self, visible=True, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None,
+    def set_colorbar(self, visible=True, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None,
                            label_visible=None, label_rotation=None, label_font=None, label_font_size=None, label_custom_text=None, label_text=None, label_custom_color=None, label_color=None,
                            number_visible=None, number_rotation=None, number_font=None, number_font_size=None, number_custom_precision=None, number_precision=None, number_custom_color=None, number_color=None,
                            tick_visible=None, tick_len=None, tick_width=None, tick_custom_color=None, tick_color=None,
@@ -795,6 +795,11 @@ class Session:
 
         Parameters
         ----------
+        visible : {0}
+            Enable colorbar. Initially set to enabled. If this is disabled, all the parameters of this function will not be configured.
+        interactive : {1}
+            Enable interactive colorbar. Initially set to enabled. If this is unset, the current status will be used.
+        position : {2}
         """
         self.set_visible(component="colorbar", visible=visible)
         if visible is True:
