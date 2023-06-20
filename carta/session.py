@@ -781,12 +781,16 @@ class Session:
 
     # COLORBAR
 
-    @validate(Boolean(), Boolean(), Constant(ColorbarPosition), Number(), Number(), Number(), Boolean(), Constant(PaletteColor),
-              Boolean(), Constant(ColorbarRotation), Number(), Number(), Boolean(), String(), Boolean(), Constant(PaletteColor),
-              Boolean(), Constant(ColorbarRotation), Number(), Number(), Boolean(), Number(), Boolean(), Constant(PaletteColor),)
+    @validate(Boolean(), NoneOr(Boolean()), NoneOr(Constant(ColorbarPosition)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
+              NoneOr(Boolean()), NoneOr(Constant(ColorbarRotation)), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(String()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
+              NoneOr(Boolean()), NoneOr(Constant(ColorbarRotation)), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
+              NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
+              NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)))
     def configure_colorbar(self, visible=True, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None,
                            label_visible=None, label_rotation=None, label_font=None, label_font_size=None, label_custom_text=None, label_text=None, label_custom_color=None, label_color=None,
-                           number_visible=None, number_rotation=None, number_font=None, number_font_size=None, number_custom_precision=None, number_precision=None, number_custom_color=None, number_color=None,):
+                           number_visible=None, number_rotation=None, number_font=None, number_font_size=None, number_custom_precision=None, number_precision=None, number_custom_color=None, number_color=None,
+                           tick_visible=None, tick_len=None, tick_width=None, tick_custom_color=None, tick_color=None,
+                           border_visible=None, border_width=None, border_custom_color=None, border_color=None):
         """Configure colorbar
 
         Parameters
@@ -860,6 +864,36 @@ class Session:
                         if number_custom_color is False:
                             return
                 if number_visible is False:
+                    return
+            if tick_visible is not None:
+                self.call_action("overlayStore.colorbar.setTickVisible", tick_visible)
+                if tick_visible is True:
+                    if tick_len is not None:
+                        self.call_action("overlayStore.colorbar.setTickLen", tick_len)
+                    if tick_width is not None:
+                        self.call_action("overlayStore.colorbar.setTickWidth", tick_width)
+                    if tick_custom_color is not None:
+                        self.call_action("overlayStore.colorbar.setTickCustomColor", tick_custom_color)
+                        if tick_custom_color is True:
+                            if tick_color is not None:
+                                self.call_action("overlayStore.colorbar.setTickColor", tick_color)
+                        if tick_custom_color is False:
+                            return
+                if tick_visible is False:
+                    return
+            if border_visible is not None:
+                self.call_action("overlayStore.colorbar.setBorderVisible", border_visible)
+                if border_visible is True:
+                    if border_width is not None:
+                        self.call_action("overlayStore.colorbar.setBorderWidth", border_width)
+                    if border_custom_color is not None:
+                        self.call_action("overlayStore.colorbar.setBorderCustomColor", border_custom_color)
+                        if border_custom_color is True:
+                            if border_color is not None:
+                                self.call_action("overlayStore.colorbar.setBorderColor", border_color)
+                        if border_custom_color is False:
+                            return
+                if border_visible is False:
                     return
         if visible is False:
             return
