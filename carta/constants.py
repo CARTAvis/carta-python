@@ -164,6 +164,7 @@ class ColorbarPosition (str, Enum):
     TOP = "top"
     BOTTOM = "bottom"
 
+
 class ColorbarRotation(IntEnum):
     MINUS90 = -90
     POSITIVE90 = 90

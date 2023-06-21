@@ -787,19 +787,82 @@ class Session:
               NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
               NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)))
     def set_colorbar(self, visible=True, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None,
-                           label_visible=None, label_rotation=None, label_font=None, label_font_size=None, label_custom_text=None, label_text=None, label_custom_color=None, label_color=None,
-                           number_visible=None, number_rotation=None, number_font=None, number_font_size=None, number_custom_precision=None, number_precision=None, number_custom_color=None, number_color=None,
-                           tick_visible=None, tick_len=None, tick_width=None, tick_custom_color=None, tick_color=None,
-                           border_visible=None, border_width=None, border_custom_color=None, border_color=None):
+                     label_visible=None, label_rotation=None, label_font=None, label_font_size=None, label_custom_text=None, label_text=None, label_custom_color=None, label_color=None,
+                     number_visible=None, number_rotation=None, number_font=None, number_font_size=None, number_custom_precision=None, number_precision=None, number_custom_color=None, number_color=None,
+                     tick_visible=None, tick_len=None, tick_width=None, tick_custom_color=None, tick_color=None,
+                     border_visible=None, border_width=None, border_custom_color=None, border_color=None):
         """Configure colorbar
+
+        TODO: To get the font name and create an Enum for it.
 
         Parameters
         ----------
         visible : {0}
             Enable colorbar. Initially set to enabled. If this is disabled, all the parameters of this function will not be configured.
         interactive : {1}
-            Enable interactive colorbar. Initially set to enabled. If this is unset, the current status will be used.
+            Enable interactive colorbar. Initially set to enabled. If this is unset, the current configuration will be used.
         position : {2}
+            The colorbar position. The default is :obj:`carta.constants.ColorbarPosition.RIGHT`. If this is unset, the current configured position will be used.
+        width : {3}
+            The colorbar width in pixel. Set to `15` by default. If this is unset, the current configured width will be used.
+        offset : {4}
+            The offset between colorbar and the opened image in pixel. Set to `5` by default. If this is unset, the current configured offset will be used.
+        tick_density : {5}
+            The tick density of the colorbar (per 100 pixel). Set to `1` by default. If this is unset, the current configured density will be used.
+        custom_color : {6}
+            Enable custom color for the colorbar. Initially set to disabled.
+        color : {7}
+            The colorbar color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **custom_color** is enabled.
+        label_visible : {8}
+            Enable colorbar label. Initially set to disabled.
+        label_rotation : {9}
+            The rotation of the label. Set to :obj:`carta.constants.ColorBarRotation.MINUS90` by default. Only can be configured when **label_visible** is enabled.
+        label_font : {10}
+            The label font. Only can be configured when **label_visible** is enabled.
+        label_font_size : {11}
+            The label font size. Set to `15` by default. Only can be configured when **label_visible** is enabled.
+        label_custom_text : {12}
+            Enable custom label text. Initially set to disabled. Only can be configured when **label_visible** is enabled.
+        label_text : {13}
+            The label text. Only can be configured when **label_visible** and **label_custom_text** are enabled.
+        label_custom_color : {13}
+            Enable custom label color. Initially set to disabled. Only can be configured when **label_visible** is enabled.
+        label_color : {14}
+            The label color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **label_visible** and **label_custom_color** are enabled.
+        number_visible : {15}
+            Enable colorbar number. Initially set to enabled.
+        number_rotation : {16}
+            The rotation of the number. Set to :obj:`carta.constants.ColorBarRotation.MINUS90` by default. Only can be configured when **number_visible** is enabled.
+        number_font : {17}
+            The number font. Only can be configured when **number_visible** is enabled.
+        number_font_size : {18}
+            The number font size. Set to `12` by default. Only can be configured when **number_visible** is enabled.
+        number_custom_precision : {19}
+            Enable custom number text. Initially set to disabled. Only can be configured when **label_visible** is enabled.
+        number_precision : {13}
+            The number text. Only can be configured when **number_visible** and **number_custom_text** are enabled.
+        number_custom_color : {20}
+            Enable custom number color. Initially set to disabled. Only can be configured when **number_visible** is enabled.
+        number_color : {21}
+            The number color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **number_visible** and **number_custom_color** are enabled.
+        tick_visible : {22}
+            Enable colorbar tick. Initially set to enabled.
+        tick_length : {23}
+            The tick length. Set to `6` by default. Only can be configured when **tick_visible** is enabled.
+        tick_width : {24}
+            The tick width. Set to `1` by default. Only can be configured when **tick_visible** is enabled.
+        tick_custom_color : {25}
+            Enable custom tick color. Initially set to disabled. Only can be configured when **tick_visible** is enabled.
+        tick_color : {26}
+            The tick color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **tick_visible** and **tick_custom_color** are enabled.
+        border_visible : {27}
+            Enable colorbar border. Initially set to enabled.
+        border_width : {28}
+            The border width. Set to `1` by default. Only can be configured when **border_visible** is enabled.
+        border_custom_color : {29}
+            Enable custom border color. Initially set to disabled. Only can be configured when **border_visible** is enabled.
+        border_color : {30}
+            The border color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **border_visible** and **border_custom_color** are enabled.
         """
         self.set_visible(component="colorbar", visible=visible)
         if visible is True:
