@@ -168,3 +168,27 @@ class ColorbarPosition (str, Enum):
 class ColorbarRotation(IntEnum):
     MINUS90 = -90
     POSITIVE90 = 90
+
+
+class Font(IntEnum):
+    """Font"""
+    sans_serif = 0
+    italic_sans_serif = 1
+    bold_sans_serif = 2
+    bold_italic_sans_serif = 3
+    times = 4
+    italic_times = 5
+    bold_times = 6
+    bold_italic_times = 7
+    arial = 8
+    bold_arial = 9
+    italic_arial = 10
+    bold_italic_arial = 11
+    palatino = 12
+    italic_palatino = 13
+    bold_palatino = 14
+    bold_italic_palatino = 15
+    courier_new = 16
+    italic_courier_new = 17
+    bold_courier_new = 18
+    bold_italic_courier_new = 19

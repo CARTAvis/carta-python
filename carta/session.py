@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, ColorbarPosition, ColorbarRotation
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, ColorbarPosition, ColorbarRotation, Font
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -782,8 +782,8 @@ class Session:
     # COLORBAR
 
     @validate(Boolean(), NoneOr(Boolean()), NoneOr(Constant(ColorbarPosition)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
-              NoneOr(Boolean()), NoneOr(Constant(ColorbarRotation)), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(String()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
-              NoneOr(Boolean()), NoneOr(Constant(ColorbarRotation)), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
+              NoneOr(Boolean()), NoneOr(Constant(ColorbarRotation)), NoneOr(Constant(Font)), NoneOr(Number()), NoneOr(Boolean()), NoneOr(String()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
+              NoneOr(Boolean()), NoneOr(Constant(ColorbarRotation)), NoneOr(Constant(Font)), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
               NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)),
               NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Constant(PaletteColor)))
     def set_colorbar(self, visible=True, interactive=None, position=None, width=None, offset=None, tick_density=None, custom_color=None, color=None,
@@ -816,52 +816,52 @@ class Session:
         label_visible : {8}
             Enable colorbar label. Initially set to disabled.
         label_rotation : {9}
-            The rotation of the label. Set to :obj:`carta.constants.ColorBarRotation.MINUS90` by default. Only can be configured when **label_visible** is enabled.
+            The rotation of the label. Set to :obj:`carta.constants.ColorbarRotation.MINUS90` by default. Only can be configured when **label_visible** is enabled.
         label_font : {10}
-            The label font. Only can be configured when **label_visible** is enabled.
+            The label font. Set to :obj:`carta.constants.Font.sans_serif` by default. Only can be configured when **label_visible** is enabled.
         label_font_size : {11}
             The label font size. Set to `15` by default. Only can be configured when **label_visible** is enabled.
         label_custom_text : {12}
             Enable custom label text. Initially set to disabled. Only can be configured when **label_visible** is enabled.
         label_text : {13}
             The label text. Only can be configured when **label_visible** and **label_custom_text** are enabled.
-        label_custom_color : {13}
+        label_custom_color : {14}
             Enable custom label color. Initially set to disabled. Only can be configured when **label_visible** is enabled.
-        label_color : {14}
+        label_color : {15}
             The label color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **label_visible** and **label_custom_color** are enabled.
-        number_visible : {15}
+        number_visible : {16}
             Enable colorbar number. Initially set to enabled.
-        number_rotation : {16}
-            The rotation of the number. Set to :obj:`carta.constants.ColorBarRotation.MINUS90` by default. Only can be configured when **number_visible** is enabled.
-        number_font : {17}
-            The number font. Only can be configured when **number_visible** is enabled.
-        number_font_size : {18}
+        number_rotation : {17}
+            The rotation of the number. Set to :obj:`carta.constants.ColorbarRotation.MINUS90` by default. Only can be configured when **number_visible** is enabled.
+        number_font : {18}
+            The number font. Set to :obj:`carta.constants.Font.sans_serif` by default. Only can be configured when **number_visible** is enabled.
+        number_font_size : {19}
             The number font size. Set to `12` by default. Only can be configured when **number_visible** is enabled.
-        number_custom_precision : {19}
+        number_custom_precision : {20}
             Enable custom number text. Initially set to disabled. Only can be configured when **label_visible** is enabled.
-        number_precision : {13}
+        number_precision : {21}
             The number text. Only can be configured when **number_visible** and **number_custom_text** are enabled.
-        number_custom_color : {20}
+        number_custom_color : {22}
             Enable custom number color. Initially set to disabled. Only can be configured when **number_visible** is enabled.
-        number_color : {21}
+        number_color : {23}
             The number color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **number_visible** and **number_custom_color** are enabled.
-        tick_visible : {22}
+        tick_visible : {24}
             Enable colorbar tick. Initially set to enabled.
-        tick_length : {23}
+        tick_length : {25}
             The tick length. Set to `6` by default. Only can be configured when **tick_visible** is enabled.
-        tick_width : {24}
+        tick_width : {26}
             The tick width. Set to `1` by default. Only can be configured when **tick_visible** is enabled.
-        tick_custom_color : {25}
+        tick_custom_color : {27}
             Enable custom tick color. Initially set to disabled. Only can be configured when **tick_visible** is enabled.
-        tick_color : {26}
+        tick_color : {28}
             The tick color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **tick_visible** and **tick_custom_color** are enabled.
-        border_visible : {27}
+        border_visible : {29}
             Enable colorbar border. Initially set to enabled.
-        border_width : {28}
+        border_width : {30}
             The border width. Set to `1` by default. Only can be configured when **border_visible** is enabled.
-        border_custom_color : {29}
+        border_custom_color : {31}
             Enable custom border color. Initially set to disabled. Only can be configured when **border_visible** is enabled.
-        border_color : {30}
+        border_color : {32}
             The border color. Set to :obj:`carta.constants.PaletteColor.BLUE` by default. Only can be configured when **border_visible** and **border_custom_color** are enabled.
         """
         self.set_visible(component="colorbar", visible=visible)
