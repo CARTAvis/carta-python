@@ -75,7 +75,12 @@ class InstanceOf(Parameter):
         string
             The description.
         """
-        names = [t.__name__ for t in self.types]
+        names = []
+        for t in self.types:
+            if t.__module__.startswith("carta."):
+                names.append(f":obj:`{t.__module__}.{t.__name__}`")
+            else:
+                names.append(t.__name__)
 
         if len(names) == 1:
             return f"an instance of {names[0]}"
