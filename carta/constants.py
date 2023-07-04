@@ -1,6 +1,6 @@
 """This module provides a collection of enums corresponding to various enumerated types and other literal lists of options defined in the frontend. The members of these enums should be used in place of literal strings and numbers to represent these values; for example: ``Colormap.VIRIDIS`` rather than ``"viridis"``. """
 
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, auto
 
 
 # TODO make sure the __str__ is right for all the string values
@@ -21,8 +21,21 @@ Scaling = Enum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'),
 Scaling.__doc__ = """Colormap scaling types."""
 
 
-CoordinateSystem = Enum('CoordinateSystem', {c.upper(): c for c in ("Auto", "Ecliptic", "FK4", "FK5", "Galactic", "ICRS")}, type=str)
+CoordinateSystem = Enum('CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")}, type=str)
 CoordinateSystem.__doc__ = """Coordinate systems."""
+
+
+class NumberFormat(str, Enum):
+    """Number formats."""
+    DEGREES = "d"
+    HMS = "hms"
+    DMS = "dms"
+
+
+class SpatialAxis(str, Enum):
+    """Spatial axes."""
+    X = "x"
+    Y = "y"
 
 
 class LabelType(str, Enum):

@@ -3,3 +3,4 @@ __pycache__
 build
 carta.egg-info
 .DS_Store
+.coverage

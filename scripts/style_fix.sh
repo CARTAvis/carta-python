@@ -4,10 +4,10 @@
 
 echo "Fixing issues automatically..."
 
-autopep8 --in-place --ignore E501 carta/*.py
+autopep8 --in-place --ignore E501 carta/*.py tests/*.py
 
 # Check for PEP8 code style violations, but ignore long lines and ambiguous variable names
 
 echo "Outstanding issues:"
 
-pycodestyle --ignore=E501,E741 carta/*.py
+pycodestyle --ignore=E501,E741 carta/*.py tests/*.py
