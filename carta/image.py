@@ -4,9 +4,9 @@ Image objects should not be instantiated directly, and should only be created th
 """
 import posixpath
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization
-from .util import Macro, cached
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis
+from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
 
 
 class Image:
@@ -261,7 +261,7 @@ class Image:
     @property
     @cached
     def width(self):
-        """The width of the image.
+        """The width of the image in pixels.
 
         Returns
         -------
@@ -273,7 +273,7 @@ class Image:
     @property
     @cached
     def height(self):
-        """The height of the image.
+        """The height of the image in pixels.
 
         Returns
         -------
@@ -426,11 +426,23 @@ class Image:
 
         self.call_action("setChannels", self.macro("", "requiredChannel"), polarization, recursive)
 
-    @validate(Number(), Number())
-    def set_center(self, x, y):
-        """Set the center position.
+    @property
+    @cached
+    def valid_wcs(self):
+        """Whether the image contains valid WCS information.
 
-        TODO: what are the units?
+        Returns
+        -------
+        boolean
+            Whether the image has WCS information.
+        """
+        return self.get_value("validWcs")
+
+    @validate(Coordinate(), Coordinate(), NoneOr(Constant(CoordinateSystem)))
+    def set_center(self, x, y, system=None):
+        """Set the center position, in image or world coordinates. Optionally change the session-wide coordinate system.
+
+        Coordinates must either both be image coordinates or match the current number formats. Numbers and numeric strings with no units are interpreted as degrees.
 
         Parameters
         ----------
@@ -438,11 +450,67 @@ class Image:
             The X position.
         y : {1}
             The Y position.
+        system : {2}
+            The coordinate system. If this parameter is provided, the coordinate system will be changed session-wide before the X and Y coordinates are parsed.
+
+        Raises
+        ------
+        ValueError
+            If a mix of image and world coordinates is provided, if world coordinates are provided and the image has no valid WCS information, or if world coordinates do not match the session-wide number format.
         """
-        self.call_action("setCenter", x, y)
+        if system is not None:
+            self.session.set_coordinate_system(system)
+
+        x_is_pixel = PixelValue.valid(str(x))
+        y_is_pixel = PixelValue.valid(str(y))
+
+        if x_is_pixel and y_is_pixel:
+            # Image coordinates
+            x_value = PixelValue.as_float(str(x))
+            y_value = PixelValue.as_float(str(y))
+            self.call_action("setCenter", x_value, y_value)
+
+        elif x_is_pixel or y_is_pixel:
+            raise ValueError("Cannot mix image and world coordinates.")
+
+        else:
+            if not self.valid_wcs:
+                raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information. Please use image coordinates (in pixels) instead.")
+
+            number_format_x, number_format_y, _ = self.session.number_format()
+            x_value = WorldCoordinate.with_format(number_format_x).from_string(str(x), SpatialAxis.X)
+            y_value = WorldCoordinate.with_format(number_format_y).from_string(str(y), SpatialAxis.Y)
+            self.call_action("setCenterWcs", str(x_value), str(y_value))
+
+    @validate(Size(), Constant(SpatialAxis))
+    def zoom_to_size(self, size, axis):
+        """Zoom to the given size along the specified axis.
+
+        Numbers and numeric strings with no units are interpreted as arcseconds.
+
+        Parameters
+        ----------
+        size : {0}
+            The size to zoom to.
+        axis : {1}
+            The spatial axis to use.
+
+        Raises
+        ------
+        ValueError
+            If world coordinates are provided and the image has no valid WCS information.
+        """
+        size = str(size)
+
+        if PixelValue.valid(size):
+            self.call_action(f"zoomToSize{axis.upper()}", PixelValue.as_float(size))
+        else:
+            if not self.valid_wcs:
+                raise ValueError("Cannot parse angular size. This image does not contain valid WCS information. Please use a pixel size instead.")
+            self.call_action(f"zoomToSize{axis.upper()}Wcs", str(AngularSize.from_string(size)))
 
     @validate(Number(), Boolean())
-    def set_zoom(self, zoom, absolute=True):
+    def set_zoom_level(self, zoom, absolute=True):
         """Set the zoom level.
 
         TODO: explain this more rigorously.
