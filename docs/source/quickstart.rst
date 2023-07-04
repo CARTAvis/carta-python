@@ -4,13 +4,13 @@ CARTA scripting quick start
 Installation
 ------------
 
-This package is not yet published on PyPi, but can be installed from a local checkout of the repository. The protocol buffer definitions and associated files are in a submodule.
+This package is not yet published on PyPi, but can be installed from a local checkout of the repository.
 
 Ensure that you're using a Python 3 installation and its corresponding ``pip``, either using a ``virtualenv`` or the appropriate system executable, which may be called ``pip3``.
 
 .. code-block:: shell
 
-    git clone --recursive https://github.com/CARTAvis/carta-python.git
+    git clone https://github.com/CARTAvis/carta-python.git
     cd carta-python
     pip install .
 

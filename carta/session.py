@@ -9,7 +9,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 import base64
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, NumberFormat
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
@@ -495,6 +495,16 @@ class Session:
         """
         self.call_action("overlayStore.global.setSystem", system)
 
+    def coordinate_system(self):
+        """Get the coordinate system.
+
+        Returns
+        ----------
+        :obj:`carta.constants.CoordinateSystem`
+            The coordinate system.
+        """
+        return CoordinateSystem(self.get_value("overlayStore.global.system"))
+
     @validate(Constant(LabelType))
     def set_label_type(self, label_type):
         """Set the label type.
@@ -553,6 +563,44 @@ class Session:
             self.call_action(f"overlayStore.{component}.setFont", font)
         if font_size is not None:
             self.call_action(f"overlayStore.{component}.setFontSize", font_size)
+
+    @validate(NoneOr(Constant(NumberFormat)), NoneOr(Constant(NumberFormat)))
+    def set_custom_number_format(self, x_format=None, y_format=None):
+        """Set a custom X and Y number format.
+
+        Parameters
+        ----------
+        x_format : {0}
+            The X format. If this is unset, the last custom X format to be set will be restored.
+        x_format : {1}
+            The Y format. If this is unset, the last custom Y format to be set will be restored.
+        """
+        if x_format is not None:
+            self.call_overlay_action(Overlay.NUMBERS, "setFormatX", x_format)
+        if y_format is not None:
+            self.call_overlay_action(Overlay.NUMBERS, "setFormatY", y_format)
+        self.call_overlay_action(Overlay.NUMBERS, "setCustomFormat", True)
+
+    def clear_custom_number_format(self):
+        """Disable the custom X and Y number format."""
+        self.call_overlay_action(Overlay.NUMBERS, "setCustomFormat", False)
+
+    def number_format(self):
+        """Return the current X and Y number formats, and whether they are a custom setting.
+
+        If the image has no WCS information, both the X and Y formats will be ``None``.
+
+        If a custom number format is not set, the format is derived from the coordinate system.
+
+        Returns
+        -------
+        tuple (a member of :obj:`carta.constants.NumberFormat` or ``None``, a member of :obj:`carta.constants.NumberFormat` or ``None``, boolean)
+            A tuple containing the X format, the Y format, and whether a custom format is set.
+        """
+        number_format_x = self.get_overlay_value(Overlay.NUMBERS, "formatTypeX")
+        number_format_y = self.get_overlay_value(Overlay.NUMBERS, "formatTypeY")
+        custom_format = self.get_overlay_value(Overlay.NUMBERS, "customFormat")
+        return NumberFormat(number_format_x), NumberFormat(number_format_y), custom_format
 
     @validate(NoneOr(Constant(BeamType)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
     def set_beam(self, beam_type=None, width=None, shift_x=None, shift_y=None):
