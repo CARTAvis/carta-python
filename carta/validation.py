@@ -4,7 +4,7 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed
+from .util import CartaValidationFailed, PixelValue, AngularSize, WorldCoordinate
 
 
 class Parameter:
@@ -75,7 +75,12 @@ class InstanceOf(Parameter):
         string
             The description.
         """
-        names = [t.__name__ for t in self.types]
+        names = []
+        for t in self.types:
+            if t.__module__.startswith("carta."):
+                names.append(f":obj:`{t.__module__}.{t.__name__}`")
+            else:
+                names.append(t.__name__)
 
         if len(names) == 1:
             return f"an instance of {names[0]}"
@@ -91,20 +96,20 @@ class String(Parameter):
     ----------
     regex : str, optional
         A regular expression string which the parameter must match.
-    ignorecase : bool, optional
-        Whether the regular expression match should be case-insensitive.
+    flags : int, optional
+        The flags to use when matching the regular expression. Set to zero (no flags) by default.
 
     Attributes
     ----------
     regex : str
         A regular expression string which the parameter must match.
     flags : int
-        The flags to use when matching the regular expression. This is set to :obj:`re.IGNORECASE` or zero.
+        The flags to use when matching the regular expression.
     """
 
-    def __init__(self, regex=None, ignorecase=False):
+    def __init__(self, regex=None, flags=0):
         self.regex = regex
-        self.flags = re.IGNORECASE if ignorecase else 0
+        self.flags = flags
 
     def validate(self, value, parent):
         """Check if the value is a string and if it matches a regex if one was provided.
@@ -190,7 +195,7 @@ class Number(Parameter):
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
         try:
-            float(value)
+            float(value)  # TODO: this will allow strings and probably other types, but they will fail below. Coerce to float??
         except TypeError:
             raise TypeError(f"{value} has type {type(value)} but a number was expected.")
 
@@ -620,6 +625,54 @@ class Color(Union):
             TupleColor(),  # RGB, RGBA, HSL, HSLA
         )
         super().__init__(*options, description="an HTML color specification")
+
+
+class Size(Union):
+    """A representation of an angular size or a size in pixels. Can be a number or a numeric string with valid size units. Validates strings using :obj:`carta.util.PixelValue` and :obj:`carta.util.AngularSize`."""
+
+    class PixelValue(String):
+        """Helper validator class which uses :obj:`carta.util.PixelValue` to validate strings."""
+
+        def validate(self, value, parent):
+            super().validate(value, parent)
+            if not PixelValue.valid(value):
+                raise ValueError(f"{value} is not a pixel value.")
+
+    class AngularSize(String):
+        """Helper validator class which uses :obj:`carta.util.AngularSize` to validate strings."""
+
+        def validate(self, value, parent):
+            super().validate(value, parent)
+            if not AngularSize.valid(value):
+                raise ValueError(f"{value} is not an angular size.")
+
+    def __init__(self):
+        options = (
+            Number(),
+            self.PixelValue(),
+            self.AngularSize(),
+        )
+        super().__init__(*options, description="a number or a numeric string with valid size units")
+
+
+class Coordinate(Union):
+    """A string representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units. Validates strings using :obj:`carta.util.PixelValue` and :obj:`carta.util.WorldCoordinate`."""
+
+    class WorldCoordinate(String):
+        """Helper validator class which uses :obj:`carta.util.WorldCoordinate` to validate strings."""
+
+        def validate(self, value, parent):
+            super().validate(value, parent)
+            if not WorldCoordinate.valid(value):
+                raise ValueError(f"{value} is not a world coordinate.")
+
+    def __init__(self):
+        options = (
+            Number(),
+            Size.PixelValue(),
+            self.WorldCoordinate(),
+        )
+        super().__init__(*options, description="a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units")
 
 
 class Attr(str):
