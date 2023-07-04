@@ -94,7 +94,8 @@ class Macro:
     def json(self):
         """The JSON serialization of this object."""
         return {"macroTarget": self.target, "macroVariable": self.variable}
-    
+
+
 class Undefined(Macro):
     """
     A subclass of Macro to construct a placeholder for `"undefined"`.
@@ -102,6 +103,7 @@ class Undefined(Macro):
 
     def __init__(self):
         super().__init__(target="", variable="undefined")
+
 
 class CartaEncoder(json.JSONEncoder):
     """A custom encoder to JSON which correctly serialises custom objects with a ``json`` method, and numpy arrays."""

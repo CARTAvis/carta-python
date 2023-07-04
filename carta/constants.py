@@ -135,9 +135,11 @@ SmoothingMode.__doc__ = """Contour smoothing modes."""
 VectorOverlaySource = Enum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), type=int, start=-1)
 VectorOverlaySource.__doc__ = """Vector overlay source."""
 
+
 class Auto(str, Enum):
     """Special value for parameters to be calculated automatically."""
     AUTO = "Auto"
+
 
 class ContourDashMode(str, Enum):
     """Contour dash modes."""

@@ -879,7 +879,7 @@ class Image:
         """Apply the vector overlay configuration."""
         self.call_action("applyVectorOverlay")
 
-    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()),NoneOr(Number()), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
+    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
     def plot_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None):
         """Set the vector overlay configuration, styling and color or colormap; and apply vector overlay; in a single step.
 
