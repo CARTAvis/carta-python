@@ -274,37 +274,20 @@ class Session:
 
     # FILE BROWSING
 
-    def resolve_file_path(self, path):
-        """Convert a file path to an absolute path.
-
-        Parameters
-        ----------
-        path : string
-            The file path, which may be absolute or relative to the current directory.
-
-        Returns
-        -------
-        string
-            The absolute file path, relative to the CARTA backend's root.
-        """
-        if path.startswith('/'):
-            return path
-        else:
-            return f"{self.pwd()}/{path}"
-
     def pwd(self):
-        """The current directory. This is a local property of the wrapper, and may not be in sync with the frontend's saved starting directory, which is changed whenever a file is opened to the file's parent directory.
+        """The current directory.
+        
+        This is the frontend file browser's currently saved starting directory. Whenever an image file is opened with the frontend's file browser (which may happen if the wrapper is connected to an interactive session), this directory is changed to the file's parent directory. By default, this directory is not changed if an image is opened through the wrapper (which bypasses the file browser).
 
         Returns
         -------
         string
             The session's current directory.
         """
-        if self._pwd is None:
-            self.call_action("fileBrowserStore.getFileList", Macro("fileBrowserStore", "startingDirectory"))
-            directory = self.get_value("fileBrowserStore.fileList.directory")
-            self._pwd = f"/{directory}"
-        return self._pwd
+        self.call_action("fileBrowserStore.getFileList", Macro("fileBrowserStore", "startingDirectory"))
+        directory = self.get_value("fileBrowserStore.fileList.directory")
+        return f"/{directory}"
+
 
     def ls(self):
         """The current directory listing.
@@ -312,7 +295,7 @@ class Session:
         Returns
         -------
         list
-            The list of files and subdirectories in the session's locally stored current directory.
+            The list of files and subdirectories in the frontend file browser's current starting directory.
         """
         self.call_action("fileBrowserStore.getFileList", self.pwd())
         file_list = self.get_value("fileBrowserStore.fileList")
@@ -324,42 +307,21 @@ class Session:
         return sorted(items)
 
     def cd(self, path):
-        """Change the current directory used by the wrapper.
-
-        TODO: .. is not supported, but it can be now that we have made this value independent of the frontend.
-
-        This does not affect the starting directory saved by the frontend. To change that directory, use :obj:`carta.session.Session.set_starting_directory`.
+        """Change the current directory.
+        
+        This function changes the frontend file browser's starting directory.
 
         Parameters
         ----------
         path : string
-            The path to the new directory, which may be relative to the current directory or absolute (relative to the CARTA backend root).
-        """
-        self._pwd = self.resolve_file_path(path)
-
-    def set_starting_directory(self, path):
-        """Change the starting directory of the frontend.
-
-        This is particularly useful for interactive sessions. If a new session object reconnects to an existing frontend session, this method allows the current directory in the frontend session to be reset to a known state. This ensures that any paths used in the script continue to work even if the current directory in the frontend changed during a previous execution.
-
-        It should not be necessary to use this method in non-interactive scripts which do not reuse frontend sessions.
-
-        This does not affect the current directory used by the wrapper. To change that directory, use :obj:`carta.session.Session.cd`.
-
-        This method must be called before any methods that use the locally saved path.
-
-        Parameters
-        ----------
-        path : string
-            The path to the new directory, which must be absolute (relative to the CARTA backend root).
-
+            The path to the new directory, which may be relative to the current directory or absolute (relative to the CARTA backend root). ``..`` is not supported.
         """
         self.call_action("fileBrowserStore.saveStartingDirectory", path)
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
-    def open_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression), Boolean())
+    def open_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE, update_directory=False):
         """Open a new image, replacing any existing images.
 
         Parameters
@@ -372,11 +334,13 @@ class Session:
             Whether the image is complex. Set to ``False`` by default.
         expression : {3}
             Arithmetic expression to use if opening a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
+        update_directory : {4}
+            Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        return Image.new(self, path, hdu, False, complex, expression)
+        return Image.new(self, path, hdu, False, complex, expression, update_directory=update_directory)
 
-    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression))
-    def append_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE):
+    @validate(String(), String(r"\d*"), Boolean(), Constant(ArithmeticExpression), Boolean(), Boolean())
+    def append_image(self, path, hdu="", complex=False, expression=ArithmeticExpression.AMPLITUDE, make_active=True, update_directory=False):
         """Append a new image, keeping any existing images.
 
         Parameters
@@ -389,8 +353,12 @@ class Session:
             Whether the image is complex. Set to ``False`` by default.
         expression : {3}
             Arithmetic expression to use if appending a complex-valued image. The default is :obj:`carta.constants.ArithmeticExpression.AMPLITUDE`.
+        make_active : {4}
+            Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
+        update_directory : {5}
+            Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        return Image.new(self, path, hdu, True, complex, expression)
+        return Image.new(self, path, hdu, True, complex, expression, make_active, update_directory)
 
     def image_list(self):
         """Return the list of currently open images.
