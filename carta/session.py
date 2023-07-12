@@ -7,6 +7,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 """
 
 import base64
+import posixpath
 
 from .image import Image
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ArithmeticExpression, NumberFormat
@@ -273,6 +274,25 @@ class Session:
         return self.call_action("fetchParameter", macro, response_expected=True)
 
     # FILE BROWSING
+    
+    def resolve_file_path(self, path):
+        """Convert a file path to an absolute path.
+        
+        This function prepends the session's current directory to a relative path, and normalizes the path to remove redundant separators and references.
+
+        Parameters
+        ----------
+        path : string
+            The file path, which may be absolute or relative to the current directory.
+
+        Returns
+        -------
+        string
+            The absolute file path, relative to the CARTA backend's root.
+        """
+        path = posixpath.join(self.pwd(), path)
+        path = posixpath.normpath(path)
+        return path
 
     def pwd(self):
         """The current directory.
@@ -286,7 +306,7 @@ class Session:
         """
         self.call_action("fileBrowserStore.getFileList", Macro("fileBrowserStore", "startingDirectory"))
         directory = self.get_value("fileBrowserStore.fileList.directory")
-        return f"/{directory}"
+        return f"/{directory}".rstrip("/")
 
 
     def ls(self):
@@ -314,8 +334,9 @@ class Session:
         Parameters
         ----------
         path : string
-            The path to the new directory, which may be relative to the current directory or absolute (relative to the CARTA backend root). ``..`` is not supported.
+            The path to the new directory, which may be relative to the current directory or absolute (relative to the CARTA backend root).
         """
+        path = self.resolve_file_path(path)
         self.call_action("fileBrowserStore.saveStartingDirectory", path)
 
     # IMAGES

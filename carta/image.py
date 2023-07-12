@@ -71,7 +71,8 @@ class Image:
         :obj:`carta.image.Image`
             A new image object.
         """
-        directory, file_name = posixpath.split(path) # TODO remove
+        path = session.resolve_file_path(path)
+        directory, file_name = posixpath.split(path)
         
         command = "appendFile" if append else "openFile"
         if complex:
