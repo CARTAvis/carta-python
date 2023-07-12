@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA
+from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA, ArithmeticExpression as AE
 
 # FIXTURES
 
@@ -96,8 +96,44 @@ def test_image_classmethods_have_docstrings(member):
 def test_image_properties_have_docstrings(member):
     assert member.__doc__ is not None
 
-# SIMPLE PROPERTIES TODO to be completed.
 
+# CREATING AN IMAGE
+
+@pytest.mark.parametrize("args,kwargs,expected_params", [
+    # Open a plain image
+    (["subdir/image.fits", "", False, False, None], {},
+     ["openFile", "/my_data/subdir", "image.fits", "", False, False]),
+    # Open a complex image
+    (["subdir/image.fits", "", False, True, AE.AMPLITUDE], {},
+     ["openFile", "/my_data/subdir", 'AMPLITUDE("image.fits")', "", True, False]),
+    # Append a plain image
+    (["subdir/image.fits", "", True, False, None], {},
+     ["appendFile", "/my_data/subdir", "image.fits", "", False, True, False]),
+    # Append a complex image
+    (["subdir/image.fits", "", True, True, AE.AMPLITUDE], {},
+     ["appendFile", "/my_data/subdir", 'AMPLITUDE("image.fits")', "", True, True, False]),
+    # Open a plain image; update the file browser directory
+    (["subdir/image.fits", "", False, False, None], {"update_directory": True},
+     ["openFile", "/my_data/subdir", "image.fits", "", False, True]),
+    # Append a plain image; don't set it to active
+    (["subdir/image.fits", "", True, False, None], {"make_active": False},
+     ["appendFile", "/my_data/subdir", "image.fits", "", False, False, False]),
+])
+def test_new(session, mock_session_call_action, mock_session_method, args, kwargs, expected_params):
+    mock_session_method("pwd", ["/my_data"])
+    mock_session_call_action.side_effect = [123]
+
+    image_object = Image.new(session, *args, **kwargs)
+
+    mock_session_call_action.assert_called_with(*expected_params, return_path='frameInfo.fileId')
+
+    assert(type(image_object) == Image)
+    assert(image_object.session == session)
+    assert(image_object.image_id == 123)
+    assert(image_object.file_name == expected_params[2])
+
+
+# SIMPLE PROPERTIES TODO to be completed.
 
 @pytest.mark.parametrize("property_name,expected_path", [
     ("directory", "frameInfo.directory"),

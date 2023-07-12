@@ -60,7 +60,7 @@ class Image:
         complex : boolean
             Whether the image is complex.
         expression : a member of :obj:`carta.constants.ArithmeticExpression`
-            Arithmetic expression to use if opening a complex-valued image.
+            Arithmetic expression to use if opening a complex-valued image. Ignored if the image is not complex.
         make_active : boolean
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : boolean
@@ -73,19 +73,19 @@ class Image:
         """
         path = session.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
-        
+
         command = "appendFile" if append else "openFile"
         if complex:
             image_arithmetic = True
             file_name = f'{expression}("{file_name}")'
         else:
             image_arithmetic = False
-        
+
         params = [directory, file_name, hdu, image_arithmetic]
         if append:
             params.append(make_active)
         params.append(update_directory)
-        
+
         image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
         return cls(session, image_id, file_name)
 

@@ -220,7 +220,7 @@ class Session:
         return browser.new_session_with_backend(executable_path, remote_host, params, timeout, token, frontend_url_timeout)
 
     def __repr__(self):
-        return f"Session(session_id={self.session_id}, uri={self._protocol.frontend_url})"
+        return f"Session(session_id={self.session_id}, uri={self._protocol.frontend_url if self._protocol else None})"
 
     def call_action(self, path, *args, **kwargs):
         """Call an action on the frontend through the backend's scripting interface.
@@ -274,10 +274,10 @@ class Session:
         return self.call_action("fetchParameter", macro, response_expected=True)
 
     # FILE BROWSING
-    
+
     def resolve_file_path(self, path):
         """Convert a file path to an absolute path.
-        
+
         This function prepends the session's current directory to a relative path, and normalizes the path to remove redundant separators and references.
 
         Parameters
@@ -296,7 +296,7 @@ class Session:
 
     def pwd(self):
         """The current directory.
-        
+
         This is the frontend file browser's currently saved starting directory. Whenever an image file is opened with the frontend's file browser (which may happen if the wrapper is connected to an interactive session), this directory is changed to the file's parent directory. By default, this directory is not changed if an image is opened through the wrapper (which bypasses the file browser).
 
         Returns
@@ -307,7 +307,6 @@ class Session:
         self.call_action("fileBrowserStore.getFileList", Macro("fileBrowserStore", "startingDirectory"))
         directory = self.get_value("fileBrowserStore.fileList.directory")
         return f"/{directory}".rstrip("/")
-
 
     def ls(self):
         """The current directory listing.
@@ -328,7 +327,7 @@ class Session:
 
     def cd(self, path):
         """Change the current directory.
-        
+
         This function changes the frontend file browser's starting directory.
 
         Parameters
@@ -379,7 +378,7 @@ class Session:
         update_directory : {5}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        return Image.new(self, path, hdu, True, complex, expression, make_active, update_directory)
+        return Image.new(self, path, hdu, True, complex, expression, make_active=make_active, update_directory=update_directory)
 
     def image_list(self):
         """Return the list of currently open images.
