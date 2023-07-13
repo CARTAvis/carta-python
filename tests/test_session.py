@@ -83,8 +83,8 @@ def test_session_classmethods_have_docstrings(member):
     ("foo/../bar", "/current/dir/bar"),
 ])
 def test_resolve_file_path(session, mock_method, path, expected_path):
-    mock_pwd = mock_method("pwd", ["/current/dir"])
-    assert(session.resolve_file_path(path) == expected_path)
+    mock_method("pwd", ["/current/dir"])
+    assert session.resolve_file_path(path) == expected_path
 
 
 def test_pwd(session, mock_call_action, mock_get_value):
@@ -92,20 +92,20 @@ def test_pwd(session, mock_call_action, mock_get_value):
     pwd = session.pwd()
     mock_call_action.assert_called_with("fileBrowserStore.getFileList", Macro('fileBrowserStore', 'startingDirectory'))
     mock_get_value.assert_called_with("fileBrowserStore.fileList.directory")
-    assert(pwd == "/current/dir")
+    assert pwd == "/current/dir"
 
 
 def test_ls(session, mock_method, mock_call_action, mock_get_value):
-    mock_pwd = mock_method("pwd", ["/current/dir"])
+    mock_method("pwd", ["/current/dir"])
     mock_get_value.side_effect = [{"files": [{"name": "foo.fits"}, {"name": "bar.fits"}], "subdirectories": [{"name": "baz"}]}]
     ls = session.ls()
     mock_call_action.assert_called_with("fileBrowserStore.getFileList", "/current/dir")
     mock_get_value.assert_called_with("fileBrowserStore.fileList")
-    assert(ls == ["bar.fits", "baz/", "foo.fits"])
+    assert ls == ["bar.fits", "baz/", "foo.fits"]
 
 
 def test_cd(session, mock_method, mock_call_action):
-    mock_resolve_file_path = mock_method("resolve_file_path", ["/resolved/file/path"])
+    mock_method("resolve_file_path", ["/resolved/file/path"])
     session.cd("original/path")
     mock_call_action.assert_called_with("fileBrowserStore.saveStartingDirectory", "/resolved/file/path")
 

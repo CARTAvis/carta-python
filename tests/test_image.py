@@ -127,10 +127,10 @@ def test_new(session, mock_session_call_action, mock_session_method, args, kwarg
 
     mock_session_call_action.assert_called_with(*expected_params, return_path='frameInfo.fileId')
 
-    assert(type(image_object) == Image)
-    assert(image_object.session == session)
-    assert(image_object.image_id == 123)
-    assert(image_object.file_name == expected_params[2])
+    assert type(image_object) == Image
+    assert image_object.session == session
+    assert image_object.image_id == 123
+    assert image_object.file_name == expected_params[2]
 
 
 # SIMPLE PROPERTIES TODO to be completed.
