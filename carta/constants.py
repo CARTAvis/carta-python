@@ -5,7 +5,7 @@ from enum import Enum, IntEnum
 # Fix for breaking change in 3.11
 try:
     from enum import StrEnum
-except:
+except ImportError:
     class StrEnum(str, Enum):
         pass
 
