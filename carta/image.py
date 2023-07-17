@@ -42,7 +42,7 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, path, hdu, append, complex, expression):
+    def new(cls, session, path, hdu, append, complex, expression, make_active=True, update_directory=False):
         """Open or append a new image in the session and return an image object associated with it.
 
         This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image` and :obj:`carta.session.Session.append_image`.
@@ -60,7 +60,11 @@ class Image:
         complex : boolean
             Whether the image is complex.
         expression : a member of :obj:`carta.constants.ArithmeticExpression`
-            Arithmetic expression to use if opening a complex-valued image.
+            Arithmetic expression to use if opening a complex-valued image. Ignored if the image is not complex.
+        make_active : boolean
+            Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
+        update_directory : boolean
+            Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
 
         Returns
         -------
@@ -69,13 +73,20 @@ class Image:
         """
         path = session.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
+
         command = "appendFile" if append else "openFile"
         if complex:
             image_arithmetic = True
             file_name = f'{expression}("{file_name}")'
         else:
             image_arithmetic = False
-        image_id = session.call_action(command, directory, file_name, hdu, image_arithmetic, return_path="frameInfo.fileId")
+
+        params = [directory, file_name, hdu, image_arithmetic]
+        if append:
+            params.append(make_active)
+        params.append(update_directory)
+
+        image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
         return cls(session, image_id, file_name)
 
     @classmethod

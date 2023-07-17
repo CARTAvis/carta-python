@@ -19,7 +19,7 @@ The required Python library dependencies should be installed automatically. To c
 You need access either to a CARTA backend executable, on the local host or on a remote host which you can access through SSH, or to a CARTA controller instance (a multi-user system with web-based authentication). You must be able to access the frontend served by this CARTA instance. If you are using your own backend executable, you must start it with the ``--enable_scripting`` commandline parameter to enable the scripting interface.
 
 .. note::
-   This version of the wrapper requires at least the 3.0.0-beta.3 versions of the CARTA backend, frontend and (optionally) controller. Older versions of these components use an outdated API which is no longer supported.
+   This version of the wrapper requires at least the 4.0 release versions of the CARTA backend, frontend and (optionally) controller. Older versions of these components may not work correctly and are not supported.
 
 If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
 
