@@ -2,10 +2,15 @@
 
 from enum import Enum, IntEnum
 
+# Fix for breaking change in 3.11
+try:
+    from enum import StrEnum
+except:
+    class StrEnum(str, Enum):
+        pass
 
-# TODO make sure the __str__ is right for all the string values
 
-class ArithmeticExpression(str, Enum):
+class ArithmeticExpression(StrEnum):
     """Arithmetic expression."""
     AMPLITUDE = "AMPLITUDE"
     PHASE = "PHASE"
@@ -13,38 +18,38 @@ class ArithmeticExpression(str, Enum):
     IMAG = "IMAG"
 
 
-Colormap = Enum('Colormap', {c.upper(): c for c in ('copper', 'paired', 'gist_heat', 'brg', 'cool', 'summer', 'OrRd', 'tab20c', 'purples', 'gray', 'terrain', 'RdPu', 'set2', 'spring', 'gist_yarg', 'RdYlBu', 'reds', 'winter', 'Wistia', 'rainbow', 'dark2', 'oranges', 'BuPu', 'gist_earth', 'PuBu', 'pink', 'PuOr', 'pastel2', 'PiYG', 'gist_ncar', 'PuRd', 'plasma', 'gist_stern', 'hot', 'PuBuGn', 'YlOrRd', 'accent', 'magma', 'set1', 'GnBu', 'greens', 'CMRmap', 'gist_rainbow', 'prism', 'hsv', 'Blues', 'viridis', 'YlGn', 'spectral', 'RdBu', 'tab20', 'greys', 'flag', 'jet', 'seismic', 'PRGn', 'coolwarm', 'YlOrBr', 'RdYlGn', 'bone', 'autumn', 'BrBG', 'gnuplot2', 'RdGy', 'binary', 'gnuplot', 'BuGn', 'gist_gray', 'nipy_spectral', 'set3', 'tab20b', 'pastel1', 'afmhot', 'cubehelix', 'YlGnBu', 'ocean', 'tab10', 'bwr', 'inferno')}, type=str)
+Colormap = StrEnum('Colormap', {c.upper(): c for c in ('copper', 'paired', 'gist_heat', 'brg', 'cool', 'summer', 'OrRd', 'tab20c', 'purples', 'gray', 'terrain', 'RdPu', 'set2', 'spring', 'gist_yarg', 'RdYlBu', 'reds', 'winter', 'Wistia', 'rainbow', 'dark2', 'oranges', 'BuPu', 'gist_earth', 'PuBu', 'pink', 'PuOr', 'pastel2', 'PiYG', 'gist_ncar', 'PuRd', 'plasma', 'gist_stern', 'hot', 'PuBuGn', 'YlOrRd', 'accent', 'magma', 'set1', 'GnBu', 'greens', 'CMRmap', 'gist_rainbow', 'prism', 'hsv', 'Blues', 'viridis', 'YlGn', 'spectral', 'RdBu', 'tab20', 'greys', 'flag', 'jet', 'seismic', 'PRGn', 'coolwarm', 'YlOrBr', 'RdYlGn', 'bone', 'autumn', 'BrBG', 'gnuplot2', 'RdGy', 'binary', 'gnuplot', 'BuGn', 'gist_gray', 'nipy_spectral', 'set3', 'tab20b', 'pastel1', 'afmhot', 'cubehelix', 'YlGnBu', 'ocean', 'tab10', 'bwr', 'inferno')})
 Colormap.__doc__ = """All available colormaps."""
 
 
-Scaling = Enum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'), type=int, start=0)
+Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'), start=0)
 Scaling.__doc__ = """Colormap scaling types."""
 
 
-CoordinateSystem = Enum('CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")}, type=str)
+CoordinateSystem = StrEnum('CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")})
 CoordinateSystem.__doc__ = """Coordinate systems."""
 
 
-class NumberFormat(str, Enum):
+class NumberFormat(StrEnum):
     """Number formats."""
     DEGREES = "d"
     HMS = "hms"
     DMS = "dms"
 
 
-class SpatialAxis(str, Enum):
+class SpatialAxis(StrEnum):
     """Spatial axes."""
     X = "x"
     Y = "y"
 
 
-class LabelType(str, Enum):
+class LabelType(StrEnum):
     """Label types."""
     INTERIOR = "Interior"
     EXTERIOR = "Exterior"
 
 
-class BeamType(str, Enum):
+class BeamType(StrEnum):
     """Beam types."""
     OPEN = "Open"
     SOLID = "Solid"
@@ -96,7 +101,7 @@ DARK_THEME = {
 }
 
 
-class PaletteColor(str, Enum):
+class PaletteColor(StrEnum):
     """Palette colours used for overlay elements.
 
     Members of this enum class have additional attributes.
@@ -122,18 +127,21 @@ class PaletteColor(str, Enum):
         PaletteColor[c] = f"auto-{c.lower()}"
 
 
-Overlay = Enum('Overlay', [(c.upper(), c) for c in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar")] + [('BEAM', 'beam.settingsForDisplay')], type=str)
+Overlay = StrEnum('Overlay', [(c.upper(), c) for c in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar")] + [('BEAM', 'beam.settingsForDisplay')])
 Overlay.__doc__ = """Overlay elements.
 
     Member values are paths to stores corresponding to these elements, relative to the overlay store.
     """
 
 
-SmoothingMode = Enum('SmoothingMode', ('NO_SMOOTHING', 'BLOCK_AVERAGE', 'GAUSSIAN_BLUR'), type=int, start=0)
-SmoothingMode.__doc__ = """Contour smoothing modes."""
+class SmoothingMode(IntEnum):
+    """Contour smoothing modes."""
+    NO_SMOOTHING = 0
+    BLOCK_AVERAGE = 1
+    GAUSSIAN_BLUR = 2
 
 
-class ContourDashMode(str, Enum):
+class ContourDashMode(StrEnum):
     """Contour dash modes."""
     NONE = "None"
     DASHED = "Dashed"
@@ -161,11 +169,13 @@ class Polarization(IntEnum):
     PANGLE = 17
 
 
-PanelMode = Enum('PanelMode', ('SINGLE', 'MULTIPLE'), type=int, start=0)
-PanelMode.__doc__ = """Panel modes."""
+class PanelMode(IntEnum):
+    """Panel modes."""
+    SINGLE = 0
+    MULTIPLE = 1
 
 
-class GridMode(str, Enum):
+class GridMode(StrEnum):
     """Grid modes."""
     DYNAMIC = "dynamic"
     FIXED = "fixed"
