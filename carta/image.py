@@ -42,7 +42,7 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, directory, file_name, hdu, append, image_arithmetic):
+    def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
         """Open or append a new image in the session and return an image object associated with it.
 
         This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image`, :obj:`carta.session.Session.open_complex_image` and :obj:`carta.session.Session.open_LEL_image`.
@@ -60,7 +60,11 @@ class Image:
         append : boolean
             Whether the image should be appended.
         image_arihmetic : boolean
-            Whether the file name should be interpreted as a LEL expression.
+            Whether the file name should be interpreted as a LEL expression. Ignored if the image is not complex.
+        make_active : boolean
+            Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
+        update_directory : boolean
+            Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
 
         Returns
         -------
@@ -68,7 +72,13 @@ class Image:
             A new image object.
         """
         command = "appendFile" if append else "openFile"
-        image_id = session.call_action(command, directory, file_name, hdu, image_arithmetic, return_path="frameInfo.fileId")
+
+        params = [directory, file_name, hdu, image_arithmetic]
+        if append:
+            params.append(make_active)
+        params.append(update_directory)
+
+        image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
         return cls(session, image_id, file_name)
 
     @classmethod
