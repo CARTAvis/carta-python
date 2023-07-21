@@ -42,7 +42,7 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
+    def new(cls, session, path, hdu, append, complex, image_arithmetic, expression, make_active=True, update_directory=False):
         """Open or append a new image in the session and return an image object associated with it.
 
         This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image`, :obj:`carta.session.Session.open_complex_image` and :obj:`carta.session.Session.open_LEL_image`.
@@ -51,16 +51,18 @@ class Image:
         ----------
         session : :obj:`carta.session.Session`
             The session object.
-        directory : string
-            The directory containing the image file, or the base directory for the LEL arithmetic expression, as an absolute path relative to the CARTA backend's root directory.
-        file_name : string
-            The name of the image file, or a LEL arithmetic expression.
+        path : string
+            The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         hdu : string
             The HDU to open.
         append : boolean
             Whether the image should be appended.
+        complex : boolean
+            Whether the image is complex.
         image_arihmetic : boolean
-            Whether the file name should be interpreted as a LEL expression. Ignored if the image is not complex.
+            Whether the file name should be interpreted as a complex expression or a LEL expression.
+        expression : string
+            The name of the image file, or a LEL arithmetic expression.
         make_active : boolean
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : boolean
@@ -72,6 +74,14 @@ class Image:
             A new image object.
         """
         command = "appendFile" if append else "openFile"
+
+        path = session.resolve_file_path(path)
+        directory, file_name = posixpath.split(path)
+
+        if complex and image_arithmetic:
+            file_name = f'{expression}("{file_name}")'
+        elif not complex and image_arithmetic:
+            file_name = expression
 
         params = [directory, file_name, hdu, image_arithmetic]
         if append:
