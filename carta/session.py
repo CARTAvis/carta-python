@@ -355,10 +355,12 @@ class Session:
         update_directory : {3}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        return Image.new(self, path, hdu, append, False, False, "", update_directory=update_directory)
+        path = self.resolve_file_path(path)
+        directory, file_name = posixpath.split(path)
+        return Image.new(self, directory, file_name, hdu, append, False, update_directory=update_directory)
 
-    @validate(String(), Constant(ComplexExpression), String(r"\d*"), Boolean(), Boolean())
-    def open_complex_image(self, path, expression=ComplexExpression.AMPLITUDE, hdu="", append=False, update_directory=False):
+    @validate(String(), Constant(ComplexExpression), Boolean(), Boolean(), Boolean())
+    def open_complex_image(self, path, expression=ComplexExpression.AMPLITUDE, append=False, update_directory=False):
         """Open or append a new complex-valued image.
 
         Parameters
@@ -367,33 +369,33 @@ class Session:
             The path to the complex-valued image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         expression : {1}
             The complex expression to use when opening the image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
-        hdu : {2}
-            The HDU to select inside the file.
-        append : {3}
+        append : {2}
             Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
-        update_directory : {4}
+        update_directory : {3}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        return Image.new(self, path, hdu, append, True, True, expression, update_directory=update_directory)
+        path = self.resolve_file_path(path)
+        directory, file_name = posixpath.split(path)
+        expression = f'{expression}("{file_name}")'
+        return Image.new(self, directory, expression, "", append, True, update_directory=update_directory)
 
-    @validate(String(), String(), String(), Boolean(), Boolean())
-    def open_LEL_image(self, expression, path=".", hdu="", append=False, update_directory=False):
+    @validate(String(), String(), Boolean(), Boolean(), Boolean())
+    def open_LEL_image(self, expression, directory=".", append=False, update_directory=False):
         """Open or append a new image via the Lattice Expression Language (LEL) interface.
 
         Parameters
         ----------
         expression : {0}
             The LEL arithmetic expression.
-        path : {1}
-            The base path for the LEL expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory. Defaults to the session's current directory.
-        hdu : {2}
-            The HDU to select inside the file.
-        append : {3}
+        directory : {1}
+            The base directory for the LEL expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory. Defaults to the session's current directory.
+        append : {2}
             Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
-        update_directory : {4}
+        update_directory : {3}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        return Image.new(self, path, hdu, append, False, True, expression, update_directory=update_directory)
+        directory = self.resolve_file_path(directory)
+        return Image.new(self, directory, expression, "", append, True, update_directory=update_directory)
 
     def image_list(self):
         """Return the list of currently open images.
