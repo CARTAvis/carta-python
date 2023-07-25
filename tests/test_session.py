@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Macro
-from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexExpression as CE
+from carta.constants import CoordinateSystem, NumberFormat as NF, ArithmeticExpression as AE
 
 # FIXTURES
 
@@ -115,16 +115,16 @@ def test_cd(session, mock_method, mock_call_action):
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
     # Open plain image
     (["subdir/image.fits"], {},
-     ["subdir/image.fits", "", False, False, False, ""], {"update_directory": False}),
-    # Append plain image
-    (["subdir/image.fits"], {},
-     ["subdir/image.fits", "", True, False, False, ""], {"update_directory": False}),
+     ["subdir/image.fits", "", False, False, AE.AMPLITUDE], {"update_directory": False}),
     # Open plain image; select different HDU
     (["subdir/image.fits"], {"hdu": "3"},
-     ["subdir/image.fits", "3", False, False, False, ""], {"update_directory": False}),
+     ["subdir/image.fits", "3", False, False, AE.AMPLITUDE], {"update_directory": False}),
+    # Open complex image
+    (["subdir/image.fits"], {"complex": True},
+     ["subdir/image.fits", "", False, True, AE.AMPLITUDE], {"update_directory": False}),
     # Open plain image; update file browser directory
     (["subdir/image.fits"], {"update_directory": True},
-     ["subdir/image.fits", "", False, False, False, ""], {"update_directory": True}),
+     ["subdir/image.fits", "", False, False, AE.AMPLITUDE], {"update_directory": True}),
 ])
 def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
     mock_image_new = mocker.patch.object(Image, "new")
@@ -132,6 +132,29 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
     mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
 
 # TODO this should be merged with the test above when this separate function is removed
+
+
+@pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
+    # Open plain image
+    (["subdir/image.fits"], {},
+     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
+    # Open plain image; select different HDU
+    (["subdir/image.fits"], {"hdu": "3"},
+     ["subdir/image.fits", "3", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
+    # Open complex image
+    (["subdir/image.fits"], {"complex": True},
+     ["subdir/image.fits", "", True, True, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
+    # Open plain image; update file browser directory
+    (["subdir/image.fits"], {"update_directory": True},
+     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": True}),
+    # Open plain image; don't make active
+    (["subdir/image.fits"], {"make_active": False},
+     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": False, "update_directory": False}),
+])
+def test_append_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
+    mock_image_new = mocker.patch.object(Image, "new")
+    session.append_image(*args, **kwargs)
+    mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
 
 # OVERLAY
 
