@@ -52,7 +52,7 @@ class Image:
         directory : string
             The directory containing the image file or the base directory for the LEL arithmetic expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory
         file_name : string
-            The name of the image file, or a LEL arithmetic expression.
+            The name of the image file, complex expression or a LEL arithmetic expression.
         hdu : string
             The HDU to open.
         append : boolean
