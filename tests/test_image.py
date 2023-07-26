@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA, ComplexExpression as CE
+from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA
 
 # FIXTURES
 

@@ -134,15 +134,39 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
 # TODO this should be merged with the test above when this separate function is removed
 
 
-# @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
-#     # Open complex image
-#     (["subdir/image.fits"], {"expression": CE.AMPLITUDE},
-#      ["subdir", 'AMPLITUDE("image.fits")', "", False, True], {"update_directory": False})
-# ])
-# def test_open_complex_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
-#     mock_image_new = mocker.patch.object(Image, "new")
-#     session.open_image(*args, **kwargs)
-#     mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+@pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
+    # Open complex image (AMPLITUDE)
+    (["subdir/image.fits"], {"expression": CE.AMPLITUDE},
+     ["subdir", 'AMPLITUDE("image.fits")', "", False, True], {"update_directory": False}),
+    # Append complex image (PHASE)
+    (["subdir/image.fits"], {"expression": CE.PHASE, "append": True},
+     ["subdir", 'PHASE("image.fits")', "", True, True], {"update_directory": False}),
+    # Open complex image (REAL); update file browser directory
+    (["subdir/image.fits"], {"expression": CE.REAL, "update_directory": True},
+     ["subdir", 'REAL("image.fits")', "", False, True], {"update_directory": True}),
+])
+def test_open_complex_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
+    mock_image_new = mocker.patch.object(Image, "new")
+    session.open_complex_image(*args, **kwargs)
+    mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
+
+@pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
+    # Open LEL image
+    (["2*image.fits"], {},
+     [".", '2*image.fits', "", False, True], {"update_directory": False}),
+    # Append LEL image
+    (["2*image.fits+image.fits"], {"append": True},
+     [".", '2*image.fits+image.fits', "", True, True], {"update_directory": False}),
+    # Open LEL image; update file browser directory
+    (["2*image.fits/image.fits"], {"update_directory": True},
+     [".", '2*image.fits/image.fits', "", False, True], {"update_directory": True}),
+])
+def test_open_LEL_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
+    mock_image_new = mocker.patch.object(Image, "new")
+    session.open_LEL_image(*args, **kwargs)
+    mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
 
 # OVERLAY
 
