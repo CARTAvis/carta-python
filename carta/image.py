@@ -59,7 +59,7 @@ class Image:
             The HDU to open.
         append : boolean
             Whether the image should be appended.
-        image_arihmetic : boolean
+        image_arithmetic : boolean
             Whether the file name should be interpreted as a LEL expression. Ignored if the image is not complex.
         make_active : boolean
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
@@ -72,6 +72,7 @@ class Image:
             A new image object.
         """
         command = "appendFile" if append else "openFile"
+        directory = session.resolve_file_path(directory)
 
         params = [directory, file_name, hdu, image_arithmetic]
         if append:

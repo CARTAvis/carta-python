@@ -355,7 +355,6 @@ class Session:
         update_directory : {3}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        path = self.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
         return Image.new(self, directory, file_name, hdu, append, False, update_directory=update_directory)
 
@@ -374,7 +373,6 @@ class Session:
         update_directory : {3}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        path = self.resolve_file_path(path)
         directory, file_name = posixpath.split(path)
         expression = f'{expression}("{file_name}")'
         return Image.new(self, directory, expression, "", append, True, update_directory=update_directory)
@@ -394,7 +392,6 @@ class Session:
         update_directory : {3}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        directory = self.resolve_file_path(directory)
         return Image.new(self, directory, expression, "", append, True, update_directory=update_directory)
 
     def image_list(self):
