@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Macro
-from carta.constants import CoordinateSystem, NumberFormat as NF, ArithmeticExpression as AE
+from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexExpression as CE
 
 # FIXTURES
 
@@ -115,16 +115,16 @@ def test_cd(session, mock_method, mock_call_action):
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
     # Open plain image
     (["subdir/image.fits"], {},
-     ["subdir/image.fits", "", False, False, AE.AMPLITUDE], {"update_directory": False}),
+     ["subdir/image.fits", "", False, False, CE.AMPLITUDE], {"update_directory": False}),
     # Open plain image; select different HDU
     (["subdir/image.fits"], {"hdu": "3"},
-     ["subdir/image.fits", "3", False, False, AE.AMPLITUDE], {"update_directory": False}),
+     ["subdir/image.fits", "3", False, False, CE.AMPLITUDE], {"update_directory": False}),
     # Open complex image
     (["subdir/image.fits"], {"complex": True},
-     ["subdir/image.fits", "", False, True, AE.AMPLITUDE], {"update_directory": False}),
+     ["subdir/image.fits", "", False, True, CE.AMPLITUDE], {"update_directory": False}),
     # Open plain image; update file browser directory
     (["subdir/image.fits"], {"update_directory": True},
-     ["subdir/image.fits", "", False, False, AE.AMPLITUDE], {"update_directory": True}),
+     ["subdir/image.fits", "", False, False, CE.AMPLITUDE], {"update_directory": True}),
 ])
 def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
     mock_image_new = mocker.patch.object(Image, "new")
@@ -137,19 +137,19 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
     # Open plain image
     (["subdir/image.fits"], {},
-     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
+     ["subdir/image.fits", "", True, False, CE.AMPLITUDE], {"make_active": True, "update_directory": False}),
     # Open plain image; select different HDU
     (["subdir/image.fits"], {"hdu": "3"},
-     ["subdir/image.fits", "3", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
+     ["subdir/image.fits", "3", True, False, CE.AMPLITUDE], {"make_active": True, "update_directory": False}),
     # Open complex image
     (["subdir/image.fits"], {"complex": True},
-     ["subdir/image.fits", "", True, True, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
+     ["subdir/image.fits", "", True, True, CE.AMPLITUDE], {"make_active": True, "update_directory": False}),
     # Open plain image; update file browser directory
     (["subdir/image.fits"], {"update_directory": True},
-     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": True}),
+     ["subdir/image.fits", "", True, False, CE.AMPLITUDE], {"make_active": True, "update_directory": True}),
     # Open plain image; don't make active
     (["subdir/image.fits"], {"make_active": False},
-     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": False, "update_directory": False}),
+     ["subdir/image.fits", "", True, False, CE.AMPLITUDE], {"make_active": False, "update_directory": False}),
 ])
 def test_append_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
     mock_image_new = mocker.patch.object(Image, "new")
