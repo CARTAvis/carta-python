@@ -340,8 +340,8 @@ class Session:
 
     # IMAGES
 
-    @validate(String(), String(r"\d*"), Boolean(), Boolean())
-    def open_image(self, path, hdu="", append=False, update_directory=False):
+    @validate(String(), String(r"\d*"), Boolean(), Boolean(), Boolean())
+    def open_image(self, path, hdu="", append=False, make_active=True, update_directory=False):
         """Open or append a new image.
 
         Parameters
@@ -352,14 +352,16 @@ class Session:
             The HDU to select inside the file.
         append : {2}
             Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
-        update_directory : {3}
+        make_active : {3}
+            Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
+        update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
         directory, file_name = posixpath.split(path)
-        return Image.new(self, directory, file_name, hdu, append, False, update_directory=update_directory)
+        return Image.new(self, directory, file_name, hdu, append, False, make_active=make_active, update_directory=update_directory)
 
     @validate(String(), Constant(ComplexExpression), Boolean(), Boolean(), Boolean())
-    def open_complex_image(self, path, expression=ComplexExpression.AMPLITUDE, append=False, update_directory=False):
+    def open_complex_image(self, path, expression=ComplexExpression.AMPLITUDE, append=False, make_active=True, update_directory=False):
         """Open or append a new complex-valued image.
 
         Parameters
@@ -370,15 +372,17 @@ class Session:
             The complex expression to use when opening the image. The default is :obj:`carta.constants.ComplexExpression.AMPLITUDE`.
         append : {2}
             Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
-        update_directory : {3}
+        make_active : {3}
+            Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
+        update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
         directory, file_name = posixpath.split(path)
         expression = f'{expression}("{file_name}")'
-        return Image.new(self, directory, expression, "", append, True, update_directory=update_directory)
+        return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
 
     @validate(String(), String(), Boolean(), Boolean(), Boolean())
-    def open_LEL_image(self, expression, directory=".", append=False, update_directory=False):
+    def open_LEL_image(self, expression, directory=".", append=False, make_active=True, update_directory=False):
         """Open or append a new image via the Lattice Expression Language (LEL) interface.
 
         Parameters
@@ -389,10 +393,12 @@ class Session:
             The base directory for the LEL expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory. Defaults to the session's current directory.
         append : {2}
             Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
-        update_directory : {3}
+        make_active : {3}
+            Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
+        update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
-        return Image.new(self, directory, expression, "", append, True, update_directory=update_directory)
+        return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
 
     def image_list(self):
         """Return the list of currently open images.

@@ -115,16 +115,16 @@ def test_cd(session, mock_method, mock_call_action):
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
     # Open plain image
     (["subdir/image.fits"], {},
-     ["subdir", "image.fits", "", False, False], {"update_directory": False}),
+     ["subdir", "image.fits", "", False, False], {"make_active": True, "update_directory": False}),
     # Append plain image
     (["subdir/image.fits"], {"append": True},
-     ["subdir", "image.fits", "", True, False], {"update_directory": False}),
+     ["subdir", "image.fits", "", True, False], {"make_active": True, "update_directory": False}),
     # Open plain image; select different HDU
     (["subdir/image.fits"], {"hdu": "3"},
-     ["subdir", "image.fits", "3", False, False], {"update_directory": False}),
+     ["subdir", "image.fits", "3", False, False], {"make_active": True, "update_directory": False}),
     # Open plain image; update file browser directory
     (["subdir/image.fits"], {"update_directory": True},
-     ["subdir", "image.fits", "", False, False], {"update_directory": True}),
+     ["subdir", "image.fits", "", False, False], {"make_active": True, "update_directory": True}),
 ])
 def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
     mock_image_new = mocker.patch.object(Image, "new")
@@ -135,15 +135,18 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
 
 
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
-    # Open complex image (AMPLITUDE)
-    (["subdir/image.fits"], {"expression": CE.AMPLITUDE},
-     ["subdir", 'AMPLITUDE("image.fits")', "", False, True], {"update_directory": False}),
-    # Append complex image (PHASE)
-    (["subdir/image.fits"], {"expression": CE.PHASE, "append": True},
-     ["subdir", 'PHASE("image.fits")', "", True, True], {"update_directory": False}),
-    # Open complex image (REAL); update file browser directory
-    (["subdir/image.fits"], {"expression": CE.REAL, "update_directory": True},
-     ["subdir", 'REAL("image.fits")', "", False, True], {"update_directory": True}),
+    # Open complex image with default (AMPLITUDE) setting
+    (["subdir/image.fits"], {},
+     ["subdir", 'AMPLITUDE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
+    # Open complex image (PHASE)
+    (["subdir/image.fits"], {"expression": CE.PHASE},
+     ["subdir", 'PHASE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
+    # Append complex image (REAL)
+    (["subdir/image.fits"], {"expression": CE.REAL, "append": True},
+     ["subdir", 'REAL("image.fits")', "", True, True], {"make_active": True, "update_directory": False}),
+    # Open complex image (IMAG); update file browser directory
+    (["subdir/image.fits"], {"expression": CE.IMAG, "update_directory": True},
+     ["subdir", 'IMAG("image.fits")', "", False, True], {"make_active": True, "update_directory": True}),
 ])
 def test_open_complex_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
     mock_image_new = mocker.patch.object(Image, "new")
@@ -154,13 +157,13 @@ def test_open_complex_image(mocker, session, args, kwargs, expected_args, expect
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
     # Open LEL image
     (["2*image.fits"], {},
-     [".", '2*image.fits', "", False, True], {"update_directory": False}),
+     [".", '2*image.fits', "", False, True], {"make_active": True, "update_directory": False}),
     # Append LEL image
     (["2*image.fits+image.fits"], {"append": True},
-     [".", '2*image.fits+image.fits', "", True, True], {"update_directory": False}),
+     [".", '2*image.fits+image.fits', "", True, True], {"make_active": True, "update_directory": False}),
     # Open LEL image; update file browser directory
     (["2*image.fits/image.fits"], {"update_directory": True},
-     [".", '2*image.fits/image.fits', "", False, True], {"update_directory": True}),
+     [".", '2*image.fits/image.fits', "", False, True], {"make_active": True, "update_directory": True}),
 ])
 def test_open_LEL_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
     mock_image_new = mocker.patch.object(Image, "new")

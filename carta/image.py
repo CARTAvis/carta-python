@@ -50,7 +50,7 @@ class Image:
         session : :obj:`carta.session.Session`
             The session object.
         directory : string
-            The directory containing the image file, or the base directory for the LEL arithmetic expression, as an absolute path relative to the CARTA backend's root directory.
+            The directory containing the image file or the base directory for the LEL arithmetic expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory
         file_name : string
             The name of the image file, or a LEL arithmetic expression.
         hdu : string
@@ -58,7 +58,7 @@ class Image:
         append : boolean
             Whether the image should be appended.
         image_arithmetic : boolean
-            Whether the file name should be interpreted as a LEL expression. Ignored if the image is not complex.
+            Whether the file name should be interpreted as a complex expression or a LEL expression.
         make_active : boolean
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : boolean

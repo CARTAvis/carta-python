@@ -106,15 +106,9 @@ def test_image_properties_have_docstrings(member):
     # Open a complex image
     (["subdir", 'AMPLITUDE("image.fits")', "", False, True], {},
      ["openFile", "/my_data/subdir", 'AMPLITUDE("image.fits")', "", True, False]),
-    # Open a LEL image
-    (["subdir", "2*image.fits", "", False, True], {},
-     ["openFile", "/my_data/subdir", "2*image.fits", "", True, False]),
     # Append a plain image
     (["subdir", "image.fits", "", True, False], {},
      ["appendFile", "/my_data/subdir", "image.fits", "", False, True, False]),
-    # Append a complex image
-    (["subdir", 'AMPLITUDE("image.fits")', "", True, True], {},
-     ["appendFile", "/my_data/subdir", 'AMPLITUDE("image.fits")', "", True, True, False]),
     # Append a LEL image
     (["subdir", "2*image.fits", "", True, True], {},
      ["appendFile", "/my_data/subdir", "2*image.fits", "", True, True, False]),
