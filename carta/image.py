@@ -4,12 +4,13 @@ Image objects should not be instantiated directly, and should only be created th
 """
 import posixpath
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis
-from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, FileType
+from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate, BasePathMixin
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
+from .region import Region
 
 
-class Image:
+class Image(BasePathMixin):
     """This object corresponds to an image open in a CARTA frontend session.
 
     This class should not be instantiated directly. Instead, use the session object's methods for opening new images or retrieving existing images.
@@ -111,64 +112,6 @@ class Image:
 
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
-
-    def call_action(self, path, *args, **kwargs):
-        """Convenience wrapper for the session object's generic action method.
-
-        This method calls :obj:`carta.session.Session.call_action` after prepending this image's base path to the path parameter.
-
-        Parameters
-        ----------
-        path : string
-            The path to an action relative to this image's frame store.
-        *args
-            A variable-length list of parameters. These are passed unmodified to the session method.
-        **kwargs
-            Arbitrary keyword parameters. These are passed unmodified to the session method.
-
-        Returns
-        -------
-        object or None
-            The unmodified return value of the session method.
-        """
-        return self.session.call_action(f"{self._base_path}.{path}", *args, **kwargs)
-
-    def get_value(self, path):
-        """Convenience wrapper for the session object's generic method for retrieving attribute values.
-
-        This method calls :obj:`carta.session.Session.get_value` after prepending this image's base path to the *path* parameter.
-
-        Parameters
-        ----------
-        path : string
-            The path to an attribute relative to this image's frame store.
-
-        Returns
-        -------
-        object
-            The unmodified return value of the session method.
-        """
-        return self.session.get_value(f"{self._base_path}.{path}")
-
-    def macro(self, target, variable):
-        """Convenience wrapper for creating a :obj:`carta.util.Macro` for an image property.
-
-        This method prepends this image's base path to the *target* parameter. If *target* is the empty string, the base path will be substituted.
-
-        Parameters
-        ----------
-        target : str
-            The target frontend object.
-        variable : str
-            The variable on the target object.
-
-        Returns
-        -------
-        :obj:carta.util.Macro
-            A placeholder for a variable which will be evaluated dynamically by the frontend.
-        """
-        target = f"{self._base_path}.{target}" if target else self._base_path
-        return Macro(target, variable)
 
     # METADATA
 
@@ -789,6 +732,53 @@ class Image:
         if rank not in preset_ranks:
             self.call_action("renderConfig.setPercentileRank", -1)  # select 'custom' rank button
 
+    # REGIONS
+    
+    def region_list(self):
+        """Return the list of regions associated with this image.
+
+        Returns
+        -------
+        list of :obj:`carta.region.Region` objects.
+        """
+        num_regions = self.get_value("regionSet.regions.length")
+        return [Region(self, self.get_value(f"regionSet.regions[{i}].region_id")) for i in range(num_regions)]
+    
+    @validate(String(), NoneOr(OneOf(FileType.CRTF, FileType.DS9_REG)))
+    def import_regions(self, path, file_type=None):
+        """Import regions into this image from a file.
+        
+        TODO: placeholder code; until the frontend function allows a frame to be specified, this will only work on the active image or its spatial reference
+        
+        Parameters
+        ----------
+        path : {0}
+            The path to the region file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        file_type : {1}
+            The type of the region file. Omit this parameter to detect the type automatically from the file extension.
+            
+        Raises
+        ------
+        ValueError
+            If no file format is specified, and the
+        """
+        directory, file_name = posixpath.split(path)
+        
+        # TODO actually use the file browser to fetch info for this file?
+        
+        if file_type is None:
+            if file_name.endswith(".crtf"):
+                file_type = FileType.CRTF
+            elif file_name.endswith(".reg"):
+                file_type = FileType.DS9_REG
+            else:
+                raise ValueError("The region file type could not be inferred from the file name. Please use the file_type parameter.")
+        
+        self.session.call_action("importRegion", directory, file_name, file_type) # TODO pass in frame when this is supported
+    
+    def export_regions(self, path, file_type, coordinate_type):
+        pass # TODO
+    
     # CLOSE
 
     def close(self):

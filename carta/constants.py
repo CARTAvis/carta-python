@@ -179,3 +179,14 @@ class GridMode(StrEnum):
     """Grid modes."""
     DYNAMIC = "dynamic"
     FIXED = "fixed"
+
+
+class FileType(IntEnum):
+    """File types corresponding to the protobuf enum"""
+    CASA = 0
+    CRTF = 1
+    DS9_REG = 2
+    FITS = 3
+    HDF5 = 4
+    MIRIAD = 5
+    UNKNOWN = 6

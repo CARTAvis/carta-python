@@ -254,7 +254,7 @@ class Session:
         """
         return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
 
-    def get_value(self, path):
+    def get_value(self, path, return_path=None):
         """Get the value of an attribute from a frontend store.
 
         Like the :obj:`carta.session.Session.call_action` method, this is exposed in the public API but is not intended to be used directly under normal circumstances.
@@ -263,6 +263,8 @@ class Session:
         ----------
         path : string
             The full path to the attribute.
+        return_path : string, optional
+            Specifies a subobject of the attribute value which should be returned instead of the whole object.
 
         Returns
         -------
@@ -271,7 +273,12 @@ class Session:
         """
         path, parameter = split_action_path(path)
         macro = Macro(path, parameter)
-        return self.call_action("fetchParameter", macro, response_expected=True)
+        
+        kwargs = {"response_expected": True}
+        if return_path is not None:
+            kwargs["return_path"] = return_path
+        
+        return self.call_action("fetchParameter", macro, **kwargs)
 
     # FILE BROWSING
 
