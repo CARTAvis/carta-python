@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Macro
-from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexExpression as CE
+from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC
 
 # FIXTURES
 
@@ -139,13 +139,13 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
     (["subdir/image.fits"], {},
      ["subdir", 'AMPLITUDE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
     # Open complex image (PHASE)
-    (["subdir/image.fits"], {"expression": CE.PHASE},
+    (["subdir/image.fits"], {"expression": CC.PHASE},
      ["subdir", 'PHASE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
     # Append complex image (REAL)
-    (["subdir/image.fits"], {"expression": CE.REAL, "append": True},
+    (["subdir/image.fits"], {"expression": CC.REAL, "append": True},
      ["subdir", 'REAL("image.fits")', "", True, True], {"make_active": True, "update_directory": False}),
     # Open complex image (IMAG); update file browser directory
-    (["subdir/image.fits"], {"expression": CE.IMAG, "update_directory": True},
+    (["subdir/image.fits"], {"expression": CC.IMAG, "update_directory": True},
      ["subdir", 'IMAG("image.fits")', "", False, True], {"make_active": True, "update_directory": True}),
 ])
 def test_open_complex_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
