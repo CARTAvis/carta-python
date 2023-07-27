@@ -10,3 +10,7 @@ jobs:
     - uses: ammaraskar/sphinx-action@master
       with:
         docs-folder: "docs/"
+    - uses: actions/upload-artifact@v3
+      with:
+        name: Store built HTML
+        path: docs/_build/html/
