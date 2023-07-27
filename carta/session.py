@@ -378,8 +378,8 @@ class Session:
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
         directory, file_name = posixpath.split(path)
-        component = f'{component}("{file_name}")'
-        return Image.new(self, directory, component, "", append, True, make_active=make_active, update_directory=update_directory)
+        expression = f'{component}("{file_name}")'
+        return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
 
     @validate(String(), String(), Boolean(), Boolean(), Boolean())
     def open_LEL_image(self, expression, directory=".", append=False, make_active=True, update_directory=False):
