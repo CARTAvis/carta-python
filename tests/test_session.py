@@ -119,6 +119,9 @@ def test_cd(session, mock_method, mock_call_action):
     # Append plain image
     (["subdir/image.fits"], {"append": True},
      ["subdir", "image.fits", "", True, False], {"make_active": True, "update_directory": False}),
+    # Append plain image; don't make active
+    (["subdir/image.fits"], {"append": True, "make_active": False},
+     ["subdir", "image.fits", "", True, False], {"make_active": False, "update_directory": False}),
     # Open plain image; select different HDU
     (["subdir/image.fits"], {"hdu": "3"},
      ["subdir", "image.fits", "3", False, False], {"make_active": True, "update_directory": False}),
@@ -135,16 +138,19 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
 
 
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
-    # Open complex image with default (AMPLITUDE) setting
+    # Open complex image with default component
     (["subdir/image.fits"], {},
      ["subdir", 'AMPLITUDE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
-    # Open complex image (PHASE)
+    # Open complex image with component selected
     (["subdir/image.fits"], {"component": CC.PHASE},
      ["subdir", 'PHASE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
-    # Append complex image (REAL)
+    # Append complex image
     (["subdir/image.fits"], {"component": CC.REAL, "append": True},
      ["subdir", 'REAL("image.fits")', "", True, True], {"make_active": True, "update_directory": False}),
-    # Open complex image (IMAG); update file browser directory
+    # Append complex image; don't make active
+    (["subdir/image.fits"], {"component": CC.REAL, "append": True, "make_active": False},
+     ["subdir", 'REAL("image.fits")', "", True, True], {"make_active": False, "update_directory": False}),
+    # Open complex image; update file browser directory
     (["subdir/image.fits"], {"component": CC.IMAG, "update_directory": True},
      ["subdir", 'IMAG("image.fits")', "", False, True], {"make_active": True, "update_directory": True}),
 ])
@@ -161,6 +167,9 @@ def test_open_complex_image(mocker, session, args, kwargs, expected_args, expect
     # Append LEL image
     (["2*image.fits+image.fits"], {"append": True},
      [".", '2*image.fits+image.fits', "", True, True], {"make_active": True, "update_directory": False}),
+    # Append LEL image; don't make active
+    (["2*image.fits+image.fits"], {"append": True, "make_active": False},
+     [".", '2*image.fits+image.fits', "", True, True], {"make_active": False, "update_directory": False}),
     # Open LEL image; update file browser directory
     (["2*image.fits/image.fits"], {"update_directory": True},
      [".", '2*image.fits/image.fits', "", False, True], {"make_active": True, "update_directory": True}),

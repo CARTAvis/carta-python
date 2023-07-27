@@ -396,7 +396,7 @@ class Session:
         make_active : {3}
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : {4}
-            Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
+            Whether the starting directory of the frontend file browser should be updated to the base directory of the LEL expression. The default is ``False``.
         """
         return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
 
