@@ -361,15 +361,15 @@ class Session:
         return Image.new(self, directory, file_name, hdu, append, False, make_active=make_active, update_directory=update_directory)
 
     @validate(String(), Constant(ComplexComponent), Boolean(), Boolean(), Boolean())
-    def open_complex_image(self, path, expression=ComplexComponent.AMPLITUDE, append=False, make_active=True, update_directory=False):
+    def open_complex_image(self, path, component=ComplexComponent.AMPLITUDE, append=False, make_active=True, update_directory=False):
         """Open or append a new complex-valued image.
 
         Parameters
         ----------
         path : {0}
             The path to the complex-valued image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
-        expression : {1}
-            The complex component to use when opening the image. The default is :obj:`carta.constants.ComplexComponent.AMPLITUDE`.
+        component : {1}
+            The complex component to select when opening the image. The default is :obj:`carta.constants.ComplexComponent.AMPLITUDE`.
         append : {2}
             Whether the image should be appended to existing images. By default this is ``False`` and any existing open images are closed.
         make_active : {3}
@@ -378,8 +378,8 @@ class Session:
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
         """
         directory, file_name = posixpath.split(path)
-        expression = f'{expression}("{file_name}")'
-        return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
+        component = f'{component}("{file_name}")'
+        return Image.new(self, directory, component, "", append, True, make_active=make_active, update_directory=update_directory)
 
     @validate(String(), String(), Boolean(), Boolean(), Boolean())
     def open_LEL_image(self, expression, directory=".", append=False, make_active=True, update_directory=False):
