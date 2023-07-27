@@ -1,4 +1,4 @@
-name: Python package
+name: Unit tests
 
 on:
   push:
@@ -18,16 +18,13 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install requests simplejson flake8 pytest pytest-mock
-    - name: Check style with script (flake8)
-      run: |
-        ./scripts/style_check.sh
+        python -m pip install requests simplejson pytest pytest-mock
     - name: Test with pytest
       run: |
         pytest -v tests/
