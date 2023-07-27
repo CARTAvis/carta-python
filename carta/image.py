@@ -52,13 +52,13 @@ class Image:
         directory : string
             The directory containing the image file or the base directory for the LEL arithmetic expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory
         file_name : string
-            The name of the image file, complex expression or a LEL arithmetic expression.
+            The name of the image file, or a LEL arithmetic expression.
         hdu : string
             The HDU to open.
         append : boolean
             Whether the image should be appended.
         image_arithmetic : boolean
-            Whether the file name should be interpreted as a complex expression or a LEL expression.
+            Whether the file name should be interpreted as a LEL expression.
         make_active : boolean
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : boolean
