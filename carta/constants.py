@@ -10,8 +10,8 @@ except ImportError:
         pass
 
 
-class ArithmeticExpression(StrEnum):
-    """Arithmetic expression."""
+class ComplexComponent(StrEnum):
+    """Complex component."""
     AMPLITUDE = "AMPLITUDE"
     PHASE = "PHASE"
     REAL = "REAL"
