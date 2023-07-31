@@ -10,12 +10,12 @@ import base64
 import posixpath
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ComplexComponent, NumberFormat
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ComplexComponent, NumberFormat, Polarization
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
-from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf, IterableOf, InstanceOf
-from .metadata import ImageInfo
+from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf, IterableOf, MapOf, Union
+from .metadata import parse_header, deduce_polarization
 
 
 class Session:
@@ -426,9 +426,10 @@ class Session:
         else:
             for path in image_paths:
                 directory, file_name = posixpath.split(path)
-                image_info = self.image_info(path)
+                image_info = self.call_action("backendService.getFileInfo", directory, file_name, "")
+                header = parse_header(image_info["fileInfoExtended"]["0"]["headerEntries"])
                 try:
-                    stokes = image_info.deduce_polarization()
+                    stokes = deduce_polarization(file_name, header)
                 except ValueError:
                     raise ValueError(f"Could not deduce polarization for {path}. Please use a dictionary to specify the polarization mapping explicitly.")
                 stokes_images.append({"directory": directory, "file": file_name, "hdu": "", "polarizationType": stokes.proto_index})
@@ -447,26 +448,6 @@ class Session:
             The list of images open in this session.
         """
         return Image.from_list(self, self.get_value("frameNames"))
-    
-    @validate(String())
-    def image_info(self, path, hdu=""):
-        """Returns metadata for the specified image file.
-        
-        This is mostly provided as an internal helper function.
-        
-        Parameters
-        ----------
-        path : {0}
-            The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
-            
-        Returns
-        -------
-        :obj:`carta.metadata.ImageInfo` object
-            The basic and extended metadata for this image.
-        """
-        directory, file_name = posixpath.split(path)
-        file_info = self.call_action("backendService.getFileInfo", directory, file_name, hdu)
-        return ImageInfo(file_info["fileInfo"], file_info["fileInfoExtended"])
 
     def active_frame(self):
         """Return the currently active image.

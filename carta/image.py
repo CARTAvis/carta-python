@@ -2,10 +2,10 @@
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
-from .metadata import ImageInfo
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis
 from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
+from .metadata import parse_header
 
 
 class Image:
@@ -32,12 +32,11 @@ class Image:
         The file name of the image.
     """
 
-    def __init__(self, session, image_id, file_name, info=None, info_extended=None):
+    def __init__(self, session, image_id, file_name):
         self.session = session
         self.image_id = image_id
         self.file_name = file_name
-        
-        self._image_info = ImageInfo(info, info_extended) if info and info_extended else None
+
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
 
@@ -79,8 +78,8 @@ class Image:
             params.append(make_active)
         params.append(update_directory)
 
-        frame_info = session.call_action(command, *params, return_path="frameInfo")
-        return cls(session, frame_info["fileId"], file_name, frame_info["fileInfo"], frame_info["fileInfoExtended"])
+        image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
+        return cls(session, image_id, file_name)
 
     @classmethod
     def from_list(cls, session, image_list):
@@ -104,7 +103,7 @@ class Image:
 
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
-    
+
     def call_action(self, path, *args, **kwargs):
         """Convenience wrapper for the session object's generic action method.
 
@@ -164,13 +163,6 @@ class Image:
         return Macro(target, variable)
 
     # METADATA
-    
-    @property
-    def image_info(self):
-        if self._image_info is None:
-            frame_info = self.get_value("frameInfo")
-            self._image_info = ImageInfo(frame_info["fileInfo"], frame_info["fileInfoExtended"])
-        return self._image_info
 
     @property
     @cached
@@ -185,17 +177,17 @@ class Image:
         return self.get_value("frameInfo.directory")
 
     @property
+    @cached
     def header(self):
-        """The header of the image.
-
-        See :obj:`carta.metadata.ImageInfo.header` for more information about how the raw header data is processed.
+        """The header of the image, parsed from the raw frontend data (see :obj:`carta.metadata.parse_header`).
 
         Returns
         -------
         dict of string to string, integer, float, boolean, ``None`` or list of strings
             The header of the image, with field names as keys.
         """
-        return self.image_info.header
+        raw_header = self.get_value("frameInfo.fileInfoExtended.headerEntries")
+        return parse_header(raw_header)
 
     @property
     @cached
@@ -220,7 +212,7 @@ class Image:
         integer
             The width.
         """
-        return self.metadata.info_extended["width"]
+        return self.get_value("frameInfo.fileInfoExtended.width")
 
     @property
     @cached
@@ -232,7 +224,7 @@ class Image:
         integer
             The height.
         """
-        return self.metadata.info_extended["height"]
+        return self.get_value("frameInfo.fileInfoExtended.height")
 
     @property
     @cached
@@ -244,7 +236,7 @@ class Image:
         integer
             The depth.
         """
-        return self.metadata.info_extended["depth"]
+        return self.get_value("frameInfo.fileInfoExtended.depth")
 
     @property
     @cached
@@ -256,7 +248,7 @@ class Image:
         integer
             The number of polarizations.
         """
-        return self.metadata.info_extended["stokes"]
+        return self.get_value("frameInfo.fileInfoExtended.stokes")
 
     @property
     @cached
@@ -268,7 +260,7 @@ class Image:
         integer
             The number of dimensions.
         """
-        return self.metadata.info_extended["dimensions"]
+        return self.get_value("frameInfo.fileInfoExtended.dimensions")
 
     @property
     @cached
@@ -283,18 +275,6 @@ class Image:
             The available polarizations.
         """
         return [Polarization(p) for p in self.get_value("polarizations")]
-
-    @property
-    @cached
-    def valid_wcs(self):
-        """Whether the image contains valid WCS information.
-
-        Returns
-        -------
-        boolean
-            Whether the image has WCS information.
-        """
-        return self.get_value("validWcs")
 
     # SELECTION
 
@@ -389,6 +369,18 @@ class Image:
             polarization = self.polarizations.index(polarization)
 
         self.call_action("setChannels", self.macro("", "requiredChannel"), polarization, recursive)
+
+    @property
+    @cached
+    def valid_wcs(self):
+        """Whether the image contains valid WCS information.
+
+        Returns
+        -------
+        boolean
+            Whether the image has WCS information.
+        """
+        return self.get_value("validWcs")
 
     @validate(Coordinate(), Coordinate(), NoneOr(Constant(CoordinateSystem)))
     def set_center(self, x, y, system=None):

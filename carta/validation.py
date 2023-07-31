@@ -538,28 +538,18 @@ class IterableOf(Parameter):
         return f"an iterable {size_desc}in which each element is {self.param.description}"
     
 
-def MapOf(IterableOf):
+class MapOf(IterableOf):
     """A dictionary of keys and values which must match the given descriptors.
 
     Parameters
     ----------
-    key_param : :obj:`carta.validation.Parameter`
-        The key parameter descriptor.
     value_param : :obj:`carta.validation.Parameter`
         The value parameter descriptor.
-    min_size : integer, optional
-        The minimum size.
-    max_size : integer, optional
-        The maximum size.
 
     Attributes
     ----------
-    param : :obj:`carta.validation.Parameter`
-        The parameter descriptor.
-    min_size : integer, optional
-        The minimum size.
-    max_size : integer, optional
-        The maximum size.
+    value_param : :obj:`carta.validation.Parameter`
+        The value parameter descriptor.
     """
 
     def __init__(self, key_param, value_param, min_size=None, max_size=None):
