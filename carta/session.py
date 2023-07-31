@@ -15,7 +15,7 @@ from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf, IterableOf, InstanceOf
-from .structs import StokesImage
+from .metadata import ImageInfo
 
 
 class Session:
@@ -400,20 +400,39 @@ class Session:
             Whether the starting directory of the frontend file browser should be updated to the base directory of the LEL expression. The default is ``False``.
         """
         return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
-
-    @validate(IterableOf(InstanceOf(StokesImage), min_size=2), Boolean())
-    def load_stokes_hypercube(self, stokes_images, append=False):
-        """Open or append a new Stokes hypercube with the selected Stokes images.
+        
+    @validate(Union(IterableOf(String), MapOf(Constant(Polarization), String())), Boolean())
+    def open_hypercube(self, image_paths, append=False):
+        """Open multiple images merged into a polarization hypercube.
 
         Parameters
         ----------
-        stokes_images : {0}
-            The list of images, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        image_paths : {0}
+            The image paths, either relative to the session's current directory or absolute paths relative to the CARTA backend's root directory. If this is a list of paths, the polarizations will be deduced from the image headers or names. If this is a dictionary, the polarizations must be used as keys.
         append : {1}
             Whether the hypercube should be appended. Default is ``False``.
+            
+        Raises
+        ------
+        ValueError
+            If explicit polarizations are not provided, and cannot be deduced from the image headers or names.
         """
-        for image in stokes_images:
-            image.directory = self.resolve_file_path(image.directory)
+        stokes_images = []
+        
+        if isinstance(image_paths, dict):
+            for stokes, path in image_paths.items():
+                directory, file_name = posixpath.split(path)
+                stokes_images.append({"directory": directory, "file": file_name, "hdu": "", "polarizationType": stokes.proto_index})
+        else:
+            for path in image_paths:
+                directory, file_name = posixpath.split(path)
+                image_info = self.image_info(path)
+                try:
+                    stokes = image_info.deduce_polarization()
+                except ValueError:
+                    raise ValueError(f"Could not deduce polarization for {path}. Please use a dictionary to specify the polarization mapping explicitly.")
+                stokes_images.append({"directory": directory, "file": file_name, "hdu": "", "polarizationType": stokes.proto_index})
+        
         output_directory = self.pwd()
         output_hdu = ""
         command = "appendConcatFile" if append else "openConcatFile"
@@ -425,8 +444,29 @@ class Session:
         Returns
         -------
         list of :obj:`carta.image.Image` objects.
+            The list of images open in this session.
         """
         return Image.from_list(self, self.get_value("frameNames"))
+    
+    @validate(String())
+    def image_info(self, path, hdu=""):
+        """Returns metadata for the specified image file.
+        
+        This is mostly provided as an internal helper function.
+        
+        Parameters
+        ----------
+        path : {0}
+            The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+            
+        Returns
+        -------
+        :obj:`carta.metadata.ImageInfo` object
+            The basic and extended metadata for this image.
+        """
+        directory, file_name = posixpath.split(path)
+        file_info = self.call_action("backendService.getFileInfo", directory, file_name, hdu)
+        return ImageInfo(file_info["fileInfo"], file_info["fileInfoExtended"])
 
     def active_frame(self):
         """Return the currently active image.

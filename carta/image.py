@@ -2,6 +2,7 @@
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
+from .metadata import ImageInfo
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis
 from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
@@ -31,11 +32,12 @@ class Image:
         The file name of the image.
     """
 
-    def __init__(self, session, image_id, file_name):
+    def __init__(self, session, image_id, file_name, info=None, info_extended=None):
         self.session = session
         self.image_id = image_id
         self.file_name = file_name
-
+        
+        self._image_info = ImageInfo(info, info_extended) if info and info_extended else None
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
 
@@ -77,8 +79,8 @@ class Image:
             params.append(make_active)
         params.append(update_directory)
 
-        image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
-        return cls(session, image_id, file_name)
+        frame_info = session.call_action(command, *params, return_path="frameInfo")
+        return cls(session, frame_info["fileId"], file_name, frame_info["fileInfo"], frame_info["fileInfoExtended"])
 
     @classmethod
     def from_list(cls, session, image_list):
@@ -102,7 +104,7 @@ class Image:
 
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
-
+    
     def call_action(self, path, *args, **kwargs):
         """Convenience wrapper for the session object's generic action method.
 
@@ -162,6 +164,13 @@ class Image:
         return Macro(target, variable)
 
     # METADATA
+    
+    @property
+    def image_info(self):
+        if self._image_info is None:
+            frame_info = self.get_value("frameInfo")
+            self._image_info = ImageInfo(frame_info["fileInfo"], frame_info["fileInfoExtended"])
+        return self._image_info
 
     @property
     @cached
@@ -176,76 +185,17 @@ class Image:
         return self.get_value("frameInfo.directory")
 
     @property
-    @cached
     def header(self):
         """The header of the image.
 
-        Entries with T or F string values are automatically converted to booleans.
-
-        ``HISTORY``, ``COMMENT`` and blank keyword entries are aggregated into single entries with list values and with ``'HISTORY'``, ``'COMMENT'`` and ``''`` as keys, respectively. An entry in the history list which begins with ``'>'`` will be concatenated with the previous entry.
-
-        Adjacent ``COMMENT`` entries are not concatenated automatically.
-
-        Any other header entries with no values are given values of ``None``.
+        See :obj:`carta.metadata.ImageInfo.header` for more information about how the raw header data is processed.
 
         Returns
         -------
         dict of string to string, integer, float, boolean, ``None`` or list of strings
             The header of the image, with field names as keys.
         """
-        raw_header = self.get_value("frameInfo.fileInfoExtended.headerEntries")
-
-        header = {}
-
-        history = []
-        comment = []
-        blank = []
-
-        def header_value(raw_entry):
-            try:
-                return raw_entry["numericValue"]
-            except KeyError:
-                try:
-                    value = raw_entry["value"]
-                    if value == 'T':
-                        return True
-                    if value == 'F':
-                        return False
-                    return value
-                except KeyError:
-                    return None
-
-        for i, raw_entry in enumerate(raw_header):
-            name = raw_entry["name"]
-
-            if name.startswith("HISTORY "):
-                line = name[8:]
-                if line.startswith(">") and history:
-                    history[-1] = history[-1] + line[1:]
-                else:
-                    history.append(line)
-                continue
-
-            if name.startswith("COMMENT "):
-                comment.append(name[8:])
-                continue
-
-            if name.startswith(" " * 8):
-                blank.append(name[8:])
-                continue
-
-            header[name] = header_value(raw_entry)
-
-        if history:
-            header["HISTORY"] = history
-
-        if comment:
-            header["COMMENT"] = comment
-
-        if blank:
-            header[""] = blank
-
-        return header
+        return self.image_info.header
 
     @property
     @cached
@@ -270,7 +220,7 @@ class Image:
         integer
             The width.
         """
-        return self.get_value("frameInfo.fileInfoExtended.width")
+        return self.metadata.info_extended["width"]
 
     @property
     @cached
@@ -282,7 +232,7 @@ class Image:
         integer
             The height.
         """
-        return self.get_value("frameInfo.fileInfoExtended.height")
+        return self.metadata.info_extended["height"]
 
     @property
     @cached
@@ -294,7 +244,7 @@ class Image:
         integer
             The depth.
         """
-        return self.get_value("frameInfo.fileInfoExtended.depth")
+        return self.metadata.info_extended["depth"]
 
     @property
     @cached
@@ -306,7 +256,7 @@ class Image:
         integer
             The number of polarizations.
         """
-        return self.get_value("frameInfo.fileInfoExtended.stokes")
+        return self.metadata.info_extended["stokes"]
 
     @property
     @cached
@@ -318,7 +268,7 @@ class Image:
         integer
             The number of dimensions.
         """
-        return self.get_value("frameInfo.fileInfoExtended.dimensions")
+        return self.metadata.info_extended["dimensions"]
 
     @property
     @cached
@@ -333,6 +283,18 @@ class Image:
             The available polarizations.
         """
         return [Polarization(p) for p in self.get_value("polarizations")]
+
+    @property
+    @cached
+    def valid_wcs(self):
+        """Whether the image contains valid WCS information.
+
+        Returns
+        -------
+        boolean
+            Whether the image has WCS information.
+        """
+        return self.get_value("validWcs")
 
     # SELECTION
 
@@ -427,18 +389,6 @@ class Image:
             polarization = self.polarizations.index(polarization)
 
         self.call_action("setChannels", self.macro("", "requiredChannel"), polarization, recursive)
-
-    @property
-    @cached
-    def valid_wcs(self):
-        """Whether the image contains valid WCS information.
-
-        Returns
-        -------
-        boolean
-            Whether the image has WCS information.
-        """
-        return self.get_value("validWcs")
 
     @validate(Coordinate(), Coordinate(), NoneOr(Constant(CoordinateSystem)))
     def set_center(self, x, y, system=None):
