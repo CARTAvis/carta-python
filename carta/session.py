@@ -357,6 +357,11 @@ class Session:
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The opened image.
         """
         directory, file_name = posixpath.split(path)
         return Image.new(self, directory, file_name, hdu, append, False, make_active=make_active, update_directory=update_directory)
@@ -377,6 +382,11 @@ class Session:
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The opened image.
         """
         directory, file_name = posixpath.split(path)
         expression = f'{component}("{file_name}")'
@@ -398,10 +408,40 @@ class Session:
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the base directory of the LEL expression. The default is ``False``.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The opened image.
         """
         return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
-        
-    @validate(Union(IterableOf(String), MapOf(Constant(Polarization), String())), Boolean())
+
+    @validate(IterableOf(String()), Boolean())
+    def open_images(self, image_paths, append=False):
+        """Open multiple images
+
+        This is a utility function for adding multiple images in a single command. It assumes that the images are not complex-valued or LEL expressions, and that the default HDU can be used for each image. For more complicated use cases, the methods for opening individual images should be used.
+
+        Parameters
+        ----------
+        image_paths : {0}
+            The image paths, either relative to the session's current directory or absolute paths relative to the CARTA backend's root directory.
+        append : {1}
+            Whether the images should be appended to existing images. By default this is ``False`` and any existing open images are closed.
+
+        Returns
+        -------
+        list of :obj:`carta.image.Image` objects
+            The list of opened images.
+        """
+        images = []
+        for path in image_paths[:1]:
+            images.append(self.open_image(path, append=append))
+        for path in image_paths[1:]:
+            images.append(self.open_image(path, append=True))
+        return images
+
+    @validate(Union(IterableOf(String(), min_size=2), MapOf(Constant(Polarization), String(), min_size=2)), Boolean())
     def open_hypercube(self, image_paths, append=False):
         """Open multiple images merged into a polarization hypercube.
 
@@ -410,41 +450,49 @@ class Session:
         image_paths : {0}
             The image paths, either relative to the session's current directory or absolute paths relative to the CARTA backend's root directory. If this is a list of paths, the polarizations will be deduced from the image headers or names. If this is a dictionary, the polarizations must be used as keys.
         append : {1}
-            Whether the hypercube should be appended. Default is ``False``.
-            
+            Whether the hypercube should be appended to existing images. By default this is ``False`` and any existing open images are closed.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The opened hypercube.
+
         Raises
         ------
         ValueError
             If explicit polarizations are not provided, and cannot be deduced from the image headers or names.
         """
         stokes_images = []
-        
+
         if isinstance(image_paths, dict):
             for stokes, path in image_paths.items():
                 directory, file_name = posixpath.split(path)
+                directory = self.resolve_file_path(directory)
                 stokes_images.append({"directory": directory, "file": file_name, "hdu": "", "polarizationType": stokes.proto_index})
         else:
             for path in image_paths:
                 directory, file_name = posixpath.split(path)
-                image_info = self.call_action("backendService.getFileInfo", directory, file_name, "")
-                header = parse_header(image_info["fileInfoExtended"]["0"]["headerEntries"])
+                directory = self.resolve_file_path(directory)
+                raw_header = self.call_action("backendService.getFileInfo", directory, file_name, "", return_path="fileInfoExtended.0.headerEntries")
+                header = parse_header(raw_header)
                 try:
                     stokes = deduce_polarization(file_name, header)
                 except ValueError:
                     raise ValueError(f"Could not deduce polarization for {path}. Please use a dictionary to specify the polarization mapping explicitly.")
                 stokes_images.append({"directory": directory, "file": file_name, "hdu": "", "polarizationType": stokes.proto_index})
-        
+
         output_directory = self.pwd()
         output_hdu = ""
         command = "appendConcatFile" if append else "openConcatFile"
-        self.call_action(command, stokes_images, output_directory, output_hdu)
+        image_id = self.call_action(command, stokes_images, output_directory, output_hdu)
+        return Image(self, image_id)
 
     def image_list(self):
         """Return the list of currently open images.
 
         Returns
         -------
-        list of :obj:`carta.image.Image` objects.
+        list of :obj:`carta.image.Image` objects
             The list of images open in this session.
         """
         return Image.from_list(self, self.get_value("frameNames"))
@@ -457,10 +505,8 @@ class Session:
         :obj:`carta.image.Image`
             The currently active image.
         """
-        frame_info = self.get_value("activeFrame.frameInfo")
-        image_id = frame_info["fileId"]
-        file_name = frame_info["fileInfo"]["name"]
-        return Image(self, image_id, file_name)
+        image_id = self.get_value("activeFrame.frameInfo.fileId")
+        return Image(self, image_id)
 
     def clear_spatial_reference(self):
         """Clear the spatial reference."""

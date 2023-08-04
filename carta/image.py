@@ -19,8 +19,6 @@ class Image:
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
-    file_name : string
-        The file name of the image. This is not a full path.
 
     Attributes
     ----------
@@ -28,14 +26,11 @@ class Image:
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session.
-    file_name : string
-        The file name of the image.
     """
 
-    def __init__(self, session, image_id, file_name):
+    def __init__(self, session, image_id):
         self.session = session
         self.image_id = image_id
-        self.file_name = file_name
 
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
@@ -79,7 +74,7 @@ class Image:
         params.append(update_directory)
 
         image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
-        return cls(session, image_id, file_name)
+        return cls(session, image_id)
 
     @classmethod
     def from_list(cls, session, image_list):
@@ -99,7 +94,7 @@ class Image:
         list of :obj:`carta.image.Image`
             A list of new image objects.
         """
-        return [cls(session, f["value"], f["label"].split(":")[1].strip()) for f in image_list]
+        return [cls(session, f["value"]) for f in image_list]
 
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
@@ -163,6 +158,18 @@ class Image:
         return Macro(target, variable)
 
     # METADATA
+
+    @property
+    @cached
+    def file_name(self):
+        """The name of the image.
+
+        Returns
+        -------
+        string
+            The image name.
+        """
+        return self.get_value("frameInfo.fileInfo.name")
 
     @property
     @cached

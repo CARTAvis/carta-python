@@ -22,7 +22,7 @@ def session():
 def image(session):
     """Return an image object which uses the session fixture.
     """
-    return Image(session, 0, "")
+    return Image(session, 0)
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def mock_session_call_action(session, mocker):
 def mock_property(mocker):
     """Return a helper function to mock the value of a decorated image property using a simple syntax."""
     def func(property_name, mock_value):
-        mocker.patch(f"carta.image.Image.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
+        return mocker.patch(f"carta.image.Image.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
     return func
 
 
@@ -55,7 +55,7 @@ def mock_property(mocker):
 def mock_method(image, mocker):
     """Return a helper function to mock the return value(s) of an image method using a simple syntax."""
     def func(method_name, return_values):
-        mocker.patch.object(image, method_name, side_effect=return_values)
+        return mocker.patch.object(image, method_name, side_effect=return_values)
     return func
 
 
@@ -63,7 +63,7 @@ def mock_method(image, mocker):
 def mock_session_method(session, mocker):
     """Return a helper function to mock the return value(s) of a session method using a simple syntax."""
     def func(method_name, return_values):
-        mocker.patch.object(session, method_name, side_effect=return_values)
+        return mocker.patch.object(session, method_name, side_effect=return_values)
     return func
 
 # TESTS
@@ -130,12 +130,12 @@ def test_new(session, mock_session_call_action, mock_session_method, args, kwarg
     assert type(image_object) == Image
     assert image_object.session == session
     assert image_object.image_id == 123
-    assert image_object.file_name == expected_params[2]
 
 
 # SIMPLE PROPERTIES TODO to be completed.
 
 @pytest.mark.parametrize("property_name,expected_path", [
+    ("file_name", "frameInfo.fileInfo.name"),
     ("directory", "frameInfo.directory"),
     ("width", "frameInfo.fileInfoExtended.width"),
 ])

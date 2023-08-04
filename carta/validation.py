@@ -536,7 +536,7 @@ class IterableOf(Parameter):
         if size:
             size_desc = f"with {' and '.join(size)} "
         return f"an iterable {size_desc}in which each element is {self.param.description}"
-    
+
 
 class MapOf(IterableOf):
     """A dictionary of keys and values which must match the given descriptors.
@@ -565,11 +565,11 @@ class MapOf(IterableOf):
         try:
             for v in value.values():
                 self.value_param.validate(v, parent)
-        except TypeError as e:
-            if str(e).endswith("object is not iterable"):
-                raise ValueError(f"{value} is not iterable, but {self.description} was expected.")
+        except AttributeError as e:
+            if str(e).endswith("has no attribute 'values'"):
+                raise ValueError(f"{value} is not a dictionary, but {self.description} was expected.")
             raise e
-        
+
         super().validate(value, parent)
 
     @property
@@ -581,7 +581,7 @@ class MapOf(IterableOf):
         string
             The description.
         """
-        
+
         return re.sub("^an iterable (.*?)in which each element is (.*)$", rf"a dictionary \1in which each key is {self.param.description} and each value is {self.value_param.description}", super().description)
 
 

@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Macro
-from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC
+from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC, Polarization as Pol
 
 # FIXTURES
 
@@ -34,7 +34,7 @@ def mock_call_action(session, mocker):
 def mock_property(mocker):
     """Return a helper function to mock the value of a decorated session property using a simple syntax."""
     def func(property_name, mock_value):
-        mocker.patch(f"carta.session.Session.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
+        return mocker.patch(f"carta.session.Session.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
     return func
 
 
@@ -42,7 +42,7 @@ def mock_property(mocker):
 def mock_method(session, mocker):
     """Return a helper function to mock the return value(s) of an session method using a simple syntax."""
     def func(method_name, return_values):
-        mocker.patch.object(session, method_name, side_effect=return_values)
+        return mocker.patch.object(session, method_name, side_effect=return_values)
     return func
 
 
@@ -134,8 +134,6 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
     session.open_image(*args, **kwargs)
     mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
 
-# TODO this should be merged with the test above when this separate function is removed
-
 
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
     # Open complex image with default component
@@ -178,6 +176,104 @@ def test_open_LEL_image(mocker, session, args, kwargs, expected_args, expected_k
     mock_image_new = mocker.patch.object(Image, "new")
     session.open_LEL_image(*args, **kwargs)
     mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
+
+@pytest.mark.parametrize("append", [True, False])
+def test_open_images(mocker, session, mock_method, append):
+    mock_open_image = mock_method("open_image", ["1", "2", "3"])
+    images = session.open_images(["foo.fits", "bar.fits", "baz.fits"], append)
+    mock_open_image.assert_has_calls([
+        mocker.call("foo.fits", append=append),
+        mocker.call("bar.fits", append=True),
+        mocker.call("baz.fits", append=True),
+    ])
+    assert images == ["1", "2", "3"]
+
+
+@pytest.mark.parametrize("paths,expected_args", [
+    (["foo.fits", "bar.fits", "baz.fits"], [
+        [
+            {"directory": "/resolved/path", "file": "foo.fits", "hdu": "", "polarizationType": 1},
+            {"directory": "/resolved/path", "file": "bar.fits", "hdu": "", "polarizationType": 2},
+            {"directory": "/resolved/path", "file": "baz.fits", "hdu": "", "polarizationType": 3},
+        ], "/current/dir", ""]),
+])
+@pytest.mark.parametrize("append,expected_command", [
+    (True, "appendConcatFile"),
+    (False, "openConcatFile"),
+])
+def test_open_hypercube_guess_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
+    mock_pwd = mock_method("pwd", ["/current/dir"])
+    mock_resolve = mock_method("resolve_file_path", ["/resolved/path"] * 3)
+    mock_call_action.side_effect = [[1], [2], [3], 123]
+    mock_parse_header = mocker.patch("carta.session.parse_header")
+    mock_parse_header.side_effect = [{1: 2}, {2: 3}, {3: 4}]
+    mock_deduce_polarization = mocker.patch("carta.session.deduce_polarization")
+    mock_deduce_polarization.side_effect = [Pol.I, Pol.Q, Pol.U]
+
+    hypercube = session.open_hypercube(paths, append)
+
+    # Not checking that parse_header and deduce_polarization called, because we're removing this bit anyway
+
+    mock_resolve.assert_has_calls([mocker.call(""), mocker.call(""), mocker.call("")])
+    mock_pwd.assert_called()
+
+    # These header calls will also be removed
+    mock_call_action.assert_has_calls([
+        mocker.call("backendService.getFileInfo", "/resolved/path", "foo.fits", "", return_path="fileInfoExtended.0.headerEntries"),
+        mocker.call("backendService.getFileInfo", "/resolved/path", "bar.fits", "", return_path="fileInfoExtended.0.headerEntries"),
+        mocker.call("backendService.getFileInfo", "/resolved/path", "baz.fits", "", return_path="fileInfoExtended.0.headerEntries"),
+        mocker.call(expected_command, *expected_args),
+    ])
+
+    assert type(hypercube) == Image
+    assert hypercube.session == session
+    assert hypercube.image_id == 123
+
+
+@pytest.mark.parametrize("paths,expected_args", [
+    ({Pol.I: "foo.fits", Pol.Q: "bar.fits", Pol.U: "baz.fits"}, [
+        [
+            {"directory": "/resolved/path", "file": "foo.fits", "hdu": "", "polarizationType": 1},
+            {"directory": "/resolved/path", "file": "bar.fits", "hdu": "", "polarizationType": 2},
+            {"directory": "/resolved/path", "file": "baz.fits", "hdu": "", "polarizationType": 3},
+        ], "/current/dir", ""]),
+])
+@pytest.mark.parametrize("append,expected_command", [
+    (True, "appendConcatFile"),
+    (False, "openConcatFile"),
+])
+def test_open_hypercube_explicit_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
+    mock_pwd = mock_method("pwd", ["/current/dir"])
+    mock_resolve = mock_method("resolve_file_path", ["/resolved/path"] * 3)
+    mock_call_action.side_effect = [123]
+
+    hypercube = session.open_hypercube(paths, append)
+
+    mock_resolve.assert_has_calls([mocker.call(""), mocker.call(""), mocker.call("")])
+    mock_pwd.assert_called()
+
+    mock_call_action.assert_has_calls([
+        mocker.call(expected_command, *expected_args),
+    ])
+
+    assert type(hypercube) == Image
+    assert hypercube.session == session
+    assert hypercube.image_id == 123
+
+
+@pytest.mark.parametrize("paths,expected_error", [
+    ({Pol.I: "foo.fits"}, "at least 2"),
+    (["foo.fits"], "at least 2"),
+])
+@pytest.mark.parametrize("append", [True, False])
+def test_open_hypercube_bad(mocker, session, mock_call_action, mock_method, paths, expected_error, append):
+    mock_method("pwd", ["/current/dir"])
+    mock_method("resolve_file_path", ["/resolved/path"] * 3)
+
+    with pytest.raises(Exception) as e:
+        session.open_hypercube(paths, append)
+    assert expected_error in str(e.value)
 
 
 # OVERLAY
