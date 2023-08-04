@@ -127,7 +127,7 @@ def test_new(session, mock_session_call_action, mock_session_method, args, kwarg
 
     mock_session_call_action.assert_called_with(*expected_params, return_path='frameInfo.fileId')
 
-    assert type(image_object) == Image
+    assert type(image_object) is Image
     assert image_object.session == session
     assert image_object.image_id == 123
 

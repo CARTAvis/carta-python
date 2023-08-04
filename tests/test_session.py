@@ -226,7 +226,7 @@ def test_open_hypercube_guess_polarization(mocker, session, mock_call_action, mo
         mocker.call(expected_command, *expected_args),
     ])
 
-    assert type(hypercube) == Image
+    assert type(hypercube) is Image
     assert hypercube.session == session
     assert hypercube.image_id == 123
 
@@ -257,7 +257,7 @@ def test_open_hypercube_explicit_polarization(mocker, session, mock_call_action,
         mocker.call(expected_command, *expected_args),
     ])
 
-    assert type(hypercube) == Image
+    assert type(hypercube) is Image
     assert hypercube.session == session
     assert hypercube.image_id == 123
 
