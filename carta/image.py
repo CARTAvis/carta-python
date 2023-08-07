@@ -2,7 +2,7 @@
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, Auto
 from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
 
@@ -544,10 +544,9 @@ class Image:
         self.call_action("renderConfig.setColorMap", colormap)
         self.call_action("renderConfig.setInverted", invert)
 
-    # TODO check whether this works as expected
-    @validate(Constant(Scaling), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(0, 100)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
+    @validate(NoneOr(Constant(Scaling)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(0, 100)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(), Constant(Auto)), NoneOr(Number(), Constant(Auto)))
     def set_scaling(self, scaling, alpha=None, gamma=None, rank=None, min=None, max=None, bias=None, contrast=None):
-        """Set the colormap scaling. The bias and contrast are reset to the frontend defaults of ``0`` and ``1`` respectively.
+        """Set the colormap scaling.
 
         Parameters
         ----------
@@ -564,27 +563,33 @@ class Image:
         max : {5}
             Custom clip maximum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
         bias : {6}
-            A custom bias.
+            A custom bias. Use :obj:`carta.constants.Auto.AUTO` to reset the bias to the frontend default of ``0``.
         contrast : {7}
-            A custom contrast.
+            A custom contrast. Use :obj:`carta.constants.Auto.AUTO` to reset the contrast to the frontend default of ``1``.
         """
-        self.call_action("renderConfig.setScaling", scaling)
-        if scaling in (Scaling.LOG, Scaling.POWER) and alpha is not None:
+        if scaling is not None:
+            self.call_action("renderConfig.setScaling", scaling)
+
+        if alpha is not None:
             self.call_action("renderConfig.setAlpha", alpha)
-        elif scaling == Scaling.GAMMA and gamma is not None:
+
+        if gamma is not None:
             self.call_action("renderConfig.setGamma", gamma)
+
         if rank is not None:
             self.set_clip_percentile(rank)
         elif min is not None and max is not None:
             self.call_action("renderConfig.setCustomScale", min, max)
-        if bias is not None:
-            self.call_action("renderConfig.setBias", bias)
-        else:
+
+        if bias is Auto.AUTO:
             self.call_action("renderConfig.resetBias")
-        if contrast is not None:
-            self.call_action("renderConfig.setContrast", contrast)
-        else:
+        elif bias is not None:
+            self.call_action("renderConfig.setBias", bias)
+
+        if contrast is Auto.AUTO:
             self.call_action("renderConfig.resetContrast")
+        elif contrast is not None:
+            self.call_action("renderConfig.setContrast", contrast)
 
     @validate(Boolean())
     def set_raster_visible(self, state):
