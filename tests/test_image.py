@@ -96,8 +96,44 @@ def test_image_classmethods_have_docstrings(member):
 def test_image_properties_have_docstrings(member):
     assert member.__doc__ is not None
 
-# SIMPLE PROPERTIES TODO to be completed.
 
+# CREATING AN IMAGE
+
+@pytest.mark.parametrize("args,kwargs,expected_params", [
+    # Open a plain image
+    (["subdir", "image.fits", "", False, False], {},
+     ["openFile", "/my_data/subdir", "image.fits", "", False, False]),
+    # Open an expression
+    (["subdir", '2*image.fits', "", False, True], {},
+     ["openFile", "/my_data/subdir", '2*image.fits', "", True, False]),
+    # Append a plain image
+    (["subdir", "image.fits", "", True, False], {},
+     ["appendFile", "/my_data/subdir", "image.fits", "", False, True, False]),
+    # Append an expression
+    (["subdir", "2*image.fits", "", True, True], {},
+     ["appendFile", "/my_data/subdir", "2*image.fits", "", True, True, False]),
+    # Open a plain image; update the file browser directory
+    (["subdir", "image.fits", "", False, False], {"update_directory": True},
+     ["openFile", "/my_data/subdir", "image.fits", "", False, True]),
+    # Append a plain image; don't set it to active
+    (["subdir", "image.fits", "", True, False], {"make_active": False},
+     ["appendFile", "/my_data/subdir", "image.fits", "", False, False, False]),
+])
+def test_new(session, mock_session_call_action, mock_session_method, args, kwargs, expected_params):
+    mock_session_method("pwd", ["/my_data"])
+    mock_session_call_action.side_effect = [123]
+
+    image_object = Image.new(session, *args, **kwargs)
+
+    mock_session_call_action.assert_called_with(*expected_params, return_path='frameInfo.fileId')
+
+    assert type(image_object) == Image
+    assert image_object.session == session
+    assert image_object.image_id == 123
+    assert image_object.file_name == expected_params[2]
+
+
+# SIMPLE PROPERTIES TODO to be completed.
 
 @pytest.mark.parametrize("property_name,expected_path", [
     ("directory", "frameInfo.directory"),

@@ -2,7 +2,6 @@
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
-import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, VectorOverlaySource, Auto
 from .util import logger, Macro, cached, PixelValue, AngularSize, WorldCoordinate, Undefined
@@ -42,40 +41,44 @@ class Image:
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, path, hdu, append, complex, expression):
+    def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
         """Open or append a new image in the session and return an image object associated with it.
 
-        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image` and :obj:`carta.session.Session.append_image`.
+        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image`, :obj:`carta.session.Session.open_complex_image` and :obj:`carta.session.Session.open_LEL_image`.
 
         Parameters
         ----------
         session : :obj:`carta.session.Session`
             The session object.
-        path : string
-            The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        directory : string
+            The directory containing the image file or the base directory for the LEL arithmetic expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        file_name : string
+            The name of the image file, or a LEL arithmetic expression.
         hdu : string
             The HDU to open.
         append : boolean
             Whether the image should be appended.
-        complex : boolean
-            Whether the image is complex.
-        expression : a member of :obj:`carta.constants.ArithmeticExpression`
-            Arithmetic expression to use if opening a complex-valued image.
+        image_arithmetic : boolean
+            Whether the file name should be interpreted as a LEL expression.
+        make_active : boolean
+            Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
+        update_directory : boolean
+            Whether the starting directory of the frontend file browser should be updated to the directory provided. The default is ``False``.
 
         Returns
         -------
         :obj:`carta.image.Image`
             A new image object.
         """
-        path = session.resolve_file_path(path)
-        directory, file_name = posixpath.split(path)
         command = "appendFile" if append else "openFile"
-        if complex:
-            image_arithmetic = True
-            file_name = f'{expression}("{file_name}")'
-        else:
-            image_arithmetic = False
-        image_id = session.call_action(command, directory, file_name, hdu, image_arithmetic, return_path="frameInfo.fileId")
+        directory = session.resolve_file_path(directory)
+
+        params = [directory, file_name, hdu, image_arithmetic]
+        if append:
+            params.append(make_active)
+        params.append(update_directory)
+
+        image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
         return cls(session, image_id, file_name)
 
     @classmethod

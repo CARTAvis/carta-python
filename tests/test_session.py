@@ -2,8 +2,9 @@ import types
 import pytest
 
 from carta.session import Session
-from carta.util import CartaValidationFailed
-from carta.constants import CoordinateSystem, NumberFormat as NF
+from carta.image import Image
+from carta.util import CartaValidationFailed, Macro
+from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC
 
 # FIXTURES
 
@@ -70,6 +71,116 @@ def test_session_classmethods_have_docstrings(member):
 
 
 # TODO fill in missing session tests
+
+# PATHS
+
+@pytest.mark.parametrize("path, expected_path", [
+    ("foo", "/current/dir/foo"),
+    ("/foo", "/foo"),
+    ("..", "/current"),
+    (".", "/current/dir"),
+    ("foo/..", "/current/dir"),
+    ("foo/../bar", "/current/dir/bar"),
+])
+def test_resolve_file_path(session, mock_method, path, expected_path):
+    mock_method("pwd", ["/current/dir"])
+    assert session.resolve_file_path(path) == expected_path
+
+
+def test_pwd(session, mock_call_action, mock_get_value):
+    mock_get_value.side_effect = ["current/dir/"]
+    pwd = session.pwd()
+    mock_call_action.assert_called_with("fileBrowserStore.getFileList", Macro('fileBrowserStore', 'startingDirectory'))
+    mock_get_value.assert_called_with("fileBrowserStore.fileList.directory")
+    assert pwd == "/current/dir"
+
+
+def test_ls(session, mock_method, mock_call_action, mock_get_value):
+    mock_method("pwd", ["/current/dir"])
+    mock_get_value.side_effect = [{"files": [{"name": "foo.fits"}, {"name": "bar.fits"}], "subdirectories": [{"name": "baz"}]}]
+    ls = session.ls()
+    mock_call_action.assert_called_with("fileBrowserStore.getFileList", "/current/dir")
+    mock_get_value.assert_called_with("fileBrowserStore.fileList")
+    assert ls == ["bar.fits", "baz/", "foo.fits"]
+
+
+def test_cd(session, mock_method, mock_call_action):
+    mock_method("resolve_file_path", ["/resolved/file/path"])
+    session.cd("original/path")
+    mock_call_action.assert_called_with("fileBrowserStore.saveStartingDirectory", "/resolved/file/path")
+
+# OPENING IMAGES
+
+
+@pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
+    # Open plain image
+    (["subdir/image.fits"], {},
+     ["subdir", "image.fits", "", False, False], {"make_active": True, "update_directory": False}),
+    # Append plain image
+    (["subdir/image.fits"], {"append": True},
+     ["subdir", "image.fits", "", True, False], {"make_active": True, "update_directory": False}),
+    # Append plain image; don't make active
+    (["subdir/image.fits"], {"append": True, "make_active": False},
+     ["subdir", "image.fits", "", True, False], {"make_active": False, "update_directory": False}),
+    # Open plain image; select different HDU
+    (["subdir/image.fits"], {"hdu": "3"},
+     ["subdir", "image.fits", "3", False, False], {"make_active": True, "update_directory": False}),
+    # Open plain image; update file browser directory
+    (["subdir/image.fits"], {"update_directory": True},
+     ["subdir", "image.fits", "", False, False], {"make_active": True, "update_directory": True}),
+])
+def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
+    mock_image_new = mocker.patch.object(Image, "new")
+    session.open_image(*args, **kwargs)
+    mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
+# TODO this should be merged with the test above when this separate function is removed
+
+
+@pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
+    # Open complex image with default component
+    (["subdir/image.fits"], {},
+     ["subdir", 'AMPLITUDE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
+    # Open complex image with component selected
+    (["subdir/image.fits"], {"component": CC.PHASE},
+     ["subdir", 'PHASE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
+    # Append complex image
+    (["subdir/image.fits"], {"component": CC.REAL, "append": True},
+     ["subdir", 'REAL("image.fits")', "", True, True], {"make_active": True, "update_directory": False}),
+    # Append complex image; don't make active
+    (["subdir/image.fits"], {"component": CC.REAL, "append": True, "make_active": False},
+     ["subdir", 'REAL("image.fits")', "", True, True], {"make_active": False, "update_directory": False}),
+    # Open complex image; update file browser directory
+    (["subdir/image.fits"], {"component": CC.IMAG, "update_directory": True},
+     ["subdir", 'IMAG("image.fits")', "", False, True], {"make_active": True, "update_directory": True}),
+])
+def test_open_complex_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
+    mock_image_new = mocker.patch.object(Image, "new")
+    session.open_complex_image(*args, **kwargs)
+    mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
+
+@pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
+    # Open LEL image
+    (["2*image.fits"], {},
+     [".", '2*image.fits', "", False, True], {"make_active": True, "update_directory": False}),
+    # Append LEL image
+    (["2*image.fits+image.fits"], {"append": True},
+     [".", '2*image.fits+image.fits', "", True, True], {"make_active": True, "update_directory": False}),
+    # Append LEL image; don't make active
+    (["2*image.fits+image.fits"], {"append": True, "make_active": False},
+     [".", '2*image.fits+image.fits', "", True, True], {"make_active": False, "update_directory": False}),
+    # Open LEL image; update file browser directory
+    (["2*image.fits/image.fits"], {"update_directory": True},
+     [".", '2*image.fits/image.fits', "", False, True], {"make_active": True, "update_directory": True}),
+])
+def test_open_LEL_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
+    mock_image_new = mocker.patch.object(Image, "new")
+    session.open_LEL_image(*args, **kwargs)
+    mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
+
+# OVERLAY
 
 
 @pytest.mark.parametrize("system", CoordinateSystem)

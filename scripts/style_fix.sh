@@ -10,4 +10,4 @@ autopep8 --in-place --ignore E501 carta/*.py tests/*.py
 
 echo "Outstanding issues:"
 
-pycodestyle --ignore=E501,E741 carta/*.py tests/*.py
+flake8 --ignore=E501,E741 carta/*.py tests/*.py
