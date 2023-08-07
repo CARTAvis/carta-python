@@ -544,8 +544,8 @@ class Image:
         self.call_action("renderConfig.setColorMap", colormap)
         self.call_action("renderConfig.setInverted", invert)
 
-    @validate(NoneOr(Constant(Scaling)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(0, 100)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(), Constant(Auto)), NoneOr(Number(), Constant(Auto)))
-    def set_scaling(self, scaling, alpha=None, gamma=None, rank=None, min=None, max=None, bias=None, contrast=None):
+    @validate(NoneOr(Constant(Scaling)), NoneOr(Number(0.1, 1000000)), NoneOr(Number(0.1, 2)), NoneOr(Number(0, 100)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(-1, 1), Constant(Auto)), NoneOr(Number(0, 2), Constant(Auto)))
+    def set_scaling(self, scaling=None, alpha=None, gamma=None, rank=None, min=None, max=None, bias=None, contrast=None):
         """Set the colormap scaling.
 
         Parameters

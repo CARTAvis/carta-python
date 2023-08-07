@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA
+from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA, Colormap as CM, Scaling as SC, Auto
 
 # FIXTURES
 
@@ -256,3 +256,70 @@ def test_zoom_to_size_invalid(image, mock_property, axis, val, wcs, error_contai
     with pytest.raises(Exception) as e:
         image.zoom_to_size(val, axis)
     assert error_contains in str(e.value)
+
+
+@pytest.mark.parametrize("colormap", [CM.VIRIDIS])
+@pytest.mark.parametrize("invert", [True, False])
+def test_set_colormap(mocker, image, mock_call_action, colormap, invert):
+    image.set_colormap(colormap, invert)
+    mock_call_action.assert_has_calls([
+        mocker.call("renderConfig.setColorMap", colormap),
+        mocker.call("renderConfig.setInverted", invert),
+    ])
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    # Nothing
+    ((), {},
+     [
+    ]),
+    # Everything (min and max will be ignored)
+    ((SC.LINEAR, 5, 0.5, 99, 10, 1000, 0.5, 0.5), {},
+     [
+        ("renderConfig.setScaling", SC.LINEAR),
+        ("renderConfig.setAlpha", 5),
+        ("renderConfig.setGamma", 0.5),
+        ("renderConfig.setPercentileRank", 99),
+        ("renderConfig.setBias", 0.5),
+        ("renderConfig.setContrast", 0.5),
+    ]),
+    # Custom min and max (no rank)
+    ((), {"min": 10, "max": 1000},
+     [
+        ("renderConfig.setCustomScale", 10, 1000),
+    ]),
+    # Min only (no effect)
+    ((), {"min": 10},
+     [
+    ]),
+    # Max only (no effect)
+    ((), {"max": 1000},
+     [
+    ]),
+    # Reset bias and contrast
+    ((), {"bias": Auto.AUTO, "contrast": Auto.AUTO},
+     [
+        ("renderConfig.resetBias",),
+        ("renderConfig.resetContrast",),
+    ]),
+])
+def test_set_scaling_valid(mocker, image, mock_call_action, args, kwargs, expected_calls):
+    image.set_scaling(*args, **kwargs)
+    mock_call_action.assert_has_calls([mocker.call(*call) for call in expected_calls])
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"alpha": 0},
+    {"gamma": 0},
+    {"rank": -1},
+    {"bias": -5},
+    {"contrast": -1},
+    {"alpha": 2000000},
+    {"gamma": 5},
+    {"rank": 101},
+    {"bias": 2},
+    {"contrast": 5},
+])
+def test_set_scaling_invalid(mocker, image, kwargs):
+    with pytest.raises(CartaValidationFailed):
+        image.set_scaling(**kwargs)
