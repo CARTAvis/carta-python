@@ -553,9 +553,9 @@ class Image:
         scaling : {0}
             The scaling type.
         alpha : {1}
-            The alpha value (only applicable to ``LOG`` and ``POWER`` scaling types).
+            The alpha value (only applicable to ``LOG`` and ``POWER`` scaling types, but set regardless of the scaling parameter provided).
         gamma : {2}
-            The gamma value (only applicable to the ``GAMMA`` scaling type).
+            The gamma value (only applicable to the ``GAMMA`` scaling type, but set regardless of the scaling parameter provided).
         rank : {3}
             The clip percentile rank. If this is set, *min* and *max* are ignored, and will be calculated automatically.
         min : {4}
