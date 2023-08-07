@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, VectorOverlaySource, Auto
 from .util import logger, Macro, cached, PixelValue, AngularSize, WorldCoordinate, Undefined
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, Union
 
 
 class Image:
@@ -608,7 +608,7 @@ class Image:
 
     # CONTOURS
 
-    @validate(NoneOr(IterableOf(Number())), NoneOr(Constant(SmoothingMode)), NoneOr(Number()))
+    @validate(*all_optional(IterableOf(Number()), Constant(SmoothingMode), Number()))
     def configure_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None):
         """Configure contours.
 
@@ -629,7 +629,7 @@ class Image:
             smoothing_factor = self.macro("contourConfig", "smoothingFactor")
         self.call_action("contourConfig.setContourConfiguration", levels, smoothing_mode, smoothing_factor)
 
-    @validate(NoneOr(Constant(ContourDashMode)), NoneOr(Number()))
+    @validate(*all_optional(Constant(ContourDashMode), Number()))
     def set_contour_dash(self, dash_mode=None, thickness=None):
         """Set the contour dash style.
 
@@ -685,7 +685,7 @@ class Image:
         """Apply the contour configuration."""
         self.call_action("applyContours")
 
-    @validate(NoneOr(IterableOf(Number())), NoneOr(Constant(SmoothingMode)), NoneOr(Number()), NoneOr(Constant(ContourDashMode)), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
+    @validate(*all_optional(*configure_contours.VARGS, *set_contour_dash.VARGS, *set_contour_color.VARGS, *set_contour_colormap.VARGS))
     def plot_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, thickness=None, color=None, colormap=None, bias=None, contrast=None):
         """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
 
@@ -745,7 +745,7 @@ class Image:
 
     # VECTOR OVERLAY
 
-    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()))
+    @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Boolean(), Boolean(), Number(), Boolean(), Number(), Number()))
     def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
@@ -782,32 +782,33 @@ class Image:
             threshold_enabled = True
         if q_error is not None and u_error is not None and debiasing is None:
             debiasing = True
+
         if (q_error is not None and u_error is None) or (q_error is None and u_error is not None):
             debiasing = False
             logger.warning("The Stokes Q error and Stokes U error must both be set to enable debiasing.")
-        if angular_source is None:
-            angular_source = self.macro("vectorOverlayConfig", "angularSource")
-        if intensity_source is None:
-            intensity_source = self.macro("vectorOverlayConfig", "intensitySource")
-        if pixel_averaging_enabled is None:
-            pixel_averaging_enabled = self.macro("vectorOverlayConfig", "pixelAveragingEnabled")
-        if pixel_averaging is None:
-            pixel_averaging = self.macro("vectorOverlayConfig", "pixelAveraging")
-        if fractional_intensity is None:
-            fractional_intensity = self.macro("vectorOverlayConfig", "fractionalIntensity")
-        if threshold_enabled is None:
-            threshold_enabled = self.macro("vectorOverlayConfig", "thresholdEnabled")
-        if threshold is None:
-            threshold = self.macro("vectorOverlayConfig", "threshold")
-        if debiasing is None:
-            debiasing = self.macro("vectorOverlayConfig", "debiasing")
-        if q_error is None:
-            q_error = self.macro("vectorOverlayConfig", "qError")
-        if u_error is None:
-            u_error = self.macro("vectorOverlayConfig", "uError")
-        self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
 
-    @validate(NoneOr(Number()), NoneOr(Number(), Constant(Auto)), NoneOr(Number(), Constant(Auto)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
+        args = []
+
+        for value, attr_name in (
+            (angular_source, "angularSource"),
+            (intensity_source, "intensitySource"),
+            (pixel_averaging_enabled, "pixelAveragingEnabled"),
+            (pixel_averaging, "pixelAveraging"),
+            (fractional_intensity, "fractionalIntensity"),
+            (threshold_enabled, "thresholdEnabled"),
+            (threshold, "threshold"),
+            (debiasing, "debiasing"),
+            (q_error, "qError"),
+            (u_error, "uError"),
+        ):
+            if value is None:
+                args.append(self.macro("vectorOverlayConfig", attr_name))
+            else:
+                args.append(value)
+
+        self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", *args)
+
+    @validate(*all_optional(Number(), Union(Number(), Constant(Auto)), Union(Number(), Constant(Auto)), Number(), Number(), Number()))
     def set_vector_overlay_style(self, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None):
         """Set the styling (line thickness, intensity range, line length range, rotation offset) of vector overlay.
 
@@ -828,17 +829,22 @@ class Image:
         """
         if thickness is not None:
             self.call_action("vectorOverlayConfig.setThickness", thickness)
+
         if intensity_min is None:
             intensity_min = self.macro("vectorOverlayConfig", "intensityMin")
         elif intensity_min is Auto.AUTO:
             intensity_min = Undefined()
+
         if intensity_max is None:
             intensity_max = self.macro("vectorOverlayConfig", "intensityMax")
         elif intensity_max is Auto.AUTO:
             intensity_max = Undefined()
+
         self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
+
         if length_min is not None and length_max is not None:
             self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
+
         if rotation_offset is not None:
             self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
 
@@ -882,7 +888,7 @@ class Image:
         """Apply the vector overlay configuration."""
         self.call_action("applyVectorOverlay")
 
-    @validate(NoneOr(Constant(VectorOverlaySource)), NoneOr(Constant(VectorOverlaySource)), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Boolean()), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(OneOf(Number(), Constant(Auto))), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
+    @validate(*all_optional(*configure_vector_overlay.VARGS, *set_vector_overlay_style.VARGS, *set_vector_overlay_color.VARGS, *set_vector_overlay_colormap.VARGS))
     def plot_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None):
         """Set the vector overlay configuration, styling and color or colormap; and apply vector overlay; in a single step.
 
