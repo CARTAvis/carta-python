@@ -140,6 +140,7 @@ class SmoothingMode(IntEnum):
     BLOCK_AVERAGE = 1
     GAUSSIAN_BLUR = 2
 
+
 VectorOverlaySource = Enum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), type=int, start=-1)
 VectorOverlaySource.__doc__ = """Vector overlay source."""
 
