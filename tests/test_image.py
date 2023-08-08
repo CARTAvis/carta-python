@@ -3,8 +3,8 @@ import pytest
 
 from carta.session import Session
 from carta.image import Image
-from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA
+from carta.util import CartaValidationFailed, Macro
+from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA, VectorOverlaySource as VOS, Auto
 
 # FIXTURES
 
@@ -256,3 +256,75 @@ def test_zoom_to_size_invalid(image, mock_property, axis, val, wcs, error_contai
     with pytest.raises(Exception) as e:
         image.zoom_to_size(val, axis)
     assert error_contains in str(e.value)
+
+# VECTOR OVERLAY
+
+
+@pytest.mark.parametrize("args,kwargs,expected_args", [
+    # Nothing
+    ((), {}, None),
+    # Everything
+    ((VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5), {}, (VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5)),
+    # Deduce pixel averaging flag
+    ((), {"pixel_averaging": 1},
+     ("M(angularSource)", "M(intensitySource)", True, 1, "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", "M(debiasing)", "M(qError)", "M(uError)")),
+    # Don't deduce pixel averaging flag
+    ((), {"pixel_averaging": 1, "pixel_averaging_enabled": False},
+     ("M(angularSource)", "M(intensitySource)", False, 1, "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", "M(debiasing)", "M(qError)", "M(uError)")),
+    # Deduce threshold flag
+    ((), {"threshold": 2},
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", True, 2, "M(debiasing)", "M(qError)", "M(uError)")),
+    # Don't deduce threshold flag
+    ((), {"threshold": 2, "threshold_enabled": False},
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", False, 2, "M(debiasing)", "M(qError)", "M(uError)")),
+    # Deduce debiasing flag
+    ((), {"q_error": 3, "u_error": 4},
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", True, 3, 4)),
+    # Don'teduce debiasing flag
+    ((), {"q_error": 3, "u_error": 4, "debiasing": False},
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", False, 3, 4)),
+    # Disable debiasing (no q_error)
+    ((), {"u_error": 4, "debiasing": True},
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", False, "M(qError)", 4)),
+    # Disable debiasing (no u_error)
+    ((), {"q_error": 3, "debiasing": True},
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", False, 3, "M(uError)")),
+])
+def test_configure_vector_overlay(image, mock_call_action, mock_method, args, kwargs, expected_args):
+    mock_method("macro", lambda _, v: f"M({v})")
+    image.configure_vector_overlay(*args, **kwargs)
+    if expected_args is None:
+        mock_call_action.assert_not_called()
+    else:
+        mock_call_action.assert_called_with("vectorOverlayConfig.setVectorOverlayConfiguration", *expected_args)
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    # Nothing
+    ((), {}, ()),
+    # Everything
+    ((1, 2, 3, 4, 5, 6), {}, (
+        ("vectorOverlayConfig.setThickness", 1),
+        ("vectorOverlayConfig.setIntensityRange", 2, 3),
+        ("vectorOverlayConfig.setLengthRange", 4, 5),
+        ("vectorOverlayConfig.setRotationOffset", 6),
+    )),
+    # No intensity min; auto intensity max
+    ((), {"intensity_max": Auto.AUTO}, (("vectorOverlayConfig.setIntensityRange", "M(intensityMin)", Macro.UNDEFINED),)),
+    # Auto intensity min; no intensity max
+    ((), {"intensity_min": Auto.AUTO}, (("vectorOverlayConfig.setIntensityRange", Macro.UNDEFINED, "M(intensityMax)"),)),
+])
+def test_set_vector_overlay_style(mocker, image, mock_call_action, mock_method, args, kwargs, expected_calls):
+    mock_method("macro", lambda _, v: f"M({v})")
+    image.set_vector_overlay_style(*args, **kwargs)
+    mock_call_action.assert_has_calls([mocker.call(*call) for call in expected_calls])
+
+
+# TODO test_set_vector_overlay_color
+# TODO test_set_vector_overlay_colormap
+# TODO test_apply_vector_overlay
+# TODO test_plot_vector_overlay
+# TODO test_clear_vector_overlay
+# TODO test_set_vector_overlay_visible
+# TODO test_show_vector_overlay
+# TODO test_hide_vector_overlay

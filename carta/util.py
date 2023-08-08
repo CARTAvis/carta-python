@@ -96,13 +96,8 @@ class Macro:
         return {"macroTarget": self.target, "macroVariable": self.variable}
 
 
-class Undefined(Macro):
-    """
-    A subclass of Macro to construct a placeholder for `"undefined"`.
-    """
-
-    def __init__(self):
-        super().__init__(target="", variable="undefined")
+Macro.UNDEFINED = Macro("", "undefined")
+Macro.UNDEFINED.__doc__ = """A :obj:`carta.util.Macro` instance which is deserialized as ``undefined`` by the frontend."""
 
 
 class CartaEncoder(json.JSONEncoder):

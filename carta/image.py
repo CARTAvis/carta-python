@@ -4,7 +4,7 @@ Image objects should not be instantiated directly, and should only be created th
 """
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, VectorOverlaySource, Auto
-from .util import logger, Macro, cached, PixelValue, AngularSize, WorldCoordinate, Undefined
+from .util import logger, Macro, cached, PixelValue, AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, Union
 
 
@@ -745,7 +745,7 @@ class Image:
 
     # VECTOR OVERLAY
 
-    @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Boolean(), Boolean(), Number(), Boolean(), Number(), Number()))
+    @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Number(), Boolean(), Number(), Boolean(), Number(), Number()))
     def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
@@ -776,37 +776,40 @@ class Image:
         u_error : {9}
             The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Initially set to zero.
         """
-        if pixel_averaging is not None and pixel_averaging_enabled is None:
-            pixel_averaging_enabled = True
-        if threshold is not None and threshold_enabled is None:
-            threshold_enabled = True
-        if q_error is not None and u_error is not None and debiasing is None:
-            debiasing = True
 
-        if (q_error is not None and u_error is None) or (q_error is None and u_error is not None):
-            debiasing = False
-            logger.warning("The Stokes Q error and Stokes U error must both be set to enable debiasing.")
+        # Avoid doing a lot of needless work for a no-op
+        if any(name != "self" and arg is not None for name, arg in locals().items()):
+            if pixel_averaging is not None and pixel_averaging_enabled is None:
+                pixel_averaging_enabled = True
+            if threshold is not None and threshold_enabled is None:
+                threshold_enabled = True
+            if q_error is not None and u_error is not None and debiasing is None:
+                debiasing = True
 
-        args = []
+            if (q_error is not None and u_error is None) or (q_error is None and u_error is not None):
+                debiasing = False
+                logger.warning("The Stokes Q error and Stokes U error must both be set to enable debiasing.")
 
-        for value, attr_name in (
-            (angular_source, "angularSource"),
-            (intensity_source, "intensitySource"),
-            (pixel_averaging_enabled, "pixelAveragingEnabled"),
-            (pixel_averaging, "pixelAveraging"),
-            (fractional_intensity, "fractionalIntensity"),
-            (threshold_enabled, "thresholdEnabled"),
-            (threshold, "threshold"),
-            (debiasing, "debiasing"),
-            (q_error, "qError"),
-            (u_error, "uError"),
-        ):
-            if value is None:
-                args.append(self.macro("vectorOverlayConfig", attr_name))
-            else:
-                args.append(value)
+            args = []
 
-        self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", *args)
+            for value, attr_name in (
+                (angular_source, "angularSource"),
+                (intensity_source, "intensitySource"),
+                (pixel_averaging_enabled, "pixelAveragingEnabled"),
+                (pixel_averaging, "pixelAveraging"),
+                (fractional_intensity, "fractionalIntensity"),
+                (threshold_enabled, "thresholdEnabled"),
+                (threshold, "threshold"),
+                (debiasing, "debiasing"),
+                (q_error, "qError"),
+                (u_error, "uError"),
+            ):
+                if value is None:
+                    args.append(self.macro("vectorOverlayConfig", attr_name))
+                else:
+                    args.append(value)
+
+            self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", *args)
 
     @validate(*all_optional(Number(), Union(Number(), Constant(Auto)), Union(Number(), Constant(Auto)), Number(), Number(), Number()))
     def set_vector_overlay_style(self, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None):
@@ -830,17 +833,18 @@ class Image:
         if thickness is not None:
             self.call_action("vectorOverlayConfig.setThickness", thickness)
 
-        if intensity_min is None:
-            intensity_min = self.macro("vectorOverlayConfig", "intensityMin")
-        elif intensity_min is Auto.AUTO:
-            intensity_min = Undefined()
+        if intensity_min is not None or intensity_max is not None:
+            if intensity_min is None:
+                intensity_min = self.macro("vectorOverlayConfig", "intensityMin")
+            elif intensity_min is Auto.AUTO:
+                intensity_min = Macro.UNDEFINED
 
-        if intensity_max is None:
-            intensity_max = self.macro("vectorOverlayConfig", "intensityMax")
-        elif intensity_max is Auto.AUTO:
-            intensity_max = Undefined()
+            if intensity_max is None:
+                intensity_max = self.macro("vectorOverlayConfig", "intensityMax")
+            elif intensity_max is Auto.AUTO:
+                intensity_max = Macro.UNDEFINED
 
-        self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
+            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
 
         if length_min is not None and length_max is not None:
             self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
