@@ -190,3 +190,24 @@ class FileType(IntEnum):
     HDF5 = 4
     MIRIAD = 5
     UNKNOWN = 6
+
+
+class RegionType(IntEnum):
+    """Region types corresponding to the protobuf enum"""
+    POINT = 0
+    LINE = 1
+    POLYLINE = 2
+    RECTANGLE = 3
+    ELLIPSE = 4
+    ANNULUS = 5
+    POLYGON = 6
+    ANNPOINT = 7
+    ANNLINE = 8
+    ANNPOLYLINE = 9
+    ANNRECTANGLE = 10
+    ANNELLIPSE = 11
+    ANNPOLYGON = 12
+    ANNVECTOR = 13
+    ANNRULER = 14
+    ANNTEXT = 15
+    ANNCOMPASS = 16

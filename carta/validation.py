@@ -675,6 +675,22 @@ class Coordinate(Union):
         super().__init__(*options, description="a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units")
 
 
+class Point(Union):
+    """A representation of a 2D point, either as a dictionary with ``'x'`` and ``'y'`` as keys and numeric values, or an iterable with two numeric values (which will be evaluated as ``x`` and ``y`` coordinates in order)."""
+
+    # TODO make this inherit from MapOf and add check for keys
+    class PointDict(Parameter):
+        """Helper validator class for evaluating points in dictionary format."""
+        pass
+
+    def __init__(self):
+        options = (
+            IterableOf(Number(), min_size=2, max_size=2),
+            self.PointDict(),
+        )
+        super().__init__(*options, description="a dictionary with ``'x'`` and ``'y'`` as keys and numeric values, or an iterable with two numeric values")
+
+
 class Attr(str):
     """A wrapper for arguments to be passed to the :obj:`carta.validation.Evaluate` descriptor. These arguments are string names of properties on the parent object of the decorated method, which will be evaluated at runtime."""
     pass

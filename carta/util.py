@@ -561,9 +561,9 @@ class DMSCoordinate(SexagesimalCoordinate):
 
 class BasePathMixin:
     """A mixin which provides ``call_action`` and ``get_value`` methods which prepend the object's base path to the path before calling the corresponding :obj:`carta.session.Session` methods.
-    
+
     It also provides a ``macro`` method which prepends the path when creating a :obj:`carta.util.Macro`.
-    
+
     A class inheriting from this mixin must define a `_base_path` attribute (the string prefix) and a `session` attribute (a :obj:`carta.session.Session` object).
     """
 

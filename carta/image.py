@@ -4,9 +4,9 @@ Image objects should not be instantiated directly, and should only be created th
 """
 import posixpath
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, FileType
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, FileType, RegionType
 from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate, BasePathMixin
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, String, Point
 from .region import Region
 
 
@@ -733,7 +733,7 @@ class Image(BasePathMixin):
             self.call_action("renderConfig.setPercentileRank", -1)  # select 'custom' rank button
 
     # REGIONS
-    
+
     def region_list(self):
         """Return the list of regions associated with this image.
 
@@ -741,31 +741,30 @@ class Image(BasePathMixin):
         -------
         list of :obj:`carta.region.Region` objects.
         """
-        num_regions = self.get_value("regionSet.regions.length")
-        return [Region(self, self.get_value(f"regionSet.regions[{i}].region_id")) for i in range(num_regions)]
-    
+        region_ids = self.get_value("regionSet.regionIds")
+        return [Region(self, region_id) for region_id in region_ids]
+
     @validate(String(), NoneOr(OneOf(FileType.CRTF, FileType.DS9_REG)))
     def import_regions(self, path, file_type=None):
         """Import regions into this image from a file.
-        
-        TODO: placeholder code; until the frontend function allows a frame to be specified, this will only work on the active image or its spatial reference
-        
+
         Parameters
         ----------
         path : {0}
             The path to the region file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
         file_type : {1}
             The type of the region file. Omit this parameter to detect the type automatically from the file extension.
-            
+
         Raises
         ------
         ValueError
             If no file format is specified, and the
         """
         directory, file_name = posixpath.split(path)
-        
+
         # TODO actually use the file browser to fetch info for this file?
-        
+        # TODO merge in the hypercube PR first?
+
         if file_type is None:
             if file_name.endswith(".crtf"):
                 file_type = FileType.CRTF
@@ -773,12 +772,18 @@ class Image(BasePathMixin):
                 file_type = FileType.DS9_REG
             else:
                 raise ValueError("The region file type could not be inferred from the file name. Please use the file_type parameter.")
-        
-        self.session.call_action("importRegion", directory, file_name, file_type) # TODO pass in frame when this is supported
-    
+
+        self.session.call_action("importRegion", directory, file_name, file_type, self._frame)
+
     def export_regions(self, path, file_type, coordinate_type):
-        pass # TODO
-    
+        pass  # TODO
+
+    @validate(Constant(RegionType), IterableOf(Point()), Number(), String())
+    def add_region(self, region_type, points, rotation, name):
+        """Add a new region to this image."""
+        pass  # TODO call Region.new
+        # TODO actually create individual functions with validation for the different types??
+
     # CLOSE
 
     def close(self):

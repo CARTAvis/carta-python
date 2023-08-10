@@ -273,11 +273,11 @@ class Session:
         """
         path, parameter = split_action_path(path)
         macro = Macro(path, parameter)
-        
+
         kwargs = {"response_expected": True}
         if return_path is not None:
             kwargs["return_path"] = return_path
-        
+
         return self.call_action("fetchParameter", macro, **kwargs)
 
     # FILE BROWSING
