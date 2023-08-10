@@ -541,10 +541,12 @@ class IterableOf(Parameter):
 
 class MapOf(IterableOf):
     """A dictionary of keys and values which must match the given descriptors.
+
     Parameters
     ----------
     value_param : :obj:`carta.validation.Parameter`
         The value parameter descriptor.
+
     Attributes
     ----------
     value_param : :obj:`carta.validation.Parameter`
@@ -557,6 +559,7 @@ class MapOf(IterableOf):
 
     def validate(self, value, parent):
         """Check if each element of the iterable can be validated with the given descriptor.
+
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
 
@@ -573,6 +576,7 @@ class MapOf(IterableOf):
     @property
     def description(self):
         """A human-readable description of this parameter descriptor.
+
         Returns
         -------
         string
@@ -875,10 +879,13 @@ def validate(*vargs):
 
 def all_optional(*vargs):
     """Wrapper to make all parameters in an iterable optional.
+
     For improved legibility in functions with many sequential optional parameters. Can also enable reuse of validation parameters in functions which call other functions.
+
     Parameters
     ----------
     *vargs : iterable of :obj:`carta.validation.Parameter` objects
+
     Returns
     -------
     iterable of :obj:`carta.validation.Parameter` objects

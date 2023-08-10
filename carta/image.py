@@ -164,6 +164,7 @@ class Image:
     @cached
     def file_name(self):
         """The name of the image.
+
         Returns
         -------
         string
