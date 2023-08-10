@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, Auto
 from .util import Macro, cached
 from .units import PixelValue, AngularSize, WorldCoordinate
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, Union
 from .metadata import parse_header
 
 
@@ -494,7 +494,7 @@ class Image:
         self.call_action("renderConfig.setColorMap", colormap)
         self.call_action("renderConfig.setInverted", invert)
 
-    @validate(NoneOr(Constant(Scaling)), NoneOr(Number(0.1, 1000000)), NoneOr(Number(0.1, 2)), NoneOr(Number(0, 100)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number(-1, 1), Constant(Auto)), NoneOr(Number(0, 2), Constant(Auto)))
+    @validate(*all_optional(Constant(Scaling), Number(0.1, 1000000), Number(0.1, 2), Number(0, 100), Number(), Number(), Union(Number(-1, 1), Constant(Auto)), Union(Number(0, 2), Constant(Auto))))
     def set_scaling(self, scaling=None, alpha=None, gamma=None, rank=None, min=None, max=None, bias=None, contrast=None):
         """Set the colormap scaling.
 
