@@ -10,8 +10,8 @@ except ImportError:
         pass
 
 
-class ArithmeticExpression(StrEnum):
-    """Arithmetic expression."""
+class ComplexComponent(StrEnum):
+    """Complex component."""
     AMPLITUDE = "AMPLITUDE"
     PHASE = "PHASE"
     REAL = "REAL"
@@ -139,6 +139,11 @@ class SmoothingMode(IntEnum):
     NO_SMOOTHING = 0
     BLOCK_AVERAGE = 1
     GAUSSIAN_BLUR = 2
+
+
+class Auto(StrEnum):
+    """Special value for parameters to be calculated automatically."""
+    AUTO = "Auto"
 
 
 class ContourDashMode(StrEnum):

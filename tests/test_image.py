@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA, ArithmeticExpression as AE
+from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA
 
 # FIXTURES
 
@@ -22,7 +22,7 @@ def session():
 def image(session):
     """Return an image object which uses the session fixture.
     """
-    return Image(session, 0, "")
+    return Image(session, 0)
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def mock_session_call_action(session, mocker):
 def mock_property(mocker):
     """Return a helper function to mock the value of a decorated image property using a simple syntax."""
     def func(property_name, mock_value):
-        mocker.patch(f"carta.image.Image.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
+        return mocker.patch(f"carta.image.Image.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
     return func
 
 
@@ -55,7 +55,7 @@ def mock_property(mocker):
 def mock_method(image, mocker):
     """Return a helper function to mock the return value(s) of an image method using a simple syntax."""
     def func(method_name, return_values):
-        mocker.patch.object(image, method_name, side_effect=return_values)
+        return mocker.patch.object(image, method_name, side_effect=return_values)
     return func
 
 
@@ -63,7 +63,7 @@ def mock_method(image, mocker):
 def mock_session_method(session, mocker):
     """Return a helper function to mock the return value(s) of a session method using a simple syntax."""
     def func(method_name, return_values):
-        mocker.patch.object(session, method_name, side_effect=return_values)
+        return mocker.patch.object(session, method_name, side_effect=return_values)
     return func
 
 # TESTS
@@ -101,22 +101,22 @@ def test_image_properties_have_docstrings(member):
 
 @pytest.mark.parametrize("args,kwargs,expected_params", [
     # Open a plain image
-    (["subdir/image.fits", "", False, False, None], {},
+    (["subdir", "image.fits", "", False, False], {},
      ["openFile", "/my_data/subdir", "image.fits", "", False, False]),
-    # Open a complex image
-    (["subdir/image.fits", "", False, True, AE.AMPLITUDE], {},
-     ["openFile", "/my_data/subdir", 'AMPLITUDE("image.fits")', "", True, False]),
+    # Open an expression
+    (["subdir", '2*image.fits', "", False, True], {},
+     ["openFile", "/my_data/subdir", '2*image.fits', "", True, False]),
     # Append a plain image
-    (["subdir/image.fits", "", True, False, None], {},
+    (["subdir", "image.fits", "", True, False], {},
      ["appendFile", "/my_data/subdir", "image.fits", "", False, True, False]),
-    # Append a complex image
-    (["subdir/image.fits", "", True, True, AE.AMPLITUDE], {},
-     ["appendFile", "/my_data/subdir", 'AMPLITUDE("image.fits")', "", True, True, False]),
+    # Append an expression
+    (["subdir", "2*image.fits", "", True, True], {},
+     ["appendFile", "/my_data/subdir", "2*image.fits", "", True, True, False]),
     # Open a plain image; update the file browser directory
-    (["subdir/image.fits", "", False, False, None], {"update_directory": True},
+    (["subdir", "image.fits", "", False, False], {"update_directory": True},
      ["openFile", "/my_data/subdir", "image.fits", "", False, True]),
     # Append a plain image; don't set it to active
-    (["subdir/image.fits", "", True, False, None], {"make_active": False},
+    (["subdir", "image.fits", "", True, False], {"make_active": False},
      ["appendFile", "/my_data/subdir", "image.fits", "", False, False, False]),
 ])
 def test_new(session, mock_session_call_action, mock_session_method, args, kwargs, expected_params):
@@ -130,12 +130,12 @@ def test_new(session, mock_session_call_action, mock_session_method, args, kwarg
     assert type(image_object) is Image
     assert image_object.session == session
     assert image_object.image_id == 123
-    assert image_object.file_name == expected_params[2]
 
 
 # SIMPLE PROPERTIES TODO to be completed.
 
 @pytest.mark.parametrize("property_name,expected_path", [
+    ("file_name", "frameInfo.fileInfo.name"),
     ("directory", "frameInfo.directory"),
     ("width", "frameInfo.fileInfoExtended.width"),
 ])

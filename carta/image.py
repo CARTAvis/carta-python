@@ -2,12 +2,15 @@
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
+
 import posixpath
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, FileType, RegionType
-from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate, BasePathMixin
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, String, Point
+from .util import Macro, cached, BasePathMixin
+from .units import PixelValue, AngularSize, WorldCoordinate
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, String, Point
 from .region import Region
+from .metadata import parse_header
 
 
 class Image(BasePathMixin):
@@ -21,8 +24,6 @@ class Image(BasePathMixin):
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
-    file_name : string
-        The file name of the image. This is not a full path.
 
     Attributes
     ----------
@@ -30,57 +31,47 @@ class Image(BasePathMixin):
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session.
-    file_name : string
-        The file name of the image.
     """
 
-    def __init__(self, session, image_id, file_name):
+    def __init__(self, session, image_id):
         self.session = session
         self.image_id = image_id
-        self.file_name = file_name
 
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def new(cls, session, path, hdu, append, complex, expression, make_active=True, update_directory=False):
+    def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
         """Open or append a new image in the session and return an image object associated with it.
 
-        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image` and :obj:`carta.session.Session.append_image`.
+        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.open_image`, :obj:`carta.session.Session.open_complex_image` and :obj:`carta.session.Session.open_LEL_image`.
 
         Parameters
         ----------
         session : :obj:`carta.session.Session`
             The session object.
-        path : string
-            The path to the image file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        directory : string
+            The directory containing the image file or the base directory for the LEL arithmetic expression, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
+        file_name : string
+            The name of the image file, or a LEL arithmetic expression.
         hdu : string
             The HDU to open.
         append : boolean
             Whether the image should be appended.
-        complex : boolean
-            Whether the image is complex.
-        expression : a member of :obj:`carta.constants.ArithmeticExpression`
-            Arithmetic expression to use if opening a complex-valued image. Ignored if the image is not complex.
+        image_arithmetic : boolean
+            Whether the file name should be interpreted as a LEL expression.
         make_active : boolean
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : boolean
-            Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
+            Whether the starting directory of the frontend file browser should be updated to the directory provided. The default is ``False``.
 
         Returns
         -------
         :obj:`carta.image.Image`
             A new image object.
         """
-        path = session.resolve_file_path(path)
-        directory, file_name = posixpath.split(path)
-
         command = "appendFile" if append else "openFile"
-        if complex:
-            image_arithmetic = True
-            file_name = f'{expression}("{file_name}")'
-        else:
-            image_arithmetic = False
+        directory = session.resolve_file_path(directory)
 
         params = [directory, file_name, hdu, image_arithmetic]
         if append:
@@ -88,7 +79,7 @@ class Image(BasePathMixin):
         params.append(update_directory)
 
         image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
-        return cls(session, image_id, file_name)
+        return cls(session, image_id)
 
     @classmethod
     def from_list(cls, session, image_list):
@@ -108,12 +99,24 @@ class Image(BasePathMixin):
         list of :obj:`carta.image.Image`
             A list of new image objects.
         """
-        return [cls(session, f["value"], f["label"].split(":")[1].strip()) for f in image_list]
+        return [cls(session, f["value"]) for f in image_list]
 
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
 
     # METADATA
+
+    @property
+    @cached
+    def file_name(self):
+        """The name of the image.
+
+        Returns
+        -------
+        string
+            The image name.
+        """
+        return self.get_value("frameInfo.fileInfo.name")
 
     @property
     @cached
@@ -130,15 +133,7 @@ class Image(BasePathMixin):
     @property
     @cached
     def header(self):
-        """The header of the image.
-
-        Entries with T or F string values are automatically converted to booleans.
-
-        ``HISTORY``, ``COMMENT`` and blank keyword entries are aggregated into single entries with list values and with ``'HISTORY'``, ``'COMMENT'`` and ``''`` as keys, respectively. An entry in the history list which begins with ``'>'`` will be concatenated with the previous entry.
-
-        Adjacent ``COMMENT`` entries are not concatenated automatically.
-
-        Any other header entries with no values are given values of ``None``.
+        """The header of the image, parsed from the raw frontend data (see :obj:`carta.metadata.parse_header`).
 
         Returns
         -------
@@ -146,58 +141,7 @@ class Image(BasePathMixin):
             The header of the image, with field names as keys.
         """
         raw_header = self.get_value("frameInfo.fileInfoExtended.headerEntries")
-
-        header = {}
-
-        history = []
-        comment = []
-        blank = []
-
-        def header_value(raw_entry):
-            try:
-                return raw_entry["numericValue"]
-            except KeyError:
-                try:
-                    value = raw_entry["value"]
-                    if value == 'T':
-                        return True
-                    if value == 'F':
-                        return False
-                    return value
-                except KeyError:
-                    return None
-
-        for i, raw_entry in enumerate(raw_header):
-            name = raw_entry["name"]
-
-            if name.startswith("HISTORY "):
-                line = name[8:]
-                if line.startswith(">") and history:
-                    history[-1] = history[-1] + line[1:]
-                else:
-                    history.append(line)
-                continue
-
-            if name.startswith("COMMENT "):
-                comment.append(name[8:])
-                continue
-
-            if name.startswith(" " * 8):
-                blank.append(name[8:])
-                continue
-
-            header[name] = header_value(raw_entry)
-
-        if history:
-            header["HISTORY"] = history
-
-        if comment:
-            header["COMMENT"] = comment
-
-        if blank:
-            header[""] = blank
-
-        return header
+        return parse_header(raw_header)
 
     @property
     @cached
@@ -559,7 +503,7 @@ class Image(BasePathMixin):
 
     # CONTOURS
 
-    @validate(NoneOr(IterableOf(Number())), NoneOr(Constant(SmoothingMode)), NoneOr(Number()))
+    @validate(*all_optional(IterableOf(Number()), Constant(SmoothingMode), Number()))
     def configure_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None):
         """Configure contours.
 
@@ -580,7 +524,7 @@ class Image(BasePathMixin):
             smoothing_factor = self.macro("contourConfig", "smoothingFactor")
         self.call_action("contourConfig.setContourConfiguration", levels, smoothing_mode, smoothing_factor)
 
-    @validate(NoneOr(Constant(ContourDashMode)), NoneOr(Number()))
+    @validate(*all_optional(Constant(ContourDashMode), Number()))
     def set_contour_dash(self, dash_mode=None, thickness=None):
         """Set the contour dash style.
 
@@ -605,7 +549,7 @@ class Image(BasePathMixin):
         Parameters
         ----------
         color : {0}
-            The color.
+            The color. The default is green.
         """
         self.call_action("contourConfig.setColor", color)
         self.call_action("contourConfig.setColormapEnabled", False)
@@ -619,7 +563,7 @@ class Image(BasePathMixin):
         Parameters
         ----------
         colormap : {0}
-            The colormap.
+            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {1}
             The colormap bias.
         contrast : {2}
@@ -636,7 +580,7 @@ class Image(BasePathMixin):
         """Apply the contour configuration."""
         self.call_action("applyContours")
 
-    @validate(NoneOr(IterableOf(Number())), NoneOr(Constant(SmoothingMode)), NoneOr(Number()), NoneOr(Constant(ContourDashMode)), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
+    @validate(*all_optional(*configure_contours.VARGS, *set_contour_dash.VARGS, *set_contour_color.VARGS, *set_contour_colormap.VARGS))
     def plot_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, thickness=None, color=None, colormap=None, bias=None, contrast=None):
         """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
 
@@ -655,9 +599,9 @@ class Image(BasePathMixin):
         thickness : {4}
             The dash thickness.
         color : {5}
-            The color.
+            The color. The default is green.
         colormap : {6}
-            The colormap.
+            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {7}
             The colormap bias.
         contrast : {8}

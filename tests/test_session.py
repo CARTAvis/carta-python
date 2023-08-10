@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Macro
-from carta.constants import CoordinateSystem, NumberFormat as NF, ArithmeticExpression as AE
+from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC
 
 # FIXTURES
 
@@ -34,7 +34,7 @@ def mock_call_action(session, mocker):
 def mock_property(mocker):
     """Return a helper function to mock the value of a decorated session property using a simple syntax."""
     def func(property_name, mock_value):
-        mocker.patch(f"carta.session.Session.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
+        return mocker.patch(f"carta.session.Session.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
     return func
 
 
@@ -42,7 +42,7 @@ def mock_property(mocker):
 def mock_method(session, mocker):
     """Return a helper function to mock the return value(s) of an session method using a simple syntax."""
     def func(method_name, return_values):
-        mocker.patch.object(session, method_name, side_effect=return_values)
+        return mocker.patch.object(session, method_name, side_effect=return_values)
     return func
 
 
@@ -115,16 +115,19 @@ def test_cd(session, mock_method, mock_call_action):
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
     # Open plain image
     (["subdir/image.fits"], {},
-     ["subdir/image.fits", "", False, False, AE.AMPLITUDE], {"update_directory": False}),
+     ["subdir", "image.fits", "", False, False], {"make_active": True, "update_directory": False}),
+    # Append plain image
+    (["subdir/image.fits"], {"append": True},
+     ["subdir", "image.fits", "", True, False], {"make_active": True, "update_directory": False}),
+    # Append plain image; don't make active
+    (["subdir/image.fits"], {"append": True, "make_active": False},
+     ["subdir", "image.fits", "", True, False], {"make_active": False, "update_directory": False}),
     # Open plain image; select different HDU
     (["subdir/image.fits"], {"hdu": "3"},
-     ["subdir/image.fits", "3", False, False, AE.AMPLITUDE], {"update_directory": False}),
-    # Open complex image
-    (["subdir/image.fits"], {"complex": True},
-     ["subdir/image.fits", "", False, True, AE.AMPLITUDE], {"update_directory": False}),
+     ["subdir", "image.fits", "3", False, False], {"make_active": True, "update_directory": False}),
     # Open plain image; update file browser directory
     (["subdir/image.fits"], {"update_directory": True},
-     ["subdir/image.fits", "", False, False, AE.AMPLITUDE], {"update_directory": True}),
+     ["subdir", "image.fits", "", False, False], {"make_active": True, "update_directory": True}),
 ])
 def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
     mock_image_new = mocker.patch.object(Image, "new")
@@ -135,26 +138,47 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
 
 
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
-    # Open plain image
+    # Open complex image with default component
     (["subdir/image.fits"], {},
-     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
-    # Open plain image; select different HDU
-    (["subdir/image.fits"], {"hdu": "3"},
-     ["subdir/image.fits", "3", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
-    # Open complex image
-    (["subdir/image.fits"], {"complex": True},
-     ["subdir/image.fits", "", True, True, AE.AMPLITUDE], {"make_active": True, "update_directory": False}),
-    # Open plain image; update file browser directory
-    (["subdir/image.fits"], {"update_directory": True},
-     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": True, "update_directory": True}),
-    # Open plain image; don't make active
-    (["subdir/image.fits"], {"make_active": False},
-     ["subdir/image.fits", "", True, False, AE.AMPLITUDE], {"make_active": False, "update_directory": False}),
+     ["subdir", 'AMPLITUDE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
+    # Open complex image with component selected
+    (["subdir/image.fits"], {"component": CC.PHASE},
+     ["subdir", 'PHASE("image.fits")', "", False, True], {"make_active": True, "update_directory": False}),
+    # Append complex image
+    (["subdir/image.fits"], {"component": CC.REAL, "append": True},
+     ["subdir", 'REAL("image.fits")', "", True, True], {"make_active": True, "update_directory": False}),
+    # Append complex image; don't make active
+    (["subdir/image.fits"], {"component": CC.REAL, "append": True, "make_active": False},
+     ["subdir", 'REAL("image.fits")', "", True, True], {"make_active": False, "update_directory": False}),
+    # Open complex image; update file browser directory
+    (["subdir/image.fits"], {"component": CC.IMAG, "update_directory": True},
+     ["subdir", 'IMAG("image.fits")', "", False, True], {"make_active": True, "update_directory": True}),
 ])
-def test_append_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
+def test_open_complex_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
     mock_image_new = mocker.patch.object(Image, "new")
-    session.append_image(*args, **kwargs)
+    session.open_complex_image(*args, **kwargs)
     mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
+
+@pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
+    # Open LEL image
+    (["2*image.fits"], {},
+     [".", '2*image.fits', "", False, True], {"make_active": True, "update_directory": False}),
+    # Append LEL image
+    (["2*image.fits+image.fits"], {"append": True},
+     [".", '2*image.fits+image.fits', "", True, True], {"make_active": True, "update_directory": False}),
+    # Append LEL image; don't make active
+    (["2*image.fits+image.fits"], {"append": True, "make_active": False},
+     [".", '2*image.fits+image.fits', "", True, True], {"make_active": False, "update_directory": False}),
+    # Open LEL image; update file browser directory
+    (["2*image.fits/image.fits"], {"update_directory": True},
+     [".", '2*image.fits/image.fits', "", False, True], {"make_active": True, "update_directory": True}),
+])
+def test_open_LEL_image(mocker, session, args, kwargs, expected_args, expected_kwargs):
+    mock_image_new = mocker.patch.object(Image, "new")
+    session.open_LEL_image(*args, **kwargs)
+    mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
 
 # OVERLAY
 
