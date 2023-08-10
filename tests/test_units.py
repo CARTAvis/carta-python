@@ -1,7 +1,7 @@
 import types
 import pytest
 
-from carta.util import PixelValue, AngularSize, DegreesSize, ArcminSize, ArcsecSize, MilliarcsecSize, MicroarcsecSize, WorldCoordinate, DegreesCoordinate, HMSCoordinate, DMSCoordinate
+from carta.units import PixelValue, AngularSize, DegreesSize, ArcminSize, ArcsecSize, MilliarcsecSize, MicroarcsecSize, WorldCoordinate, DegreesCoordinate, HMSCoordinate, DMSCoordinate
 from carta.constants import NumberFormat as NF, SpatialAxis as SA
 
 
