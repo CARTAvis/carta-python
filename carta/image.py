@@ -620,7 +620,7 @@ class Image:
         colormap : {0}
             The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {1}
-            The colormap bias. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
+            The colormap bias.
         contrast : {2}
             The colormap contrast.
         """
