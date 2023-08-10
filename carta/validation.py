@@ -879,10 +879,13 @@ def validate(*vargs):
 
 def all_optional(*vargs):
     """Wrapper to make all parameters in an iterable optional.
+
     For improved legibility in functions with many sequential optional parameters. Can also enable reuse of validation parameters in functions which call other functions.
+
     Parameters
     ----------
     *vargs : iterable of :obj:`carta.validation.Parameter` objects
+
     Returns
     -------
     iterable of :obj:`carta.validation.Parameter` objects
