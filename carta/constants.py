@@ -141,6 +141,11 @@ class SmoothingMode(IntEnum):
     GAUSSIAN_BLUR = 2
 
 
+class Auto(str, Enum):
+    """Special value for parameters to be calculated automatically."""
+    AUTO = "Auto"
+
+
 class ContourDashMode(StrEnum):
     """Contour dash modes."""
     NONE = "None"

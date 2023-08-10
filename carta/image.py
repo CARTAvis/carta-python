@@ -3,8 +3,9 @@
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis
-from .util import Macro, cached, PixelValue, AngularSize, WorldCoordinate
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
+from .util import Macro, cached
+from .units import PixelValue, AngularSize, WorldCoordinate
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
 from .metadata import parse_header
 
 
@@ -556,7 +557,7 @@ class Image:
 
     # CONTOURS
 
-    @validate(NoneOr(IterableOf(Number())), NoneOr(Constant(SmoothingMode)), NoneOr(Number()))
+    @validate(*all_optional(IterableOf(Number()), Constant(SmoothingMode), Number()))
     def configure_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None):
         """Configure contours.
 
@@ -577,7 +578,7 @@ class Image:
             smoothing_factor = self.macro("contourConfig", "smoothingFactor")
         self.call_action("contourConfig.setContourConfiguration", levels, smoothing_mode, smoothing_factor)
 
-    @validate(NoneOr(Constant(ContourDashMode)), NoneOr(Number()))
+    @validate(*all_optional(Constant(ContourDashMode), Number()))
     def set_contour_dash(self, dash_mode=None, thickness=None):
         """Set the contour dash style.
 
@@ -602,7 +603,7 @@ class Image:
         Parameters
         ----------
         color : {0}
-            The color.
+            The color. The default is green.
         """
         self.call_action("contourConfig.setColor", color)
         self.call_action("contourConfig.setColormapEnabled", False)
@@ -618,7 +619,7 @@ class Image:
         colormap : {0}
             The colormap.
         bias : {1}
-            The colormap bias.
+            The colormap bias. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         contrast : {2}
             The colormap contrast.
         """
@@ -633,7 +634,7 @@ class Image:
         """Apply the contour configuration."""
         self.call_action("applyContours")
 
-    @validate(NoneOr(IterableOf(Number())), NoneOr(Constant(SmoothingMode)), NoneOr(Number()), NoneOr(Constant(ContourDashMode)), NoneOr(Number()), NoneOr(Color()), NoneOr(Constant(Colormap)), NoneOr(Number()), NoneOr(Number()))
+    @validate(*all_optional(*configure_contours.VARGS, *set_contour_dash.VARGS, *set_contour_color.VARGS, *set_contour_colormap.VARGS))
     def plot_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, thickness=None, color=None, colormap=None, bias=None, contrast=None):
         """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
 
@@ -652,9 +653,9 @@ class Image:
         thickness : {4}
             The dash thickness.
         color : {5}
-            The color.
+            The color. The default is green.
         colormap : {6}
-            The colormap.
+            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {7}
             The colormap bias.
         contrast : {8}

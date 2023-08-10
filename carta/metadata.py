@@ -16,6 +16,7 @@ def parse_header(raw_header):
 
     Any other header entries with no values are given values of ``None``.
 
+
     Parameters
     ----------
     raw_header : dict

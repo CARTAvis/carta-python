@@ -33,6 +33,14 @@ carta.image module
    :undoc-members:
    :show-inheritance:
 
+carta.metadata module
+---------------------
+
+.. automodule:: carta.metadata
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.protocol module
 ---------------------
 
@@ -61,6 +69,14 @@ carta.token module
 ------------------
 
 .. automodule:: carta.token
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.units module
+------------------
+
+.. automodule:: carta.units
    :members:
    :undoc-members:
    :show-inheritance:
