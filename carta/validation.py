@@ -4,7 +4,8 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed, PixelValue, AngularSize, WorldCoordinate
+from .util import CartaValidationFailed
+from .units import PixelValue, AngularSize, WorldCoordinate
 
 
 class Parameter:
