@@ -145,7 +145,7 @@ VectorOverlaySource = Enum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'
 VectorOverlaySource.__doc__ = """Vector overlay source."""
 
 
-class Auto(str, Enum):
+class Auto(StrEnum):
     """Special value for parameters to be calculated automatically."""
     AUTO = "Auto"
 
