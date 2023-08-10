@@ -141,7 +141,7 @@ class SmoothingMode(IntEnum):
     GAUSSIAN_BLUR = 2
 
 
-class Auto(str, Enum):
+class Auto(StrEnum):
     """Special value for parameters to be calculated automatically."""
     AUTO = "Auto"
 
