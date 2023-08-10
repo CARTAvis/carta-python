@@ -3,14 +3,20 @@
 
 def parse_header(raw_header):
     """Parse raw image header entries from the frontend into a more user-friendly format.
+
     Entries with T or F string values are automatically converted to booleans.
+
     ``HISTORY``, ``COMMENT`` and blank keyword entries are aggregated into single entries with list values and with ``'HISTORY'``, ``'COMMENT'`` and ``''`` as keys, respectively. An entry in the history list which begins with ``'>'`` will be concatenated with the previous entry.
+
     Adjacent ``COMMENT`` entries are not concatenated automatically.
+
     Any other header entries with no values are given values of ``None``.
+
     Parameters
     ----------
     raw_header : dict
         The raw header entries received from the frontend.
+
     Returns
     -------
     dict of string to string, integer, float, boolean, ``None`` or list of strings
