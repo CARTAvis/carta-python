@@ -4,7 +4,8 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed, PixelValue, AngularSize, WorldCoordinate
+from .util import CartaValidationFailed
+from .units import PixelValue, AngularSize, WorldCoordinate
 
 
 class Parameter:
@@ -536,6 +537,53 @@ class IterableOf(Parameter):
         if size:
             size_desc = f"with {' and '.join(size)} "
         return f"an iterable {size_desc}in which each element is {self.param.description}"
+
+
+class MapOf(IterableOf):
+    """A dictionary of keys and values which must match the given descriptors.
+
+    Parameters
+    ----------
+    value_param : :obj:`carta.validation.Parameter`
+        The value parameter descriptor.
+
+    Attributes
+    ----------
+    value_param : :obj:`carta.validation.Parameter`
+        The value parameter descriptor.
+    """
+
+    def __init__(self, key_param, value_param, min_size=None, max_size=None):
+        self.value_param = value_param
+        super().__init__(key_param, min_size, max_size)
+
+    def validate(self, value, parent):
+        """Check if each element of the iterable can be validated with the given descriptor.
+
+        See :obj:`carta.validation.Parameter.validate` for general information about this method.
+        """
+
+        try:
+            for v in value.values():
+                self.value_param.validate(v, parent)
+        except AttributeError as e:
+            if str(e).endswith("has no attribute 'values'"):
+                raise ValueError(f"{value} is not a dictionary, but {self.description} was expected.")
+            raise e
+
+        super().validate(value, parent)
+
+    @property
+    def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
+
+        return re.sub("^an iterable (.*?)in which each element is (.*)$", rf"a dictionary \1in which each key is {self.param.description} and each value is {self.value_param.description}", super().description)
 
 
 COLORNAMES = ('aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki', 'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray', 'grey', 'green', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo', 'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon', 'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray', 'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow', 'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine', 'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab', 'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise', 'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue', 'purple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke', 'yellow', 'yellowgreen')

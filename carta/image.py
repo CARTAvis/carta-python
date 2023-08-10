@@ -4,8 +4,10 @@ Image objects should not be instantiated directly, and should only be created th
 """
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, VectorOverlaySource, Auto
-from .util import logger, Macro, cached, PixelValue, AngularSize, WorldCoordinate
+from .util import logger, Macro, cached
+from .units import PixelValue, AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, Union
+from .metadata import parse_header
 
 
 class Image:
@@ -19,8 +21,6 @@ class Image:
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
-    file_name : string
-        The file name of the image. This is not a full path.
 
     Attributes
     ----------
@@ -28,14 +28,11 @@ class Image:
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session.
-    file_name : string
-        The file name of the image.
     """
 
-    def __init__(self, session, image_id, file_name):
+    def __init__(self, session, image_id):
         self.session = session
         self.image_id = image_id
-        self.file_name = file_name
 
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
@@ -79,7 +76,7 @@ class Image:
         params.append(update_directory)
 
         image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
-        return cls(session, image_id, file_name)
+        return cls(session, image_id)
 
     @classmethod
     def from_list(cls, session, image_list):
@@ -99,7 +96,7 @@ class Image:
         list of :obj:`carta.image.Image`
             A list of new image objects.
         """
-        return [cls(session, f["value"], f["label"].split(":")[1].strip()) for f in image_list]
+        return [cls(session, f["value"]) for f in image_list]
 
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
@@ -166,6 +163,18 @@ class Image:
 
     @property
     @cached
+    def file_name(self):
+        """The name of the image.
+
+        Returns
+        -------
+        string
+            The image name.
+        """
+        return self.get_value("frameInfo.fileInfo.name")
+
+    @property
+    @cached
     def directory(self):
         """The path to the directory containing the image.
 
@@ -179,15 +188,7 @@ class Image:
     @property
     @cached
     def header(self):
-        """The header of the image.
-
-        Entries with T or F string values are automatically converted to booleans.
-
-        ``HISTORY``, ``COMMENT`` and blank keyword entries are aggregated into single entries with list values and with ``'HISTORY'``, ``'COMMENT'`` and ``''`` as keys, respectively. An entry in the history list which begins with ``'>'`` will be concatenated with the previous entry.
-
-        Adjacent ``COMMENT`` entries are not concatenated automatically.
-
-        Any other header entries with no values are given values of ``None``.
+        """The header of the image, parsed from the raw frontend data (see :obj:`carta.metadata.parse_header`).
 
         Returns
         -------
@@ -195,58 +196,7 @@ class Image:
             The header of the image, with field names as keys.
         """
         raw_header = self.get_value("frameInfo.fileInfoExtended.headerEntries")
-
-        header = {}
-
-        history = []
-        comment = []
-        blank = []
-
-        def header_value(raw_entry):
-            try:
-                return raw_entry["numericValue"]
-            except KeyError:
-                try:
-                    value = raw_entry["value"]
-                    if value == 'T':
-                        return True
-                    if value == 'F':
-                        return False
-                    return value
-                except KeyError:
-                    return None
-
-        for i, raw_entry in enumerate(raw_header):
-            name = raw_entry["name"]
-
-            if name.startswith("HISTORY "):
-                line = name[8:]
-                if line.startswith(">") and history:
-                    history[-1] = history[-1] + line[1:]
-                else:
-                    history.append(line)
-                continue
-
-            if name.startswith("COMMENT "):
-                comment.append(name[8:])
-                continue
-
-            if name.startswith(" " * 8):
-                blank.append(name[8:])
-                continue
-
-            header[name] = header_value(raw_entry)
-
-        if history:
-            header["HISTORY"] = history
-
-        if comment:
-            header["COMMENT"] = comment
-
-        if blank:
-            header[""] = blank
-
-        return header
+        return parse_header(raw_header)
 
     @property
     @cached
@@ -654,7 +604,7 @@ class Image:
         Parameters
         ----------
         color : {0}
-            The color. The default value is ``#238551`` (a shade of green).
+            The color. The default is green.
         """
         self.call_action("contourConfig.setColor", color)
         self.call_action("contourConfig.setColormapEnabled", False)
@@ -670,7 +620,7 @@ class Image:
         colormap : {0}
             The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {1}
-            The colormap bias.
+            The colormap bias. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         contrast : {2}
             The colormap contrast.
         """
@@ -704,7 +654,7 @@ class Image:
         thickness : {4}
             The dash thickness.
         color : {5}
-            The color. The default value is ``#238551`` (a shade of green).
+            The color. The default is green.
         colormap : {6}
             The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {7}
