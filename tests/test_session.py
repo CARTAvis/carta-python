@@ -34,7 +34,7 @@ def mock_call_action(session, mocker):
 def mock_property(mocker):
     """Return a helper function to mock the value of a decorated session property using a simple syntax."""
     def func(property_name, mock_value):
-        mocker.patch(f"carta.session.Session.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
+        return mocker.patch(f"carta.session.Session.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
     return func
 
 
@@ -42,7 +42,7 @@ def mock_property(mocker):
 def mock_method(session, mocker):
     """Return a helper function to mock the return value(s) of an session method using a simple syntax."""
     def func(method_name, return_values):
-        mocker.patch.object(session, method_name, side_effect=return_values)
+        return mocker.patch.object(session, method_name, side_effect=return_values)
     return func
 
 

@@ -356,6 +356,11 @@ class Session:
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The opened image.
         """
         directory, file_name = posixpath.split(path)
         return Image.new(self, directory, file_name, hdu, append, False, make_active=make_active, update_directory=update_directory)
@@ -376,6 +381,11 @@ class Session:
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the parent directory of the image. The default is ``False``.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The opened image.
         """
         directory, file_name = posixpath.split(path)
         expression = f'{component}("{file_name}")'
@@ -397,6 +407,11 @@ class Session:
             Whether the image should be made active in the frontend. This only applies if an image is being appended. The default is ``True``.
         update_directory : {4}
             Whether the starting directory of the frontend file browser should be updated to the base directory of the LEL expression. The default is ``False``.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The opened image.
         """
         return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
 
@@ -405,7 +420,8 @@ class Session:
 
         Returns
         -------
-        list of :obj:`carta.image.Image` objects.
+        list of :obj:`carta.image.Image` objects
+            The list of images open in this session.
         """
         return Image.from_list(self, self.get_value("frameNames"))
 
@@ -417,10 +433,8 @@ class Session:
         :obj:`carta.image.Image`
             The currently active image.
         """
-        frame_info = self.get_value("activeFrame.frameInfo")
-        image_id = frame_info["fileId"]
-        file_name = frame_info["fileInfo"]["name"]
-        return Image(self, image_id, file_name)
+        image_id = self.get_value("activeFrame.frameInfo.fileId")
+        return Image(self, image_id)
 
     def clear_spatial_reference(self):
         """Clear the spatial reference."""

@@ -444,7 +444,7 @@ class Constant(OneOf):
 class NoneOr(Union):
     """A union of other parameter descriptors as well as ``None``.
 
-    In the most common use case, this is used with a single other parameter type for optional parameters which are ``None`` by default. In more complex cases this can be used as shorthand in place of a :obj:`carta.validation.Union` with an explicit :obj:`carta.validation.NoneParameter` option.
+    In the most common use case, this is used with a single other parameter type for optional parameters which are ``None`` by default. In more complex cases this can be used as shorthand in place of a :obj:`carta.validation.Union` with an explicit :obj:`carta.validation.NoneParameter` option. Also see :obj:`carta.validation.all_optional` for a less verbose way to specify multiple sequential optional parameters.
 
     Parameters
     ----------
@@ -536,6 +536,49 @@ class IterableOf(Parameter):
         if size:
             size_desc = f"with {' and '.join(size)} "
         return f"an iterable {size_desc}in which each element is {self.param.description}"
+
+
+class MapOf(IterableOf):
+    """A dictionary of keys and values which must match the given descriptors.
+    Parameters
+    ----------
+    value_param : :obj:`carta.validation.Parameter`
+        The value parameter descriptor.
+    Attributes
+    ----------
+    value_param : :obj:`carta.validation.Parameter`
+        The value parameter descriptor.
+    """
+
+    def __init__(self, key_param, value_param, min_size=None, max_size=None):
+        self.value_param = value_param
+        super().__init__(key_param, min_size, max_size)
+
+    def validate(self, value, parent):
+        """Check if each element of the iterable can be validated with the given descriptor.
+        See :obj:`carta.validation.Parameter.validate` for general information about this method.
+        """
+
+        try:
+            for v in value.values():
+                self.value_param.validate(v, parent)
+        except AttributeError as e:
+            if str(e).endswith("has no attribute 'values'"):
+                raise ValueError(f"{value} is not a dictionary, but {self.description} was expected.")
+            raise e
+
+        super().validate(value, parent)
+
+    @property
+    def description(self):
+        """A human-readable description of this parameter descriptor.
+        Returns
+        -------
+        string
+            The description.
+        """
+
+        return re.sub("^an iterable (.*?)in which each element is (.*)$", rf"a dictionary \1in which each key is {self.param.description} and each value is {self.value_param.description}", super().description)
 
 
 COLORNAMES = ('aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood', 'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan', 'darkblue', 'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgrey', 'darkgreen', 'darkkhaki', 'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick', 'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray', 'grey', 'green', 'greenyellow', 'honeydew', 'hotpink', 'indianred', 'indigo', 'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon', 'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray', 'lightgrey', 'lightgreen', 'lightpink', 'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow', 'lime', 'limegreen', 'linen', 'magenta', 'maroon', 'mediumaquamarine', 'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab', 'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise', 'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue', 'purple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke', 'yellow', 'yellowgreen')
@@ -799,13 +842,13 @@ def validate(*vargs):
                         param = kwvargs[key]
                         param.validate(value, self)
                     except KeyError:
-                        raise CartaValidationFailed(f"Unexpected keyword parameter: {key}")
+                        raise CartaValidationFailed(f"Unexpected keyword parameter passed to {func.__name__}: {key}")
             except (TypeError, ValueError, AttributeError) as e:
                 # Strip out any documentation formatting from the descriptions
                 msg = str(e)
                 msg = STRIP_OBJ.sub(r"\1", msg)
                 msg = STRIP_CODE.sub(r"\1", msg)
-                raise CartaValidationFailed(f"Invalid function parameter: {msg}")
+                raise CartaValidationFailed(f"Invalid function parameter passed to {func.__name__}: {msg}")
             return func(self, *args, **kwargs)
 
         # If descriptions contain formatting they are not formatted correctly by Sphinx
@@ -822,5 +865,22 @@ def validate(*vargs):
         if newfunc.__doc__ is not None:
             newfunc.__doc__ = newfunc.__doc__.format(*(fix_description(p.description) for p in vargs))
 
+        # Add a handle to the validation parameters to allow functions which call other functions to reuse parameters
+        newfunc.VARGS = vargs
+
         return newfunc
     return decorator
+
+
+def all_optional(*vargs):
+    """Wrapper to make all parameters in an iterable optional.
+    For improved legibility in functions with many sequential optional parameters. Can also enable reuse of validation parameters in functions which call other functions.
+    Parameters
+    ----------
+    *vargs : iterable of :obj:`carta.validation.Parameter` objects
+    Returns
+    -------
+    iterable of :obj:`carta.validation.Parameter` objects
+        The same parameters in the same order, but with all non-optional parameters made optional (that is, wrapped in a obj:`carta.validation.NoneOr` parameter).
+    """
+    return tuple(NoneOr(param) if not isinstance(param, NoneOr) else param for param in vargs)

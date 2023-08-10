@@ -96,6 +96,10 @@ class Macro:
         return {"macroTarget": self.target, "macroVariable": self.variable}
 
 
+Macro.UNDEFINED = Macro("", "undefined")
+Macro.UNDEFINED.__doc__ = """A :obj:`carta.util.Macro` instance which is deserialized as ``undefined`` by the frontend."""
+
+
 class CartaEncoder(json.JSONEncoder):
     """A custom encoder to JSON which correctly serialises custom objects with a ``json`` method, and numpy arrays."""
 
