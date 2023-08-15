@@ -199,7 +199,7 @@ class FileType(IntEnum):
 
 class RegionType(IntEnum):
     """Region types corresponding to the protobuf enum."""
-    
+
     def __init__(self, value):
         self.is_annotation = self.name.startswith("ANN")
 

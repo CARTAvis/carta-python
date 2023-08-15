@@ -36,7 +36,7 @@ class Image(BasePathMixin):
     def __init__(self, session, image_id):
         self.session = session
         self.image_id = image_id
-        
+
         self.regions = RegionSet(self)
 
         self._base_path = f"frameMap[{image_id}]"
@@ -677,7 +677,6 @@ class Image(BasePathMixin):
         self.call_action("renderConfig.setPercentileRank", rank)
         if rank not in preset_ranks:
             self.call_action("renderConfig.setPercentileRank", -1)  # select 'custom' rank button
-    
 
     # CLOSE
 

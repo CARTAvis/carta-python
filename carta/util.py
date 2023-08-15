@@ -207,9 +207,9 @@ class BasePathMixin:
         return Macro(target, variable)
 
 
-def Point:
+class Point:
     """A representation of a 2D point.
-    
+
     Parameters
     ----------
     x : number
@@ -217,11 +217,11 @@ def Point:
     y : number
         The *y* coordinate of the point.
     """
-    
+
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        
+
     @classmethod
     def from_object(cls, obj):
         if isinstance(obj, Point):

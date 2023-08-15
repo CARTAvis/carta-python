@@ -12,12 +12,12 @@ from .validation import validate, Constant, IterableOf, Number, String, Point, N
 
 class RegionSet(BasePathMixIn):
     """Utility object for collecting region-related image functions."""
-    
+
     def __init__(self, image):
         self.image = image
         self.session = image.session
         self._base_path = f"{image._base_path}.regionSet"
-        
+
     def list(self):
         """Return the list of regions associated with this image.
 
@@ -47,11 +47,11 @@ class RegionSet(BasePathMixIn):
         file_type = FileType(self.session.call_action("backendService.getRegionFileInfo", directory, file_name, return_path="fileInfo.type"))
 
         self.session.call_action("importRegion", directory, file_name, file_type, self.image._frame)
-    
+
     @validate(String(), Constant(CoordinateType), OneOf(FileType.CRTF, FileType.DS9_REG), NoneOr(IterableOf(Number())))
     def export_to_file(self, path, coordinate_type=CoordinateType.WORLD, file_type=FileType.CRTF, region_ids=None):
         """Export regions from this image into a file.
-        
+
         Parameters
         ----------
         path : {0}
@@ -64,18 +64,18 @@ class RegionSet(BasePathMixIn):
             The region IDs to include. By default all regions will be included (except the cursor).
         """
         directory, file_name = posixpath.split(path)
-        
+
         if region_ids is None:
             region_ids = self.get_value("regionIds")[1:]
-        
+
         self.session.call_action("exportRegions", directory, file_name, coordinate_type, file_type, region_ids, self.image._frame)
 
     @validate(Constant(RegionType), IterableOf(Point()), Number(), String())
     def add_region(self, region_type, points, rotation=0, name=""):
         """Add a new region to this image.
-        
+
         This is a generic low-level function. Also see the higher-level functions for adding regions of specific types, like :obj:`carta.image.add_region_rectangular`.
-        
+
         Parameters
         ----------
         region_type : {0}
@@ -88,7 +88,7 @@ class RegionSet(BasePathMixIn):
             The name of the region. Defaults to the empty string.
         """
         return Region.new(self, region_type, points, rotation, name)
-    
+
     @validate(Point(), Boolean(), String())
     def add_point(self, center, annotation=False, name=""):
         region_type = RegionType.ANNPOINT if annotation else RegionType.POINT
@@ -98,27 +98,27 @@ class RegionSet(BasePathMixIn):
     def add_rectangle(self, center, width, height, annotation=False, rotation=0, name=""):
         region_type = RegionType.ANNRECTANGLE if annotation else RegionType.RECTANGLE
         return self.add_region(region_type, [center, [width, height]], rotation, name)
-    
-    @validate(Point(), Number(), Number(), Boolean(), String())  
+
+    @validate(Point(), Number(), Number(), Boolean(), String())
     def add_ellipse(self, center, semi_major, semi_minor, annotation=False, rotation=0, name=""):
         region_type = RegionType.ANNELLIPSE if annotation else RegionType.ELLIPSE
         return self.add_region(region_type, [center, [semi_major, semi_minor]], rotation, name)
-    
+
     @validate(IterableOf(Point()), Boolean(), Number(), String())
     def add_polygon(self, points, annotation=False, rotation=0, name=""):
         region_type = RegionType.ANNPOLYGON if annotation else RegionType.POLYGON
         return self.add_region(region_type, points, rotation, name)
-    
+
     @validate(Point(), Point(), Boolean(), Number(), String())
     def add_line(self, start, end, annotation=False, rotation=0, name=""):
         region_type = RegionType.ANNPOLYGON if annotation else RegionType.POLYGON
         return self.add_region(region_type, [start, end], rotation, name)
-    
+
     @validate(IterableOf(Point()), Boolean(), Number(), String())
     def add_polyline(self, points, annotation=False, rotation=0, name=""):
         region_type = RegionType.ANNPOLYLINE if annotation else RegionType.POLYLINE
         return self.add_region(region_type, points, rotation, name)
-    
+
     @validate(IterableOf(Point()), Number(), String())
     def add_vector(self, points, rotation=0, name=""):
         return self.add_region(RegionType.ANNVECTOR, points, rotation, name)
@@ -142,13 +142,13 @@ class Region(BasePathMixIn):
 
     # TODO find out what happens to region IDs when you match/unmatch or delete.
     """
-    
+
     REGION_TYPE = None
     CUSTOM_CLASS = {}
-    
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        
+
         if cls.REGION_TYPE is not None:
             Region.CUSTOM_CLASS[cls.REGION_TYPE] = cls
 
@@ -159,7 +159,7 @@ class Region(BasePathMixIn):
 
         self._base_path = f"{image._base_path}.regionSet.regionMap[{region_id}]"
         self._region = Macro("", self._base_path)
-        
+
     @classmethod
     @validate(Constant(RegionType))
     def region_class(cls, region_type):
@@ -171,12 +171,12 @@ class Region(BasePathMixIn):
         points = [Pt.from_object(point) for point in points]
         region_id = image.call_action("regionSet.addRegionAsync", region_type, points, rotation, name, return_path="regionId")
         return cls.region_class(region_type)(image, region_id)
-    
+
     @classmethod
     @validate(IterableOf(Number()))
     def from_list(cls, image, region_list):
         return [cls.region_class(RegionType(r["type"]))(image, r["id"]) for r in region_list]
-    
+
     @property
     def region_type(self):
         return RegionType(self.get_value("regionType"))

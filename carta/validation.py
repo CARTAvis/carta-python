@@ -728,10 +728,10 @@ class Point(Union):
 
     class PointDict(MapOf):
         """Helper validator class for evaluating points in dictionary format."""
-        
+
         def __init__(self):
             super().__init__(String(), Coordinate(), min_size=2, max_size=2)
-            
+
         def validate(self, value, parent):
             super().validate(value, parent)
             if sorted(value.keys()) != ["x", "y"]:

@@ -323,10 +323,6 @@ class Session:
         list
             The list of files and subdirectories in the frontend file browser's current starting directory.
         """
-        #self.call_action("fileBrowserStore.getFileList", self.pwd())
-        #file_list = self.get_value("fileBrowserStore.fileList")
-        
-        
         file_list = self.call_action("backendService.getFileList", self.pwd(), 2)
         items = []
         if "files" in file_list:
