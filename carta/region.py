@@ -5,12 +5,12 @@ Region and annotation objects should not be instantiated directly, and should on
 
 import posixpath
 
-from .util import Macro, BasePathMixIn, Point as Pt
+from .util import Macro, BasePathMixin, Point as Pt
 from .constants import FileType, RegionType, CoordinateType
 from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf
 
 
-class RegionSet(BasePathMixIn):
+class RegionSet(BasePathMixin):
     """Utility object for collecting region-related image functions."""
 
     def __init__(self, image):
@@ -137,7 +137,7 @@ class RegionSet(BasePathMixIn):
         return self.add_region(RegionType.ANNRULER, [start, end], rotation, name)
 
 
-class Region(BasePathMixIn):
+class Region(BasePathMixin):
     """Utility object which provides access to one region associated with an image.
 
     # TODO find out what happens to region IDs when you match/unmatch or delete.
