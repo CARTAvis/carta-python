@@ -5,9 +5,9 @@ Region and annotation objects should not be instantiated directly, and should on
 
 import posixpath
 
-from .util import Macro, BasePathMixin, Point as Pt
+from .util import Macro, BasePathMixin, Point as Pt, cached
 from .constants import FileType, RegionType, CoordinateType
-from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf
+from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf
 
 
 class RegionSet(BasePathMixin):
@@ -26,7 +26,7 @@ class RegionSet(BasePathMixin):
         list of :obj:`carta.region.Region` objects.
         """
         region_list = self.get_value("regionList")
-        return Region.from_list(self.image, region_list)
+        return Region.from_list(self, region_list)
 
     @validate(String())
     def import_from_file(self, path):
@@ -111,7 +111,7 @@ class RegionSet(BasePathMixin):
 
     @validate(Point(), Point(), Boolean(), Number(), String())
     def add_line(self, start, end, annotation=False, rotation=0, name=""):
-        region_type = RegionType.ANNPOLYGON if annotation else RegionType.POLYGON
+        region_type = RegionType.ANNLINE if annotation else RegionType.LINE
         return self.add_region(region_type, [start, end], rotation, name)
 
     @validate(IterableOf(Point()), Boolean(), Number(), String())
@@ -152,13 +152,16 @@ class Region(BasePathMixin):
         if cls.REGION_TYPE is not None:
             Region.CUSTOM_CLASS[cls.REGION_TYPE] = cls
 
-    def __init__(self, image, region_id):
-        self.image = image
-        self.session = image.session
+    def __init__(self, region_set, region_id):
+        self.region_set = region_set
+        self.session = region_set.session
         self.region_id = region_id
 
-        self._base_path = f"{image._base_path}.regionSet.regionMap[{region_id}]"
+        self._base_path = f"{region_set._base_path}.regionMap[{region_id}]"
         self._region = Macro("", self._base_path)
+
+    def __repr__(self):
+        return f"{self.region_id}:{self.region_type.label}"
 
     @classmethod
     @validate(Constant(RegionType))
@@ -166,18 +169,19 @@ class Region(BasePathMixin):
         return cls.CUSTOM_CLASS.get(region_type, Annotation if region_type.is_annotation else Region)
 
     @classmethod
-    @validate(Constant(RegionType), IterableOf(Point()), Number(), String())
-    def new(cls, image, region_type, points, rotation=0, name=""):
+    @validate(InstanceOf(RegionSet), Constant(RegionType), IterableOf(Point()), Number(), String())
+    def new(cls, region_set, region_type, points, rotation=0, name=""):
         points = [Pt.from_object(point) for point in points]
-        region_id = image.call_action("regionSet.addRegionAsync", region_type, points, rotation, name, return_path="regionId")
-        return cls.region_class(region_type)(image, region_id)
+        region_id = region_set.call_action("addRegionAsync", region_type, points, rotation, name, return_path="regionId")
+        return cls.region_class(region_type)(region_set, region_id)
 
     @classmethod
-    @validate(IterableOf(Number()))
-    def from_list(cls, image, region_list):
-        return [cls.region_class(RegionType(r["type"]))(image, r["id"]) for r in region_list]
+    @validate(InstanceOf(RegionSet), IterableOf(MapOf(String(), Number(), required_keys={"type", "id"})))
+    def from_list(cls, region_set, region_list):
+        return [cls.region_class(RegionType(r["type"]))(region_set, r["id"]) for r in region_list]
 
     @property
+    @cached
     def region_type(self):
         return RegionType(self.get_value("regionType"))
 

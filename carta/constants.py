@@ -202,6 +202,7 @@ class RegionType(IntEnum):
 
     def __init__(self, value):
         self.is_annotation = self.name.startswith("ANN")
+        self.label = f"{self.name[3:].title()} - Ann" if self.is_annotation else self.name.title()
 
     POINT = 0
     LINE = 1

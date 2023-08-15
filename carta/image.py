@@ -37,10 +37,10 @@ class Image(BasePathMixin):
         self.session = session
         self.image_id = image_id
 
-        self.regions = RegionSet(self)
-
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
+
+        self.regions = RegionSet(self)
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):

@@ -553,8 +553,10 @@ class MapOf(IterableOf):
         The value parameter descriptor.
     """
 
-    def __init__(self, key_param, value_param, min_size=None, max_size=None):
+    def __init__(self, key_param, value_param, min_size=None, max_size=None, required_keys=set(), exact_keys=False):
         self.value_param = value_param
+        self.required_keys = required_keys
+        self.exact_keys = exact_keys
         super().__init__(key_param, min_size, max_size)
 
     def validate(self, value, parent):
@@ -570,6 +572,13 @@ class MapOf(IterableOf):
             if str(e).endswith("has no attribute 'values'"):
                 raise ValueError(f"{value} is not a dictionary, but {self.description} was expected.")
             raise e
+
+        if self.exact_keys:
+            if self.required_keys != set(value):
+                raise ValueError(f"Dictionary {value} does not have required exact keys {self.required_keys}.")
+        else:
+            if not self.required_keys <= set(value):
+                raise ValueError(f"Required keys {self.required_keys} not found in dictionary {value}.")
 
         super().validate(value, parent)
 
@@ -730,12 +739,7 @@ class Point(Union):
         """Helper validator class for evaluating points in dictionary format."""
 
         def __init__(self):
-            super().__init__(String(), Coordinate(), min_size=2, max_size=2)
-
-        def validate(self, value, parent):
-            super().validate(value, parent)
-            if sorted(value.keys()) != ["x", "y"]:
-                raise ValueError(f"{value} does not contain expected 'x' and 'y' keys.")
+            super().__init__(String(), Coordinate(), required_keys={"x", "y"}, exact_keys=True)
 
     def __init__(self):
         options = (
