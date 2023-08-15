@@ -13,7 +13,7 @@ from .image import Image
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ComplexComponent, NumberFormat
 from .backend import Backend
 from .protocol import Protocol
-from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl, Point
+from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl, Point as Pt
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
 
 
@@ -861,7 +861,7 @@ class Session:
     def set_cursor(self, x, y):
         """Set the curson position.
 
-        TODO: this is a precursor to making z-profiles available, but currently the relevant functionality is not exposed by the frontend.
+        TODO: this is a precursor to making z-profiles available, but currently the relevant functionality is not exposed by the frontend. There is also a frontend issue which is preventing the cursor from being updated correctly (it is updated only in the profiles).
 
         Parameters
         ----------
@@ -871,7 +871,7 @@ class Session:
             The Y position.
 
         """
-        self.active_frame().call_action("regionSet.updateCursorRegionPosition", Point(x, y))
+        self.active_frame().regions.call_action("updateCursorRegionPosition", Pt(x, y))
 
     # SAVE IMAGE
 
