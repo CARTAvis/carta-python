@@ -3,13 +3,11 @@
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 
-import posixpath
-
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, FileType, RegionType
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis
 from .util import Macro, cached, BasePathMixin
 from .units import PixelValue, AngularSize, WorldCoordinate
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, String, Point
-from .region import Region
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
+from .region import RegionSet
 from .metadata import parse_header
 
 
@@ -31,11 +29,15 @@ class Image(BasePathMixin):
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session.
+    regions : :obj:`carta.region.RegionSet` object
+        Functions for manipulating regions associated with this image.
     """
 
     def __init__(self, session, image_id):
         self.session = session
         self.image_id = image_id
+        
+        self.regions = RegionSet(self)
 
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
@@ -675,58 +677,7 @@ class Image(BasePathMixin):
         self.call_action("renderConfig.setPercentileRank", rank)
         if rank not in preset_ranks:
             self.call_action("renderConfig.setPercentileRank", -1)  # select 'custom' rank button
-
-    # REGIONS
-
-    def region_list(self):
-        """Return the list of regions associated with this image.
-
-        Returns
-        -------
-        list of :obj:`carta.region.Region` objects.
-        """
-        region_ids = self.get_value("regionSet.regionIds")
-        return [Region(self, region_id) for region_id in region_ids]
-
-    @validate(String(), NoneOr(OneOf(FileType.CRTF, FileType.DS9_REG)))
-    def import_regions(self, path, file_type=None):
-        """Import regions into this image from a file.
-
-        Parameters
-        ----------
-        path : {0}
-            The path to the region file, either relative to the session's current directory or an absolute path relative to the CARTA backend's root directory.
-        file_type : {1}
-            The type of the region file. Omit this parameter to detect the type automatically from the file extension.
-
-        Raises
-        ------
-        ValueError
-            If no file format is specified, and the
-        """
-        directory, file_name = posixpath.split(path)
-
-        # TODO actually use the file browser to fetch info for this file?
-        # TODO merge in the hypercube PR first?
-
-        if file_type is None:
-            if file_name.endswith(".crtf"):
-                file_type = FileType.CRTF
-            elif file_name.endswith(".reg"):
-                file_type = FileType.DS9_REG
-            else:
-                raise ValueError("The region file type could not be inferred from the file name. Please use the file_type parameter.")
-
-        self.session.call_action("importRegion", directory, file_name, file_type, self._frame)
-
-    def export_regions(self, path, file_type, coordinate_type):
-        pass  # TODO
-
-    @validate(Constant(RegionType), IterableOf(Point()), Number(), String())
-    def add_region(self, region_type, points, rotation, name):
-        """Add a new region to this image."""
-        pass  # TODO call Region.new
-        # TODO actually create individual functions with validation for the different types??
+    
 
     # CLOSE
 

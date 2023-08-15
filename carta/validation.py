@@ -4,7 +4,7 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed
+from .util import CartaValidationFailed, Point as Pt
 from .units import PixelValue, AngularSize, WorldCoordinate
 
 
@@ -704,7 +704,7 @@ class Size(Union):
 
 
 class Coordinate(Union):
-    """A string representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units. Validates strings using :obj:`carta.util.PixelValue` and :obj:`carta.util.WorldCoordinate`."""
+    """A representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units. Validates strings using :obj:`carta.util.PixelValue` and :obj:`carta.util.WorldCoordinate`."""
 
     class WorldCoordinate(String):
         """Helper validator class which uses :obj:`carta.util.WorldCoordinate` to validate strings."""
@@ -724,19 +724,26 @@ class Coordinate(Union):
 
 
 class Point(Union):
-    """A representation of a 2D point, either as a dictionary with ``'x'`` and ``'y'`` as keys and numeric values, or an iterable with two numeric values (which will be evaluated as ``x`` and ``y`` coordinates in order)."""
+    """A representation of a 2D point, either as a :obj:`carta.util.Point` object, or a dictionary with ``'x'`` and ``'y'`` as keys and coordinate values, or an iterable with two coordinate values (which will be evaluated as ``x`` and ``y`` coordinates in order). World or image coordinates are permitted."""
 
-    # TODO make this inherit from MapOf and add check for keys
-    class PointDict(Parameter):
+    class PointDict(MapOf):
         """Helper validator class for evaluating points in dictionary format."""
-        pass
+        
+        def __init__(self):
+            super().__init__(String(), Coordinate(), min_size=2, max_size=2)
+            
+        def validate(self, value, parent):
+            super().validate(value, parent)
+            if sorted(value.keys()) != ["x", "y"]:
+                raise ValueError(f"{value} does not contain expected 'x' and 'y' keys.")
 
     def __init__(self):
         options = (
-            IterableOf(Number(), min_size=2, max_size=2),
+            InstanceOf(Pt),
+            IterableOf(Coordinate(), min_size=2, max_size=2),
             self.PointDict(),
         )
-        super().__init__(*options, description="a dictionary with ``'x'`` and ``'y'`` as keys and numeric values, or an iterable with two numeric values")
+        super().__init__(*options, description="a Point object, a dictionary with ``'x'`` and ``'y'`` as keys and coordinate values, or an iterable with two coordinate values")
 
 
 class Attr(str):

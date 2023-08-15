@@ -187,7 +187,7 @@ class GridMode(StrEnum):
 
 
 class FileType(IntEnum):
-    """File types corresponding to the protobuf enum"""
+    """File types corresponding to the protobuf enum."""
     CASA = 0
     CRTF = 1
     DS9_REG = 2
@@ -198,7 +198,11 @@ class FileType(IntEnum):
 
 
 class RegionType(IntEnum):
-    """Region types corresponding to the protobuf enum"""
+    """Region types corresponding to the protobuf enum."""
+    
+    def __init__(self, value):
+        self.is_annotation = self.name.startswith("ANN")
+
     POINT = 0
     LINE = 1
     POLYLINE = 2
@@ -216,3 +220,9 @@ class RegionType(IntEnum):
     ANNRULER = 14
     ANNTEXT = 15
     ANNCOMPASS = 16
+
+
+class CoordinateType(IntEnum):
+    """Coordinate types corresponding to the protobuf enum."""
+    PIXEL = 0
+    WORLD = 1

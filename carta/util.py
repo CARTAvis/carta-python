@@ -205,3 +205,31 @@ class BasePathMixin:
         """
         target = f"{self._base_path}.{target}" if target else self._base_path
         return Macro(target, variable)
+
+
+def Point:
+    """A representation of a 2D point.
+    
+    Parameters
+    ----------
+    x : number
+        The *x* coordinate of the point.
+    y : number
+        The *y* coordinate of the point.
+    """
+    
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        
+    @classmethod
+    def from_object(cls, obj):
+        if isinstance(obj, Point):
+            return obj
+        if isinstance(obj, dict):
+            return cls(**obj)
+        return cls(*obj)
+
+    def json(self):
+        """The JSON serialization of this object."""
+        return {"x": self.x, "y": self.y}
