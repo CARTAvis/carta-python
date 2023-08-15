@@ -11,7 +11,20 @@ from .validation import validate, Constant, IterableOf, Number, String, Point, N
 
 
 class RegionSet(BasePathMixin):
-    """Utility object for collecting region-related image functions."""
+    """Utility object for collecting region-related image functions.
+
+    Parameters
+    ----------
+    image : :obj:`carta.image.Image` object
+        The image associated with this region set.
+
+    Attributes
+    ----------
+    image : :obj:`carta.image.Image` object
+        The image associated with this region set.
+    session : :obj:`carta.session.Session` object
+        The session object associated with this region set.
+    """
 
     def __init__(self, image):
         self.image = image
@@ -43,6 +56,7 @@ class RegionSet(BasePathMixin):
             If the file does not exist or is not a region file.
         """
         directory, file_name = posixpath.split(path)
+        directory = self.session.resolve_file_path(directory)
 
         file_type = FileType(self.session.call_action("backendService.getRegionFileInfo", directory, file_name, return_path="fileInfo.type"))
 
@@ -64,9 +78,10 @@ class RegionSet(BasePathMixin):
             The region IDs to include. By default all regions will be included (except the cursor).
         """
         directory, file_name = posixpath.split(path)
+        directory = self.session.resolve_file_path(directory)
 
         if region_ids is None:
-            region_ids = self.get_value("regionIds")[1:]
+            region_ids = [r["id"] for r in self.get_value("regionList")[1:]]
 
         self.session.call_action("exportRegions", directory, file_name, coordinate_type, file_type, region_ids, self.image._frame)
 
@@ -136,11 +151,32 @@ class RegionSet(BasePathMixin):
     def add_ruler(self, start, end, rotation=0, name=""):
         return self.add_region(RegionType.ANNRULER, [start, end], rotation, name)
 
+    def clear(self):
+        """Delete all regions except for the cursor region."""
+        for region in self.list()[1:]:
+            region.delete()
+
 
 class Region(BasePathMixin):
     """Utility object which provides access to one region associated with an image.
 
     # TODO find out what happens to region IDs when you match/unmatch or delete.
+
+    Parameters
+    ----------
+    region_set : :obj:`carta.region.RegionSet` object
+        The region set containing this region.
+    region_id : integer
+        The ID of this region.
+
+    Attributes
+    ----------
+    region_set : :obj:`carta.region.RegionSet` object
+        The region set containing this region.
+    region_id : integer
+        The ID of this region.
+    session : :obj:`carta.session.Session` object
+        The session object associated with this region.
     """
 
     REGION_TYPE = None
@@ -184,6 +220,10 @@ class Region(BasePathMixin):
     @cached
     def region_type(self):
         return RegionType(self.get_value("regionType"))
+
+    def delete(self):
+        """Delete this region."""
+        self.region_set.call_action("deleteRegion", self._region)
 
 
 class Annotation(Region):
