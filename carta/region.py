@@ -6,8 +6,8 @@ Region and annotation objects should not be instantiated directly, and should on
 import posixpath
 
 from .util import Macro, BasePathMixin, Point as Pt, cached, CartaBadResponse
-from .constants import FileType, RegionType, CoordinateType
-from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf
+from .constants import FileType, RegionType, CoordinateType, PointShape, TextPosition, AnnotationFontStyle, AnnotationFont
+from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf, Color, all_optional
 
 
 class RegionSet(BasePathMixin):
@@ -208,6 +208,8 @@ class Region(BasePathMixin):
     def __repr__(self):
         return f"{self.region_id}:{self.region_type.label}"
 
+    # CREATE OR CONNECT
+
     @classmethod
     @validate(Constant(RegionType))
     def region_class(cls, region_type):
@@ -230,10 +232,50 @@ class Region(BasePathMixin):
     def from_list(cls, region_set, region_list):
         return [cls.existing(r["type"], region_set, r["id"]) for r in region_list]
 
+    # GET PROPERTIES
+
     @property
     @cached
     def region_type(self):
         return RegionType(self.get_value("regionType"))
+
+    @property
+    def center(self):
+        return Pt.from_object(self.get_value("center"))
+
+    @property
+    def size(self):
+        return Pt.from_object(self.get_value("size"))
+
+    @property
+    def wcs_size(self):
+        return Pt.from_object(self.get_value("wcsSize"))  # TODO use WCS Point once implemented
+
+    @property
+    def rotation(self):
+        return self.get_value("rotation")
+
+    @property
+    def control_points(self):
+        return [Pt.from_object(p) for p in self.get_value("controlPoints")]
+
+    @property
+    def name(self):
+        return self.get_value("name")
+
+    @property
+    def color(self):
+        return self.get_value("color")
+
+    @property
+    def line_width(self):
+        return self.get_value("lineWidth")
+
+    @property
+    def dash_length(self):
+        return self.get_value("dashLength")
+
+    # SET PROPERTIES
 
     @validate(Point())
     def set_center(self, center):
@@ -243,11 +285,13 @@ class Region(BasePathMixin):
     def set_size(self, size):
         self.call_action("setSize", Pt.from_object(size))
 
-    # def lock(self):
-        # pass
+    @validate(Point())
+    def set_control_point(self, index, point):
+        self.call_action("setControlPoint", index, Pt.from_object(point))
 
-    # def set_focus(self):
-        # pass
+    @validate(IterableOf(Point()))
+    def set_control_points(self, points):
+        self.call_action("setControlPoints", [Pt.from_object(p) for p in points])
 
     @validate(Number())
     def set_rotation(self, angle):
@@ -259,6 +303,33 @@ class Region(BasePathMixin):
             The new rotation angle.
         """
         self.call_action("setRotation", angle)
+
+    @validate(String())
+    def set_name(self, name):
+        self.call_action("setName", name)
+
+    @validate(Color())
+    def set_color(self, color):
+        self.call_action("setColor", color)
+
+    @validate(Number())
+    def set_line_width(self, width):
+        self.call_action("setLineWidth", width)
+
+    @validate(Number())
+    def set_dash_length(self, length):
+        self.call_action("setDashLength", length)
+
+    def lock(self):
+        self.call_action("setLocked", True)
+
+    def unlock(self):
+        self.call_action("setLocked", False)
+
+    def focus(self):
+        self.call_action("focusCenter")
+
+    # IMPORT AND EXPORT
 
     @validate(String(), Constant(CoordinateType), OneOf(FileType.CRTF, FileType.DS9_REG))
     def export_to(self, path, coordinate_type=CoordinateType.WORLD, file_type=FileType.CRTF):
@@ -274,24 +345,197 @@ class Annotation(Region):
     pass
 
 
+# TODO this may be general enough to live somewhere else
+# TODO maybe consolidate these into single functions
+class HasFontMixin:
+
+    # GET PROPERTIES
+
+    @property
+    def font_size(self):
+        return self.get_value("fontSize")
+
+    @property
+    def font_style(self):
+        return AnnotationFontStyle(self.get_value("fontStyle"))
+
+    @property
+    def font(self):
+        return AnnotationFont(self.get_value("font"))
+
+    # SET PROPERTIES
+
+    @validate(Number())
+    def set_font_size(self, size):
+        self.call_action("setFontSize", size)
+
+    @validate(Constant(AnnotationFontStyle))
+    def set_font_style(self, style):
+        self.call_action("setFontStyle", style)
+
+    @validate(Constant(AnnotationFont))
+    def set_font(self, font):
+        self.call_action("setFont", font)
+
+
+# TODO maybe consolidate these into single functions
+class HasPointerMixin:
+
+    # GET PROPERTIES
+
+    @property
+    def pointer_width(self):
+        return self.get_value("pointerWidth")
+
+    @property
+    def pointer_length(self):
+        return self.get_value("pointerLength")
+
+    # SET PROPERTIES
+
+    @validate(Number())
+    def set_pointer_width(self, width):
+        self.call_action("setPointerWidth", width)
+
+    @validate(Number())
+    def set_pointer_length(self, length):
+        self.call_action("setPointerLength", length)
+
+
 class PointAnnotation(Annotation):
     REGION_TYPE = RegionType.ANNPOINT
 
+    # GET PROPERTIES
 
-class TextAnnotation(Annotation):
+    @property
+    def point_shape(self):
+        return PointShape(self.get_value("pointShape"))
+
+    @property
+    def point_width(self):
+        return self.get_value("pointWidth")
+
+    # SET PROPERTIES
+
+    @validate(Constant(PointShape))
+    def set_point_shape(self, shape):
+        self.call_action("setPointShape", shape)
+
+    @validate(Number())
+    def set_point_width(self, width):
+        self.call_action("setPointWidth", width)
+
+
+class TextAnnotation(Annotation, HasFontMixin):
     REGION_TYPE = RegionType.ANNTEXT
 
+    # GET PROPERTIES
+
+    @property
+    def text(self):
+        return self.get_value("text")
+
+    @property
+    def position(self):
+        return TextPosition(self.get_value("position"))
+
+    # SET PROPERTIES
+
+    @validate(String())
     def set_text(self, text):
         self.call_action("setText", text)
 
+    @validate(Constant(TextPosition))
+    def set_position(self, position):
+        self.call_action("setPosition", position)
 
-class VectorAnnotation(Annotation):
+
+class VectorAnnotation(Annotation, HasPointerMixin):
     REGION_TYPE = RegionType.ANNVECTOR
 
 
-class CompassAnnotation(Annotation):
+class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
     REGION_TYPE = RegionType.ANNCOMPASS
 
+    # GET PROPERTIES
 
-class RulerAnnotation(Annotation):
+    @property
+    def labels(self):
+        return self.get_value("northLabel"), self.get_value("eastLabel")
+
+    @property
+    def length(self):
+        return self.get_value("length")
+
+    @property
+    def text_offsets(self):
+        return Pt.from_object(self.get_value("northTextOffset")), Pt.from_object(self.get_value("eastTextOffset"))
+
+    @property
+    def arrowheads_visible(self):
+        return self.get_value("northArrowhead"), self.get_value("eastArrowhead")
+
+    # SET PROPERTIES
+
+    @validate(*all_optional(String(), String()))
+    def set_label(self, north_label=None, east_label=None):
+        if north_label is not None:
+            self.call_action("setLabel", north_label, True)
+        if east_label is not None:
+            self.call_action("setLabel", east_label, False)
+
+    @validate(Number())
+    def set_length(self, length):
+        self.call_action("setLength", length)
+
+    @validate(*all_optional(Point(), Point()))
+    def set_text_offset(self, north_offset=None, east_offset=None):
+        if north_offset is not None:
+            north_offset = Pt.from_object(north_offset)
+            self.call_action("setNorthTextOffset", north_offset.x, True)
+            self.call_action("setNorthTextOffset", north_offset.y, False)
+        if east_offset is not None:
+            east_offset = Pt.from_object(east_offset)
+            self.call_action("setEastTextOffset", east_offset.x, True)
+            self.call_action("setEastTextOffset", east_offset.y, False)
+
+    @validate(*all_optional(Boolean(), Boolean()))
+    def set_arrowhead_visible(self, north=None, east=None):
+        if north is not None:
+            self.call_action("setNorthArrowhead", north)
+        if east is not None:
+            self.call_action("setEastArrowhead", east)
+
+
+class RulerAnnotation(Annotation, HasFontMixin):
     REGION_TYPE = RegionType.ANNRULER
+
+    # GET PROPERTIES
+
+    @property
+    def auxiliary_lines_visible(self):
+        return self.get_value("auxiliaryLineVisible")
+
+    @property
+    def auxiliary_lines_dash_length(self):
+        return self.get_value("auxiliaryLineDashLength")
+
+    @property
+    def text_offset(self):
+        return Pt.from_object(self.get_value("textOffset"))
+
+    # SET PROPERTIES
+
+    @validate(Boolean())
+    def set_auxiliary_lines_visible(self, visible):
+        self.call_action("setAuxiliaryLineVisible", visible)
+
+    @validate(Number())
+    def set_auxiliary_lines_dash_length(self, length):
+        self.call_action("setAuxiliaryLineDashLength", length)
+
+    @validate(Point())
+    def set_text_offset(self, offset):
+        offset = Pt.from_object(offset)
+        self.call_action("setTextOffset", offset.x, True)
+        self.call_action("setTextOffset", offset.y, False)

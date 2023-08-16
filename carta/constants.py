@@ -227,3 +227,43 @@ class CoordinateType(IntEnum):
     """Coordinate types corresponding to the protobuf enum."""
     PIXEL = 0
     WORLD = 1
+
+
+class PointShape(IntEnum):
+    """Point annotation shapes corresponding to the protobuf enum."""
+    SQUARE = 0
+    BOX = 1
+    CIRCLE = 2
+    CIRCLE_LINED = 3
+    DIAMOND = 4
+    DIAMOND_LINED = 5
+    CROSS = 6
+    X = 7
+
+
+class TextPosition(IntEnum):
+    """Text annotation positions corresponding to the protobuf enum."""
+    CENTER = 0
+    UPPER_LEFT = 1
+    UPPER_RIGHT = 2
+    LOWER_LEFT = 3
+    LOWER_RIGHT = 4
+    TOP = 5
+    BOTTOM = 6
+    LEFT = 7
+    RIGHT = 8
+
+
+class AnnotationFontStyle(StrEnum):
+    """Font styles which may be used in annotations."""
+    NORMAL = "Normal"
+    BOLD = "Bold"
+    ITALIC = "Italic"
+    BOLD_ITALIC = "Italic Bold"
+
+
+class AnnotationFont(StrEnum):
+    """Fonts which may be used in annotations."""
+    HELVETICA = "Helvetica"
+    TIMES = "Times"
+    COURIER = "Courier"
