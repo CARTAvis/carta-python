@@ -5,7 +5,7 @@ Region and annotation objects should not be instantiated directly, and should on
 
 import posixpath
 
-from .util import Macro, BasePathMixin, Point as Pt, cached
+from .util import Macro, BasePathMixin, Point as Pt, cached, CartaBadResponse
 from .constants import FileType, RegionType, CoordinateType
 from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf
 
@@ -41,8 +41,16 @@ class RegionSet(BasePathMixin):
         region_list = self.get_value("regionList")
         return Region.from_list(self, region_list)
 
+    @validate(Number())
+    def get(self, region_id):
+        try:
+            region_type = self.get_value(f"regionMap[{region_id}]", return_path="regionType")
+        except CartaBadResponse:
+            raise ValueError(f"Could not find region with ID {region_id}.")
+        return Region.existing(region_type, self, region_id)
+
     @validate(String())
-    def import_from_file(self, path):
+    def import_from(self, path):
         """Import regions into this image from a file.
 
         Parameters
@@ -63,7 +71,7 @@ class RegionSet(BasePathMixin):
         self.session.call_action("importRegion", directory, file_name, file_type, self.image._frame)
 
     @validate(String(), Constant(CoordinateType), OneOf(FileType.CRTF, FileType.DS9_REG), NoneOr(IterableOf(Number())))
-    def export_to_file(self, path, coordinate_type=CoordinateType.WORLD, file_type=FileType.CRTF, region_ids=None):
+    def export_to(self, path, coordinate_type=CoordinateType.WORLD, file_type=FileType.CRTF, region_ids=None):
         """Export regions from this image into a file.
 
         Parameters
@@ -109,47 +117,48 @@ class RegionSet(BasePathMixin):
         region_type = RegionType.ANNPOINT if annotation else RegionType.POINT
         return self.add_region(region_type, [center], name=name)
 
-    @validate(Point(), Number(), Number(), Boolean(), String())
+    @validate(Point(), Number(), Number(), Boolean(), Number(), String())
     def add_rectangle(self, center, width, height, annotation=False, rotation=0, name=""):
         region_type = RegionType.ANNRECTANGLE if annotation else RegionType.RECTANGLE
         return self.add_region(region_type, [center, [width, height]], rotation, name)
 
-    @validate(Point(), Number(), Number(), Boolean(), String())
+    @validate(Point(), Number(), Number(), Boolean(), Number(), String())
     def add_ellipse(self, center, semi_major, semi_minor, annotation=False, rotation=0, name=""):
         region_type = RegionType.ANNELLIPSE if annotation else RegionType.ELLIPSE
         return self.add_region(region_type, [center, [semi_major, semi_minor]], rotation, name)
 
-    @validate(IterableOf(Point()), Boolean(), Number(), String())
-    def add_polygon(self, points, annotation=False, rotation=0, name=""):
+    @validate(IterableOf(Point()), Boolean(), String())
+    def add_polygon(self, points, annotation=False, name=""):
         region_type = RegionType.ANNPOLYGON if annotation else RegionType.POLYGON
-        return self.add_region(region_type, points, rotation, name)
+        return self.add_region(region_type, points, name=name)
 
-    @validate(Point(), Point(), Boolean(), Number(), String())
-    def add_line(self, start, end, annotation=False, rotation=0, name=""):
+    @validate(Point(), Point(), Boolean(), String())
+    def add_line(self, start, end, annotation=False, name=""):
         region_type = RegionType.ANNLINE if annotation else RegionType.LINE
-        return self.add_region(region_type, [start, end], rotation, name)
+        return self.add_region(region_type, [start, end], name=name)
 
-    @validate(IterableOf(Point()), Boolean(), Number(), String())
-    def add_polyline(self, points, annotation=False, rotation=0, name=""):
+    @validate(IterableOf(Point()), Boolean(), String())
+    def add_polyline(self, points, annotation=False, name=""):
         region_type = RegionType.ANNPOLYLINE if annotation else RegionType.POLYLINE
-        return self.add_region(region_type, points, rotation, name)
+        return self.add_region(region_type, points, name=name)
 
-    @validate(IterableOf(Point()), Number(), String())
-    def add_vector(self, points, rotation=0, name=""):
-        return self.add_region(RegionType.ANNVECTOR, points, rotation, name)
+    @validate(Point(), Point(), String())
+    def add_vector(self, start, end, name=""):
+        return self.add_region(RegionType.ANNVECTOR, [start, end], name=name)
 
-    @validate(Point(), Number(), Number(), String())
-    def add_text(self, center, width, height, rotation=0, name=""):
-        # TODO where is the text set? We should do that in one step.
-        return self.add_region(RegionType.ANNTEXT, [center, [width, height]], rotation, name)
+    @validate(Point(), Number(), Number(), String(), Number(), String())
+    def add_text(self, center, width, height, text, rotation=0, name=""):
+        region = self.add_region(RegionType.ANNTEXT, [center, [width, height]], rotation, name)
+        region.set_text(text)
+        return region
 
-    @validate(Point(), Number(), Number(), String())
-    def add_compass(self, center, length, rotation=0, name=""):
-        return self.add_region(RegionType.ANNCOMPASS, [center, [length, length]], rotation, name)
+    @validate(Point(), Number(), String())
+    def add_compass(self, center, length, name=""):
+        return self.add_region(RegionType.ANNCOMPASS, [center, [length, length]], name=name)
 
-    @validate(Point(), Point(), Number(), String())
-    def add_ruler(self, start, end, rotation=0, name=""):
-        return self.add_region(RegionType.ANNRULER, [start, end], rotation, name)
+    @validate(Point(), Point(), String())
+    def add_ruler(self, start, end, name=""):
+        return self.add_region(RegionType.ANNRULER, [start, end], name=name)
 
     def clear(self):
         """Delete all regions except for the cursor region."""
@@ -202,24 +211,58 @@ class Region(BasePathMixin):
     @classmethod
     @validate(Constant(RegionType))
     def region_class(cls, region_type):
-        return cls.CUSTOM_CLASS.get(region_type, Annotation if region_type.is_annotation else Region)
+        return cls.CUSTOM_CLASS.get(RegionType(region_type), Annotation if region_type.is_annotation else Region)
+
+    @classmethod
+    @validate(Constant(RegionType), InstanceOf(RegionSet), Number())
+    def existing(cls, region_type, region_set, region_id):
+        return cls.region_class(region_type)(region_set, region_id)
 
     @classmethod
     @validate(InstanceOf(RegionSet), Constant(RegionType), IterableOf(Point()), Number(), String())
     def new(cls, region_set, region_type, points, rotation=0, name=""):
         points = [Pt.from_object(point) for point in points]
         region_id = region_set.call_action("addRegionAsync", region_type, points, rotation, name, return_path="regionId")
-        return cls.region_class(region_type)(region_set, region_id)
+        return cls.existing(region_type, region_set, region_id)
 
     @classmethod
     @validate(InstanceOf(RegionSet), IterableOf(MapOf(String(), Number(), required_keys={"type", "id"})))
     def from_list(cls, region_set, region_list):
-        return [cls.region_class(RegionType(r["type"]))(region_set, r["id"]) for r in region_list]
+        return [cls.existing(r["type"], region_set, r["id"]) for r in region_list]
 
     @property
     @cached
     def region_type(self):
         return RegionType(self.get_value("regionType"))
+
+    @validate(Point())
+    def set_center(self, center):
+        self.call_action("setCenter", Pt.from_object(center))
+
+    @validate(Point())
+    def set_size(self, size):
+        self.call_action("setSize", Pt.from_object(size))
+
+    # def lock(self):
+        # pass
+
+    # def set_focus(self):
+        # pass
+
+    @validate(Number())
+    def set_rotation(self, angle):
+        """Set the rotation of this region to the given angle.
+
+        Parameters
+        ----------
+        angle : {0}
+            The new rotation angle.
+        """
+        self.call_action("setRotation", angle)
+
+    @validate(String(), Constant(CoordinateType), OneOf(FileType.CRTF, FileType.DS9_REG))
+    def export_to(self, path, coordinate_type=CoordinateType.WORLD, file_type=FileType.CRTF):
+        self.region_set.export_to(path, coordinate_type, file_type, [self.region_id])
 
     def delete(self):
         """Delete this region."""
@@ -237,6 +280,9 @@ class PointAnnotation(Annotation):
 
 class TextAnnotation(Annotation):
     REGION_TYPE = RegionType.ANNTEXT
+
+    def set_text(self, text):
+        self.call_action("setText", text)
 
 
 class VectorAnnotation(Annotation):

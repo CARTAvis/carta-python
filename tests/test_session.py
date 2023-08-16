@@ -95,12 +95,11 @@ def test_pwd(session, mock_call_action, mock_get_value):
     assert pwd == "/current/dir"
 
 
-def test_ls(session, mock_method, mock_call_action, mock_get_value):
+def test_ls(session, mock_method, mock_call_action):
     mock_method("pwd", ["/current/dir"])
-    mock_get_value.side_effect = [{"files": [{"name": "foo.fits"}, {"name": "bar.fits"}], "subdirectories": [{"name": "baz"}]}]
+    mock_call_action.side_effect = [{"files": [{"name": "foo.fits"}, {"name": "bar.fits"}], "subdirectories": [{"name": "baz"}]}]
     ls = session.ls()
-    mock_call_action.assert_called_with("fileBrowserStore.getFileList", "/current/dir")
-    mock_get_value.assert_called_with("fileBrowserStore.fileList")
+    mock_call_action.assert_called_with("backendService.getFileList", "/current/dir", 2)
     assert ls == ["bar.fits", "baz/", "foo.fits"]
 
 
