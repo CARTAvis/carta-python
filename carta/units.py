@@ -6,58 +6,6 @@ import math
 from .constants import NumberFormat, SpatialAxis
 
 
-class PixelValue:
-    """Parses pixel values."""
-
-    UNITS = {"px", "pix", "pixel", "pixels"}
-    UNIT_REGEX = rf"^(-?\d+(?:\.\d+)?)\s*(?:{'|'.join(UNITS)})$"
-
-    @classmethod
-    def valid(cls, value):
-        """Whether the input string is a numeric value followed by a pixel unit.
-
-        Permitted pixel unit strings are stored in :obj:`carta.util.PixelValue.UNITS`. Whitespace is permitted after the number and before the unit. Pixel values may be negative.
-
-        Parameters
-        ----------
-        value : string
-            The input string.
-
-        Returns
-        -------
-        boolean
-            Whether the input string is a pixel value.
-        """
-        m = re.match(cls.UNIT_REGEX, value, re.IGNORECASE)
-        return m is not None
-
-    @classmethod
-    def as_float(cls, value):
-        """Parse a string containing a numeric value followed by a pixel unit, and return the numeric part as a float.
-
-        Permitted pixel unit strings are stored in :obj:`carta.util.PixelValue.UNITS`. Whitespace is permitted after the number and before the unit.
-
-        Parameters
-        ----------
-        value : string
-            The string representation of the pixel value.
-
-        Returns
-        -------
-        float
-            The numeric portion of the pixel value.
-
-        Raises
-        ------
-        ValueError
-            If the input string is not in a recognized format.
-        """
-        m = re.match(cls.UNIT_REGEX, value, re.IGNORECASE)
-        if m is None:
-            raise ValueError(f"{repr(value)} is not in a recognized pixel format.")
-        return float(m.group(1))
-
-
 class AngularSize:
     """An angular size.
 

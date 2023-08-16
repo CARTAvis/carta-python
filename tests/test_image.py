@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, CoordinateSystem, SpatialAxis as SA
+from carta.constants import NumberFormat as NF, SpatialAxis as SA
 
 # FIXTURES
 
@@ -179,13 +179,12 @@ def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
     mock_property("width", 20)
     mock_property("height", 20)
 
-    image.set_center(f"{x}px", f"{y}px")
-    mock_call_action.assert_called_with("setCenter", float(x), float(y))
+    image.set_center(x, y)
+    mock_call_action.assert_called_with("setCenter", x, y)
 
 
 @pytest.mark.parametrize("x,y,x_fmt,y_fmt,x_norm,y_norm", [
     ("123", "12", NF.DEGREES, NF.DEGREES, "123", "12"),
-    (123, 12, NF.DEGREES, NF.DEGREES, "123", "12"),
     ("123deg", "12 deg", NF.DEGREES, NF.DEGREES, "123", "12"),
     ("12:34:56.789", "12:34:56.789", NF.HMS, NF.DMS, "12:34:56.789", "12:34:56.789"),
     ("12h34m56.789s", "12d34m56.789s", NF.HMS, NF.DMS, "12:34:56.789", "12:34:56.789"),
@@ -200,24 +199,13 @@ def test_set_center_valid_wcs(image, mock_property, mock_session_method, mock_ca
     mock_call_action.assert_called_with("setCenterWcs", x_norm, y_norm)
 
 
-def test_set_center_valid_change_system(image, mock_property, mock_session_method, mock_call_action, mock_session_call_action):
-    mock_property("valid_wcs", True)
-    mock_session_method("number_format", [(NF.DEGREES, NF.DEGREES, None)])
-
-    image.set_center("123", "12", CoordinateSystem.GALACTIC)
-
-    # We're not testing if this system has the correct format; just that the function is called
-    mock_session_call_action.assert_called_with("overlayStore.global.setSystem", CoordinateSystem.GALACTIC)
-    mock_call_action.assert_called_with("setCenterWcs", "123", "12")
-
-
 @pytest.mark.parametrize("x,y,wcs,x_fmt,y_fmt,error_contains", [
     ("abc", "def", True, NF.DEGREES, NF.DEGREES, "Invalid function parameter"),
     ("123", "123", False, NF.DEGREES, NF.DEGREES, "does not contain valid WCS information"),
     ("123", "123", True, NF.HMS, NF.DMS, "does not match expected format"),
     ("123", "123", True, NF.DEGREES, NF.DMS, "does not match expected format"),
-    ("123px", "123", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
-    ("123", "123px", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
+    (123, "123", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
+    ("123", 123, True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
 ])
 def test_set_center_invalid(image, mock_property, mock_session_method, mock_call_action, x, y, wcs, x_fmt, y_fmt, error_contains):
     mock_property("width", 200)
@@ -232,7 +220,7 @@ def test_set_center_invalid(image, mock_property, mock_session_method, mock_call
 
 @pytest.mark.parametrize("axis", [SA.X, SA.Y])
 @pytest.mark.parametrize("val,action,norm", [
-    ("123px", "zoomToSize{0}", 123.0),
+    (123, "zoomToSize{0}", 123.0),
     ("123arcsec", "zoomToSize{0}Wcs", "123\""),
     ("123\"", "zoomToSize{0}Wcs", "123\""),
     ("123", "zoomToSize{0}Wcs", "123\""),
@@ -248,6 +236,7 @@ def test_zoom_to_size(image, mock_property, mock_call_action, axis, val, action,
 
 @pytest.mark.parametrize("axis", [SA.X, SA.Y])
 @pytest.mark.parametrize("val,wcs,error_contains", [
+    ("123px", True, "Invalid function parameter"),
     ("abc", True, "Invalid function parameter"),
     ("123arcsec", False, "does not contain valid WCS information"),
 ])
