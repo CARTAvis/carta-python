@@ -23,7 +23,7 @@ copyright = '2020, Adrianna Pińska'
 author = 'Adrianna Pińska'
 
 # The full version, including alpha/beta/rc tags
-    
+
 with open("../../VERSION.txt") as f:
     version = f.read()
 

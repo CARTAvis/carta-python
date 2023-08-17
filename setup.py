@@ -2,7 +2,7 @@ import setuptools
 
 with open("README.md") as f:
     long_description = f.read()
-    
+
 with open("VERSION.txt") as f:
     version = f.read()
 
