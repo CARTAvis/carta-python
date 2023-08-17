@@ -3,13 +3,13 @@
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, SpatialAxis
-from .util import Macro, cached
+from .util import Macro, cached, BasePathMixin
 from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
 from .metadata import parse_header
 
 
-class Image:
+class Image(BasePathMixin):
     """This object corresponds to an image open in a CARTA frontend session.
 
     This class should not be instantiated directly. Instead, use the session object's methods for opening new images or retrieving existing images.
@@ -99,64 +99,6 @@ class Image:
 
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
-
-    def call_action(self, path, *args, **kwargs):
-        """Convenience wrapper for the session object's generic action method.
-
-        This method calls :obj:`carta.session.Session.call_action` after prepending this image's base path to the path parameter.
-
-        Parameters
-        ----------
-        path : string
-            The path to an action relative to this image's frame store.
-        *args
-            A variable-length list of parameters. These are passed unmodified to the session method.
-        **kwargs
-            Arbitrary keyword parameters. These are passed unmodified to the session method.
-
-        Returns
-        -------
-        object or None
-            The unmodified return value of the session method.
-        """
-        return self.session.call_action(f"{self._base_path}.{path}", *args, **kwargs)
-
-    def get_value(self, path):
-        """Convenience wrapper for the session object's generic method for retrieving attribute values.
-
-        This method calls :obj:`carta.session.Session.get_value` after prepending this image's base path to the *path* parameter.
-
-        Parameters
-        ----------
-        path : string
-            The path to an attribute relative to this image's frame store.
-
-        Returns
-        -------
-        object
-            The unmodified return value of the session method.
-        """
-        return self.session.get_value(f"{self._base_path}.{path}")
-
-    def macro(self, target, variable):
-        """Convenience wrapper for creating a :obj:`carta.util.Macro` for an image property.
-
-        This method prepends this image's base path to the *target* parameter. If *target* is the empty string, the base path will be substituted.
-
-        Parameters
-        ----------
-        target : str
-            The target frontend object.
-        variable : str
-            The variable on the target object.
-
-        Returns
-        -------
-        :obj:carta.util.Macro
-            A placeholder for a variable which will be evaluated dynamically by the frontend.
-        """
-        target = f"{self._base_path}.{target}" if target else self._base_path
-        return Macro(target, variable)
 
     # METADATA
 
