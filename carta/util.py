@@ -5,6 +5,8 @@ import json
 import functools
 import re
 
+from .units import AngularSize, WorldCoordinate
+
 logger = logging.getLogger("carta_scripting")
 logger.setLevel(logging.WARN)
 logger.addHandler(logging.StreamHandler())
@@ -208,14 +210,20 @@ class BasePathMixin:
 
 
 class Point:
-    """A representation of a 2D point.
+    """A pair of coordinates or sizes.
+
+    This object may have numeric or string values, and may be used to represent a pair of coordinates or a pair of sizes.
+
+    Numbers should be interpreted as pixel values, and strings should be valid WCS coordinates or angular sizes. Different types of values should not be combined.
+
+    Functions exposed to the user should accept pairs of points as two-item iterables, and use this object internally to ensure that the correct serialization is sent to the frontend. It is the responsibility of calling functions to ensure that the object is interpreted correctly.
 
     Parameters
     ----------
-    x : number
-        The *x* coordinate of the point.
-    y : number
-        The *y* coordinate of the point.
+    x : number or string
+        The *x* value.
+    y : number or string
+        The *y* value.
     """
 
     def __init__(self, x, y):
@@ -223,13 +231,20 @@ class Point:
         self.y = y
 
     @classmethod
-    def from_object(cls, obj):
-        if isinstance(obj, Point):
-            return obj
-        if isinstance(obj, dict):
-            return cls(**obj)
-        return cls(*obj)
+    def is_pixel(cls, x, y):
+        return isinstance(x, (int, float)) and isinstance(y, (int, float))
+
+    @classmethod
+    def is_wcs_coordinate(cls, x, y):
+        return isinstance(x, str) and isinstance(y, str) and WorldCoordinate.valid(x) and WorldCoordinate.valid(y)
+
+    @classmethod
+    def is_angular_size(cls, x, y):
+        return isinstance(x, str) and isinstance(y, str) and AngularSize.valid(x) and AngularSize.valid(y)
 
     def json(self):
         """The JSON serialization of this object."""
         return {"x": self.x, "y": self.y}
+
+    def as_tuple(self):
+        return self.x, self.y

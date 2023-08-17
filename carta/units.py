@@ -96,6 +96,18 @@ class AngularSize:
         value = self.value * self.FACTOR
         return f"{value:g}{self.OUTPUT_UNIT}"
 
+    def arcsec(self):
+        """The numeric value in arcseconds.
+
+        Returns
+        -------
+        float
+            The numeric value of this angular size, in arcseconds.
+        """
+        if type(self) is AngularSize:
+            raise NotImplementedError()
+        return self.value * self.ARCSEC_FACTOR
+
 
 class DegreesSize(AngularSize):
     """An angular size in degrees."""
@@ -103,6 +115,7 @@ class DegreesSize(AngularSize):
     INPUT_UNITS = {"deg", "degree", "degrees"}
     OUTPUT_UNIT = "deg"
     FACTOR = 1
+    ARCSEC_FACTOR = 3600
 
 
 class ArcminSize(AngularSize):
@@ -111,6 +124,7 @@ class ArcminSize(AngularSize):
     INPUT_UNITS = {"'", "arcminutes", "arcminute", "arcmin", "amin", "′"}
     OUTPUT_UNIT = "'"
     FACTOR = 1
+    ARCSEC_FACTOR = 60
 
 
 class ArcsecSize(AngularSize):
@@ -119,6 +133,7 @@ class ArcsecSize(AngularSize):
     INPUT_UNITS = {"\"", "", "arcseconds", "arcsecond", "arcsec", "asec", "″"}
     OUTPUT_UNIT = "\""
     FACTOR = 1
+    ARCSEC_FACTOR = FACTOR
 
 
 class MilliarcsecSize(AngularSize):
@@ -127,6 +142,7 @@ class MilliarcsecSize(AngularSize):
     INPUT_UNITS = {"milliarcseconds", "milliarcsecond", "milliarcsec", "mas"}
     OUTPUT_UNIT = "\""
     FACTOR = 1e-3
+    ARCSEC_FACTOR = FACTOR
 
 
 class MicroarcsecSize(AngularSize):
@@ -135,6 +151,7 @@ class MicroarcsecSize(AngularSize):
     INPUT_UNITS = {"microarcseconds", "microarcsecond", "microarcsec", "µas", "uas"}
     OUTPUT_UNIT = "\""
     FACTOR = 1e-6
+    ARCSEC_FACTOR = FACTOR
 
 
 class WorldCoordinate:

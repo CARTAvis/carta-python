@@ -4,7 +4,7 @@ import re
 import functools
 import inspect
 
-from .util import CartaValidationFailed, Point as Pt
+from .util import CartaValidationFailed
 from .units import AngularSize, WorldCoordinate
 
 
@@ -721,21 +721,57 @@ class Coordinate(Union):
 
 
 class Point(Union):
-    """A representation of a 2D point, either as a :obj:`carta.util.Point` object, or a dictionary with ``'x'`` and ``'y'`` as keys and coordinate values, or an iterable with two coordinate values (which will be evaluated as ``x`` and ``y`` coordinates in order). World or image coordinates are permitted."""
+    """A pair of numbers, WCS coordinate strings, or angular size strings, as an iterable with two values (which will be evaluated as ``x`` and ``y`` values in that order). Numbers will be interpreted as pixel values.
 
-    class PointDict(MapOf):
-        """Helper validator class for evaluating points in dictionary format."""
+    More fine-grained combinations of value options (numeric only, world coordinate only, angular size only, any coordinate, any size) are provided as local classes which may also be used individually.
 
+    The two values must always match (numbers, string coordinates and string sizes can't be mixed).
+    """
+
+    class NumericPoint(Union):
         def __init__(self):
-            super().__init__(String(), Coordinate(), required_keys={"x", "y"}, exact_keys=True)
+            options = (
+                IterableOf(Number(), min_size=2, max_size=2),
+            )
+            super().__init__(*options, description="a pair of numbers")
+
+    class WorldCoordinatePoint(Union):
+        def __init__(self):
+            options = (
+                IterableOf(Coordinate.WorldCoordinate(), min_size=2, max_size=2),
+            )
+            super().__init__(*options, description="a pair of coordinate strings")
+
+    class AngularSizePoint(Union):
+        def __init__(self):
+            options = (
+                IterableOf(Size.AngularSize(), min_size=2, max_size=2),
+            )
+            super().__init__(*options, description="a pair of size strings")
+
+    class CoordinatePoint(Union):
+        def __init__(self):
+            options = (
+                Point.NumericPoint(),
+                Point.WorldCoordinatePoint(),
+            )
+            super().__init__(*options, description="a pair of numbers or coordinate strings")
+
+    class SizePoint(Union):
+        def __init__(self):
+            options = (
+                Point.NumericPoint(),
+                Point.AngularSizePoint(),
+            )
+            super().__init__(*options, description="a pair of numbers or size strings")
 
     def __init__(self):
         options = (
-            InstanceOf(Pt),
-            IterableOf(Coordinate(), min_size=2, max_size=2),
-            self.PointDict(),
+            self.NumericPoint(),
+            self.WorldCoordinatePoint(),
+            self.AngularSizePoint(),
         )
-        super().__init__(*options, description="a Point object, a dictionary with ``'x'`` and ``'y'`` as keys and coordinate values, or an iterable with two coordinate values")
+        super().__init__(*options, description="a pair of numbers, coordinate strings, or size strings")
 
 
 class Attr(str):

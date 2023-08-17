@@ -7,7 +7,7 @@ import posixpath
 
 from .util import Macro, BasePathMixin, Point as Pt, cached, CartaBadResponse
 from .constants import FileType, RegionType, CoordinateType, PointShape, TextPosition, AnnotationFontStyle, AnnotationFont
-from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf, Color, all_optional
+from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf, Color, all_optional, Size, Union
 
 
 class RegionSet(BasePathMixin):
@@ -93,7 +93,7 @@ class RegionSet(BasePathMixin):
 
         self.session.call_action("exportRegions", directory, file_name, coordinate_type, file_type, region_ids, self.image._frame)
 
-    @validate(Constant(RegionType), IterableOf(Point()), Number(), String())
+    @validate(Constant(RegionType), IterableOf(Point.NumericPoint()), Number(), String())
     def add_region(self, region_type, points, rotation=0, name=""):
         """Add a new region to this image.
 
@@ -104,7 +104,7 @@ class RegionSet(BasePathMixin):
         region_type : {0}
             The type of the region.
         points : {1}
-            The control points defining the region. How these values are interpreted depends on the region type. TODO: we need to convert possible world coordinates to image coordinates here.
+            The control points defining the region, in image coordinates. How these values are interpreted depends on the region type.
         rotation : {2}
             The rotation of the region, in degrees.
         name : {3}
@@ -112,52 +112,79 @@ class RegionSet(BasePathMixin):
         """
         return Region.new(self, region_type, points, rotation, name)
 
-    @validate(Point(), Boolean(), String())
+    def _from_world_coordinates(self, points):
+        try:
+            points = self.image.from_world_coordinate_points(points)
+        except ValueError:
+            pass
+        return points
+
+    def _from_angular_sizes(self, points):
+        try:
+            points = self.image.from_angular_size_points(points)
+        except ValueError:
+            pass
+        return points
+
+    @validate(Point.CoordinatePoint(), Boolean(), String())
     def add_point(self, center, annotation=False, name=""):
+        [center] = self._from_world_coordinates([center])
         region_type = RegionType.ANNPOINT if annotation else RegionType.POINT
         return self.add_region(region_type, [center], name=name)
 
-    @validate(Point(), Number(), Number(), Boolean(), Number(), String())
+    @validate(Point.CoordinatePoint(), Size(), Size(), Boolean(), Number(), String())
     def add_rectangle(self, center, width, height, annotation=False, rotation=0, name=""):
+        [center] = self._from_world_coordinates([center])
+        [(width, height)] = self._from_angular_sizes([(width, height)])
         region_type = RegionType.ANNRECTANGLE if annotation else RegionType.RECTANGLE
-        return self.add_region(region_type, [center, [width, height]], rotation, name)
+        return self.add_region(region_type, [center, (width, height)], rotation, name)
 
-    @validate(Point(), Number(), Number(), Boolean(), Number(), String())
+    @validate(Point.CoordinatePoint(), Size(), Size(), Boolean(), Number(), String())
     def add_ellipse(self, center, semi_major, semi_minor, annotation=False, rotation=0, name=""):
+        [center] = self._from_world_coordinates([center])
+        [(semi_major, semi_minor)] = self._from_angular_sizes([(semi_major, semi_minor)])
         region_type = RegionType.ANNELLIPSE if annotation else RegionType.ELLIPSE
-        return self.add_region(region_type, [center, [semi_major, semi_minor]], rotation, name)
+        return self.add_region(region_type, [center, (semi_major, semi_minor)], rotation, name)
 
-    @validate(IterableOf(Point()), Boolean(), String())
+    @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())), Boolean(), String())
     def add_polygon(self, points, annotation=False, name=""):
+        points = self._from_world_coordinates(points)
         region_type = RegionType.ANNPOLYGON if annotation else RegionType.POLYGON
         return self.add_region(region_type, points, name=name)
 
-    @validate(Point(), Point(), Boolean(), String())
+    @validate(Point.CoordinatePoint(), Point.CoordinatePoint(), Boolean(), String())
     def add_line(self, start, end, annotation=False, name=""):
+        [start, end] = self._from_world_coordinates([start, end])
         region_type = RegionType.ANNLINE if annotation else RegionType.LINE
         return self.add_region(region_type, [start, end], name=name)
 
-    @validate(IterableOf(Point()), Boolean(), String())
+    @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())), Boolean(), String())
     def add_polyline(self, points, annotation=False, name=""):
+        points = self._from_world_coordinates(points)
         region_type = RegionType.ANNPOLYLINE if annotation else RegionType.POLYLINE
         return self.add_region(region_type, points, name=name)
 
-    @validate(Point(), Point(), String())
+    @validate(Point.CoordinatePoint(), Point.CoordinatePoint(), String())
     def add_vector(self, start, end, name=""):
+        [start, end] = self._from_world_coordinates([start, end])
         return self.add_region(RegionType.ANNVECTOR, [start, end], name=name)
 
-    @validate(Point(), Number(), Number(), String(), Number(), String())
+    @validate(Point.CoordinatePoint(), Size(), Size(), String(), Number(), String())
     def add_text(self, center, width, height, text, rotation=0, name=""):
-        region = self.add_region(RegionType.ANNTEXT, [center, [width, height]], rotation, name)
+        [center] = self._from_world_coordinates([center])
+        [(width, height)] = self._from_angular_sizes([(width, height)])
+        region = self.add_region(RegionType.ANNTEXT, [center, (width, height)], rotation, name)
         region.set_text(text)
         return region
 
-    @validate(Point(), Number(), String())
+    @validate(Point.CoordinatePoint(), Number(), String())
     def add_compass(self, center, length, name=""):
-        return self.add_region(RegionType.ANNCOMPASS, [center, [length, length]], name=name)
+        [center] = self._from_world_coordinates([center])
+        return self.add_region(RegionType.ANNCOMPASS, [center, (length, length)], name=name)
 
-    @validate(Point(), Point(), String())
+    @validate(Point.CoordinatePoint(), Point.CoordinatePoint(), String())
     def add_ruler(self, start, end, name=""):
+        [start, end] = self._from_world_coordinates([start, end])
         return self.add_region(RegionType.ANNRULER, [start, end], name=name)
 
     def clear(self):
@@ -223,7 +250,7 @@ class Region(BasePathMixin):
     @classmethod
     @validate(InstanceOf(RegionSet), Constant(RegionType), IterableOf(Point()), Number(), String())
     def new(cls, region_set, region_type, points, rotation=0, name=""):
-        points = [Pt.from_object(point) for point in points]
+        points = [Pt.from_object(point) for point in points]  # TODO at this point we should already have pixel points here
         region_id = region_set.call_action("addRegionAsync", region_type, points, rotation, name, return_path="regionId")
         return cls.existing(region_type, region_set, region_id)
 
@@ -241,15 +268,16 @@ class Region(BasePathMixin):
 
     @property
     def center(self):
-        return Pt.from_object(self.get_value("center"))
+        return Pt(**self.get_value("center")).as_tuple()
 
     @property
     def size(self):
-        return Pt.from_object(self.get_value("size"))
+        return Pt(**self.get_value("size")).as_tuple()
 
     @property
     def wcs_size(self):
-        return Pt.from_object(self.get_value("wcsSize"))  # TODO use WCS Point once implemented
+        size = self.get_value("wcsSize")
+        return (f"{size['x']}\"", f"{size['y']}\"")
 
     @property
     def rotation(self):
@@ -257,7 +285,7 @@ class Region(BasePathMixin):
 
     @property
     def control_points(self):
-        return [Pt.from_object(p) for p in self.get_value("controlPoints")]
+        return [Pt(**p).as_tuple() for p in self.get_value("controlPoints")]
 
     @property
     def name(self):
@@ -277,21 +305,25 @@ class Region(BasePathMixin):
 
     # SET PROPERTIES
 
-    @validate(Point())
+    @validate(Point.CoordinatePoint())
     def set_center(self, center):
-        self.call_action("setCenter", Pt.from_object(center))
+        [center] = self._from_world_coordinates([center])
+        self.call_action("setCenter", Pt(*center))
 
-    @validate(Point())
-    def set_size(self, size):
-        self.call_action("setSize", Pt.from_object(size))
+    @validate(Size(), Size())
+    def set_size(self, x, y):
+        [(x, y)] = self._from_angular_sizes([(x, y)])
+        self.call_action("setSize", Pt(x, y))
 
-    @validate(Point())
+    @validate(Point.CoordinatePoint())
     def set_control_point(self, index, point):
-        self.call_action("setControlPoint", index, Pt.from_object(point))
+        [point] = self._from_world_coordinates([point])
+        self.call_action("setControlPoint", index, Pt(*point))
 
-    @validate(IterableOf(Point()))
+    @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())))
     def set_control_points(self, points):
-        self.call_action("setControlPoints", [Pt.from_object(p) for p in points])
+        points = self._from_world_coordinates(points)
+        self.call_action("setControlPoints", [Pt(*p) for p in points])
 
     @validate(Number())
     def set_rotation(self, angle):
@@ -469,7 +501,7 @@ class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
 
     @property
     def text_offsets(self):
-        return Pt.from_object(self.get_value("northTextOffset")), Pt.from_object(self.get_value("eastTextOffset"))
+        return Pt(**self.get_value("northTextOffset")), Pt(**self.get_value("eastTextOffset"))
 
     @property
     def arrowheads_visible(self):
@@ -488,14 +520,14 @@ class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
     def set_length(self, length):
         self.call_action("setLength", length)
 
-    @validate(*all_optional(Point(), Point()))
+    @validate(*all_optional(Point.SizePoint(), Point.SizePoint()))
     def set_text_offset(self, north_offset=None, east_offset=None):
         if north_offset is not None:
-            north_offset = Pt.from_object(north_offset)
+            [north_offset] = self._from_angular_sizes([north_offset])
             self.call_action("setNorthTextOffset", north_offset.x, True)
             self.call_action("setNorthTextOffset", north_offset.y, False)
         if east_offset is not None:
-            east_offset = Pt.from_object(east_offset)
+            [east_offset] = self._from_angular_sizes([east_offset])
             self.call_action("setEastTextOffset", east_offset.x, True)
             self.call_action("setEastTextOffset", east_offset.y, False)
 
@@ -534,8 +566,8 @@ class RulerAnnotation(Annotation, HasFontMixin):
     def set_auxiliary_lines_dash_length(self, length):
         self.call_action("setAuxiliaryLineDashLength", length)
 
-    @validate(Point())
-    def set_text_offset(self, offset):
-        offset = Pt.from_object(offset)
-        self.call_action("setTextOffset", offset.x, True)
-        self.call_action("setTextOffset", offset.y, False)
+    @validate(Size(), Size())
+    def set_text_offset(self, x, y):
+        [(x, y)] = self._from_angular_sizes([(x, y)])
+        self.call_action("setTextOffset", x, True)
+        self.call_action("setTextOffset", y, False)
