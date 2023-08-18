@@ -1,11 +1,14 @@
 import setuptools
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+with open("README.md") as f:
+    long_description = f.read()
+
+with open("VERSION.txt") as f:
+    version = f.read()
 
 setuptools.setup(
     name="carta",
-    version="1.1.11",
+    version=version,
     author="Adrianna Pińska",
     author_email="adrianna.pinska@gmail.com",
     description="CARTA scripting wrapper written in Python",
