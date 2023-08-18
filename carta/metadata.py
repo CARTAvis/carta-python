@@ -1,9 +1,5 @@
 """This module provides a collection of helper objects for storing and accessing file metadata."""
 
-import re
-
-from .constants import Polarization
-
 
 def parse_header(raw_header):
     """Parse raw image header entries from the frontend into a more user-friendly format.
@@ -77,52 +73,3 @@ def parse_header(raw_header):
         header[""] = blank
 
     return header
-
-
-def deduce_polarization(file_name, header):
-    """Deduce the polarization of an image from its metadata.
-
-    Parameters
-    ----------
-    file_name : string
-        The name of the image file.
-    header : dict
-        The parsed header of the image file (see :obj:`carta.metadata.parse_header`).
-
-    Returns
-    -------
-    :obj:`carta.constants.Polarization`
-        The deduced polarization.
-
-    Raises
-    ------
-    ValueError
-        If the polarization could not be deduced.
-    """
-    polarization = None
-
-    ctype_header = [k for k, v in header.items() if k.startswith("CTYPE") and v.upper() == "STOKES"]
-    if ctype_header:
-        index = ctype_header[0][5:]
-        naxis = header.get(f"NAXIS{index}", None)
-        crpix = header.get(f"CRPIX{index}", None)
-        crval = header.get(f"CRVAL{index}", None)
-        cdelt = header.get(f"CDELT{index}", None)
-
-        if all(naxis, crpix, crval, cdelt) and naxis == 1:
-            polarization_index = crval + (1 - crpix) * cdelt
-            try:
-                return Polarization(polarization_index)
-            except ValueError:
-                pass
-
-    if polarization is None:
-        name_parts = re.split("[._]", file_name)
-        matches = []
-        for part in name_parts:
-            if hasattr(Polarization, part.upper()):
-                matches.append(getattr(Polarization, part.upper()))
-        if len(matches) == 1:
-            return matches[0]
-
-    raise ValueError(f"Could not deduce polarization from image file {file_name}.")

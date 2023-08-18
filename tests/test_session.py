@@ -205,30 +205,50 @@ def test_open_images(mocker, session, mock_method, append):
 def test_open_hypercube_guess_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
     mock_pwd = mock_method("pwd", ["/current/dir"])
     mock_resolve = mock_method("resolve_file_path", ["/resolved/path"] * 3)
-    mock_call_action.side_effect = [[1], [2], [3], 123]
-    mock_parse_header = mocker.patch("carta.session.parse_header")
-    mock_parse_header.side_effect = [{1: 2}, {2: 3}, {3: 4}]
-    mock_deduce_polarization = mocker.patch("carta.session.deduce_polarization")
-    mock_deduce_polarization.side_effect = [Pol.I, Pol.Q, Pol.U]
+    mock_call_action.side_effect = [{"0": "headers_foo"}, 1, {"0": "headers_bar"}, 2, {"0": "headers_baz"}, 3, 123]
 
     hypercube = session.open_hypercube(paths, append)
-
-    # Not checking that parse_header and deduce_polarization called, because we're removing this bit anyway
 
     mock_resolve.assert_has_calls([mocker.call(""), mocker.call(""), mocker.call("")])
     mock_pwd.assert_called()
 
-    # These header calls will also be removed
     mock_call_action.assert_has_calls([
-        mocker.call("backendService.getFileInfo", "/resolved/path", "foo.fits", "", return_path="fileInfoExtended.0.headerEntries"),
-        mocker.call("backendService.getFileInfo", "/resolved/path", "bar.fits", "", return_path="fileInfoExtended.0.headerEntries"),
-        mocker.call("backendService.getFileInfo", "/resolved/path", "baz.fits", "", return_path="fileInfoExtended.0.headerEntries"),
+        mocker.call("backendService.getFileInfo", "/resolved/path", "foo.fits", "", return_path="fileInfoExtended"),
+        mocker.call("fileBrowserStore.getStokesType", "headers_foo", "foo.fits"),
+        mocker.call("backendService.getFileInfo", "/resolved/path", "bar.fits", "", return_path="fileInfoExtended"),
+        mocker.call("fileBrowserStore.getStokesType", "headers_bar", "bar.fits"),
+        mocker.call("backendService.getFileInfo", "/resolved/path", "baz.fits", "", return_path="fileInfoExtended"),
+        mocker.call("fileBrowserStore.getStokesType", "headers_baz", "baz.fits"),
         mocker.call(expected_command, *expected_args),
     ])
 
     assert type(hypercube) is Image
     assert hypercube.session == session
     assert hypercube.image_id == 123
+
+
+@pytest.mark.parametrize("paths,expected_calls,mocked_side_effect,expected_error", [
+    (["foo.fits", "bar.fits"], [
+        (("backendService.getFileInfo", "/resolved/path", "foo.fits", ""), {"return_path": "fileInfoExtended"}),
+        (("fileBrowserStore.getStokesType", "headers_foo", "foo.fits"), {}),
+    ], [{"0": "headers_foo"}, 0], "Could not deduce polarization for"),
+    (["foo.fits", "bar.fits"], [
+        (("backendService.getFileInfo", "/resolved/path", "foo.fits", ""), {"return_path": "fileInfoExtended"}),
+        (("fileBrowserStore.getStokesType", "headers_foo", "foo.fits"), {}),
+        (("backendService.getFileInfo", "/resolved/path", "bar.fits", ""), {"return_path": "fileInfoExtended"}),
+        (("fileBrowserStore.getStokesType", "headers_bar", "bar.fits"), {}),
+    ], [{"0": "headers_foo"}, 1, {"0": "headers_bar"}, 1], "Duplicate polarizations deduced"),
+])
+def test_open_hypercube_guess_polarization_bad(mocker, session, mock_call_action, mock_method, paths, expected_calls, mocked_side_effect, expected_error):
+    mock_method("pwd", ["/current/dir"])
+    mock_method("resolve_file_path", ["/resolved/path"] * 3)
+    mock_call_action.side_effect = mocked_side_effect
+
+    with pytest.raises(ValueError) as e:
+        session.open_hypercube(paths)
+    assert expected_error in str(e.value)
+
+    mock_call_action.assert_has_calls([mocker.call(*args, **kwargs) for (args, kwargs) in expected_calls])
 
 
 @pytest.mark.parametrize("paths,expected_args", [
