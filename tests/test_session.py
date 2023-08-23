@@ -203,22 +203,16 @@ def test_open_images(mocker, session, mock_method, append):
     (False, "openConcatFile"),
 ])
 def test_open_hypercube_guess_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
-    mock_pwd = mock_method("pwd", ["/current/dir"])
-    mock_resolve = mock_method("resolve_file_path", ["/resolved/path"] * 3)
-    mock_call_action.side_effect = [{"0": "headers_foo"}, 1, {"0": "headers_bar"}, 2, {"0": "headers_baz"}, 3, 123]
+    mock_method("pwd", ["/current/dir"])
+    mock_method("resolve_file_path", ["/resolved/path"] * 3)
+    mock_call_action.side_effect = [*expected_args[0], 123]
 
     hypercube = session.open_hypercube(paths, append)
 
-    mock_resolve.assert_has_calls([mocker.call(""), mocker.call(""), mocker.call("")])
-    mock_pwd.assert_called()
-
     mock_call_action.assert_has_calls([
-        mocker.call("backendService.getFileInfo", "/resolved/path", "foo.fits", "", return_path="fileInfoExtended"),
-        mocker.call("fileBrowserStore.getStokesType", "headers_foo", "foo.fits"),
-        mocker.call("backendService.getFileInfo", "/resolved/path", "bar.fits", "", return_path="fileInfoExtended"),
-        mocker.call("fileBrowserStore.getStokesType", "headers_bar", "bar.fits"),
-        mocker.call("backendService.getFileInfo", "/resolved/path", "baz.fits", "", return_path="fileInfoExtended"),
-        mocker.call("fileBrowserStore.getStokesType", "headers_baz", "baz.fits"),
+        mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "foo.fits", ""),
+        mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "bar.fits", ""),
+        mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "baz.fits", ""),
         mocker.call(expected_command, *expected_args),
     ])
 
@@ -229,15 +223,17 @@ def test_open_hypercube_guess_polarization(mocker, session, mock_call_action, mo
 
 @pytest.mark.parametrize("paths,expected_calls,mocked_side_effect,expected_error", [
     (["foo.fits", "bar.fits"], [
-        (("backendService.getFileInfo", "/resolved/path", "foo.fits", ""), {"return_path": "fileInfoExtended"}),
-        (("fileBrowserStore.getStokesType", "headers_foo", "foo.fits"), {}),
-    ], [{"0": "headers_foo"}, 0], "Could not deduce polarization for"),
+        ("fileBrowserStore.getStokesFile", "/resolved/path", "foo.fits", ""),
+    ], [
+        None,
+    ], "Could not deduce polarization for"),
     (["foo.fits", "bar.fits"], [
-        (("backendService.getFileInfo", "/resolved/path", "foo.fits", ""), {"return_path": "fileInfoExtended"}),
-        (("fileBrowserStore.getStokesType", "headers_foo", "foo.fits"), {}),
-        (("backendService.getFileInfo", "/resolved/path", "bar.fits", ""), {"return_path": "fileInfoExtended"}),
-        (("fileBrowserStore.getStokesType", "headers_bar", "bar.fits"), {}),
-    ], [{"0": "headers_foo"}, 1, {"0": "headers_bar"}, 1], "Duplicate polarizations deduced"),
+        ("fileBrowserStore.getStokesFile", "/resolved/path", "foo.fits", ""),
+        ("fileBrowserStore.getStokesFile", "/resolved/path", "bar.fits", ""),
+    ], [
+        {"directory": "/resolved/path", "file": "foo.fits", "hdu": "", "polarizationType": 1},
+        {"directory": "/resolved/path", "file": "bar.fits", "hdu": "", "polarizationType": 1},
+    ], "Duplicate polarizations deduced"),
 ])
 def test_open_hypercube_guess_polarization_bad(mocker, session, mock_call_action, mock_method, paths, expected_calls, mocked_side_effect, expected_error):
     mock_method("pwd", ["/current/dir"])
@@ -248,7 +244,7 @@ def test_open_hypercube_guess_polarization_bad(mocker, session, mock_call_action
         session.open_hypercube(paths)
     assert expected_error in str(e.value)
 
-    mock_call_action.assert_has_calls([mocker.call(*args, **kwargs) for (args, kwargs) in expected_calls])
+    mock_call_action.assert_has_calls([mocker.call(*args) for args in expected_calls])
 
 
 @pytest.mark.parametrize("paths,expected_args", [
@@ -264,14 +260,11 @@ def test_open_hypercube_guess_polarization_bad(mocker, session, mock_call_action
     (False, "openConcatFile"),
 ])
 def test_open_hypercube_explicit_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
-    mock_pwd = mock_method("pwd", ["/current/dir"])
-    mock_resolve = mock_method("resolve_file_path", ["/resolved/path"] * 3)
+    mock_method("pwd", ["/current/dir"])
+    mock_method("resolve_file_path", ["/resolved/path"] * 3)
     mock_call_action.side_effect = [123]
 
     hypercube = session.open_hypercube(paths, append)
-
-    mock_resolve.assert_has_calls([mocker.call(""), mocker.call(""), mocker.call("")])
-    mock_pwd.assert_called()
 
     mock_call_action.assert_has_calls([
         mocker.call(expected_command, *expected_args),

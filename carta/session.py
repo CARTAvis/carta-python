@@ -482,14 +482,13 @@ class Session:
                 directory, file_name = posixpath.split(path)
                 directory = self.resolve_file_path(directory)
 
-                file_info_extended = self.call_action("backendService.getFileInfo", directory, file_name, "", return_path="fileInfoExtended")
-                stokes_guess = self.call_action("fileBrowserStore.getStokesType", list(file_info_extended.values())[0], file_name)
+                stokes_guess = self.call_action("fileBrowserStore.getStokesFile", directory, file_name, "")
 
                 if not stokes_guess:
                     raise ValueError(f"Could not deduce polarization for {path}. Please use a dictionary to specify the polarization mapping explicitly.")
 
-                stokes_guesses.add(stokes_guess)
-                stokes_images.append({"directory": directory, "file": file_name, "hdu": "", "polarizationType": stokes_guess})
+                stokes_guesses.add(stokes_guess["polarizationType"])
+                stokes_images.append(stokes_guess)
 
             if len(stokes_guesses) < len(stokes_images):
                 raise ValueError("Duplicate polarizations deduced for provided images. Please use a dictionary to specify the polarization mapping explicitly.")
