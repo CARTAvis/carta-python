@@ -43,6 +43,23 @@ class RegionSet(BasePathMixin):
 
     @validate(Number())
     def get(self, region_id):
+        """Return the region with the given region ID.
+
+        Parameters
+        ----------
+        region_id : {0}
+            The region ID.
+
+        Returns
+        -------
+        :obj:`carta.region.Region` object
+            The region with the given ID.
+
+        Raises
+        ------
+        ValueError
+            If there is no region with the given ID.
+        """
         try:
             region_type = self.get_value(f"regionMap[{region_id}]", return_path="regionType")
         except CartaBadResponse:
@@ -95,9 +112,9 @@ class RegionSet(BasePathMixin):
 
     @validate(Constant(RegionType), IterableOf(Point.NumericPoint()), Number(), String())
     def add_region(self, region_type, points, rotation=0, name=""):
-        """Add a new region to this image.
+        """Add a new region or annotation to this image.
 
-        This is a generic low-level function. Also see the higher-level functions for adding regions of specific types, like :obj:`carta.image.add_region_rectangular`.
+        This is a generic low-level function. Also see the higher-level functions for adding regions of specific types, such as :obj:`carta.region.RegionSet.add_point`.
 
         Parameters
         ----------
@@ -106,13 +123,33 @@ class RegionSet(BasePathMixin):
         points : {1}
             The control points defining the region, in image coordinates. How these values are interpreted depends on the region type.
         rotation : {2}
-            The rotation of the region, in degrees.
+            The rotation of the region, in degrees. Defaults to zero.
         name : {3}
             The name of the region. Defaults to the empty string.
         """
         return Region.new(self, region_type, points, rotation, name)
 
     def _from_world_coordinates(self, points):
+        """Internal utility function for coercing world or image coordinates to image coordinates. This is used in various region functions to simplify accepting both world and image coordinates.
+
+        The points provided must either all be world coordinates or all be image coordinates. This can be enforced with the appropriate validation on the calling method.
+
+        If the points provided are world coordinates, the method on the image object is called successfully and returns the points transformed into image coordinates, which this method returns.
+
+        If the points provided are image coordinates, the type validation on the image method fails. This exception is caught silently by this method, and the unmodified points are returned.
+
+        See also :obj:`carta.region.RegionSet._from_angular_sizes`.
+
+        Parameters
+        ----------
+        points : iterable of points which are all either world or image coordinates
+            The input points.
+
+        Returns
+        -------
+        iterable of points which are image coordinates
+            The output points.
+        """
         try:
             points = self.image.from_world_coordinate_points(points)
         except CartaValidationFailed:
@@ -120,6 +157,26 @@ class RegionSet(BasePathMixin):
         return points
 
     def _from_angular_sizes(self, points):
+        """Internal utility function for coercing angular or pixel sizes to pixel sizes. This is used in various region functions to simplify accepting both angular and pixel sizes.
+
+        The points provided must either all be angular sizes or all be pixel sizes. This can be enforced with the appropriate validation on the calling method.
+
+        If the points provided are angular sizes, the method on the image object is called successfully and returns the points transformed into pixel sizes.
+
+        If the points provided are in pixel sizes, the type validation on the image method fails. This exception is caught silently by this method, and the unmodified points are returned.
+
+        See also :obj:`carta.region.RegionSet._from_world_coordinates`.
+
+        Parameters
+        ----------
+        points : iterable of points which are all either angular or pixel sizes
+            The input points.
+
+        Returns
+        -------
+        iterable of points which are pixel sizes
+            The output points.
+        """
         try:
             points = self.image.from_angular_size_points(points)
         except CartaValidationFailed:
@@ -128,63 +185,239 @@ class RegionSet(BasePathMixin):
 
     @validate(Point.CoordinatePoint(), Boolean(), String())
     def add_point(self, center, annotation=False, name=""):
+        """Add a new point region or point annotation to this image.
+
+        Parameters
+        ----------
+        center : {0}
+            The center position of the region.
+        annotation : {1}
+            Whether this region should be an annotation. Defaults to ``False``.
+        name : {2}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.Region` or :obj:`carta.region.PointAnnotation` object
+            A new region object.
+        """
         [center] = self._from_world_coordinates([center])
         region_type = RegionType.ANNPOINT if annotation else RegionType.POINT
         return self.add_region(region_type, [center], name=name)
 
-    @validate(Point.CoordinatePoint(), Size(), Size(), Boolean(), Number(), String())
-    def add_rectangle(self, center, width, height, annotation=False, rotation=0, name=""):
-        [center] = self._from_world_coordinates([center])
-        [(width, height)] = self._from_angular_sizes([(width, height)])
-        region_type = RegionType.ANNRECTANGLE if annotation else RegionType.RECTANGLE
-        return self.add_region(region_type, [center, (width, height)], rotation, name)
+    @validate(Point.CoordinatePoint(), Point.SizePoint(), Boolean(), Number(), String())
+    def add_rectangle(self, center, size, annotation=False, rotation=0, name=""):
+        """Add a new rectangular region or rectangular annotation to this image.
 
-    @validate(Point.CoordinatePoint(), Size(), Size(), Boolean(), Number(), String())
-    def add_ellipse(self, center, semi_major, semi_minor, annotation=False, rotation=0, name=""):
+        Parameters
+        ----------
+        center : {0}
+            The center position of the region.
+        size : {1}
+            The size of the region. The ``x`` and ``y`` values will be interpreted as the width and height, respectively.
+        annotation : {2}
+            Whether this region should be an annotation. Defaults to ``False``.
+        rotation : {3}
+            The rotation of the region, in degrees. Defaults to zero.
+        name : {4}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.Region` or :obj:`carta.region.Annotation` object
+            A new region object.
+        """
         [center] = self._from_world_coordinates([center])
-        [(semi_major, semi_minor)] = self._from_angular_sizes([(semi_major, semi_minor)])
+        [size] = self._from_angular_sizes([size])
+        region_type = RegionType.ANNRECTANGLE if annotation else RegionType.RECTANGLE
+        return self.add_region(region_type, [center, size], rotation, name)
+
+    @validate(Point.CoordinatePoint(), Point.SizePoint(), Boolean(), Number(), String())
+    def add_ellipse(self, center, size, annotation=False, rotation=0, name=""):
+        """Add a new elliptical region or elliptical annotation to this image.
+
+        Parameters
+        ----------
+        center : {0}
+            The center position of the region.
+        size : {1}
+            The size of the region. The ``x`` and ``y`` values will be interpreted as the semi-major and semi-minor axes, respectively.
+        annotation : {2}
+            Whether this region should be an annotation. Defaults to ``False``.
+        rotation : {3}
+            The rotation of the region, in degrees. Defaults to zero.
+        name : {4}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.Region` or :obj:`carta.region.Annotation` object
+            A new region object.
+        """
+        [center] = self._from_world_coordinates([center])
+        [size] = self._from_angular_sizes([size])
         region_type = RegionType.ANNELLIPSE if annotation else RegionType.ELLIPSE
-        return self.add_region(region_type, [center, (semi_major, semi_minor)], rotation, name)
+        return self.add_region(region_type, [center, size], rotation, name)
 
     @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())), Boolean(), String())
     def add_polygon(self, points, annotation=False, name=""):
+        """Add a new polygonal region or polygonal annotation to this image.
+
+        Parameters
+        ----------
+        points : {0}
+            The positions of the vertices of the region, either all in world coordinates or all in image coordinates.
+        annotation : {1}
+            Whether this region should be an annotation. Defaults to ``False``.
+        name : {2}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.PolygonRegion` or :obj:`carta.region.PolygonAnnotation` object
+            A new region object.
+        """
         points = self._from_world_coordinates(points)
         region_type = RegionType.ANNPOLYGON if annotation else RegionType.POLYGON
         return self.add_region(region_type, points, name=name)
 
     @validate(Point.CoordinatePoint(), Point.CoordinatePoint(), Boolean(), String())
     def add_line(self, start, end, annotation=False, name=""):
+        """Add a new line region or line annotation to this image.
+
+        Parameters
+        ----------
+        start : {0}
+            The start position of the region.
+        end : {1}
+            The end position of the region.
+        annotation : {2}
+            Whether this region should be an annotation. Defaults to ``False``.
+        name : {3}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.LineRegion` or :obj:`carta.region.LineAnnotation` object
+            A new region object.
+        """
         [start, end] = self._from_world_coordinates([start, end])
         region_type = RegionType.ANNLINE if annotation else RegionType.LINE
         return self.add_region(region_type, [start, end], name=name)
 
     @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())), Boolean(), String())
     def add_polyline(self, points, annotation=False, name=""):
+        """Add a new polyline region or polyline annotation to this image.
+
+        Parameters
+        ----------
+        points : {0}
+            The positions of the vertices of the region, either all in world coordinates or all in image coordinates.
+        annotation : {1}
+            Whether this region should be an annotation. Defaults to ``False``.
+        name : {2}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.PolylineRegion` or :obj:`carta.region.PolylineAnnotation` object
+            A new region object.
+        """
         points = self._from_world_coordinates(points)
         region_type = RegionType.ANNPOLYLINE if annotation else RegionType.POLYLINE
         return self.add_region(region_type, points, name=name)
 
     @validate(Point.CoordinatePoint(), Point.CoordinatePoint(), String())
     def add_vector(self, start, end, name=""):
-        [start, end] = self._from_world_coordinates([start, end])
+        """Add a new vector annotation to this image.
+
+        Parameters
+        ----------
+        start : {0}
+            The start position of the region.
+        end : {1}
+            The end position of the region.
+        name : {2}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.VectorAnnotation` object
+            A new region object.
+        """
+        [start] = self._from_world_coordinates([start])  # Parsed separately in case they are mismatched
+        [end] = self._from_world_coordinates([end])  # Parsed separately in case they are mismatched
         return self.add_region(RegionType.ANNVECTOR, [start, end], name=name)
 
-    @validate(Point.CoordinatePoint(), Size(), Size(), String(), Number(), String())
-    def add_text(self, center, width, height, text, rotation=0, name=""):
+    @validate(Point.CoordinatePoint(), Point.SizePoint(), String(), Number(), String())
+    def add_text(self, center, size, text, rotation=0, name=""):
+        """Add a new text annotation to this image.
+
+        Parameters
+        ----------
+        center : {0}
+            The center position of the region.
+        size : {1}
+            The size of the region. The ``x`` and ``y`` values will be interpreted as the width and height, respectively.
+        text : {2}
+            The text content to display.
+        rotation : {3}
+            The rotation of the region, in degrees. Defaults to zero.
+        name : {4}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.TextAnnotation` object
+            A new region object.
+        """
         [center] = self._from_world_coordinates([center])
-        [(width, height)] = self._from_angular_sizes([(width, height)])
-        region = self.add_region(RegionType.ANNTEXT, [center, (width, height)], rotation, name)
+        [size] = self._from_angular_sizes([size])
+        region = self.add_region(RegionType.ANNTEXT, [center, size], rotation, name)
         region.set_text(text)
         return region
 
     @validate(Point.CoordinatePoint(), Number(), String())
     def add_compass(self, center, length, name=""):
+        """Add a new compass annotation to this image.
+
+        Parameters
+        ----------
+        center : {0}
+            The origin position of the compass.
+        length : {1}
+            The length of the compass points, in pixels.
+        name : {2}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.CompassAnnotation` object
+            A new region object.
+        """
         [center] = self._from_world_coordinates([center])
         return self.add_region(RegionType.ANNCOMPASS, [center, (length, length)], name=name)
 
     @validate(Point.CoordinatePoint(), Point.CoordinatePoint(), String())
     def add_ruler(self, start, end, name=""):
-        [start, end] = self._from_world_coordinates([start, end])
+        """Add a new ruler annotation to this image.
+
+        Parameters
+        ----------
+        start : {0}
+            The start position of the region.
+        end : {1}
+            The end position of the region.
+        name : {2}
+            The name of the region. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.RulerAnnotation` object
+            A new region object.
+        """
+        [start] = self._from_world_coordinates([start])  # Parsed separately in case they are mismatched
+        [end] = self._from_world_coordinates([end])  # Parsed separately in case they are mismatched
         return self.add_region(RegionType.ANNRULER, [start, end], name=name)
 
     def clear(self):
@@ -412,7 +645,6 @@ class HasEndpointsMixin:
         self.set_control_points([start, end])
 
 
-# TODO maybe consolidate these into single functions
 class HasFontMixin:
 
     # GET PROPERTIES
@@ -431,20 +663,16 @@ class HasFontMixin:
 
     # SET PROPERTIES
 
-    @validate(Number())
-    def set_font_size(self, size):
-        self.call_action("setFontSize", size)
-
-    @validate(Constant(AnnotationFontStyle))
-    def set_font_style(self, style):
-        self.call_action("setFontStyle", style)
-
-    @validate(Constant(AnnotationFont))
-    def set_font(self, font):
-        self.call_action("setFont", font)
+    @validate(*all_optional(Constant(AnnotationFont), Number(), Constant(AnnotationFontStyle)))
+    def set_font(self, font=None, size=None, style=None):
+        if font:
+            self.call_action("setFont", font)
+        if size is not None:
+            self.call_action("setFontSize", size)
+        if style:
+            self.call_action("setFontStyle", style)
 
 
-# TODO maybe consolidate these into single functions
 class HasPointerMixin:
 
     # GET PROPERTIES
@@ -459,13 +687,12 @@ class HasPointerMixin:
 
     # SET PROPERTIES
 
-    @validate(Number())
-    def set_pointer_width(self, width):
-        self.call_action("setPointerWidth", width)
-
-    @validate(Number())
-    def set_pointer_length(self, length):
-        self.call_action("setPointerLength", length)
+    @validate(*all_optional(Number(), Number()))
+    def set_pointer(self, width=None, length=None):
+        if width is not None:
+            self.call_action("setPointerWidth", width)
+        if length is not None:
+            self.call_action("setPointerLength", length)
 
 
 class Annotation(Region):
@@ -583,7 +810,7 @@ class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
     def set_length(self, length):
         self.call_action("setLength", length)
 
-    @validate(*all_optional(Point.NumericPoint(), Point.NumericPoint()))  # TODO pixel only!
+    @validate(*all_optional(Point.NumericPoint(), Point.NumericPoint()))
     def set_text_offset(self, north_offset=None, east_offset=None):
         if north_offset is not None:
             self.call_action("setNorthTextOffset", north_offset.x, True)
