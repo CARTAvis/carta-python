@@ -5,7 +5,7 @@ Region and annotation objects should not be instantiated directly, and should on
 
 import posixpath
 
-from .util import Macro, BasePathMixin, Point as Pt, cached, CartaBadResponse
+from .util import Macro, BasePathMixin, Point as Pt, cached, CartaBadResponse, CartaValidationFailed
 from .constants import FileType, RegionType, CoordinateType, PointShape, TextPosition, AnnotationFontStyle, AnnotationFont
 from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf, Color, all_optional, Size, Union
 
@@ -115,14 +115,14 @@ class RegionSet(BasePathMixin):
     def _from_world_coordinates(self, points):
         try:
             points = self.image.from_world_coordinate_points(points)
-        except ValueError:
+        except CartaValidationFailed:
             pass
         return points
 
     def _from_angular_sizes(self, points):
         try:
             points = self.image.from_angular_size_points(points)
-        except ValueError:
+        except CartaValidationFailed:
             pass
         return points
 
@@ -240,7 +240,8 @@ class Region(BasePathMixin):
     @classmethod
     @validate(Constant(RegionType))
     def region_class(cls, region_type):
-        return cls.CUSTOM_CLASS.get(RegionType(region_type), Annotation if region_type.is_annotation else Region)
+        region_type = RegionType(region_type)
+        return cls.CUSTOM_CLASS.get(region_type, Annotation if region_type.is_annotation else Region)
 
     @classmethod
     @validate(Constant(RegionType), InstanceOf(RegionSet), Number())
@@ -250,7 +251,7 @@ class Region(BasePathMixin):
     @classmethod
     @validate(InstanceOf(RegionSet), Constant(RegionType), IterableOf(Point()), Number(), String())
     def new(cls, region_set, region_type, points, rotation=0, name=""):
-        points = [Pt.from_object(point) for point in points]  # TODO at this point we should already have pixel points here
+        points = [Pt(*point) for point in points]  # TODO at this point we should already have pixel points here
         region_id = region_set.call_action("addRegionAsync", region_type, points, rotation, name, return_path="regionId")
         return cls.existing(region_type, region_set, region_id)
 
@@ -269,6 +270,11 @@ class Region(BasePathMixin):
     @property
     def center(self):
         return Pt(**self.get_value("center")).as_tuple()
+
+    @property
+    def wcs_center(self):
+        [center] = self.region_set.image.to_world_coordinate_points([self.center])
+        return center
 
     @property
     def size(self):
@@ -307,22 +313,20 @@ class Region(BasePathMixin):
 
     @validate(Point.CoordinatePoint())
     def set_center(self, center):
-        [center] = self._from_world_coordinates([center])
+        [center] = self.region_set._from_world_coordinates([center])
         self.call_action("setCenter", Pt(*center))
 
     @validate(Size(), Size())
     def set_size(self, x, y):
-        [(x, y)] = self._from_angular_sizes([(x, y)])
+        [(x, y)] = self.region_set._from_angular_sizes([(x, y)])
         self.call_action("setSize", Pt(x, y))
 
-    @validate(Point.CoordinatePoint())
+    @validate(Number(), Point.NumericPoint())
     def set_control_point(self, index, point):
-        [point] = self._from_world_coordinates([point])
         self.call_action("setControlPoint", index, Pt(*point))
 
-    @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())))
+    @validate(IterableOf(Point.NumericPoint()))
     def set_control_points(self, points):
-        points = self._from_world_coordinates(points)
         self.call_action("setControlPoints", [Pt(*p) for p in points])
 
     @validate(Number())
@@ -372,12 +376,42 @@ class Region(BasePathMixin):
         self.region_set.call_action("deleteRegion", self._region)
 
 
-class Annotation(Region):
-    """Base class for annotations."""
-    pass
+class HasPositionsMixin:
+    @property
+    def positions(self):
+        return self.control_points
+
+    @property
+    def wcs_positions(self):
+        return self.region_set.image.to_world_coordinate_points[self.control_points]
+
+    @validate(IterableOf(Point.CoordinatePoint()))
+    def set_positions(self, points):
+        points = self.region_set._from_world_coordinates(points)
+        self.set_control_points(points)
+
+    @validate(Point.CoordinatePoint())
+    def set_position(self, index, point):
+        [point] = self.region_set._from_world_coordinates([point])
+        self.set_control_point(index, point)
 
 
-# TODO this may be general enough to live somewhere else
+class HasEndpointsMixin:
+    @property
+    def endpoints(self):
+        return self.control_points
+
+    @property
+    def wcs_endpoints(self):
+        return self.region_set.image.to_world_coordinate_points[self.control_points]
+
+    @validate(Point.CoordinatePoint(), Point.CoordinatePoint())
+    def set_endpoints(self, start, end):
+        [start] = self.region_set._from_world_coordinates([start])
+        [end] = self.region_set._from_world_coordinates([end])
+        self.set_control_points([start, end])
+
+
 # TODO maybe consolidate these into single functions
 class HasFontMixin:
 
@@ -434,6 +468,35 @@ class HasPointerMixin:
         self.call_action("setPointerLength", length)
 
 
+class Annotation(Region):
+    """Base class for annotations."""
+    pass
+
+
+class LineRegion(Region, HasEndpointsMixin):
+    REGION_TYPE = RegionType.LINE
+
+
+class PolylineRegion(Region, HasPositionsMixin):
+    REGION_TYPE = RegionType.POLYLINE
+
+
+class PolygonRegion(Region, HasPositionsMixin):
+    REGION_TYPE = RegionType.POLYGON
+
+
+class LineAnnotation(Annotation, HasEndpointsMixin):
+    REGION_TYPE = RegionType.ANNLINE
+
+
+class PolylineAnnotation(Annotation, HasPositionsMixin):
+    REGION_TYPE = RegionType.ANNPOLYLINE
+
+
+class PolygonAnnotation(Annotation, HasPositionsMixin):
+    REGION_TYPE = RegionType.ANNPOLYGON
+
+
 class PointAnnotation(Annotation):
     REGION_TYPE = RegionType.ANNPOINT
 
@@ -482,7 +545,7 @@ class TextAnnotation(Annotation, HasFontMixin):
         self.call_action("setPosition", position)
 
 
-class VectorAnnotation(Annotation, HasPointerMixin):
+class VectorAnnotation(Annotation, HasPointerMixin, HasEndpointsMixin):
     REGION_TYPE = RegionType.ANNVECTOR
 
 
@@ -520,14 +583,12 @@ class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
     def set_length(self, length):
         self.call_action("setLength", length)
 
-    @validate(*all_optional(Point.SizePoint(), Point.SizePoint()))
+    @validate(*all_optional(Point.NumericPoint(), Point.NumericPoint()))  # TODO pixel only!
     def set_text_offset(self, north_offset=None, east_offset=None):
         if north_offset is not None:
-            [north_offset] = self._from_angular_sizes([north_offset])
             self.call_action("setNorthTextOffset", north_offset.x, True)
             self.call_action("setNorthTextOffset", north_offset.y, False)
         if east_offset is not None:
-            [east_offset] = self._from_angular_sizes([east_offset])
             self.call_action("setEastTextOffset", east_offset.x, True)
             self.call_action("setEastTextOffset", east_offset.y, False)
 
@@ -539,7 +600,7 @@ class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
             self.call_action("setEastArrowhead", east)
 
 
-class RulerAnnotation(Annotation, HasFontMixin):
+class RulerAnnotation(Annotation, HasFontMixin, HasEndpointsMixin):
     REGION_TYPE = RegionType.ANNRULER
 
     # GET PROPERTIES
@@ -554,7 +615,7 @@ class RulerAnnotation(Annotation, HasFontMixin):
 
     @property
     def text_offset(self):
-        return Pt.from_object(self.get_value("textOffset"))
+        return Pt(*self.get_value("textOffset"))
 
     # SET PROPERTIES
 
@@ -566,8 +627,7 @@ class RulerAnnotation(Annotation, HasFontMixin):
     def set_auxiliary_lines_dash_length(self, length):
         self.call_action("setAuxiliaryLineDashLength", length)
 
-    @validate(Size(), Size())
-    def set_text_offset(self, x, y):
-        [(x, y)] = self._from_angular_sizes([(x, y)])
+    @validate(Number(), Number())
+    def set_text_offset(self, x, y):  # TODO pixel only!
         self.call_action("setTextOffset", x, True)
         self.call_action("setTextOffset", y, False)

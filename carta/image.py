@@ -693,6 +693,26 @@ class Image(BasePathMixin):
         converted_points = self.call_action("getImagePosFromWCS", points)
         return [Pt(**p).as_tuple() for p in converted_points]
 
+    @validate(IterableOf(Point.NumericPoint()))
+    def to_world_coordinate_points(self, points):
+        """Convert image coordinate points to world coordinate points.
+
+        The points must be numeric.
+
+        Parameters
+        ----------
+        points : {}
+            Points with numeric values which are valid image coordinates.
+
+        Returns
+        -------
+        iterable of string coordinate points
+            Points with string values which are world coordinates.
+        """
+        points = [Pt(*p) for p in points]
+        converted_points = self.call_action("getWCSFromImagePos", points)
+        return [Pt(**p).as_tuple() for p in converted_points]
+
     @validate(Size.AngularSize(), Constant(SpatialAxis))
     def from_angular_size(self, size, axis):
         """Convert angular size to pixel size.
@@ -733,7 +753,7 @@ class Image(BasePathMixin):
         """
         converted_points = []
         for x, y in points:
-            converted_points.append((self.from_arcsec(x, SpatialAxis.X), self.from_arcsec(y, SpatialAxis.Y)))
+            converted_points.append((self.from_angular_size(x, SpatialAxis.X), self.from_angular_size(y, SpatialAxis.Y)))
         return converted_points
 
     # CLOSE
