@@ -6,8 +6,8 @@ Region and annotation objects should not be instantiated directly, and should on
 import posixpath
 
 from .util import Macro, BasePathMixin, Point as Pt, cached, CartaBadResponse, CartaValidationFailed
-from .constants import FileType, RegionType, CoordinateType, PointShape, TextPosition, AnnotationFontStyle, AnnotationFont
-from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf, Color, all_optional, Union
+from .constants import FileType, RegionType, CoordinateType, PointShape, TextPosition, AnnotationFontStyle, AnnotationFont, SpatialAxis
+from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf, Color, all_optional, Union, Size
 
 
 class RegionSet(BasePathMixin):
@@ -190,11 +190,11 @@ class RegionSet(BasePathMixin):
         Parameters
         ----------
         center : {0}
-            The center position of the region.
+            The center position.
         annotation : {1}
-            Whether this region should be an annotation. Defaults to ``False``.
+            Whether the region should be an annotation. Defaults to ``False``.
         name : {2}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -212,19 +212,19 @@ class RegionSet(BasePathMixin):
         Parameters
         ----------
         center : {0}
-            The center position of the region.
+            The center position.
         size : {1}
-            The size of the region. The ``x`` and ``y`` values will be interpreted as the width and height, respectively.
+            The size. The two values will be interpreted as the width and height, respectively.
         annotation : {2}
             Whether this region should be an annotation. Defaults to ``False``.
         rotation : {3}
-            The rotation of the region, in degrees. Defaults to zero.
+            The rotation, in degrees. Defaults to zero.
         name : {4}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
-        :obj:`carta.region.Region` or :obj:`carta.region.Annotation` object
+        :obj:`carta.region.Region` object
             A new region object.
         """
         [center] = self._from_world_coordinates([center])
@@ -233,31 +233,32 @@ class RegionSet(BasePathMixin):
         return self.add_region(region_type, [center, size], rotation, name)
 
     @validate(Point.CoordinatePoint(), Point.SizePoint(), Boolean(), Number(), String())
-    def add_ellipse(self, center, size, annotation=False, rotation=0, name=""):
+    def add_ellipse(self, center, semi_axes, annotation=False, rotation=0, name=""):
         """Add a new elliptical region or elliptical annotation to this image.
 
         Parameters
         ----------
         center : {0}
-            The center position of the region.
-        size : {1}
-            The size of the region. The ``x`` and ``y`` values will be interpreted as the semi-major and semi-minor axes, respectively.
+            The center position.
+        semi_axes : {1}
+            The semi-axes. The two values will be interpreted as the north-south and east-west axes, respectively.
         annotation : {2}
             Whether this region should be an annotation. Defaults to ``False``.
         rotation : {3}
-            The rotation of the region, in degrees. Defaults to zero.
+            The rotation, in degrees. Defaults to zero.
         name : {4}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
-        :obj:`carta.region.Region` or :obj:`carta.region.Annotation` object
+        :obj:`carta.region.Region` object
             A new region object.
         """
         [center] = self._from_world_coordinates([center])
-        [size] = self._from_angular_sizes([size])
+        [semi_axes] = self._from_angular_sizes([semi_axes])
+
         region_type = RegionType.ANNELLIPSE if annotation else RegionType.ELLIPSE
-        return self.add_region(region_type, [center, size], rotation, name)
+        return self.add_region(region_type, [center, semi_axes], rotation, name)
 
     @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())), Boolean(), String())
     def add_polygon(self, points, annotation=False, name=""):
@@ -266,11 +267,11 @@ class RegionSet(BasePathMixin):
         Parameters
         ----------
         points : {0}
-            The positions of the vertices of the region, either all in world coordinates or all in image coordinates.
+            The positions of the vertices, either all in world coordinates or all in image coordinates.
         annotation : {1}
             Whether this region should be an annotation. Defaults to ``False``.
         name : {2}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -288,13 +289,13 @@ class RegionSet(BasePathMixin):
         Parameters
         ----------
         start : {0}
-            The start position of the region.
+            The start position.
         end : {1}
-            The end position of the region.
+            The end position.
         annotation : {2}
             Whether this region should be an annotation. Defaults to ``False``.
         name : {3}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -312,11 +313,11 @@ class RegionSet(BasePathMixin):
         Parameters
         ----------
         points : {0}
-            The positions of the vertices of the region, either all in world coordinates or all in image coordinates.
+            The positions of the vertices, either all in world coordinates or all in image coordinates.
         annotation : {1}
             Whether this region should be an annotation. Defaults to ``False``.
         name : {2}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -334,11 +335,11 @@ class RegionSet(BasePathMixin):
         Parameters
         ----------
         start : {0}
-            The start position of the region.
+            The start position.
         end : {1}
-            The end position of the region.
+            The end position.
         name : {2}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -356,15 +357,15 @@ class RegionSet(BasePathMixin):
         Parameters
         ----------
         center : {0}
-            The center position of the region.
+            The center position.
         size : {1}
-            The size of the region. The ``x`` and ``y`` values will be interpreted as the width and height, respectively.
+            The size. The two values will be interpreted as the width and height, respectively.
         text : {2}
             The text content to display.
         rotation : {3}
-            The rotation of the region, in degrees. Defaults to zero.
+            The rotation, in degrees. Defaults to zero.
         name : {4}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -388,7 +389,7 @@ class RegionSet(BasePathMixin):
         length : {1}
             The length of the compass points, in pixels.
         name : {2}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -405,11 +406,11 @@ class RegionSet(BasePathMixin):
         Parameters
         ----------
         start : {0}
-            The start position of the region.
+            The start position.
         end : {1}
-            The end position of the region.
+            The end position.
         name : {2}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -456,6 +457,9 @@ class Region(BasePathMixin):
 
         if cls.REGION_TYPE is not None:
             Region.CUSTOM_CLASS[cls.REGION_TYPE] = cls
+        elif cls.REGION_TYPES is not None:
+            for t in cls.REGION_TYPES:
+                Region.CUSTOM_CLASS[t] = cls
 
     def __init__(self, region_set, region_id):
         self.region_set = region_set
@@ -475,7 +479,7 @@ class Region(BasePathMixin):
     def region_class(cls, region_type):
         """The region class associated for this type.
 
-        Not every type maps to a specific class; some types have no specific functionality and use the default :obj:`carta.region.Region` or :obj:`carta.region.Annotation` classes.
+        Not every type maps to a specific class; some types have no specific functionality and use the default :obj:`carta.region.Region` class.
 
         Parameters
         ----------
@@ -488,7 +492,7 @@ class Region(BasePathMixin):
             The region class.
         """
         region_type = RegionType(region_type)
-        return cls.CUSTOM_CLASS.get(region_type, Annotation if region_type.is_annotation else Region)
+        return cls.CUSTOM_CLASS.get(region_type, Region)
 
     @classmethod
     @validate(Constant(RegionType), InstanceOf(RegionSet), Number())
@@ -502,7 +506,7 @@ class Region(BasePathMixin):
         region_type : {0}
             The region type.
         region_set : {1}
-            The region set containing this region.
+            The region set containing the region.
         region_id : {2}
             The ID of the region.
 
@@ -527,11 +531,11 @@ class Region(BasePathMixin):
         region_type : {1}
             The region type.
         points : {2}
-            The control points of the region, in pixels. These may be coordinates or sizes; how they are interpreted depends on the region type.
+            The control points, in pixels. These may be coordinates or sizes; how they are interpreted depends on the region type.
         rotation : {3}
-            The rotation of the region, in degrees. Defaults to zero.
+            The rotation, in degrees. Defaults to zero.
         name : {4}
-            The name of the region. Defaults to the empty string.
+            The name. Defaults to the empty string.
 
         Returns
         -------
@@ -568,7 +572,7 @@ class Region(BasePathMixin):
     @property
     @cached
     def region_type(self):
-        """The type of the region.
+        """The region type.
 
         Returns
         -------
@@ -579,75 +583,77 @@ class Region(BasePathMixin):
 
     @property
     def center(self):
-        """The center position of the region, in image coordinates.
+        """The center position, in image coordinates.
 
         Returns
         -------
-        tuple of two numbers
-            The center position.
+        number
+            The X coordinate of the center position.
+        number
+            The Y coordinate of the center position.
         """
         return Pt(**self.get_value("center")).as_tuple()
 
     @property
     def wcs_center(self):
-        """The center position of the region, in world coordinates.
+        """The center position, in world coordinates.
 
         Returns
         -------
-        tuple of two strings
-            The center position.
+        string
+            The X coordinate of the center position.
+        string
+            The Y coordinate of the center position.
         """
         [center] = self.region_set.image.to_world_coordinate_points([self.center])
         return center
 
     @property
     def size(self):
-        """The size of the region, in pixels.
-
-        Returns
-        -------
-        tuple of two numbers
-            The size. The first value is the width, and the second value is the height.
-        """
-        return Pt(**self.get_value("size")).as_tuple()
-
-    @property
-    def wcs_size(self):
-        """The size of the region, in angular size units.
-
-        Returns
-        -------
-        tuple of two strings
-            The size. The first value is the width, and the second value is the height.
-        """
-        size = self.get_value("wcsSize")
-        return (f"{size['x']}\"", f"{size['y']}\"")
-
-    @property
-    def rotation(self):
-        """The rotation of the region, in degrees.
+        """The size, in pixels.
 
         Returns
         -------
         number
-            The rotation.
+            The width.
+        number
+            The height.
         """
-        return self.get_value("rotation")
+        size = self.get_value("size")
+        if not size:
+            return None
+        return Pt(**size).as_tuple()
+
+    @property
+    def wcs_size(self):
+        """The size, in angular size units.
+
+        Returns
+        -------
+        string
+            The width.
+        string
+            The height.
+        """
+        size = self.get_value("wcsSize")
+        if size['x'] is None or size['y'] is None:
+            return None
+        return (f"{size['x']}\"", f"{size['y']}\"")
 
     @property
     def control_points(self):
-        """The control points of the region, in pixels.
+        """The control points.
 
         Returns
         -------
         iterable of tuples of two numbers
-            The control points.
+            The control points, in pixels.
         """
         return [Pt(**p).as_tuple() for p in self.get_value("controlPoints")]
 
     @property
     def name(self):
-        """The name of the region.
+        """The name.
 
         Returns
         -------
@@ -658,7 +664,7 @@ class Region(BasePathMixin):
 
     @property
     def color(self):
-        """The color of the region.
+        """The color.
 
         Returns
         -------
@@ -669,23 +675,23 @@ class Region(BasePathMixin):
 
     @property
     def line_width(self):
-        """The line width of the region, in pixels.
+        """The line width.
 
         Returns
         -------
         number
-            The line width.
+            The line width, in pixels.
         """
         return self.get_value("lineWidth")
 
     @property
     def dash_length(self):
-        """The dash length of the region, in pixels.
+        """The dash length.
 
         Returns
         -------
         number
-            The dash length.
+            The dash length, in pixels.
         """
         return self.get_value("dashLength")
 
@@ -693,7 +699,7 @@ class Region(BasePathMixin):
 
     @validate(Point.CoordinatePoint())
     def set_center(self, center):
-        """Set the center position of this region.
+        """Set the center position.
 
         Both image and world coordinates are accepted, but both values must match.
 
@@ -707,9 +713,7 @@ class Region(BasePathMixin):
 
     @validate(Point.SizePoint())
     def set_size(self, size):
-        """Set the size of this region.
-
-        TODO list region types for which this does not work.
+        """Set the size.
 
         Both pixel and angular sizes are accepted, but both values must match.
 
@@ -723,7 +727,7 @@ class Region(BasePathMixin):
 
     @validate(Number(), Point.NumericPoint())
     def set_control_point(self, index, point):
-        """Update the value of a single control point of this region.
+        """Update the value of a single control point.
 
         Parameters
         ----------
@@ -736,7 +740,7 @@ class Region(BasePathMixin):
 
     @validate(IterableOf(Point.NumericPoint()))
     def set_control_points(self, points):
-        """Update all the control points of this region.
+        """Update all the control points.
 
         Parameters
         ----------
@@ -745,20 +749,9 @@ class Region(BasePathMixin):
         """
         self.call_action("setControlPoints", [Pt(*p) for p in points])
 
-    @validate(Number())
-    def set_rotation(self, angle):
-        """Set the rotation of this region.
-
-        Parameters
-        ----------
-        angle : {0}
-            The new rotation angle, in degrees.
-        """
-        self.call_action("setRotation", angle)
-
     @validate(String())
     def set_name(self, name):
-        """Set the name of this region.
+        """Set the name.
 
         Parameters
         ----------
@@ -769,7 +762,7 @@ class Region(BasePathMixin):
 
     @validate(*all_optional(Color(), Number(), Number()))
     def set_line_style(self, color=None, line_width=None, dash_length=None):
-        """Set the line style of this region.
+        """Set the line style.
 
         All parameters are optional. Omitted properties will be left unmodified.
 
@@ -822,6 +815,38 @@ class Region(BasePathMixin):
         """Delete this region."""
         self.region_set.call_action("deleteRegion", self._region)
 
+# TODO also factor out size, and exclude it from the point region?
+
+
+class HasRotationMixin:
+    """This is a mixin class for regions which can be rotated."""
+
+    # GET PROPERTIES
+
+    @property
+    def rotation(self):
+        """The rotation, in degrees.
+
+        Returns
+        -------
+        number
+            The rotation.
+        """
+        return self.get_value("rotation")
+
+    # SET PROPERTIES
+
+    @validate(Number())
+    def set_rotation(self, angle):
+        """Set the rotation.
+
+        Parameters
+        ----------
+        angle : {0}
+            The new rotation, in degrees.
+        """
+        self.call_action("setRotation", angle)
+
 
 class HasVerticesMixin:
     """This is a mixin class for regions which are defined by an arbitrary number of vertices. It assumes that all control points of the region should be interpreted as coordinates."""
@@ -830,7 +855,7 @@ class HasVerticesMixin:
 
     @property
     def vertices(self):
-        """The vertices of the region, in image coordinates.
+        """The vertices, in image coordinates.
 
         This is an alias of :obj:`carta.region.Region.control_points`.
 
@@ -843,20 +868,20 @@ class HasVerticesMixin:
 
     @property
     def wcs_vertices(self):
-        """The vertices of the region, in world coordinates.
+        """The vertices, in world coordinates.
 
         Returns
         -------
         iterable of tuples of two strings
             The vertices.
         """
-        return self.region_set.image.to_world_coordinate_points[self.control_points]
+        return self.region_set.image.to_world_coordinate_points(self.control_points)
 
     # SET PROPERTIES
 
     @validate(Number(), Point.CoordinatePoint())
     def set_vertex(self, index, point):
-        """Update the value of a single vertex of this region.
+        """Update the value of a single vertex.
 
         Parameters
         ----------
@@ -870,7 +895,7 @@ class HasVerticesMixin:
 
     @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())))
     def set_vertices(self, points):
-        """Update all the vertices of this region.
+        """Update all the vertices.
 
         Both image and world coordinates are accepted, but all values must match.
 
@@ -890,33 +915,33 @@ class HasEndpointsMixin:
 
     @property
     def endpoints(self):
-        """The endpoints of the region, in image coordinates.
+        """The endpoints, in image coordinates.
 
         This is an alias of :obj:`carta.region.Region.control_points`.
 
         Returns
         -------
-        iterable of tuples of two numbers
+        iterable containing two tuples of two numbers
             The endpoints.
         """
         return self.control_points
 
     @property
     def wcs_endpoints(self):
-        """The endpoints of the region, in world coordinates.
+        """The endpoints, in world coordinates.
 
         Returns
         -------
-        iterable of tuples of two strings
+        iterable containing two tuples of two strings
             The endpoints.
         """
-        return self.region_set.image.to_world_coordinate_points[self.control_points]
+        return self.region_set.image.to_world_coordinate_points(self.control_points)
 
     # SET PROPERTIES
 
     @validate(*all_optional(Point.CoordinatePoint(), Point.CoordinatePoint()))
     def set_endpoints(self, start=None, end=None):
-        """Update the endpoints of this region.
+        """Update the endpoints.
 
         Both parameters are optional. If an endpoint is omitted, it will not be modified.
 
@@ -944,18 +969,18 @@ class HasFontMixin:
 
     @property
     def font_size(self):
-        """The font size of this annotation, in pixels.
+        """The font size.
 
         Returns
         -------
         number
-            The font size.
+            The font size, in pixels.
         """
         return self.get_value("fontSize")
 
     @property
     def font_style(self):
-        """The font style of this annotation.
+        """The font style.
 
         Returns
         -------
@@ -966,7 +991,7 @@ class HasFontMixin:
 
     @property
     def font(self):
-        """The font of this annotation.
+        """The font.
 
         Returns
         -------
@@ -979,7 +1004,7 @@ class HasFontMixin:
 
     @validate(*all_optional(Constant(AnnotationFont), Number(), Constant(AnnotationFontStyle)))
     def set_font(self, font=None, font_size=None, font_style=None):
-        """Set the font properties of this annotation.
+        """Set the font properties.
 
         All parameters are optional. Omitted properties will be left unmodified.
 
@@ -1007,23 +1032,23 @@ class HasPointerMixin:
 
     @property
     def pointer_width(self):
-        """The pointer width of this annotation, in pixels.
+        """The pointer width.
 
         Returns
         -------
         number
-            The pointer width.
+            The pointer width, in pixels.
         """
         return self.get_value("pointerWidth")
 
     @property
     def pointer_length(self):
-        """The pointer length of this annotation, in pixels.
+        """The pointer length.
 
         Returns
         -------
         number
-            The pointer length.
+            The pointer length, in pixels.
         """
         return self.get_value("pointerLength")
 
@@ -1031,7 +1056,7 @@ class HasPointerMixin:
 
     @validate(*all_optional(Number(), Number()))
     def set_pointer_style(self, pointer_width=None, pointer_length=None):
-        """Set the pointer style of this annotation.
+        """Set the pointer style.
 
         All parameters are optional. Omitted properties will be left unmodified.
 
@@ -1049,42 +1074,196 @@ class HasPointerMixin:
             self.call_action("setPointerLength", pointer_length)
 
 
-class Annotation(Region):
-    """Base class for annotations."""
-    pass
-
-
-class LineRegion(Region, HasEndpointsMixin):
-    """A line region."""
-    REGION_TYPE = RegionType.LINE
+class LineRegion(Region, HasEndpointsMixin, HasRotationMixin):
+    """A line region or annotation."""
+    REGION_TYPES = (RegionType.LINE, RegionType.ANNLINE)
 
 
 class PolylineRegion(Region, HasVerticesMixin):
-    """A polyline region."""
-    REGION_TYPE = RegionType.POLYLINE
+    """A polyline region or annotation."""
+    REGION_TYPES = (RegionType.POLYLINE, RegionType.ANNPOLYLINE)
 
 
 class PolygonRegion(Region, HasVerticesMixin):
-    """A polygonal region."""
-    REGION_TYPE = RegionType.POLYGON
+    """A polygonal region or annotation."""
+    REGION_TYPES = (RegionType.POLYGON, RegionType.ANNPOLYGON)
 
 
-class LineAnnotation(Annotation, HasEndpointsMixin):
-    """A line annotation."""
-    REGION_TYPE = RegionType.ANNLINE
+class RectangularRegion(Region, HasRotationMixin):
+    """A rectangular region or annotation."""
+    REGION_TYPES = (RegionType.RECTANGLE, RegionType.ANNRECTANGLE)
+
+    # GET PROPERTIES
+
+    @property
+    def corners(self):
+        """The corner positions, in image coordinates.
+
+        Returns
+        -------
+        iterable containing two tuples of two numbers
+            The bottom-left and top-right corner positions, in image coordinates.
+        """
+        center = Pt(*self.center)
+        size = Pt(*self.size)
+        dx, dy = size.x / 2, size.y / 2
+        return ((center.x - dx, center.y - dy), (center.x + dx, center.y + dy))
+
+    @property
+    def wcs_corners(self):
+        """The corner positions, in world coordinates.
+
+        Returns
+        -------
+        iterable containing two tuples of two strings
+            The bottom-left and top-right corner positions, in world coordinates.
+        """
+        return self.region_set.image.to_world_coordinate_points(self.corners)
+
+    # SET PROPERTIES
+
+    @validate(*all_optional(Point.CoordinatePoint(), Point.CoordinatePoint()))
+    def set_corners(self, bottom_left=None, top_right=None):
+        """Update the corner positions.
+
+        Both parameters are optional. If a position is omitted, it will not be modified.
+
+        The corner positions will be used to calculate the updated center position and size.
+
+        Both image and world coordinates are accepted, but both values in each point must match.
+
+        Parameters
+        ----------
+        bottom_left : {0}
+            The new bottom-left corner position, in image or world coordinates.
+        top_right : {1}
+            The new top-right corner position, in image or world coordinates.
+        """
+        if bottom_left is None or top_right is None:
+            current_bottom_left, current_top_right = self.corners
+
+        if bottom_left is not None:
+            [bottom_left] = self.region_set._from_world_coordinates([bottom_left])
+        else:
+            bottom_left = current_bottom_left
+
+        if top_right is not None:
+            [top_right] = self.region_set._from_world_coordinates([top_right])
+        else:
+            top_right = current_top_right
+
+        bl = Pt(*bottom_left)
+        tr = Pt(*top_right)
+
+        size = Pt(tr.x - bl.x, tr.y - bl.y)
+        center = (bl.x + (size.x / 2), bl.y + (size.y / 2))
+
+        self.set_control_points(center, size.as_tuple())
 
 
-class PolylineAnnotation(Annotation, HasVerticesMixin):
-    """A polyline annotation."""
-    REGION_TYPE = RegionType.ANNPOLYLINE
+class EllipticalRegion(Region, HasRotationMixin):
+    """An elliptical region or annotation."""
+    REGION_TYPES = (RegionType.ELLIPSE, RegionType.ANNELLIPSE)
+
+    # GET PROPERTIES
+
+    @property
+    def semi_axes(self):
+        """The semi-axes, in pixels.
+
+        The north-south semi-axis is equal to half of the height, and the east-west semi-axis is equal to half of the width.
+
+        Returns
+        -------
+        number
+            The north-south semi-axis, in pixels.
+        number
+            The east-west semi-axis, in pixels.
+        """
+        return super().size
+
+    @property
+    def wcs_semi_axes(self):
+        """The semi-axes, in angular size units.
+
+        The north-south semi-axis is equal to half of the height, and the east-west semi-axis is equal to half of the width.
+
+        Returns
+        -------
+        string
+            The north-south semi-axis, in angular size units.
+        string
+            The east-west semi-axis, in angular size units.
+        """
+        return super().wcs_size
+
+    @property
+    def size(self):
+        """The size, in pixels.
+
+        The width is equal to twice the east-west semi-axis, and the height is equal to twice the north-south semi-axis.
+
+        Returns
+        -------
+        number
+            The width.
+        number
+            The height.
+        """
+        semi_ns, semi_ew = self.semi_axes
+        return (semi_ew * 2, semi_ns * 2)
+
+    @property
+    def wcs_size(self):
+        """The size, in angular size units.
+
+        The width is equal to twice the east-west semi-axis, and the height is equal to twice the north-south semi-axis.
+
+        Returns
+        -------
+        string
+            The width.
+        string
+            The height.
+        """
+        [size] = self.region_set.image.to_angular_size_points([self.size])
+        return size
+
+    # SET PROPERTIES
+
+    @validate(Point.SizePoint())
+    def set_semi_axes(self, semi_axes):
+        """Set the semi-axes.
+
+        Both pixel and angular sizes are accepted, but both values must match.
+
+        Parameters
+        ----------
+        size : {0}
+            The new north-south and east-west semi-axes, in that order.
+        """
+        [semi_axes] = self._from_angular_sizes([semi_axes])
+        super().set_size(semi_axes)
+
+    @validate(Point.SizePoint())
+    def set_size(self, size):
+        """Set the size.
+
+        The width and height will be used to calculate the semi-axes: the north-south semi-axis is equal to half of the height, and the east-west semi-axis is equal to half of the width.
+
+        Both pixel and angular sizes are accepted, but both values must match.
+
+        Parameters
+        ----------
+        size : {0}
+            The new width and height, in that order.
+        """
+        [size] = self._from_angular_sizes([size])
+        width, height = size
+        super().set_size([height / 2, width / 2])
 
 
-class PolygonAnnotation(Annotation, HasVerticesMixin):
-    """A polygonal annotation."""
-    REGION_TYPE = RegionType.ANNPOLYGON
-
-
-class PointAnnotation(Annotation):
+class PointAnnotation(Region):
     """A point annotation."""
     REGION_TYPE = RegionType.ANNPOINT
 
@@ -1092,24 +1271,48 @@ class PointAnnotation(Annotation):
 
     @property
     def point_shape(self):
+        """The point shape.
+
+        Returns
+        -------
+        :obj:`carta.constants.PointShape` object
+            The point shape.
+        """
         return PointShape(self.get_value("pointShape"))
 
     @property
     def point_width(self):
+        """The point width.
+
+        Returns
+        -------
+        number
+            The point width, in pixels.
+        """
         return self.get_value("pointWidth")
 
     # SET PROPERTIES
 
-    @validate(Constant(PointShape))
-    def set_point_shape(self, shape):
-        self.call_action("setPointShape", shape)
+    @validate(*all_optional(Constant(PointShape), Number()))
+    def set_point_style(self, point_shape, point_width):
+        """Set the point style.
 
-    @validate(Number())
-    def set_point_width(self, width):
-        self.call_action("setPointWidth", width)
+        All parameters are optional. Omitted properties will be left unmodified.
+
+        Parameters
+        ----------
+        point_shape : {0}
+            The point shape.
+        point_width : {1}
+            The point width, in pixels.
+        """
+        if point_shape is not None:
+            self.call_action("setPointShape", point_shape)
+        if point_width is not None:
+            self.call_action("setPointWidth", point_width)
 
 
-class TextAnnotation(Annotation, HasFontMixin):
+class TextAnnotation(Region, HasFontMixin, HasRotationMixin):
     """A text annotation."""
     REGION_TYPE = RegionType.ANNTEXT
 
@@ -1117,29 +1320,57 @@ class TextAnnotation(Annotation, HasFontMixin):
 
     @property
     def text(self):
+        """The text content.
+
+        Returns
+        -------
+        string
+            The text content.
+        """
         return self.get_value("text")
 
     @property
     def position(self):
+        """The position of the text in this annotation.
+
+        Returns
+        -------
+        :obj:`carta.constants.TextPosition`
+            The text position.
+        """
         return TextPosition(self.get_value("position"))
 
     # SET PROPERTIES
 
     @validate(String())
     def set_text(self, text):
+        """Set the text content.
+
+        Parameters
+        ----------
+        text : {0}
+            The text content.
+        """
         self.call_action("setText", text)
 
     @validate(Constant(TextPosition))
-    def set_position(self, position):
-        self.call_action("setPosition", position)
+    def set_text_position(self, text_position):
+        """Set the position of the text in this annotation.
+
+        Parameters
+        ----------
+        text_position : {0}
+            The position of the text.
+        """
+        self.call_action("setPosition", text_position)
 
 
-class VectorAnnotation(Annotation, HasPointerMixin, HasEndpointsMixin):
+class VectorAnnotation(Region, HasPointerMixin, HasEndpointsMixin):
     """A vector annotation."""
     REGION_TYPE = RegionType.ANNVECTOR
 
 
-class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
+class CompassAnnotation(Region, HasFontMixin, HasPointerMixin):
     """A compass annotation."""
     REGION_TYPE = RegionType.ANNCOMPASS
 
@@ -1147,35 +1378,123 @@ class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
 
     @property
     def labels(self):
+        """The north and east labels.
+
+        Returns
+        -------
+        string
+            The north label.
+        string
+            The east label.
+        """
         return self.get_value("northLabel"), self.get_value("eastLabel")
 
     @property
     def length(self):
+        """The length of the compass points, in pixels.
+
+        Returns
+        -------
+        number
+            The length of the compass points.
+        """
         return self.get_value("length")
 
     @property
-    def text_offsets(self):
-        return Pt(**self.get_value("northTextOffset")), Pt(**self.get_value("eastTextOffset"))
+    def label_offsets(self):
+        """The offsets of the north and east labels.
+
+        Returns
+        -------
+        tuple of two numbers
+            The offset of the north label, in pixels.
+        tuple of two numbers
+            The offset of the east label, in pixels.
+        """
+        return Pt(**self.get_value("northTextOffset")).as_tuple(), Pt(**self.get_value("eastTextOffset")).as_tuple()
 
     @property
     def arrowheads_visible(self):
+        """The visibility of the north and east arrowheads.
+
+        Returns
+        -------
+        boolean
+            Whether the north arrowhead is visible.
+        boolean
+            Whether the east arrowhead is visible.
+        """
         return self.get_value("northArrowhead"), self.get_value("eastArrowhead")
 
     # SET PROPERTIES
 
+    def set_size(self, size):
+        """Set the size.
+
+        The width and height of this annotation cannot be set individually. :obj:`carta.region.CompassAnnotation.set_length` should be used instead.
+
+        Raises
+        ------
+        NotImplementedError
+            If this function is called.
+        """
+        raise NotImplementedError("Compass annotation width and height cannot be set individually. Please use `set_length` to resize this annotation.")
+
     @validate(*all_optional(String(), String()))
     def set_label(self, north_label=None, east_label=None):
+        """Set the north and east labels.
+
+        All parameters are optional. Omitted properties will be left unmodified.
+
+        Parameters
+        ----------
+        north_label : {0}
+            The north label.
+        east_label : {1}
+            The east label.
+        """
         if north_label is not None:
             self.call_action("setLabel", north_label, True)
         if east_label is not None:
             self.call_action("setLabel", east_label, False)
 
-    @validate(Number())
-    def set_length(self, length):
+    @validate(Size(), NoneOr(Constant(SpatialAxis)))
+    def set_length(self, length, spatial_axis=None):
+        """Set the length of the compass points.
+
+        If the length is provided in angular size units, a spatial axis must also be provided in order for the angular size to be converted to pixels.
+
+        Parameters
+        ----------
+        length : {0}
+            The length, in pixels or angular size units.
+        spatial_axis : {1}
+            The spatial axis which should be used to convert angular size units. This parameter is ignored if the length is provided in pixels.
+
+        Raises
+        ------
+        ValueError
+            If the length is in angular size units, but no spatial axis is provided.
+        """
+        if isinstance(length, str):
+            if spatial_axis is None:
+                raise ValueError("Please specify a spatial axis to convert length from angular size units, or use pixels instead.")
+            length = self.region_set.image.from_angular_size(length, spatial_axis)
         self.call_action("setLength", length)
 
     @validate(*all_optional(Point.NumericPoint(), Point.NumericPoint()))
-    def set_text_offset(self, north_offset=None, east_offset=None):
+    def set_label_offset(self, north_offset=None, east_offset=None):
+        """Set the north and east label offsets.
+
+        All parameters are optional. Omitted properties will be left unmodified.
+
+        Parameters
+        ----------
+        north_offset : {0}
+            The north label offset, in pixels.
+        east_offset : {1}
+            The east label offset, in pixels.
+        """
         if north_offset is not None:
             self.call_action("setNorthTextOffset", north_offset.x, True)
             self.call_action("setNorthTextOffset", north_offset.y, False)
@@ -1185,13 +1504,27 @@ class CompassAnnotation(Annotation, HasFontMixin, HasPointerMixin):
 
     @validate(*all_optional(Boolean(), Boolean()))
     def set_arrowhead_visible(self, north=None, east=None):
+        """Set the north and east arrowhead visibility.
+
+        All parameters are optional. Omitted properties will be left unmodified.
+
+        Parameters
+        ----------
+        north : {0}
+            Whether the north arrowhead should be visible.
+        east : {1}
+            Whether the east arrowhead should be visible.
+        """
         if north is not None:
             self.call_action("setNorthArrowhead", north)
         if east is not None:
             self.call_action("setEastArrowhead", east)
 
+# TODO TODO TODO set_size also behaves strangely here, and may need to be removed or overridden.
+# TODO TODO TODO add a length to HasEndpointsMixin, though?
 
-class RulerAnnotation(Annotation, HasFontMixin, HasEndpointsMixin):
+
+class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
     """A ruler annotation."""
     REGION_TYPE = RegionType.ANNRULER
 
@@ -1199,27 +1532,73 @@ class RulerAnnotation(Annotation, HasFontMixin, HasEndpointsMixin):
 
     @property
     def auxiliary_lines_visible(self):
+        """The visibility of the auxiliary lines.
+
+        Returns
+        -------
+        boolean
+            Whether the auxiliary lines are visible.
+        """
         return self.get_value("auxiliaryLineVisible")
 
     @property
     def auxiliary_lines_dash_length(self):
+        """The dash length of the auxiliary lines.
+
+        Returns
+        -------
+        number
+            The dash length of the auxiliary lines, in pixels.
+        """
         return self.get_value("auxiliaryLineDashLength")
 
     @property
     def text_offset(self):
-        return Pt(*self.get_value("textOffset"))
+        """The X and Y text offsets.
+
+        Returns
+        -------
+        number
+            The X offset of the text, in pixels.
+        number
+            The Y offset of the text, in pixels.
+        """
+        return Pt(*self.get_value("textOffset")).as_tuple()
 
     # SET PROPERTIES
 
-    @validate(Boolean())
-    def set_auxiliary_lines_visible(self, visible):
-        self.call_action("setAuxiliaryLineVisible", visible)
+    @validate(*all_optional(Boolean(), Number()))
+    def set_auxiliary_lines_style(self, visible=None, dash_length=None):
+        """Set the auxiliary line style.
 
-    @validate(Number())
-    def set_auxiliary_lines_dash_length(self, length):
-        self.call_action("setAuxiliaryLineDashLength", length)
+        All parameters are optional. Omitted properties will be left unmodified.
 
-    @validate(Number(), Number())
-    def set_text_offset(self, x, y):  # TODO pixel only!
-        self.call_action("setTextOffset", x, True)
-        self.call_action("setTextOffset", y, False)
+        Parameters
+        ----------
+        visible : {0}
+            Whether the auxiliary lines should be visible.
+        dash_length : {1}
+            The dash length of the auxiliary lines, in pixels.
+        """
+        if visible is not None:
+            self.call_action("setAuxiliaryLineVisible", visible)
+        if dash_length is not None:
+            self.call_action("setAuxiliaryLineDashLength", dash_length)
+
+    @validate(*all_optional(Number(), Number()))
+    def set_text_offset(self, offset_x=None, offset_y=None):
+        """Set the text offset.
+
+        All parameters are optional. Omitted properties will be left unmodified.
+
+        Parameters
+        ----------
+        offset_x : {0}
+            The X offset of the text, in pixels.
+        offset_y : {1}
+            The Y offset of the text, in pixels.
+        """
+        if offset_x is not None:
+            self.call_action("setTextOffset", offset_x, True)
+        if offset_y is not None:
+            self.call_action("setTextOffset", offset_y, False)

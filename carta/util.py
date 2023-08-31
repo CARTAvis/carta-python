@@ -232,19 +232,59 @@ class Point:
 
     @classmethod
     def is_pixel(cls, x, y):
+        """Whether this is a pair of pixel values.
+
+        Returns
+        -------
+        boolean
+            Whether both values are numeric and should be interpreted as pixels.
+        """
         return isinstance(x, (int, float)) and isinstance(y, (int, float))
 
     @classmethod
     def is_wcs_coordinate(cls, x, y):
+        """Whether this is a pair of world coordinates.
+
+        Returns
+        -------
+        boolean
+            Whether both values are strings and can be parsed as valid world coordinates.
+        """
         return isinstance(x, str) and isinstance(y, str) and WorldCoordinate.valid(x) and WorldCoordinate.valid(y)
 
     @classmethod
     def is_angular_size(cls, x, y):
+        """Whether this is a pair of angular sizes.
+
+        Returns
+        -------
+        boolean
+            Whether both values are strings and can be parsed as valid angular sizes.
+        """
         return isinstance(x, str) and isinstance(y, str) and AngularSize.valid(x) and AngularSize.valid(y)
 
     def json(self):
-        """The JSON serialization of this object."""
+        """The JSON serialization of this object.
+
+        This is the format in which these values should be sent to the frontend.
+
+        Returns
+        -------
+        dict
+            A dictionary which can be coerced to a 2D point object in the frontend after serialization and deserialization.
+        """
         return {"x": self.x, "y": self.y}
 
     def as_tuple(self):
+        """The tuple representation of this object.
+
+        This is the format in which these values should be returned to the user.
+
+        Returns
+        -------
+        number or string
+            The X value.
+        number or string
+            The Y value.
+        """
         return self.x, self.y

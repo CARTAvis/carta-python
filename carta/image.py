@@ -681,7 +681,7 @@ class Image(BasePathMixin):
 
         Parameters
         ----------
-        points : {}
+        points : {0}
             Points with string values which are valid world coordinates.
 
         Returns
@@ -701,7 +701,7 @@ class Image(BasePathMixin):
 
         Parameters
         ----------
-        points : {}
+        points : {0}
             Points with numeric values which are valid image coordinates.
 
         Returns
@@ -743,7 +743,7 @@ class Image(BasePathMixin):
 
         Parameters
         ----------
-        points : {}
+        points : {0}
             Points with string values which are valid angular sizes.
 
         Returns
@@ -754,6 +754,27 @@ class Image(BasePathMixin):
         converted_points = []
         for x, y in points:
             converted_points.append((self.from_angular_size(x, SpatialAxis.X), self.from_angular_size(y, SpatialAxis.Y)))
+        return converted_points
+
+    @validate(IterableOf(Point.NumericPoint()))
+    def to_angular_size_points(self, points):
+        """Convert pixel size points to angular size points.
+
+        The points must be numeric.
+
+        Parameters
+        ----------
+        points : {0}
+            Points with numeric values which are valid image coordinates.
+
+        Returns
+        -------
+        iterable of angular size points
+            Points with string values which are angular sizes.
+        """
+        converted_points = []
+        for p in points:
+            converted_points.append(self.call_action("getWcsSizeInArcsec", Pt(*p)))
         return converted_points
 
     # CLOSE
