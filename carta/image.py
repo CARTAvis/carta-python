@@ -729,7 +729,7 @@ class Image(BasePathMixin):
         float
             The pixel size.
         """
-        arcsec = AngularSize.from_string(size).arcsec()
+        arcsec = AngularSize.from_string(size).arcsec
         if axis == SpatialAxis.X:
             return self.call_action("getImageXValueFromArcsec", arcsec)
         if axis == SpatialAxis.Y:

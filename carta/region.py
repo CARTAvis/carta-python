@@ -4,10 +4,12 @@ Region and annotation objects should not be instantiated directly, and should on
 """
 
 import posixpath
+import math
 
 from .util import Macro, BasePathMixin, Point as Pt, cached, CartaBadResponse, CartaValidationFailed
 from .constants import FileType, RegionType, CoordinateType, PointShape, TextPosition, AnnotationFontStyle, AnnotationFont, SpatialAxis
 from .validation import validate, Constant, IterableOf, Number, String, Point, NoneOr, Boolean, OneOf, InstanceOf, MapOf, Color, all_optional, Union, Size
+from .units import AngularSize
 
 
 class RegionSet(BasePathMixin):
@@ -31,14 +33,22 @@ class RegionSet(BasePathMixin):
         self.session = image.session
         self._base_path = f"{image._base_path}.regionSet"
 
-    def list(self):
+    @validate(NoneOr(Boolean()))
+    def list(self, ignore_cursor=True):
         """Return the list of regions associated with this image.
+        
+        Parameters
+        ----------
+        ignore_cursor : {0}
+            Ignore the cursor region. This is set by default.
 
         Returns
         -------
         list of :obj:`carta.region.Region` objects.
         """
         region_list = self.get_value("regionList")
+        if ignore_cursor:
+            region_list = region_list[1:]
         return Region.from_list(self, region_list)
 
     @validate(Number())
@@ -423,7 +433,7 @@ class RegionSet(BasePathMixin):
 
     def clear(self):
         """Delete all regions except for the cursor region."""
-        for region in self.list()[1:]:
+        for region in self.list():
             region.delete()
 
 
@@ -936,6 +946,29 @@ class HasEndpointsMixin:
             The endpoints.
         """
         return self.region_set.image.to_world_coordinate_points(self.control_points)
+    
+    @property
+    def length(self):
+        """The Euclidean distance between the endpoints, in pixels.
+        
+        Returns
+        -------
+        float
+            The length.
+        """
+        return math.hypot(*self.size)
+    
+    @property
+    def wcs_length(self):
+        """The Euclidean distance between the endpoints, in angular size units.
+        
+        Returns
+        -------
+        float
+            The length.
+        """
+        arcsec_size = [AngularSize.from_string(s).arcsec for s in self.wcs_size]
+        return str(AngularSize.from_arcsec(math.hypot(*arcsec_size)))
 
     # SET PROPERTIES
 
@@ -960,6 +993,22 @@ class HasEndpointsMixin:
         if end is not None:
             [end] = self.region_set._from_world_coordinates([end])
             self.set_control_point(1, end)
+    
+    @validate(Size())
+    def set_length(self, length):
+        """Update the length.
+                
+        Parameters
+        ----------
+        length : {0}
+            The new length, in pixels or angular size units.
+        """
+        if isinstance(length, str):
+            length = self.length * AngularSize.from_string(length).arcsec / self.wcs_length
+        
+        rad = math.radians(self.rotation)
+        
+        Region.set_size(self, (length * math.sin(rad), -1 * length * math.cos(rad)))
 
 
 class HasFontMixin:
@@ -1077,6 +1126,21 @@ class HasPointerMixin:
 class LineRegion(Region, HasEndpointsMixin, HasRotationMixin):
     """A line region or annotation."""
     REGION_TYPES = (RegionType.LINE, RegionType.ANNLINE)
+    
+    @validate(Point.SizePoint())
+    def set_size(self, size):
+        """Set the size.
+
+        Both pixel and angular sizes are accepted, but both values must match.
+
+        Parameters
+        ----------
+        size : {0}
+            The new width and height, in that order.
+        """
+        [size] = self.region_set._from_angular_sizes([size])
+        sx, sy = size
+        Region.set_size(self, (-sx, -sy)) # negated for consistency with returned size
 
 
 class PolylineRegion(Region, HasVerticesMixin):
@@ -1158,7 +1222,7 @@ class RectangularRegion(Region, HasRotationMixin):
         size = Pt(tr.x - bl.x, tr.y - bl.y)
         center = (bl.x + (size.x / 2), bl.y + (size.y / 2))
 
-        self.set_control_points(center, size.as_tuple())
+        self.set_control_points([center, size.as_tuple()])
 
 
 class EllipticalRegion(Region, HasRotationMixin):
@@ -1242,7 +1306,7 @@ class EllipticalRegion(Region, HasRotationMixin):
         size : {0}
             The new north-south and east-west semi-axes, in that order.
         """
-        [semi_axes] = self._from_angular_sizes([semi_axes])
+        [semi_axes] = self.region_set._from_angular_sizes([semi_axes])
         super().set_size(semi_axes)
 
     @validate(Point.SizePoint())
@@ -1258,7 +1322,7 @@ class EllipticalRegion(Region, HasRotationMixin):
         size : {0}
             The new width and height, in that order.
         """
-        [size] = self._from_angular_sizes([size])
+        [size] = self.region_set._from_angular_sizes([size])
         width, height = size
         super().set_size([height / 2, width / 2])
 
@@ -1365,9 +1429,24 @@ class TextAnnotation(Region, HasFontMixin, HasRotationMixin):
         self.call_action("setPosition", text_position)
 
 
-class VectorAnnotation(Region, HasPointerMixin, HasEndpointsMixin):
+class VectorAnnotation(Region, HasPointerMixin, HasEndpointsMixin, HasRotationMixin):
     """A vector annotation."""
     REGION_TYPE = RegionType.ANNVECTOR
+    
+    @validate(Point.SizePoint())
+    def set_size(self, size):
+        """Set the size.
+
+        Both pixel and angular sizes are accepted, but both values must match.
+
+        Parameters
+        ----------
+        size : {0}
+            The new width and height, in that order.
+        """
+        [size] = self.region_set._from_angular_sizes([size])
+        sx, sy = size
+        Region.set_size(self, (-sx, -sy)) # negated for consistency with returned size
 
 
 class CompassAnnotation(Region, HasFontMixin, HasPointerMixin):
@@ -1520,9 +1599,6 @@ class CompassAnnotation(Region, HasFontMixin, HasPointerMixin):
         if east is not None:
             self.call_action("setEastArrowhead", east)
 
-# TODO TODO TODO set_size also behaves strangely here, and may need to be removed or overridden.
-# TODO TODO TODO add a length to HasEndpointsMixin, though?
-
 
 class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
     """A ruler annotation."""
@@ -1565,7 +1641,90 @@ class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
         """
         return Pt(*self.get_value("textOffset")).as_tuple()
 
+    @property
+    def rotation(self):
+        """The rotation, in degrees.
+
+        Returns
+        -------
+        number
+            The rotation.
+        """
+        ((sx, sy), (ex, ey)) = self.endpoints
+        rad = math.atan((ex - sx) / (sy - ey))
+        rotation = math.degrees(rad)
+        if ey > sy:
+            rotation += 180
+        rotation = (rotation + 360) % 360
+        return rotation
+    
     # SET PROPERTIES
+    
+    @validate(Point.CoordinatePoint())
+    def set_center(self, center):
+        """Set the center position.
+
+        Both image and world coordinates are accepted, but both values must match.
+
+        Parameters
+        ----------
+        center : {0}
+            The new center position.
+        """
+        [center] = self.region_set._from_world_coordinates([center])
+        cx, cy = center
+        
+        rad = math.radians(self.rotation)
+        dx = math.hypot(*self.size) * math.sin(rad)
+        dy = math.hypot(*self.size) * -1 * math.cos(rad)
+        
+        start = cx - dx / 2, cy - dy / 2
+        end = cx + dx / 2, cy + dy / 2
+        
+        self.set_control_points([start, end])
+        
+    @validate(Number())
+    def set_rotation(self, rotation):
+        """Set the rotation.
+
+        Parameters
+        ----------
+        angle : {0}
+            The new rotation, in degrees.
+        """
+        rotation = rotation + 360 % 360
+        
+        cx, cy = self.center
+        
+        rad = math.radians(rotation)
+        dx = math.hypot(*self.size) * math.sin(rad)
+        dy = math.hypot(*self.size) * -1 * math.cos(rad)
+        
+        start = cx - dx / 2, cy - dy / 2
+        end = cx + dx / 2, cy + dy / 2
+        
+        self.set_control_points([start, end])
+            
+    @validate(Point.SizePoint())
+    def set_size(self, size):
+        """Set the size.
+
+        Both pixel and angular sizes are accepted, but both values must match.
+
+        Parameters
+        ----------
+        size : {0}
+            The new width and height, in that order.
+        """
+        [size] = self.region_set._from_angular_sizes([size])
+        
+        cx, cy = self.center
+        dx, dy = size
+        
+        start = cx - dx / 2, cy - dy / 2
+        end = cx + dx / 2, cy + dy / 2
+        
+        self.set_control_points([end, start]) # reversed for consistency with returned size
 
     @validate(*all_optional(Boolean(), Number()))
     def set_auxiliary_lines_style(self, visible=None, dash_length=None):

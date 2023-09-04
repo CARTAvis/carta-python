@@ -29,11 +29,11 @@ def test_class_classmethods_have_docstrings(member):
     ("123 deg", True),
     ("123 degree", True),
     ("123 degrees", True),
+    ("-123deg", True),
 
     ("123 arcmin", False),
     ("123cm", False),
     ("abc", False),
-    ("-123", False),
     ("123px", False),
 ])
 def test_degrees_size_valid(size, valid):
@@ -53,11 +53,11 @@ def test_degrees_size_valid(size, valid):
     ("123 amin", True),
     ("123'", True),
     ("123′", True),
+    ("-123arcmin", True),
 
     ("123 degrees", False),
     ("123cm", False),
     ("abc", False),
-    ("-123", False),
     ("123px", False),
 ])
 def test_arcmin_size_valid(size, valid):
@@ -78,11 +78,11 @@ def test_arcmin_size_valid(size, valid):
     ("123", True),
     ("123\"", True),
     ("123″", True),
+    ("-123", True),
 
     ("123 degrees", False),
     ("123cm", False),
     ("abc", False),
-    ("-123", False),
     ("123px", False),
 ])
 def test_arcsec_size_valid(size, valid):
@@ -100,11 +100,11 @@ def test_arcsec_size_valid(size, valid):
     ("123 milliarcsecond", True),
     ("123 milliarcsec", True),
     ("123 mas", True),
+    ("-123mas", True),
 
     ("123 degrees", False),
     ("123cm", False),
     ("abc", False),
-    ("-123", False),
     ("123px", False),
 ])
 def test_milliarcsec_size_valid(size, valid):
@@ -124,11 +124,11 @@ def test_milliarcsec_size_valid(size, valid):
     ("123 microarcsec", True),
     ("123 µas", True),
     ("123 uas", True),
+    ("-123uas", True),
 
     ("123 degrees", False),
     ("123cm", False),
     ("abc", False),
-    ("-123", False),
     ("123px", False),
 ])
 def test_microarcsec_size_valid(size, valid):
@@ -148,6 +148,7 @@ def test_microarcsec_size_valid(size, valid):
     ("123 amin", "123'"),
     ("123'", "123'"),
     ("123′", "123'"),
+    ("-123'", "-123'"),
 ])
 def test_arcmin_size_from_string(size, norm):
     assert str(ArcminSize.from_string(size)) == norm
@@ -166,6 +167,7 @@ def test_arcmin_size_from_string(size, norm):
     ("123", "123\""),
     ("123\"", "123\""),
     ("123″", "123\""),
+    ("-123", "-123\""),
 ])
 def test_arcsec_size_from_string(size, norm):
     assert str(ArcsecSize.from_string(size)) == norm
@@ -179,6 +181,7 @@ def test_arcsec_size_from_string(size, norm):
     ("123 deg", "123deg"),
     ("123 degree", "123deg"),
     ("123 degrees", "123deg"),
+    ("-123deg", "-123deg"),
 ])
 def test_degrees_size_from_string(size, norm):
     assert str(DegreesSize.from_string(size)) == norm
@@ -194,6 +197,7 @@ def test_degrees_size_from_string(size, norm):
     ("123 milliarcsecond", "0.123\""),
     ("123 milliarcsec", "0.123\""),
     ("123 mas", "0.123\""),
+    ("-123mas", "-0.123\""),
 ])
 def test_milliarcsec_size_from_string(size, norm):
     assert str(MilliarcsecSize.from_string(size)) == norm
@@ -211,6 +215,7 @@ def test_milliarcsec_size_from_string(size, norm):
     ("123 microarcsec", "0.000123\""),
     ("123 µas", "0.000123\""),
     ("123 uas", "0.000123\""),
+    ("-123uas", "-0.000123\""),
 ])
 def test_microarcsec_size_from_string(size, norm):
     assert str(MicroarcsecSize.from_string(size)) == norm
@@ -230,7 +235,7 @@ def test_angular_size_from_string_one_invalid(clazz, size):
     assert "not in a recognized" in str(e.value)
 
 
-@pytest.mark.parametrize("size", ["123cm", "abc", "-123", "123px"])
+@pytest.mark.parametrize("size", ["123cm", "abc", "123px"])
 def test_angular_size_from_string_all_invalid(size):
     with pytest.raises(ValueError) as e:
         AngularSize.from_string(size)
