@@ -36,7 +36,7 @@ class RegionSet(BasePathMixin):
     @validate(NoneOr(Boolean()))
     def list(self, ignore_cursor=True):
         """Return the list of regions associated with this image.
-        
+
         Parameters
         ----------
         ignore_cursor : {0}
@@ -946,22 +946,22 @@ class HasEndpointsMixin:
             The endpoints.
         """
         return self.region_set.image.to_world_coordinate_points(self.control_points)
-    
+
     @property
     def length(self):
         """The Euclidean distance between the endpoints, in pixels.
-        
+
         Returns
         -------
         float
             The length.
         """
         return math.hypot(*self.size)
-    
+
     @property
     def wcs_length(self):
         """The Euclidean distance between the endpoints, in angular size units.
-        
+
         Returns
         -------
         float
@@ -993,11 +993,11 @@ class HasEndpointsMixin:
         if end is not None:
             [end] = self.region_set._from_world_coordinates([end])
             self.set_control_point(1, end)
-    
+
     @validate(Size())
     def set_length(self, length):
         """Update the length.
-                
+
         Parameters
         ----------
         length : {0}
@@ -1005,9 +1005,9 @@ class HasEndpointsMixin:
         """
         if isinstance(length, str):
             length = self.length * AngularSize.from_string(length).arcsec / self.wcs_length
-        
+
         rad = math.radians(self.rotation)
-        
+
         Region.set_size(self, (length * math.sin(rad), -1 * length * math.cos(rad)))
 
 
@@ -1126,7 +1126,7 @@ class HasPointerMixin:
 class LineRegion(Region, HasEndpointsMixin, HasRotationMixin):
     """A line region or annotation."""
     REGION_TYPES = (RegionType.LINE, RegionType.ANNLINE)
-    
+
     @validate(Point.SizePoint())
     def set_size(self, size):
         """Set the size.
@@ -1140,7 +1140,7 @@ class LineRegion(Region, HasEndpointsMixin, HasRotationMixin):
         """
         [size] = self.region_set._from_angular_sizes([size])
         sx, sy = size
-        Region.set_size(self, (-sx, -sy)) # negated for consistency with returned size
+        Region.set_size(self, (-sx, -sy))  # negated for consistency with returned size
 
 
 class PolylineRegion(Region, HasVerticesMixin):
@@ -1432,7 +1432,7 @@ class TextAnnotation(Region, HasFontMixin, HasRotationMixin):
 class VectorAnnotation(Region, HasPointerMixin, HasEndpointsMixin, HasRotationMixin):
     """A vector annotation."""
     REGION_TYPE = RegionType.ANNVECTOR
-    
+
     @validate(Point.SizePoint())
     def set_size(self, size):
         """Set the size.
@@ -1446,7 +1446,7 @@ class VectorAnnotation(Region, HasPointerMixin, HasEndpointsMixin, HasRotationMi
         """
         [size] = self.region_set._from_angular_sizes([size])
         sx, sy = size
-        Region.set_size(self, (-sx, -sy)) # negated for consistency with returned size
+        Region.set_size(self, (-sx, -sy))  # negated for consistency with returned size
 
 
 class CompassAnnotation(Region, HasFontMixin, HasPointerMixin):
@@ -1657,9 +1657,9 @@ class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
             rotation += 180
         rotation = (rotation + 360) % 360
         return rotation
-    
+
     # SET PROPERTIES
-    
+
     @validate(Point.CoordinatePoint())
     def set_center(self, center):
         """Set the center position.
@@ -1673,16 +1673,16 @@ class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
         """
         [center] = self.region_set._from_world_coordinates([center])
         cx, cy = center
-        
+
         rad = math.radians(self.rotation)
         dx = math.hypot(*self.size) * math.sin(rad)
         dy = math.hypot(*self.size) * -1 * math.cos(rad)
-        
+
         start = cx - dx / 2, cy - dy / 2
         end = cx + dx / 2, cy + dy / 2
-        
+
         self.set_control_points([start, end])
-        
+
     @validate(Number())
     def set_rotation(self, rotation):
         """Set the rotation.
@@ -1693,18 +1693,18 @@ class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
             The new rotation, in degrees.
         """
         rotation = rotation + 360 % 360
-        
+
         cx, cy = self.center
-        
+
         rad = math.radians(rotation)
         dx = math.hypot(*self.size) * math.sin(rad)
         dy = math.hypot(*self.size) * -1 * math.cos(rad)
-        
+
         start = cx - dx / 2, cy - dy / 2
         end = cx + dx / 2, cy + dy / 2
-        
+
         self.set_control_points([start, end])
-            
+
     @validate(Point.SizePoint())
     def set_size(self, size):
         """Set the size.
@@ -1717,14 +1717,14 @@ class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
             The new width and height, in that order.
         """
         [size] = self.region_set._from_angular_sizes([size])
-        
+
         cx, cy = self.center
         dx, dy = size
-        
+
         start = cx - dx / 2, cy - dy / 2
         end = cx + dx / 2, cy + dy / 2
-        
-        self.set_control_points([end, start]) # reversed for consistency with returned size
+
+        self.set_control_points([end, start])  # reversed for consistency with returned size
 
     @validate(*all_optional(Boolean(), Number()))
     def set_auxiliary_lines_style(self, visible=None, dash_length=None):
