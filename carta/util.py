@@ -230,6 +230,9 @@ class Point:
         self.x = x
         self.y = y
 
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+
     @classmethod
     def is_pixel(cls, x, y):
         """Whether this is a pair of pixel values.
