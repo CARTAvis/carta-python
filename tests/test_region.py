@@ -1,11 +1,12 @@
 import pytest
 import inspect
+import math
 
 from carta.session import Session
 from carta.image import Image
 import carta.region  # For docstring inspection
 from carta.region import Region
-from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT
+from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF
 from carta.util import Point as Pt, Macro
 
 # FIXTURES
@@ -51,6 +52,16 @@ def mock_image_method(image, mocker):
     return func
 
 
+@pytest.fixture
+def mock_to_world(mock_image_method):
+    return mock_image_method("to_world_coordinate_points", lambda l: [(str(x), str(y)) for (x, y) in l])
+
+
+@pytest.fixture
+def mock_to_angular(mock_image_method):
+    return mock_image_method("to_angular_size_points", lambda l: [(str(x), str(y)) for (x, y) in l])
+
+
 # Regionset mocks
 
 
@@ -74,16 +85,28 @@ def mock_regionset_method(image, mocker):
     return func
 
 
+@pytest.fixture
+def mock_from_world(mock_regionset_method):
+    return mock_regionset_method("_from_world_coordinates", lambda l: [(int(x), int(y)) for (x, y) in l])
+
+
+@pytest.fixture
+def mock_from_angular(mock_regionset_method):
+    return mock_regionset_method("_from_angular_sizes", lambda l: [(int(x), int(y)) for (x, y) in l])
+
+
 # The region-specific mocks are all factories, so that they can be used to mock different region subclasses (specified by region type)
 
 
 @pytest.fixture
-def region(image):
+def region(mocker, image):
     """Return a factory for a new region object which uses the image fixture, specifying a class and/or ID.
     """
     def func(region_type=None, region_id=0):
         clazz = Region if region_type is None else Region.region_class(region_type)
-        return clazz(image.regions, region_id)
+        mocker.patch(f"carta.region.{clazz.__name__}.region_type", new_callable=mocker.PropertyMock, return_value=region_type)
+        reg = clazz(image.regions, region_id)
+        return reg
     return func
 
 
@@ -275,16 +298,13 @@ def test_regionset_add_region(mocker, image):
     ("add_ruler", [("10", "10"), ("20", "20")], {}, [RT.ANNRULER, [(10, 10), (20, 20)]], {"name": ""}),
     ("add_ruler", [(10, 10), (20, 20)], {"name": "my region"}, [RT.ANNRULER, [(10, 10), (20, 20)]], {"name": "my region"}),
 ])
-def test_regionset_add_region_with_type(mocker, image, mock_regionset_method, region, func, args, kwargs, expected_args, expected_kwargs):
+def test_regionset_add_region_with_type(mocker, image, mock_regionset_method, mock_from_world, mock_from_angular, region, func, args, kwargs, expected_args, expected_kwargs):
     mock_add_region = mock_regionset_method("add_region", None)
 
     if func == "add_text":
         text_annotation = region(region_type=RT.ANNTEXT)
         mock_add_region.return_value = text_annotation
         mock_set_text = mocker.patch.object(text_annotation, "set_text")
-
-    mock_regionset_method("_from_world_coordinates", lambda l: [(int(x), int(y)) for (x, y) in l])
-    mock_regionset_method("_from_angular_sizes", lambda l: [(int(x), int(y)) for (x, y) in l])
 
     getattr(image.regions, func)(*args, **kwargs)
 
@@ -305,8 +325,8 @@ def test_regionset_clear(mocker, image, mock_regionset_method, mock_method, regi
         m.assert_called_with()
 
 
-def test_region_type(region, mock_get_value):
-    reg = region()
+def test_region_type(image, mock_get_value):
+    reg = Region(image.regions, 0)  # Bypass the default to test the real region_type
     reg_mock_get_value = mock_get_value(reg, 3)
 
     region_type = reg.region_type
@@ -325,14 +345,13 @@ def test_center(region, mock_get_value):
     assert center == (20, 30)
 
 
-def test_wcs_center(region, mock_property, mock_image_method):
+def test_wcs_center(region, mock_property, mock_to_world):
     reg = region()
     mock_property(reg, "center", (20, 30))
-    mock_to_wcs = mock_image_method("to_world_coordinate_points", lambda l: [(str(x), str(y)) for (x, y) in l])
 
     wcs_center = reg.wcs_center
 
-    mock_to_wcs.assert_called_with([(20, 30)])
+    mock_to_world.assert_called_with([(20, 30)])
     assert wcs_center == ("20", "30")
 
 
@@ -357,13 +376,12 @@ def test_size(region, mock_get_value, region_type):
 
 
 @pytest.mark.parametrize("region_type", [t for t in RT])
-def test_wcs_size(region, mock_get_value, mock_property, mock_image_method, region_type):
+def test_wcs_size(region, mock_get_value, mock_property, mock_to_angular, region_type):
     reg = region(region_type)
 
     if region_type in (RT.ELLIPSE, RT.ANNELLIPSE):
         # Bypasses wcsSize to call own (overridden) size and converts to angular units
         mock_property(reg, "size", (20, 30))
-        mock_to_ang = mock_image_method("to_angular_size_points", lambda l: [(str(x), str(y)) for (x, y) in l])
     elif region_type in (RT.POINT, RT.ANNPOINT):
         # Simulate undefined size
         reg_mock_get_value = mock_get_value(reg, {"x": None, "y": None})
@@ -373,7 +391,7 @@ def test_wcs_size(region, mock_get_value, mock_property, mock_image_method, regi
     size = reg.wcs_size
 
     if region_type in (RT.ELLIPSE, RT.ANNELLIPSE):
-        mock_to_ang.assert_called_with([(20, 30)])
+        mock_to_angular.assert_called_with([(20, 30)])
         assert size == ("20", "30")
     elif region_type in (RT.POINT, RT.ANNPOINT):
         reg_mock_get_value.assert_called_with("wcsSize")
@@ -403,17 +421,14 @@ def test_simple_properties(region, mock_get_value, method_name, value_name):
     mock_value_getter.assert_called_with(value_name)
     assert value == "dummy"
 
-# Overridden behaviour for Ruler
-
 
 @pytest.mark.parametrize("region_type", [t for t in RT])
 @pytest.mark.parametrize("value,expected_value", [
     ((20, 30), Pt(20, 30)),
     (("20", "30"), Pt(20, 30)),
 ])
-def test_set_center(region, mock_regionset_method, mock_call_action, mock_method, mock_property, region_type, value, expected_value):
+def test_set_center(region, mock_from_world, mock_call_action, mock_method, mock_property, region_type, value, expected_value):
     reg = region(region_type)
-    mock_regionset_method("_from_world_coordinates", lambda l: [(int(x), int(y)) for (x, y) in l])
 
     if region_type == RT.ANNRULER:
         mock_property(reg, "size", (-10, -10))
@@ -435,7 +450,7 @@ def test_set_center(region, mock_regionset_method, mock_call_action, mock_method
     ((20, 30), Pt(20, 30)),
     (("20", "30"), Pt(20, 30)),
 ])
-def test_set_size(region, mock_regionset_method, mock_call_action, mock_method, mock_property, region_type, value, expected_value):
+def test_set_size(region, mock_from_angular, mock_call_action, mock_method, mock_property, region_type, value, expected_value):
     reg = region(region_type)
 
     if region_type == RT.ANNCOMPASS:
@@ -443,8 +458,6 @@ def test_set_size(region, mock_regionset_method, mock_call_action, mock_method, 
             reg.set_size(value)
         assert "Compass annotation width and height cannot be set individually" in str(e.value)
         return
-
-    mock_regionset_method("_from_angular_sizes", lambda l: [(int(x), int(y)) for (x, y) in l])
 
     if region_type == RT.ANNRULER:
         mock_set_points = mock_method(reg, "set_control_points", None)
@@ -538,3 +551,202 @@ def test_delete(region, mock_regionset_call_action):
     reg = region()
     reg.delete()
     mock_regionset_call_action.assert_called_with("deleteRegion", Macro("", f"{reg.region_set._base_path}.regionMap[{reg.region_id}]"))
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.RECTANGLE, RT.ANNRECTANGLE, RT.ELLIPSE, RT.ANNELLIPSE, RT.ANNTEXT, RT.ANNVECTOR, RT.ANNRULER})
+def test_rotation(region, mock_get_value, mock_property, region_type):
+    reg = region(region_type)
+
+    if region_type == RT.ANNRULER:
+        mock_property(reg, "endpoints", [(90, 110), (110, 90)])
+    else:
+        mock_rotation = mock_get_value(reg, "dummy")
+
+    value = reg.rotation
+
+    if region_type == RT.ANNRULER:
+        assert value == 45
+    else:
+        mock_rotation.assert_called_with("rotation")
+        assert value == "dummy"
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.RECTANGLE, RT.ANNRECTANGLE, RT.ELLIPSE, RT.ANNELLIPSE, RT.ANNTEXT, RT.ANNVECTOR, RT.ANNRULER})
+def test_set_rotation(region, mock_call_action, mock_method, mock_property, region_type):
+    reg = region(region_type)
+
+    if region_type == RT.ANNRULER:
+        mock_property(reg, "center", (100, 100))
+        mock_property(reg, "size", (20, 20))
+        mock_set_points = mock_method(reg, "set_control_points", None)
+    else:
+        mock_call = mock_call_action(reg)
+
+    reg.set_rotation(45)
+
+    if region_type == RT.ANNRULER:
+        mock_set_points.assert_called_with([(90, 110), (110, 90)])
+    else:
+        mock_call.assert_called_with("setRotation", 45)
+
+
+@pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})
+def test_vertices(region, mock_property, region_type):
+    reg = region(region_type)
+    mock_property(reg, "control_points", [(10, 10), (20, 30), (30, 20)])
+    vertices = reg.vertices
+    assert vertices == [(10, 10), (20, 30), (30, 20)]
+
+
+@pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})
+def test_wcs_vertices(region, mock_property, mock_to_world, region_type):
+    reg = region(region_type)
+    mock_property(reg, "control_points", [(10, 10), (20, 30), (30, 20)])
+    vertices = reg.wcs_vertices
+    assert vertices == [("10", "10"), ("20", "30"), ("30", "20")]
+
+
+@pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})
+@pytest.mark.parametrize("vertex", [(30, 40), ("30", "40")])
+def test_set_vertex(region, mock_method, mock_from_world, region_type, vertex):
+    reg = region(region_type)
+    mock_set_control_point = mock_method(reg, "set_control_point", None)
+    reg.set_vertex(1, vertex)
+    mock_set_control_point.assert_called_with(1, (30, 40))
+
+
+@pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})
+@pytest.mark.parametrize("vertices", [
+    [(10, 10), (20, 30), (30, 20)],
+    [("10", "10"), ("20", "30"), ("30", "20")],
+])
+def test_set_vertices(region, mock_method, mock_from_world, region_type, vertices):
+    reg = region(region_type)
+    mock_set_control_points = mock_method(reg, "set_control_points", None)
+    reg.set_vertices(vertices)
+    mock_set_control_points.assert_called_with([(10, 10), (20, 30), (30, 20)])
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
+def test_endpoints(region, mock_property, region_type):
+    reg = region(region_type)
+    mock_property(reg, "control_points", [(10, 10), (20, 30)])
+    endpoints = reg.endpoints
+    assert endpoints == [(10, 10), (20, 30)]
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
+def test_wcs_endpoints(region, mock_property, mock_to_world, region_type):
+    reg = region(region_type)
+    mock_property(reg, "control_points", [(10, 10), (20, 30)])
+    endpoints = reg.wcs_endpoints
+    assert endpoints == [("10", "10"), ("20", "30")]
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
+def test_length(region, mock_property, region_type):
+    reg = region(region_type)
+    mock_property(reg, "size", (30, 40))
+    length = reg.length
+    assert length == 50
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
+def test_wcs_length(region, mock_property, region_type):
+    reg = region(region_type)
+    mock_property(reg, "wcs_size", ("30", "40"))
+    length = reg.wcs_length
+    assert length == "50\""
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([(10, 10), (20, 30)], {}, [(0, (10, 10)), (1, (20, 30))]),
+    ([("10", "10"), ("20", "30")], {}, [(0, (10, 10)), (1, (20, 30))]),
+    ([(10, 10), ("20", "30")], {}, [(0, (10, 10)), (1, (20, 30))]),
+    ([], {"start": (10, 10)}, [(0, (10, 10))]),
+    ([], {"end": (20, 30)}, [(1, (20, 30))]),
+])
+def test_set_endpoints(mocker, region, mock_method, mock_from_world, region_type, args, kwargs, expected_calls):
+    reg = region(region_type)
+    mock_set_control_point = mock_method(reg, "set_control_point", None)
+    reg.set_endpoints(*args, **kwargs)
+    mock_set_control_point.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
+@pytest.mark.parametrize("length", [math.sqrt(800), str(math.sqrt(800))])
+def test_set_length(mocker, region, mock_property, region_type, length):
+    reg = region(region_type)
+
+    mock_property(reg, "length", 100)
+    mock_property(reg, "wcs_length", "100")
+    mock_property(reg, "rotation", 45)
+    mock_region_set_size = mocker.patch("carta.region.Region.set_size", autospec=True)
+
+    reg.set_length(length)
+
+    mock_region_set_size.assert_called()
+    r, (s1, s2) = mock_region_set_size.call_args.args
+    assert r == reg
+    assert math.isclose(s1, 20)
+    assert math.isclose(s2, -20)
+
+
+@pytest.mark.parametrize("region_type", {RT.ANNTEXT, RT.ANNCOMPASS, RT.ANNRULER})
+@pytest.mark.parametrize("method_name,value_name,mocked_value,expected_value", [
+    ("font_size", "fontSize", 20, 20),
+    ("font_style", "fontStyle", "Bold", AFS.BOLD),
+    ("font", "font", "Courier", AF.COURIER),
+])
+def test_font_properties(region, mock_get_value, region_type, method_name, value_name, mocked_value, expected_value):
+    reg = region(region_type)
+    mock_value_getter = mock_get_value(reg, mocked_value)
+    value = getattr(reg, method_name)
+    mock_value_getter.assert_called_with(value_name)
+    assert value == expected_value
+
+
+@pytest.mark.parametrize("region_type", {RT.ANNTEXT, RT.ANNCOMPASS, RT.ANNRULER})
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([AF.COURIER, 20, AFS.BOLD], {}, [("setFont", AF.COURIER), ("setFontSize", 20), ("setFontStyle", AFS.BOLD)]),
+    ([], {"font": AF.COURIER, "font_size": 20, "font_style": AFS.BOLD}, [("setFont", AF.COURIER), ("setFontSize", 20), ("setFontStyle", AFS.BOLD)]),
+    ([AF.COURIER], {"font_style": AFS.BOLD}, [("setFont", AF.COURIER), ("setFontStyle", AFS.BOLD)]),
+    ([], {"font_size": 20}, [("setFontSize", 20)]),
+])
+def test_set_font(mocker, region, mock_call_action, region_type, args, kwargs, expected_calls):
+    reg = region(region_type)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_font(*args, **kwargs)
+    mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+
+@pytest.mark.parametrize("region_type", {RT.ANNVECTOR, RT.ANNCOMPASS})
+@pytest.mark.parametrize("method_name,value_name", [
+    ("pointer_width", "pointerWidth"),
+    ("pointer_length", "pointerLength"),
+])
+def test_pointer_properties(region, mock_get_value, region_type, method_name, value_name):
+    reg = region(region_type)
+    mock_value_getter = mock_get_value(reg, "dummy")
+    value = getattr(reg, method_name)
+    mock_value_getter.assert_called_with(value_name)
+    assert value == "dummy"
+
+
+@pytest.mark.parametrize("region_type", {RT.ANNVECTOR, RT.ANNCOMPASS})
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([2, 20], {}, [("setPointerWidth", 2), ("setPointerLength", 20)]),
+    ([], {"pointer_length": 20}, [("setPointerLength", 20)]),
+])
+def test_set_pointer_style(mocker, region, mock_call_action, region_type, args, kwargs, expected_calls):
+    reg = region(region_type)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_pointer_style(*args, **kwargs)
+    mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+
+# TODO separate length tests for compass annotation

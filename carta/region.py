@@ -829,7 +829,7 @@ class Region(BasePathMixin):
 
 
 class HasRotationMixin:
-    """This is a mixin class for regions which can be rotated."""
+    """This is a mixin class for regions which can be rotated natively."""
 
     # GET PROPERTIES
 
@@ -1004,7 +1004,7 @@ class HasEndpointsMixin:
             The new length, in pixels or angular size units.
         """
         if isinstance(length, str):
-            length = self.length * AngularSize.from_string(length).arcsec / self.wcs_length
+            length = self.length * AngularSize.from_string(length).arcsec / AngularSize.from_string(self.wcs_length).arcsec
 
         rad = math.radians(self.rotation)
 
@@ -1651,7 +1651,7 @@ class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
             The rotation.
         """
         ((sx, sy), (ex, ey)) = self.endpoints
-        rad = math.atan((ex - sx) / (sy - ey))
+        rad = math.atan2(ex - sx, sy - ey)
         rotation = math.degrees(rad)
         if ey > sy:
             rotation += 180
