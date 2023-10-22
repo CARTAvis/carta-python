@@ -1008,7 +1008,7 @@ class HasEndpointsMixin:
 
         rad = math.radians(self.rotation)
 
-        Region.set_size(self, (length * math.sin(rad), -1 * length * math.cos(rad)))
+        super().set_size((length * math.sin(rad), -1 * length * math.cos(rad)))
 
 
 class HasFontMixin:
@@ -1123,7 +1123,7 @@ class HasPointerMixin:
             self.call_action("setPointerLength", pointer_length)
 
 
-class LineRegion(Region, HasEndpointsMixin, HasRotationMixin):
+class LineRegion(HasEndpointsMixin, HasRotationMixin, Region):
     """A line region or annotation."""
     REGION_TYPES = (RegionType.LINE, RegionType.ANNLINE)
 
@@ -1140,20 +1140,20 @@ class LineRegion(Region, HasEndpointsMixin, HasRotationMixin):
         """
         [size] = self.region_set._from_angular_sizes([size])
         sx, sy = size
-        Region.set_size(self, (-sx, -sy))  # negated for consistency with returned size
+        super().set_size((-sx, -sy))  # negated for consistency with returned size
 
 
-class PolylineRegion(Region, HasVerticesMixin):
+class PolylineRegion(HasVerticesMixin, Region):
     """A polyline region or annotation."""
     REGION_TYPES = (RegionType.POLYLINE, RegionType.ANNPOLYLINE)
 
 
-class PolygonRegion(Region, HasVerticesMixin):
+class PolygonRegion(HasVerticesMixin, Region):
     """A polygonal region or annotation."""
     REGION_TYPES = (RegionType.POLYGON, RegionType.ANNPOLYGON)
 
 
-class RectangularRegion(Region, HasRotationMixin):
+class RectangularRegion(HasRotationMixin, Region):
     """A rectangular region or annotation."""
     REGION_TYPES = (RegionType.RECTANGLE, RegionType.ANNRECTANGLE)
 
@@ -1203,6 +1203,9 @@ class RectangularRegion(Region, HasRotationMixin):
         top_right : {1}
             The new top-right corner position, in image or world coordinates.
         """
+        if bottom_left is None and top_right is None:
+            return
+
         if bottom_left is None or top_right is None:
             current_bottom_left, current_top_right = self.corners
 
@@ -1225,7 +1228,7 @@ class RectangularRegion(Region, HasRotationMixin):
         self.set_control_points([center, size.as_tuple()])
 
 
-class EllipticalRegion(Region, HasRotationMixin):
+class EllipticalRegion(HasRotationMixin, Region):
     """An elliptical region or annotation."""
     REGION_TYPES = (RegionType.ELLIPSE, RegionType.ANNELLIPSE)
 
@@ -1376,7 +1379,7 @@ class PointAnnotation(Region):
             self.call_action("setPointWidth", point_width)
 
 
-class TextAnnotation(Region, HasFontMixin, HasRotationMixin):
+class TextAnnotation(HasFontMixin, HasRotationMixin, Region):
     """A text annotation."""
     REGION_TYPE = RegionType.ANNTEXT
 
@@ -1429,7 +1432,7 @@ class TextAnnotation(Region, HasFontMixin, HasRotationMixin):
         self.call_action("setPosition", text_position)
 
 
-class VectorAnnotation(Region, HasPointerMixin, HasEndpointsMixin, HasRotationMixin):
+class VectorAnnotation(HasPointerMixin, HasEndpointsMixin, HasRotationMixin, Region):
     """A vector annotation."""
     REGION_TYPE = RegionType.ANNVECTOR
 
@@ -1446,10 +1449,10 @@ class VectorAnnotation(Region, HasPointerMixin, HasEndpointsMixin, HasRotationMi
         """
         [size] = self.region_set._from_angular_sizes([size])
         sx, sy = size
-        Region.set_size(self, (-sx, -sy))  # negated for consistency with returned size
+        super().set_size((-sx, -sy))  # negated for consistency with returned size
 
 
-class CompassAnnotation(Region, HasFontMixin, HasPointerMixin):
+class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
     """A compass annotation."""
     REGION_TYPE = RegionType.ANNCOMPASS
 
@@ -1600,7 +1603,7 @@ class CompassAnnotation(Region, HasFontMixin, HasPointerMixin):
             self.call_action("setEastArrowhead", east)
 
 
-class RulerAnnotation(Region, HasFontMixin, HasEndpointsMixin):
+class RulerAnnotation(HasFontMixin, HasEndpointsMixin, Region):
     """A ruler annotation."""
     REGION_TYPE = RegionType.ANNRULER
 

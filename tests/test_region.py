@@ -335,8 +335,9 @@ def test_region_type(image, mock_get_value):
     assert region_type == RT.RECTANGLE
 
 
-def test_center(region, mock_get_value):
-    reg = region()
+@pytest.mark.parametrize("region_type", [t for t in RT])
+def test_center(region, mock_get_value, region_type):
+    reg = region(region_type)
     reg_mock_get_value = mock_get_value(reg, {"x": 20, "y": 30})
 
     center = reg.center
@@ -345,8 +346,9 @@ def test_center(region, mock_get_value):
     assert center == (20, 30)
 
 
-def test_wcs_center(region, mock_property, mock_to_world):
-    reg = region()
+@pytest.mark.parametrize("region_type", [t for t in RT])
+def test_wcs_center(region, mock_property, mock_to_world, region_type):
+    reg = region(region_type)
     mock_property(reg, "center", (20, 30))
 
     wcs_center = reg.wcs_center
@@ -683,13 +685,12 @@ def test_set_length(mocker, region, mock_property, region_type, length):
     mock_property(reg, "length", 100)
     mock_property(reg, "wcs_length", "100")
     mock_property(reg, "rotation", 45)
-    mock_region_set_size = mocker.patch("carta.region.Region.set_size", autospec=True)
+    mock_region_set_size = mocker.patch.object(Region, "set_size")
 
     reg.set_length(length)
 
     mock_region_set_size.assert_called()
-    r, (s1, s2) = mock_region_set_size.call_args.args
-    assert r == reg
+    (s1, s2), = mock_region_set_size.call_args.args
     assert math.isclose(s1, 20)
     assert math.isclose(s2, -20)
 
@@ -747,6 +748,80 @@ def test_set_pointer_style(mocker, region, mock_call_action, region_type, args, 
     mock_action_caller = mock_call_action(reg)
     reg.set_pointer_style(*args, **kwargs)
     mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+
+@pytest.mark.parametrize("region_type", {RT.RECTANGLE, RT.ANNRECTANGLE})
+def test_corners(region, mock_property, region_type):
+    reg = region(region_type)
+    mock_property(reg, "center", (100, 200))
+    mock_property(reg, "size", (30, 40))
+
+    bottom_left, top_right = reg.corners
+
+    assert bottom_left == (85, 180)
+    assert top_right == (115, 220)
+
+
+@pytest.mark.parametrize("region_type", {RT.RECTANGLE, RT.ANNRECTANGLE})
+def test_wcs_corners(region, mock_property, mock_to_world, region_type):
+    reg = region(region_type)
+    mock_property(reg, "corners", [(85, 180), (115, 220)])
+
+    bottom_left, top_right = reg.wcs_corners
+
+    assert bottom_left == ("85", "180")
+    assert top_right == ("115", "220")
+
+
+@pytest.mark.parametrize("region_type", {RT.RECTANGLE, RT.ANNRECTANGLE})
+@pytest.mark.parametrize("args,kwargs,expected_args", [
+    ([], {}, None),
+    ([(75, 170), (135, 240)], {}, [(105.0, 205.0), (60, 70)]),
+    ([(75, 170)], {}, [(95.0, 195.0), (40, 50)]),
+    ([], {"top_right": (135, 240)}, [(110.0, 210.0), (50, 60)]),
+])
+def test_set_corners(region, mock_method, mock_property, mock_from_world, region_type, args, kwargs, expected_args):
+    reg = region(region_type)
+    mock_property(reg, "corners", [(85, 180), (115, 220)])
+    mock_set_control_points = mock_method(reg, "set_control_points", None)
+
+    reg.set_corners(*args, **kwargs)
+
+    if expected_args is None:
+        mock_set_control_points.assert_not_called()
+    else:
+        mock_set_control_points.assert_called_with(expected_args)
+
+
+@pytest.mark.parametrize("region_type", {RT.ELLIPSE, RT.ANNELLIPSE})
+def test_semi_axes(mocker, region, region_type):
+    reg = region(region_type)
+    mocker.patch("carta.region.Region.size", new_callable=mocker.PropertyMock, return_value=(20, 30))
+
+    semi_axes = reg.semi_axes
+
+    assert semi_axes == (20, 30)
+
+
+@pytest.mark.parametrize("region_type", {RT.ELLIPSE, RT.ANNELLIPSE})
+def test_wcs_semi_axes(mocker, region, region_type):
+    reg = region(region_type)
+    mocker.patch("carta.region.Region.wcs_size", new_callable=mocker.PropertyMock, return_value=("20", "30"))
+
+    semi_axes = reg.wcs_semi_axes
+
+    assert semi_axes == ("20", "30")
+
+
+@pytest.mark.parametrize("region_type", {RT.ELLIPSE, RT.ANNELLIPSE})
+@pytest.mark.parametrize("semi_axes", [(20, 30), ("20", "30")])
+def test_set_semi_axes(mocker, region, mock_from_angular, region_type, semi_axes):
+    reg = region(region_type)
+    mock_region_set_size = mocker.patch.object(Region, "set_size")
+
+    reg.set_semi_axes(semi_axes)
+
+    mock_region_set_size.assert_called_with((20, 30))
 
 
 # TODO separate length tests for compass annotation
