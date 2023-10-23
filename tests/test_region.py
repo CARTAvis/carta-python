@@ -6,7 +6,7 @@ from carta.session import Session
 from carta.image import Image
 import carta.region  # For docstring inspection
 from carta.region import Region
-from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF
+from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF, PointShape as PS
 from carta.util import Point as Pt, Macro
 
 # FIXTURES
@@ -822,6 +822,31 @@ def test_set_semi_axes(mocker, region, mock_from_angular, region_type, semi_axes
     reg.set_semi_axes(semi_axes)
 
     mock_region_set_size.assert_called_with((20, 30))
+
+
+@pytest.mark.parametrize("method_name,value_name,mocked_value,expected_value", [
+    ("point_shape", "pointShape", 2, PS.CIRCLE),
+    ("point_width", "pointWidth", 5, 5),
+])
+def test_point_properties(region, mock_get_value, method_name, value_name, mocked_value, expected_value):
+    reg = region(RT.ANNPOINT)
+    mock_value_getter = mock_get_value(reg, mocked_value)
+    value = getattr(reg, method_name)
+    mock_value_getter.assert_called_with(value_name)
+    assert value == expected_value
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([PS.CIRCLE, 5], {}, [("setPointShape", PS.CIRCLE), ("setPointWidth", 5)]),
+    ([], {"point_shape": PS.CIRCLE}, [("setPointShape", PS.CIRCLE)]),
+    ([], {"point_width": 5}, [("setPointWidth", 5)]),
+])
+def test_set_point_style(mocker, region, mock_call_action, args, kwargs, expected_calls):
+    reg = region(RT.ANNPOINT)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_point_style(*args, **kwargs)
+    mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
 
 
 # TODO separate length tests for compass annotation

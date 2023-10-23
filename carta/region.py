@@ -1361,7 +1361,7 @@ class PointAnnotation(Region):
     # SET PROPERTIES
 
     @validate(*all_optional(Constant(PointShape), Number()))
-    def set_point_style(self, point_shape, point_width):
+    def set_point_style(self, point_shape=None, point_width=None):
         """Set the point style.
 
         All parameters are optional. Omitted properties will be left unmodified.
