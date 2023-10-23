@@ -242,6 +242,26 @@ def test_angular_size_from_string_all_invalid(size):
     assert "not in a recognized angular size format" in str(e.value)
 
 
+@pytest.mark.parametrize("val,norm", [
+    (10800, "3deg"),
+    (6000, "100'"),
+    (100, "100\""),
+    (0.001, "0.001\""),
+])
+def test_angular_size_from_arcsec(val, norm):
+    assert str(AngularSize.from_arcsec(val)) == norm
+
+
+@pytest.mark.parametrize("size,val", [
+    ("3deg", 10800),
+    ("100'", 6000),
+    ("100\"", 100),
+    ("1mas", 0.001),
+])
+def test_angular_size_arcsec(size, val):
+    assert AngularSize.from_string(size).arcsec == val
+
+
 @pytest.mark.parametrize("coord,valid", [
     ("0deg", True),
     ("123 degrees", True),
