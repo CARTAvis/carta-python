@@ -6,7 +6,7 @@ from carta.session import Session
 from carta.image import Image
 import carta.region  # For docstring inspection
 from carta.region import Region
-from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF, PointShape as PS
+from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF, PointShape as PS, TextPosition as TP, SpatialAxis as SA
 from carta.util import Point as Pt, Macro
 
 # FIXTURES
@@ -455,12 +455,6 @@ def test_set_center(region, mock_from_world, mock_call_action, mock_method, mock
 def test_set_size(region, mock_from_angular, mock_call_action, mock_method, mock_property, region_type, value, expected_value):
     reg = region(region_type)
 
-    if region_type == RT.ANNCOMPASS:
-        with pytest.raises(NotImplementedError) as e:
-            reg.set_size(value)
-        assert "Compass annotation width and height cannot be set individually" in str(e.value)
-        return
-
     if region_type == RT.ANNRULER:
         mock_set_points = mock_method(reg, "set_control_points", None)
         mock_property(reg, "center", (10, 10))
@@ -471,6 +465,8 @@ def test_set_size(region, mock_from_angular, mock_call_action, mock_method, mock
 
     if region_type == RT.ANNRULER:
         mock_set_points.assert_called_with([(20.0, 25.0), (0.0, -5.0)])
+    elif region_type == RT.ANNCOMPASS:
+        mock_call.assert_called_with("setLength", min(expected_value.x, expected_value.y))
     elif region_type in {RT.LINE, RT.ANNLINE, RT.ANNVECTOR}:
         mock_call.assert_called_with("setSize", Pt(- expected_value.x, - expected_value.y))
     elif region_type in {RT.ELLIPSE, RT.ANNELLIPSE}:
@@ -849,4 +845,141 @@ def test_set_point_style(mocker, region, mock_call_action, args, kwargs, expecte
     mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
 
 
-# TODO separate length tests for compass annotation
+@pytest.mark.parametrize("method_name,value_name,mocked_value,expected_value", [
+    ("text", "text", "my text", "my text"),
+    ("position", "position", 3, TP.LOWER_LEFT),
+])
+def test_text_properties(region, mock_get_value, method_name, value_name, mocked_value, expected_value):
+    reg = region(RT.ANNTEXT)
+    mock_value_getter = mock_get_value(reg, mocked_value)
+    value = getattr(reg, method_name)
+    mock_value_getter.assert_called_with(value_name)
+    assert value == expected_value
+
+
+def test_set_text(region, mock_call_action):
+    reg = region(RT.ANNTEXT)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_text("my text")
+    mock_action_caller.assert_called_with("setText", "my text")
+
+
+def test_set_text_position(region, mock_call_action):
+    reg = region(RT.ANNTEXT)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_text_position(TP.LOWER_LEFT)
+    mock_action_caller.assert_called_with("setPosition", TP.LOWER_LEFT)
+
+
+@pytest.mark.parametrize("method_name,value_names,mocked_values,expected_value", [
+    ("labels", ["northLabel", "eastLabel"], ["N", "E"], ("N", "E")),
+    ("point_length", ["length"], [100], 100),
+    ("label_offsets", ["northTextOffset", "eastTextOffset"], [{"x": 1, "y": 2}, {"x": 3, "y": 4}], ((1, 2), (3, 4))),
+    ("arrowheads_visible", ["northArrowhead", "eastArrowhead"], [True, False], (True, False)),
+])
+def test_compass_properties(region, mocker, method_name, value_names, mocked_values, expected_value):
+    reg = region(RT.ANNCOMPASS)
+    mock_value_getter = mocker.patch.object(reg, "get_value", side_effect=mocked_values)
+    value = getattr(reg, method_name)
+    mock_value_getter.assert_has_calls([mocker.call(name) for name in value_names])
+    assert value == expected_value
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    (["N", "E"], {}, [("setLabel", "N", True), ("setLabel", "E", False),]),
+    (["N"], {}, [("setLabel", "N", True)]),
+    ([], {"east_label": "E"}, [("setLabel", "E", False)]),
+])
+def test_set_label(mocker, region, mock_call_action, args, kwargs, expected_calls):
+    reg = region(RT.ANNCOMPASS)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_label(*args, **kwargs)
+    mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls,error_contains", [
+    ([100], {}, [("setLength", 100)], None),
+    (["100", SA.X], {}, [("setLength", 100)], None),
+    (["100"], {"spatial_axis": SA.X}, [("setLength", 100)], None),
+    (["100"], {}, [], "Please specify a spatial axis"),
+])
+def test_set_point_length(mocker, region, mock_call_action, mock_image_method, args, kwargs, expected_calls, error_contains):
+    reg = region(RT.ANNCOMPASS)
+    mock_action_caller = mock_call_action(reg)
+    mock_image_method("from_angular_size", [100])
+
+    if error_contains is None:
+        reg.set_point_length(*args, **kwargs)
+        mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+    else:
+        with pytest.raises(ValueError) as e:
+            reg.set_point_length(*args, **kwargs)
+        assert error_contains in str(e.value)
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([(1, 2), (3, 4)], {}, [("setNorthTextOffset", 1, True), ("setNorthTextOffset", 2, False), ("setEastTextOffset", 3, True), ("setEastTextOffset", 4, False)]),
+    ([(1, 2)], {}, [("setNorthTextOffset", 1, True), ("setNorthTextOffset", 2, False)]),
+    ([], {"east_offset": (3, 4)}, [("setEastTextOffset", 3, True), ("setEastTextOffset", 4, False)]),
+])
+def test_set_label_offset(mocker, region, mock_call_action, args, kwargs, expected_calls):
+    reg = region(RT.ANNCOMPASS)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_label_offset(*args, **kwargs)
+    mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([True, False], {}, [("setNorthArrowhead", True), ("setEastArrowhead", False)]),
+    ([True], {}, [("setNorthArrowhead", True)]),
+    ([], {"east": False}, [("setEastArrowhead", False)]),
+])
+def test_set_arrowhead_visible(mocker, region, mock_call_action, args, kwargs, expected_calls):
+    reg = region(RT.ANNCOMPASS)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_arrowhead_visible(*args, **kwargs)
+    mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+
+@pytest.mark.parametrize("method_name,value_name,mocked_value,expected_value", [
+    ("auxiliary_lines_visible", "auxiliaryLineVisible", True, True),
+    ("auxiliary_lines_dash_length", "auxiliaryLineDashLength", 5, 5),
+    ("text_offset", "textOffset", {"x": 1, "y": 2}, (1, 2)),
+])
+def test_ruler_properties(region, mock_get_value, method_name, value_name, mocked_value, expected_value):
+    reg = region(RT.ANNRULER)
+    mock_value_getter = mock_get_value(reg, mocked_value)
+    value = getattr(reg, method_name)
+    mock_value_getter.assert_called_with(value_name)
+    assert value == expected_value
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([True, 5], {}, [("setAuxiliaryLineVisible", True), ("setAuxiliaryLineDashLength", 5)]),
+    ([True], {}, [("setAuxiliaryLineVisible", True)]),
+    ([], {"dash_length": 5}, [("setAuxiliaryLineDashLength", 5)]),
+])
+def test_set_auxiliary_lines_style(mocker, region, mock_call_action, args, kwargs, expected_calls):
+    reg = region(RT.ANNRULER)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_auxiliary_lines_style(*args, **kwargs)
+    mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([1, 2], {}, [("setTextOffset", 1, True), ("setTextOffset", 2, False)]),
+    ([1], {}, [("setTextOffset", 1, True)]),
+    ([], {"offset_y": 2}, [("setTextOffset", 2, False)]),
+])
+def test_set_text_offset(mocker, region, mock_call_action, args, kwargs, expected_calls):
+    reg = region(RT.ANNRULER)
+    mock_action_caller = mock_call_action(reg)
+    reg.set_text_offset(*args, **kwargs)
+    mock_action_caller.assert_has_calls([mocker.call(*c) for c in expected_calls])
+
+# TODO n.b. move default endpoint length method into mixin

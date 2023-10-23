@@ -972,6 +972,21 @@ class HasEndpointsMixin:
 
     # SET PROPERTIES
 
+    @validate(Point.SizePoint())
+    def set_size(self, size):
+        """Set the size.
+
+        Both pixel and angular sizes are accepted, but both values must match.
+
+        Parameters
+        ----------
+        size : {0}
+            The new width and height, in that order.
+        """
+        [size] = self.region_set._from_angular_sizes([size])
+        sx, sy = size
+        super().set_size((-sx, -sy))  # negated for consistency with returned size
+
     @validate(*all_optional(Point.CoordinatePoint(), Point.CoordinatePoint()))
     def set_endpoints(self, start=None, end=None):
         """Update the endpoints.
@@ -1126,21 +1141,6 @@ class HasPointerMixin:
 class LineRegion(HasEndpointsMixin, HasRotationMixin, Region):
     """A line region or annotation."""
     REGION_TYPES = (RegionType.LINE, RegionType.ANNLINE)
-
-    @validate(Point.SizePoint())
-    def set_size(self, size):
-        """Set the size.
-
-        Both pixel and angular sizes are accepted, but both values must match.
-
-        Parameters
-        ----------
-        size : {0}
-            The new width and height, in that order.
-        """
-        [size] = self.region_set._from_angular_sizes([size])
-        sx, sy = size
-        super().set_size((-sx, -sy))  # negated for consistency with returned size
 
 
 class PolylineRegion(HasVerticesMixin, Region):
@@ -1436,21 +1436,6 @@ class VectorAnnotation(HasPointerMixin, HasEndpointsMixin, HasRotationMixin, Reg
     """A vector annotation."""
     REGION_TYPE = RegionType.ANNVECTOR
 
-    @validate(Point.SizePoint())
-    def set_size(self, size):
-        """Set the size.
-
-        Both pixel and angular sizes are accepted, but both values must match.
-
-        Parameters
-        ----------
-        size : {0}
-            The new width and height, in that order.
-        """
-        [size] = self.region_set._from_angular_sizes([size])
-        sx, sy = size
-        super().set_size((-sx, -sy))  # negated for consistency with returned size
-
 
 class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
     """A compass annotation."""
@@ -1472,7 +1457,7 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
         return self.get_value("northLabel"), self.get_value("eastLabel")
 
     @property
-    def length(self):
+    def point_length(self):
         """The length of the compass points, in pixels.
 
         Returns
@@ -1510,17 +1495,23 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
 
     # SET PROPERTIES
 
+    @validate(Point.SizePoint())
     def set_size(self, size):
         """Set the size.
 
-        The width and height of this annotation cannot be set individually. :obj:`carta.region.CompassAnnotation.set_length` should be used instead.
+        Both pixel and angular sizes are accepted, but both values must match.
 
-        Raises
-        ------
-        NotImplementedError
-            If this function is called.
+        The width and height of this annotation cannot be set independently. If two different values are provided, the smaller value will be used (after conversion to pixel units).
+
+        This function is provided for compatibility. Also see :obj:`carta.region.CompassAnnotation.set_point_length` for a more convenient way to resize this annotation.
+
+        Parameters
+        ----------
+        size : {0}
+            The new size.
         """
-        raise NotImplementedError("Compass annotation width and height cannot be set individually. Please use `set_length` to resize this annotation.")
+        [size] = self.region_set._from_angular_sizes([size])
+        self.call_action("setLength", min(*size))
 
     @validate(*all_optional(String(), String()))
     def set_label(self, north_label=None, east_label=None):
@@ -1541,7 +1532,7 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
             self.call_action("setLabel", east_label, False)
 
     @validate(Size(), NoneOr(Constant(SpatialAxis)))
-    def set_length(self, length, spatial_axis=None):
+    def set_point_length(self, length, spatial_axis=None):
         """Set the length of the compass points.
 
         If the length is provided in angular size units, a spatial axis must also be provided in order for the angular size to be converted to pixels.
@@ -1578,9 +1569,11 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
             The east label offset, in pixels.
         """
         if north_offset is not None:
+            north_offset = Pt(*north_offset)
             self.call_action("setNorthTextOffset", north_offset.x, True)
             self.call_action("setNorthTextOffset", north_offset.y, False)
         if east_offset is not None:
+            east_offset = Pt(*east_offset)
             self.call_action("setEastTextOffset", east_offset.x, True)
             self.call_action("setEastTextOffset", east_offset.y, False)
 
@@ -1642,7 +1635,7 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, Region):
         number
             The Y offset of the text, in pixels.
         """
-        return Pt(*self.get_value("textOffset")).as_tuple()
+        return Pt(**self.get_value("textOffset")).as_tuple()
 
     @property
     def rotation(self):
