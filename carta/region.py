@@ -459,17 +459,14 @@ class Region(BasePathMixin):
         The session object associated with this region.
     """
 
-    REGION_TYPE = None
     CUSTOM_CLASS = {}
+    """Mapping of :obj:`carta.constants.RegionType` types to region and annotation classes. This mapping is used to select the appropriate subclass when a region or annotation object is constructed in the wrapper."""
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        if cls.REGION_TYPE is not None:
-            Region.CUSTOM_CLASS[cls.REGION_TYPE] = cls
-        elif cls.REGION_TYPES is not None:
-            for t in cls.REGION_TYPES:
-                Region.CUSTOM_CLASS[t] = cls
+        for t in cls.REGION_TYPES:
+            Region.CUSTOM_CLASS[t] = cls
 
     def __init__(self, region_set, region_id):
         self.region_set = region_set
@@ -1141,21 +1138,25 @@ class HasPointerMixin:
 class LineRegion(HasEndpointsMixin, HasRotationMixin, Region):
     """A line region or annotation."""
     REGION_TYPES = (RegionType.LINE, RegionType.ANNLINE)
+    """The region types corresponding to this class."""
 
 
 class PolylineRegion(HasVerticesMixin, Region):
     """A polyline region or annotation."""
     REGION_TYPES = (RegionType.POLYLINE, RegionType.ANNPOLYLINE)
+    """The region types corresponding to this class."""
 
 
 class PolygonRegion(HasVerticesMixin, Region):
     """A polygonal region or annotation."""
     REGION_TYPES = (RegionType.POLYGON, RegionType.ANNPOLYGON)
+    """The region types corresponding to this class."""
 
 
 class RectangularRegion(HasRotationMixin, Region):
     """A rectangular region or annotation."""
     REGION_TYPES = (RegionType.RECTANGLE, RegionType.ANNRECTANGLE)
+    """The region types corresponding to this class."""
 
     # GET PROPERTIES
 
@@ -1231,6 +1232,7 @@ class RectangularRegion(HasRotationMixin, Region):
 class EllipticalRegion(HasRotationMixin, Region):
     """An elliptical region or annotation."""
     REGION_TYPES = (RegionType.ELLIPSE, RegionType.ANNELLIPSE)
+    """The region types corresponding to this class."""
 
     # GET PROPERTIES
 
@@ -1332,7 +1334,8 @@ class EllipticalRegion(HasRotationMixin, Region):
 
 class PointAnnotation(Region):
     """A point annotation."""
-    REGION_TYPE = RegionType.ANNPOINT
+    REGION_TYPES = (RegionType.ANNPOINT,)
+    """The region types corresponding to this class."""
 
     # GET PROPERTIES
 
@@ -1381,7 +1384,8 @@ class PointAnnotation(Region):
 
 class TextAnnotation(HasFontMixin, HasRotationMixin, Region):
     """A text annotation."""
-    REGION_TYPE = RegionType.ANNTEXT
+    REGION_TYPES = (RegionType.ANNTEXT,)
+    """The region types corresponding to this class."""
 
     # GET PROPERTIES
 
@@ -1434,12 +1438,14 @@ class TextAnnotation(HasFontMixin, HasRotationMixin, Region):
 
 class VectorAnnotation(HasPointerMixin, HasEndpointsMixin, HasRotationMixin, Region):
     """A vector annotation."""
-    REGION_TYPE = RegionType.ANNVECTOR
+    REGION_TYPES = (RegionType.ANNVECTOR,)
+    """The region types corresponding to this class."""
 
 
 class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
     """A compass annotation."""
-    REGION_TYPE = RegionType.ANNCOMPASS
+    REGION_TYPES = (RegionType.ANNCOMPASS,)
+    """The region types corresponding to this class."""
 
     # GET PROPERTIES
 
@@ -1598,7 +1604,8 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
 
 class RulerAnnotation(HasFontMixin, HasEndpointsMixin, Region):
     """A ruler annotation."""
-    REGION_TYPE = RegionType.ANNRULER
+    REGION_TYPES = (RegionType.ANNRULER,)
+    """The region types corresponding to this class."""
 
     # GET PROPERTIES
 

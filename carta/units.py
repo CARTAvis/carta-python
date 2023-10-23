@@ -14,7 +14,13 @@ class AngularSize:
     Child class instances have a string representation in a normalized format which can be parsed by the frontend.
     """
     FORMATS = {}
+    """A mapping of units to angular size subclasses."""
     NAME = "angular size"
+    """A descriptive name."""
+    SYMBOL_UNIT_REGEX = ""
+    """All recognised input units which are a single character long."""
+    WORD_UNIT_REGEX = ""
+    """All recognised input units which are multiple characters long."""
 
     def __init__(self, value):
         self.value = value
@@ -146,53 +152,80 @@ class AngularSize:
 class DegreesSize(AngularSize):
     """An angular size in degrees."""
     NAME = "degree"
+    """A descriptive name."""
     INPUT_UNITS = {"deg", "degree", "degrees"}
+    """All recognised input unit strings."""
     OUTPUT_UNIT = "deg"
+    """The canonical output unit string."""
     FACTOR = 1
+    """The scaling factor to use when representing the value using the output unit."""
     ARCSEC_FACTOR = 3600
+    """The scaling factor to use when converting the value to arcseconds."""
 
 
 class ArcminSize(AngularSize):
     """An angular size in arcminutes."""
     NAME = "arcminute"
+    """A descriptive name."""
     INPUT_UNITS = {"'", "arcminutes", "arcminute", "arcmin", "amin", "′"}
+    """All recognised input unit strings."""
     OUTPUT_UNIT = "'"
+    """The canonical output unit string."""
     FACTOR = 1
+    """The scaling factor to use when representing the value using the output unit."""
     ARCSEC_FACTOR = 60
+    """The scaling factor to use when converting the value to arcseconds."""
 
 
 class ArcsecSize(AngularSize):
     """An angular size in arcseconds."""
     NAME = "arcsecond"
+    """A descriptive name."""
     INPUT_UNITS = {"\"", "", "arcseconds", "arcsecond", "arcsec", "asec", "″"}
+    """All recognised input unit strings."""
     OUTPUT_UNIT = "\""
+    """The canonical output unit string."""
     FACTOR = 1
+    """The scaling factor to use when representing the value using the output unit."""
     ARCSEC_FACTOR = FACTOR
+    """The scaling factor to use when converting the value to arcseconds."""
 
 
 class MilliarcsecSize(AngularSize):
     """An angular size in milliarcseconds."""
     NAME = "milliarcsecond"
+    """A descriptive name."""
     INPUT_UNITS = {"milliarcseconds", "milliarcsecond", "milliarcsec", "mas"}
+    """All recognised input unit strings."""
     OUTPUT_UNIT = "\""
+    """The canonical output unit string."""
     FACTOR = 1e-3
+    """The scaling factor to use when representing the value using the output unit."""
     ARCSEC_FACTOR = FACTOR
+    """The scaling factor to use when converting the value to arcseconds."""
 
 
 class MicroarcsecSize(AngularSize):
     """An angular size in microarcseconds."""
     NAME = "microarcsecond"
+    """A descriptive name."""
     INPUT_UNITS = {"microarcseconds", "microarcsecond", "microarcsec", "µas", "uas"}
+    """All recognised input unit strings."""
     OUTPUT_UNIT = "\""
+    """The canonical output unit string."""
     FACTOR = 1e-6
+    """The scaling factor to use when representing the value using the output unit."""
     ARCSEC_FACTOR = FACTOR
+    """The scaling factor to use when converting the value to arcseconds."""
 
 
 class WorldCoordinate:
     """A world coordinate."""
 
     FMT = None
+    """The number format."""
     FORMATS = {}
+    """A mapping of number formats to world coordinate subclasses."""
 
     def __init_subclass__(cls, **kwargs):
         """Automatically register subclasses corresponding to number formats."""
@@ -251,11 +284,14 @@ class WorldCoordinate:
 class DegreesCoordinate(WorldCoordinate):
     """A world coordinate in decimal degree format."""
     FMT = NumberFormat.DEGREES
+    """The number format."""
     DEGREE_UNITS = DegreesSize.INPUT_UNITS
+    """All recognised degree units."""
     REGEX = {
         "DEGREE_UNIT": rf"^-?(\d+(?:\.\d+)?)\s*({'|'.join(DEGREE_UNITS)})$",
         "DECIMAL": r"^-?\d+(\.\d+)?$",
     }
+    """All recognised input string formats."""
 
     @classmethod
     def from_string(cls, value, axis):
@@ -353,11 +389,13 @@ class SexagesimalCoordinate(WorldCoordinate):
 class HMSCoordinate(SexagesimalCoordinate):
     """A world coordinate in HMS format."""
     FMT = NumberFormat.HMS
+    """The number format."""
     # Temporarily allow negative H values to account for frontend custom format oddity
     REGEX = {
         "COLON": r"^(-?(?:\d|[01]\d|2[0-3]))?:([0-5]?\d)?:([0-5]?\d(?:\.\d+)?)?$",
         "LETTER": r"^(?:(-?(?:\d|[01]\d|2[0-3]))h)?(?:([0-5]?\d)m)?(?:([0-5]?\d(?:\.\d+)?)s)?$",
     }
+    """All recognised input string formats."""
 
     @classmethod
     def from_string(cls, value, axis):
@@ -392,10 +430,12 @@ class HMSCoordinate(SexagesimalCoordinate):
 class DMSCoordinate(SexagesimalCoordinate):
     """A world coordinate in DMS format."""
     FMT = NumberFormat.DMS
+    """The number format."""
     REGEX = {
         "COLON": r"^(-?\d+)?:([0-5]?\d)?:([0-5]?\d(?:\.\d+)?)?$",
         "LETTER": r"^(?:(-?\d+)d)?(?:([0-5]?\d)m)?(?:([0-5]?\d(?:\.\d+)?)s)?$",
     }
+    """All recognised input string formats."""
 
     @classmethod
     def from_string(cls, value, axis):
