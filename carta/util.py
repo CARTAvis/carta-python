@@ -231,7 +231,7 @@ class Point:
         self.y = y
 
     def __eq__(self, other):
-        return self.x == other.x and self.y == other.y
+        return hasattr(other, "x") and hasattr(other, "y") and self.x == other.x and self.y == other.y
 
     @classmethod
     def is_pixel(cls, x, y):

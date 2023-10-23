@@ -774,7 +774,8 @@ class Image(BasePathMixin):
         """
         converted_points = []
         for p in points:
-            converted_points.append(self.call_action("getWcsSizeInArcsec", Pt(*p)))
+            converted = self.call_action("getWcsSizeInArcsec", Pt(*p))
+            converted_points.append(Pt(**converted).as_tuple())
         return converted_points
 
     # CLOSE
