@@ -4,7 +4,7 @@ import pytest
 from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Macro
-from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC
+from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC, Polarization as Pol
 
 # FIXTURES
 
@@ -133,8 +133,6 @@ def test_open_image(mocker, session, args, kwargs, expected_args, expected_kwarg
     session.open_image(*args, **kwargs)
     mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
 
-# TODO this should be merged with the test above when this separate function is removed
-
 
 @pytest.mark.parametrize("args,kwargs,expected_args,expected_kwargs", [
     # Open complex image with default component
@@ -177,6 +175,117 @@ def test_open_LEL_image(mocker, session, args, kwargs, expected_args, expected_k
     mock_image_new = mocker.patch.object(Image, "new")
     session.open_LEL_image(*args, **kwargs)
     mock_image_new.assert_called_with(session, *expected_args, **expected_kwargs)
+
+
+@pytest.mark.parametrize("append", [True, False])
+def test_open_images(mocker, session, mock_method, append):
+    mock_open_image = mock_method("open_image", ["1", "2", "3"])
+    images = session.open_images(["foo.fits", "bar.fits", "baz.fits"], append)
+    mock_open_image.assert_has_calls([
+        mocker.call("foo.fits", append=append),
+        mocker.call("bar.fits", append=True),
+        mocker.call("baz.fits", append=True),
+    ])
+    assert images == ["1", "2", "3"]
+
+
+@pytest.mark.parametrize("paths,expected_args", [
+    (["foo.fits", "bar.fits", "baz.fits"], [
+        [
+            {"directory": "/resolved/path", "file": "foo.fits", "hdu": "", "polarizationType": 1},
+            {"directory": "/resolved/path", "file": "bar.fits", "hdu": "", "polarizationType": 2},
+            {"directory": "/resolved/path", "file": "baz.fits", "hdu": "", "polarizationType": 3},
+        ], "/current/dir", ""]),
+])
+@pytest.mark.parametrize("append,expected_command", [
+    (True, "appendConcatFile"),
+    (False, "openConcatFile"),
+])
+def test_open_hypercube_guess_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
+    mock_method("pwd", ["/current/dir"])
+    mock_method("resolve_file_path", ["/resolved/path"] * 3)
+    mock_call_action.side_effect = [*expected_args[0], 123]
+
+    hypercube = session.open_hypercube(paths, append)
+
+    mock_call_action.assert_has_calls([
+        mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "foo.fits", ""),
+        mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "bar.fits", ""),
+        mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "baz.fits", ""),
+        mocker.call(expected_command, *expected_args),
+    ])
+
+    assert type(hypercube) is Image
+    assert hypercube.session == session
+    assert hypercube.image_id == 123
+
+
+@pytest.mark.parametrize("paths,expected_calls,mocked_side_effect,expected_error", [
+    (["foo.fits", "bar.fits"], [
+        ("fileBrowserStore.getStokesFile", "/resolved/path", "foo.fits", ""),
+    ], [
+        None,
+    ], "Could not deduce polarization for"),
+    (["foo.fits", "bar.fits"], [
+        ("fileBrowserStore.getStokesFile", "/resolved/path", "foo.fits", ""),
+        ("fileBrowserStore.getStokesFile", "/resolved/path", "bar.fits", ""),
+    ], [
+        {"directory": "/resolved/path", "file": "foo.fits", "hdu": "", "polarizationType": 1},
+        {"directory": "/resolved/path", "file": "bar.fits", "hdu": "", "polarizationType": 1},
+    ], "Duplicate polarizations deduced"),
+])
+def test_open_hypercube_guess_polarization_bad(mocker, session, mock_call_action, mock_method, paths, expected_calls, mocked_side_effect, expected_error):
+    mock_method("pwd", ["/current/dir"])
+    mock_method("resolve_file_path", ["/resolved/path"] * 3)
+    mock_call_action.side_effect = mocked_side_effect
+
+    with pytest.raises(ValueError) as e:
+        session.open_hypercube(paths)
+    assert expected_error in str(e.value)
+
+    mock_call_action.assert_has_calls([mocker.call(*args) for args in expected_calls])
+
+
+@pytest.mark.parametrize("paths,expected_args", [
+    ({Pol.I: "foo.fits", Pol.Q: "bar.fits", Pol.U: "baz.fits"}, [
+        [
+            {"directory": "/resolved/path", "file": "foo.fits", "hdu": "", "polarizationType": 1},
+            {"directory": "/resolved/path", "file": "bar.fits", "hdu": "", "polarizationType": 2},
+            {"directory": "/resolved/path", "file": "baz.fits", "hdu": "", "polarizationType": 3},
+        ], "/current/dir", ""]),
+])
+@pytest.mark.parametrize("append,expected_command", [
+    (True, "appendConcatFile"),
+    (False, "openConcatFile"),
+])
+def test_open_hypercube_explicit_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
+    mock_method("pwd", ["/current/dir"])
+    mock_method("resolve_file_path", ["/resolved/path"] * 3)
+    mock_call_action.side_effect = [123]
+
+    hypercube = session.open_hypercube(paths, append)
+
+    mock_call_action.assert_has_calls([
+        mocker.call(expected_command, *expected_args),
+    ])
+
+    assert type(hypercube) is Image
+    assert hypercube.session == session
+    assert hypercube.image_id == 123
+
+
+@pytest.mark.parametrize("paths,expected_error", [
+    ({Pol.I: "foo.fits"}, "at least 2"),
+    (["foo.fits"], "at least 2"),
+])
+@pytest.mark.parametrize("append", [True, False])
+def test_open_hypercube_bad(mocker, session, mock_call_action, mock_method, paths, expected_error, append):
+    mock_method("pwd", ["/current/dir"])
+    mock_method("resolve_file_path", ["/resolved/path"] * 3)
+
+    with pytest.raises(Exception) as e:
+        session.open_hypercube(paths, append)
+    assert expected_error in str(e.value)
 
 
 # OVERLAY

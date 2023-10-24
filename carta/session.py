@@ -10,11 +10,11 @@ import base64
 import posixpath
 
 from .image import Image
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ComplexComponent, NumberFormat
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ComplexComponent, NumberFormat, Polarization
 from .backend import Backend
 from .protocol import Protocol
 from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl, Point as Pt
-from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf
+from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf, IterableOf, MapOf, Union
 
 
 class Session:
@@ -420,6 +420,83 @@ class Session:
             The opened image.
         """
         return Image.new(self, directory, expression, "", append, True, make_active=make_active, update_directory=update_directory)
+
+    @validate(IterableOf(String()), Boolean())
+    def open_images(self, image_paths, append=False):
+        """Open multiple images
+
+        This is a utility function for adding multiple images in a single command. It assumes that the images are not complex-valued or LEL expressions, and that the default HDU can be used for each image. For more complicated use cases, the methods for opening individual images should be used.
+
+        Parameters
+        ----------
+        image_paths : {0}
+            The image paths, either relative to the session's current directory or absolute paths relative to the CARTA backend's root directory.
+        append : {1}
+            Whether the images should be appended to existing images. By default this is ``False`` and any existing open images are closed.
+
+        Returns
+        -------
+        list of :obj:`carta.image.Image` objects
+            The list of opened images.
+        """
+        images = []
+        for path in image_paths[:1]:
+            images.append(self.open_image(path, append=append))
+        for path in image_paths[1:]:
+            images.append(self.open_image(path, append=True))
+        return images
+
+    @validate(Union(IterableOf(String(), min_size=2), MapOf(Constant(Polarization), String(), min_size=2)), Boolean())
+    def open_hypercube(self, image_paths, append=False):
+        """Open multiple images merged into a polarization hypercube.
+
+        Parameters
+        ----------
+        image_paths : {0}
+            The image paths, either relative to the session's current directory or absolute paths relative to the CARTA backend's root directory. If this is a list of paths, the polarizations will be deduced from the image headers or names. If this is a dictionary, the polarizations must be used as keys.
+        append : {1}
+            Whether the hypercube should be appended to existing images. By default this is ``False`` and any existing open images are closed.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The opened hypercube.
+
+        Raises
+        ------
+        ValueError
+            If explicit polarizations are not provided, and cannot be deduced from the image headers or names.
+        """
+        stokes_images = []
+
+        if isinstance(image_paths, dict):
+            for stokes, path in image_paths.items():
+                directory, file_name = posixpath.split(path)
+                directory = self.resolve_file_path(directory)
+                stokes_images.append({"directory": directory, "file": file_name, "hdu": "", "polarizationType": stokes.proto_index})
+        else:
+            stokes_guesses = set()
+
+            for path in image_paths:
+                directory, file_name = posixpath.split(path)
+                directory = self.resolve_file_path(directory)
+
+                stokes_guess = self.call_action("fileBrowserStore.getStokesFile", directory, file_name, "")
+
+                if not stokes_guess:
+                    raise ValueError(f"Could not deduce polarization for {path}. Please use a dictionary to specify the polarization mapping explicitly.")
+
+                stokes_guesses.add(stokes_guess["polarizationType"])
+                stokes_images.append(stokes_guess)
+
+            if len(stokes_guesses) < len(stokes_images):
+                raise ValueError("Duplicate polarizations deduced for provided images. Please use a dictionary to specify the polarization mapping explicitly.")
+
+        output_directory = self.pwd()
+        output_hdu = ""
+        command = "appendConcatFile" if append else "openConcatFile"
+        image_id = self.call_action(command, stokes_images, output_directory, output_hdu)
+        return Image(self, image_id)
 
     def image_list(self):
         """Return the list of currently open images.
