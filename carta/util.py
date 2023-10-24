@@ -136,3 +136,72 @@ def split_action_path(path):
     """
     parts = path.split('.')
     return '.'.join(parts[:-1]), parts[-1]
+
+
+class BasePathMixin:
+    """A mixin which provides ``call_action`` and ``get_value`` methods which prepend the object's base path to the path before calling the corresponding :obj:`carta.session.Session` methods.
+
+    It also provides a ``macro`` method which prepends the path when creating a :obj:`carta.util.Macro`.
+
+    A class inheriting from this mixin must define a `_base_path` attribute (the string prefix) and a `session` attribute (a :obj:`carta.session.Session` object).
+    """
+
+    def call_action(self, path, *args, **kwargs):
+        """Convenience wrapper for the session object's generic action method.
+
+        This method calls :obj:`carta.session.Session.call_action` after prepending this object's base path to the path parameter.
+
+        Parameters
+        ----------
+        path : string
+            The path to an action relative to this object's store.
+        *args
+            A variable-length list of parameters. These are passed unmodified to the session method.
+        **kwargs
+            Arbitrary keyword parameters. These are passed unmodified to the session method.
+
+        Returns
+        -------
+        object or None
+            The unmodified return value of the session method.
+        """
+        return self.session.call_action(f"{self._base_path}.{path}", *args, **kwargs)
+
+    def get_value(self, path, return_path=None):
+        """Convenience wrapper for the session object's generic method for retrieving attribute values.
+
+        This method calls :obj:`carta.session.Session.get_value` after prepending this object's base path to the *path* parameter.
+
+        Parameters
+        ----------
+        path : string
+            The path to an attribute relative to this object's store.
+        return_path : string, optional
+            Specifies a subobject of the attribute value which should be returned instead of the whole object.
+
+        Returns
+        -------
+        object
+            The unmodified return value of the session method.
+        """
+        return self.session.get_value(f"{self._base_path}.{path}", return_path=return_path)
+
+    def macro(self, target, variable):
+        """Convenience wrapper for creating a :obj:`carta.util.Macro` for an object property.
+
+        This method prepends this object's base path to the *target* parameter. If *target* is the empty string, the base path will be substituted.
+
+        Parameters
+        ----------
+        target : str
+            The target frontend object.
+        variable : str
+            The variable on the target object.
+
+        Returns
+        -------
+        :obj:carta.util.Macro
+            A placeholder for a variable which will be evaluated dynamically by the frontend.
+        """
+        target = f"{self._base_path}.{target}" if target else self._base_path
+        return Macro(target, variable)

@@ -1,11 +1,11 @@
 import types
 import pytest
 
-from carta.units import PixelValue, AngularSize, DegreesSize, ArcminSize, ArcsecSize, MilliarcsecSize, MicroarcsecSize, WorldCoordinate, DegreesCoordinate, HMSCoordinate, DMSCoordinate
+from carta.units import AngularSize, DegreesSize, ArcminSize, ArcsecSize, MilliarcsecSize, MicroarcsecSize, WorldCoordinate, DegreesCoordinate, HMSCoordinate, DMSCoordinate
 from carta.constants import NumberFormat as NF, SpatialAxis as SA
 
 
-@pytest.mark.parametrize("clazz", [PixelValue, AngularSize, WorldCoordinate])
+@pytest.mark.parametrize("clazz", [AngularSize, WorldCoordinate])
 def test_class_has_docstring(clazz):
     assert clazz.__doc__ is not None
 
@@ -17,57 +17,9 @@ def find_members(*classes, member_type=types.MethodType):
                 yield getattr(clazz, name)
 
 
-@pytest.mark.parametrize("member", find_members(PixelValue, AngularSize, WorldCoordinate))
+@pytest.mark.parametrize("member", find_members(AngularSize, WorldCoordinate))
 def test_class_classmethods_have_docstrings(member):
     assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("value,valid", [
-    ("123px", True),
-    ("123.4px", True),
-    ("123pix", True),
-    ("123pixel", True),
-    ("123pixels", True),
-    ("123 px", True),
-    ("123 pix", True),
-    ("123 pixel", True),
-    ("123 pixels", True),
-    ("-123px", True),
-    ("-123.4px", True),
-
-    ("123arcmin", False),
-    ("123deg", False),
-    ("abc", False),
-    ("123", False),
-    ("123abc", False),
-])
-def test_pixel_value_valid(value, valid):
-    assert PixelValue.valid(value) == valid
-
-
-@pytest.mark.parametrize("value,num", [
-    ("123px", 123),
-    ("123pix", 123),
-    ("123pixel", 123),
-    ("123pixels", 123),
-    ("123 px", 123),
-    ("123 pix", 123),
-    ("123 pixel", 123),
-    ("123 pixels", 123),
-    ("123.45px", 123.45),
-    ("123.45 px", 123.45),
-    ("-123.45px", -123.45),
-    ("-123.45 px", -123.45),
-])
-def test_pixel_value_as_float(value, num):
-    assert PixelValue.as_float(value) == num
-
-
-@pytest.mark.parametrize("value", ["123arcmin", "123deg", "abc", "123", "123abc"])
-def test_pixel_value_as_float_invalid(value):
-    with pytest.raises(ValueError) as e:
-        PixelValue.as_float(value)
-    assert "not in a recognized pixel format" in str(e.value)
 
 
 @pytest.mark.parametrize("size,valid", [
