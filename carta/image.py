@@ -3,11 +3,12 @@
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, SpatialAxis, VectorOverlaySource, Auto
-from .util import logger, Macro, cached, BasePathMixin
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, SpatialAxis
+from .util import Macro, cached, BasePathMixin
 from .units import AngularSize, WorldCoordinate
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, Union
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
 from .metadata import parse_header
+from .vector_overlay import VectorOverlay
 
 
 class Image(BasePathMixin):
@@ -36,6 +37,9 @@ class Image(BasePathMixin):
 
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
+
+        # Sub-objects grouping related functions
+        self.vectors = VectorOverlay(self)
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
@@ -627,235 +631,6 @@ class Image(BasePathMixin):
     def hide_contours(self):
         """Hide the contours."""
         self.set_contours_visible(False)
-
-    # VECTOR OVERLAY
-
-    @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Number(), Boolean(), Number(), Boolean(), Number(), Number()))
-    def configure_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None):
-        """Configure vector overlay.
-
-        All parameters are optional. For each option that is not provided, the value currently set in the frontend will be preserved. Initial frontend settings are noted below.
-
-        We deduce some boolean options. For example, providing an explicit pixel averaging width with the **pixel_averaging** parameter will automatically enable pixel averaging unless **pixel_averaging_enabled** is also explicitly set to ``False``. To disable pixel averaging, explicitly set **pixel_averaging_enabled** to ``False``.
-
-        Parameters
-        ----------
-        angular_source : {0}
-            The angular source. This is initially set to computed PA if the image contains Stokes information, otherwise to the current image.
-        intensity_source : {1}
-            The intensity source. This is initially set to computed PI if the image contains Stokes information, otherwise to the current image.
-        pixel_averaging_enabled : {2}
-            Enable pixel averaging. This is initially enabled if the pixel averaging width is positive.
-        pixel_averaging : {3}
-            The pixel averaging width in pixels. The initial value can be configured in the frontend preferences (the default is ``4``).
-        fractional_intensity : {4}
-            Enable fractional polarization intensity. The initial value can be configured in the frontend preferences. By default this is disabled and the absolute polarization intensity is used.
-        threshold_enabled : {5}
-            Enable threshold. Initially the threshold is disabled.
-        threshold : {6}
-            The threshold in Jy/pixels. The initial value is zero.
-        debiasing : {7}
-            Enable debiasing. This is initially disabled.
-        q_error : {8}
-            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Initially set to zero.
-        u_error : {9}
-            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Initially set to zero.
-        """
-
-        # Avoid doing a lot of needless work for a no-op
-        if any(name != "self" and arg is not None for name, arg in locals().items()):
-            if pixel_averaging is not None and pixel_averaging_enabled is None:
-                pixel_averaging_enabled = True
-            if threshold is not None and threshold_enabled is None:
-                threshold_enabled = True
-            if q_error is not None and u_error is not None and debiasing is None:
-                debiasing = True
-
-            if (q_error is not None and u_error is None) or (q_error is None and u_error is not None):
-                debiasing = False
-                logger.warning("The Stokes Q error and Stokes U error must both be set to enable debiasing.")
-
-            args = []
-
-            for value, attr_name in (
-                (angular_source, "angularSource"),
-                (intensity_source, "intensitySource"),
-                (pixel_averaging_enabled, "pixelAveragingEnabled"),
-                (pixel_averaging, "pixelAveraging"),
-                (fractional_intensity, "fractionalIntensity"),
-                (threshold_enabled, "thresholdEnabled"),
-                (threshold, "threshold"),
-                (debiasing, "debiasing"),
-                (q_error, "qError"),
-                (u_error, "uError"),
-            ):
-                if value is None:
-                    args.append(self.macro("vectorOverlayConfig", attr_name))
-                else:
-                    args.append(value)
-
-            self.call_action("vectorOverlayConfig.setVectorOverlayConfiguration", *args)
-
-    @validate(*all_optional(Number(), Union(Number(), Constant(Auto)), Union(Number(), Constant(Auto)), Number(), Number(), Number()))
-    def set_vector_overlay_style(self, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None):
-        """Set the styling (line thickness, intensity range, line length range, rotation offset) of vector overlay.
-
-        Parameters
-        ----------
-        thickness : {0}
-            The line thickness in pixels. The default is ``1``.
-        intensity_min : {1}
-            The minimum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
-        intensity_max : {2}
-            The maximum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
-        length_min : {3}
-            The minimum value of line length in pixels. The defauly is ``0``.
-        length_max : {4}
-            The maximum value of line length in pixels. The default is ``20``.
-        rotation_offset : {5}
-            The rotation offset in degrees. The default is ``0``.
-        """
-        if thickness is not None:
-            self.call_action("vectorOverlayConfig.setThickness", thickness)
-
-        if intensity_min is not None or intensity_max is not None:
-            if intensity_min is None:
-                intensity_min = self.macro("vectorOverlayConfig", "intensityMin")
-            elif intensity_min is Auto.AUTO:
-                intensity_min = Macro.UNDEFINED
-
-            if intensity_max is None:
-                intensity_max = self.macro("vectorOverlayConfig", "intensityMax")
-            elif intensity_max is Auto.AUTO:
-                intensity_max = Macro.UNDEFINED
-
-            self.call_action("vectorOverlayConfig.setIntensityRange", intensity_min, intensity_max)
-
-        if length_min is not None and length_max is not None:
-            self.call_action("vectorOverlayConfig.setLengthRange", length_min, length_max)
-
-        if rotation_offset is not None:
-            self.call_action("vectorOverlayConfig.setRotationOffset", rotation_offset)
-
-    @validate(Color())
-    def set_vector_overlay_color(self, color):
-        """Set the vector overlay color.
-
-        This automatically disables use of the vector overlay colormap.
-
-        Parameters
-        ----------
-        color : {0}
-            The color. The default value is ``#238551`` (a shade of green).
-        """
-        self.call_action("vectorOverlayConfig.setColor", color)
-        self.call_action("vectorOverlayConfig.setColormapEnabled", False)
-
-    @validate(Constant(Colormap), NoneOr(Number()), NoneOr(Number()))
-    def set_vector_overlay_colormap(self, colormap, bias=None, contrast=None):
-        """Set the vector overlay colormap.
-
-        This automatically enables use of the vector overlay colormap.
-
-        Parameters
-        ----------
-        colormap : {0}
-            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
-        bias : {1}
-            The colormap bias. Set to ``0`` by default.
-        contrast : {2}
-            The colormap contrast. Set to ``1`` by default
-        """
-        self.call_action("vectorOverlayConfig.setColormap", colormap)
-        self.call_action("vectorOverlayConfig.setColormapEnabled", True)
-        if bias is not None:
-            self.call_action("vectorOverlayConfig.setColormapBias", bias)
-        if contrast is not None:
-            self.call_action("vectorOverlayConfig.setColormapContrast", contrast)
-
-    def apply_vector_overlay(self):
-        """Apply the vector overlay configuration."""
-        self.call_action("applyVectorOverlay")
-
-    @validate(*all_optional(*configure_vector_overlay.VARGS, *set_vector_overlay_style.VARGS, *set_vector_overlay_color.VARGS, *set_vector_overlay_colormap.VARGS))
-    def plot_vector_overlay(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None):
-        """Set the vector overlay configuration, styling and color or colormap; and apply vector overlay; in a single step.
-
-        If both a color and a colormap are provided, the colormap will be visible.
-
-        Parameters
-        ----------
-        angular_source : {0}
-            The angular source. This is initially set to computed PA if the image contains Stokes information, otherwise to the current image.
-        intensity_source : {1}
-            The intensity source. This is initially set to computed PI if the image contains Stokes information, otherwise to the current image.
-        pixel_averaging_enabled : {2}
-            Enable pixel averaging. This is initially enabled if the pixel averaging width is positive.
-        pixel_averaging : {3}
-            The pixel averaging width in pixels. The initial value can be configured in the frontend preferences (the default is ``4``).
-        fractional_intensity : {4}
-            Enable fractional polarization intensity. The initial value can be configured in the frontend preferences. By default this is disabled and the absolute polarization intensity is used.
-        threshold_enabled : {5}
-            Enable threshold. Initially the threshold is disabled.
-        threshold : {6}
-            The threshold in Jy/pixels. The initial value is zero.
-        debiasing : {7}
-            Enable debiasing. This is initially disabled.
-        q_error : {8}
-            The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Initially set to zero.
-        u_error : {9}
-            The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Initially set to zero.
-        thickness : {10}
-            The line thickness in pixels. The default is ``1``.
-        intensity_min : {11}
-            The minimum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
-        intensity_max : {12}
-            The maximum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
-        length_min : {13}
-            The minimum value of line length in pixels. Defauly is ``0``.
-        length_max : {14}
-            The maximum value of line length in pixels. The default is ``20``.
-        rotation_offset : {15}
-            The rotation offset in degrees. The default is ``0``.
-        color : {16}
-            The color. The default value is ``#238551`` (a shade of green).
-        colormap : {17}
-            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
-        bias : {18}
-            The colormap bias. Set to ``0`` by default.
-        contrast : {19}
-            The colormap contrast. Set to ``1`` by default
-        """
-        self.configure_vector_overlay(angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
-        self.set_vector_overlay_style(thickness, intensity_min, intensity_max, length_min, length_max, rotation_offset)
-        if color is not None:
-            self.set_vector_overlay_color(color)
-        if colormap is not None:
-            self.set_vector_overlay_colormap(colormap, bias, contrast)
-        self.apply_vector_overlay()
-
-    def clear_vector_overlay(self):
-        """Clear the vector overlay configuration."""
-        self.call_action("clearVectorOverlay", True)
-
-    @validate(Boolean())
-    def set_vector_overlay_visible(self, state):
-        """Set the vector overlay visibility.
-
-        Parameters
-        ----------
-        state : {0}
-            The desired visibility state.
-        """
-        self.call_action("vectorOverlayConfig.setVisible", state)
-
-    def show_vector_overlay(self):
-        """Show the contours."""
-        self.set_vector_overlay_visible(True)
-
-    def hide_vector_overlay(self):
-        """Hide the contours."""
-        self.set_vector_overlay_visible(False)
 
     # HISTOGRAM
 
