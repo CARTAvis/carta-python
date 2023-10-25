@@ -133,6 +133,16 @@ def test_new(session, mock_session_call_action, mock_session_method, args, kwarg
     assert image_object.image_id == 123
 
 
+# SUBOBJECTS
+
+
+@pytest.mark.parametrize("name,classname", [
+    ("vectors", "VectorOverlay"),
+])
+def test_subobjects(image, name, classname):
+    assert getattr(image, name).__class__.__name__ == classname
+
+
 # SIMPLE PROPERTIES TODO to be completed.
 
 @pytest.mark.parametrize("property_name,expected_path", [
