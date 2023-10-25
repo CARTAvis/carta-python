@@ -2,7 +2,7 @@
 
 from .util import logger, Macro, BasePathMixin
 from .constants import Colormap, VectorOverlaySource, Auto
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, all_optional, Union
+from .validation import validate, Number, Color, Constant, Boolean, all_optional, Union
 
 
 class VectorOverlay(BasePathMixin):
@@ -99,17 +99,17 @@ class VectorOverlay(BasePathMixin):
         Parameters
         ----------
         thickness : {0}
-            The line thickness in pixels. The default is ``1``.
+            The line thickness in pixels. The initial value is ``1``.
         intensity_min : {1}
             The minimum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         intensity_max : {2}
             The maximum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         length_min : {3}
-            The minimum value of line length in pixels. The defauly is ``0``.
+            The minimum value of line length in pixels. The initial value is ``0``.
         length_max : {4}
-            The maximum value of line length in pixels. The default is ``20``.
+            The maximum value of line length in pixels. The initial value is ``20``.
         rotation_offset : {5}
-            The rotation offset in degrees. The default is ``0``.
+            The rotation offset in degrees. The initial value is ``0``.
         """
         if thickness is not None:
             self.call_action("setThickness", thickness)
@@ -142,28 +142,27 @@ class VectorOverlay(BasePathMixin):
         Parameters
         ----------
         color : {0}
-            The color. The default value is ``#238551`` (a shade of green).
+            The color. The initial value is ``#238551`` (a shade of green).
         """
         self.call_action("setColor", color)
         self.call_action("setColormapEnabled", False)
 
-    @validate(Constant(Colormap), NoneOr(Number()), NoneOr(Number()))
-    def set_colormap(self, colormap, bias=None, contrast=None):
-        """Set the vector overlay colormap.
-
-        This automatically enables use of the vector overlay colormap.
+    @validate(*all_optional(Constant(Colormap), Number(-1, 1), Number(0, 2)))
+    def set_colormap(self, colormap=None, bias=None, contrast=None):
+        """Set the vector overlay colormap and/or the colormap options.
 
         Parameters
         ----------
         colormap : {0}
-            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
+            The colormap. The initial value is :obj:`carta.constants.Colormap.VIRIDIS`. If this parameter is set, the overlay colormap is automatically enabled.
         bias : {1}
-            The colormap bias. Set to ``0`` by default.
+            The colormap bias. The initial value is ``0``.
         contrast : {2}
-            The colormap contrast. Set to ``1`` by default
+            The colormap contrast. The initial value is ``1``.
         """
-        self.call_action("setColormap", colormap)
-        self.call_action("setColormapEnabled", True)
+        if colormap is not None:
+            self.call_action("setColormap", colormap)
+            self.call_action("setColormapEnabled", True)
         if bias is not None:
             self.call_action("setColormapBias", bias)
         if contrast is not None:
@@ -177,7 +176,7 @@ class VectorOverlay(BasePathMixin):
     def plot(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None):
         """Set the vector overlay configuration, styling and color or colormap; and apply vector overlay; in a single step.
 
-        If both a color and a colormap are provided, the colormap will be visible.
+        If both a color and a colormap are provided, the colormap will be enabled.
 
         Parameters
         ----------
@@ -202,33 +201,48 @@ class VectorOverlay(BasePathMixin):
         u_error : {9}
             The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Initially set to zero.
         thickness : {10}
-            The line thickness in pixels. The default is ``1``.
+            The line thickness in pixels. The initial value is ``1``.
         intensity_min : {11}
             The minimum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         intensity_max : {12}
             The maximum value of intensity in Jy/pixel. Use :obj:`carta.constants.Auto.AUTO` to clear the custom value and calculate it automatically.
         length_min : {13}
-            The minimum value of line length in pixels. Defauly is ``0``.
+            The minimum value of line length in pixels. The initial value is ``0``.
         length_max : {14}
-            The maximum value of line length in pixels. The default is ``20``.
+            The maximum value of line length in pixels. The initial value is ``20``.
         rotation_offset : {15}
-            The rotation offset in degrees. The default is ``0``.
+            The rotation offset in degrees. The initial value is ``0``.
         color : {16}
-            The color. The default value is ``#238551`` (a shade of green).
+            The color. The initial value value is ``#238551`` (a shade of green).
         colormap : {17}
-            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
+            The colormap. The initial value is :obj:`carta.constants.Colormap.VIRIDIS`.
         bias : {18}
-            The colormap bias. Set to ``0`` by default.
+            The colormap bias. The initial value is ``0``.
         contrast : {19}
-            The colormap contrast. Set to ``1`` by default
+            The colormap contrast. The initial value is ``1``.
         """
-        self.configure(angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
-        self.set_style(thickness, intensity_min, intensity_max, length_min, length_max, rotation_offset)
+        changes_made = False
+
+        configure_args = (angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
+        if any(v is not None for v in configure_args):
+            self.configure(*configure_args)
+            changes_made = True
+
+        set_style_args = (thickness, intensity_min, intensity_max, length_min, length_max, rotation_offset)
+        if any(v is not None for v in set_style_args):
+            self.set_style(*set_style_args)
+            changes_made = True
+
         if color is not None:
             self.set_color(color)
-        if colormap is not None:
+            changes_made = True
+
+        if colormap is not None or bias is not None or contrast is not None:
             self.set_colormap(colormap, bias, contrast)
-        self.apply()
+            changes_made = True
+
+        if changes_made:
+            self.apply()
 
     def clear(self):
         """Clear the vector overlay configuration."""
@@ -246,9 +260,9 @@ class VectorOverlay(BasePathMixin):
         self.call_action("setVisible", state)
 
     def show(self):
-        """Show the contours."""
+        """Show the vector overlay."""
         self.set_visible(True)
 
     def hide(self):
-        """Hide the contours."""
+        """Hide the vector overlay."""
         self.set_visible(False)

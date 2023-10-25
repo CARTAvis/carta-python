@@ -4,7 +4,7 @@ from carta.session import Session
 from carta.image import Image
 from carta.vector_overlay import VectorOverlay
 from carta.util import Macro
-from carta.constants import VectorOverlaySource as VOS, Auto
+from carta.constants import VectorOverlaySource as VOS, Auto, Colormap as CM
 
 
 @pytest.fixture
@@ -84,7 +84,7 @@ def mock_method(vector_overlay, mocker):
     # Deduce debiasing flag
     ((), {"q_error": 3, "u_error": 4},
      ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", True, 3, 4)),
-    # Don'teduce debiasing flag
+    # Don't deduce debiasing flag
     ((), {"q_error": 3, "u_error": 4, "debiasing": False},
      ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", False, 3, 4)),
     # Disable debiasing (no q_error)
@@ -124,11 +124,66 @@ def test_set_style(mocker, vector_overlay, mock_call_action, mock_method, args, 
     mock_call_action.assert_has_calls([mocker.call(*call) for call in expected_calls])
 
 
-# TODO test_set_color
-# TODO test_set_colormap
-# TODO test_apply
-# TODO test_plot
-# TODO test_clear
-# TODO test_set_visible
-# TODO test_show
-# TODO test_hide
+def test_set_color(mocker, vector_overlay, mock_call_action):
+    vector_overlay.set_color("blue")
+    mock_call_action.assert_has_calls([
+        mocker.call("setColor", "blue"),
+        mocker.call("setColormapEnabled", False),
+    ])
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([CM.VIRIDIS, 0.5, 1.5], {}, [("setColormap", CM.VIRIDIS), ("setColormapEnabled", True), ("setColormapBias", 0.5), ("setColormapContrast", 1.5)]),
+    ([CM.VIRIDIS], {}, [("setColormap", CM.VIRIDIS), ("setColormapEnabled", True)]),
+    ([], {"bias": 0.5}, [("setColormapBias", 0.5)]),
+    ([], {"contrast": 1.5}, [("setColormapContrast", 1.5)]),
+])
+def test_set_colormap(mocker, vector_overlay, mock_call_action, args, kwargs, expected_calls):
+    vector_overlay.set_colormap(*args, **kwargs)
+    mock_call_action.assert_has_calls([mocker.call(*call) for call in expected_calls])
+
+
+def test_apply(vector_overlay, mock_image_call_action):
+    vector_overlay.apply()
+    mock_image_call_action.assert_called_with("applyVectorOverlay")
+
+
+def test_clear(vector_overlay, mock_image_call_action):
+    vector_overlay.clear()
+    mock_image_call_action.assert_called_with("clearVectorOverlay", True)
+
+
+@pytest.mark.parametrize("args,kwargs,expected_calls", [
+    ([], {}, []),
+    ([VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5, 1, 2, 3, 4, 5, 6, "blue", CM.VIRIDIS, 0.5, 1.5], {}, [("configure", VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5), ("set_style", 1, 2, 3, 4, 5, 6), ("set_color", "blue"), ("set_colormap", CM.VIRIDIS, 0.5, 1.5), ("apply",)]),
+    ([], {"pixel_averaging": 1, "thickness": 2, "color": "blue", "bias": 0.5}, [("configure", None, None, None, 1, None, None, None, None, None, None), ("set_style", 2, None, None, None, None, None), ("set_color", "blue"), ("set_colormap", None, 0.5, None), ("apply",)]),
+    ([], {"thickness": 2}, [("set_style", 2, None, None, None, None, None), ("apply",)]),
+])
+def test_plot(vector_overlay, mock_method, args, kwargs, expected_calls):
+    mocks = {}
+    for method_name in ("configure", "set_style", "set_color", "set_colormap", "apply"):
+        mocks[method_name] = mock_method(method_name, None)
+
+    vector_overlay.plot(*args, **kwargs)
+
+    for method_name, *expected_args in expected_calls:
+        mocks[method_name].assert_called_with(*expected_args)
+
+
+@pytest.mark.parametrize("state", [True, False])
+def test_set_visible(vector_overlay, mock_call_action, state):
+    vector_overlay.set_visible(state)
+    mock_call_action.assert_called_with("setVisible", state)
+
+
+def test_show(vector_overlay, mock_method):
+    mock_set_visible = mock_method("set_visible", None)
+    vector_overlay.show()
+    mock_set_visible.assert_called_with(True)
+
+
+def test_hide(vector_overlay, mock_method):
+    mock_set_visible = mock_method("set_visible", None)
+    vector_overlay.hide()
+    mock_set_visible.assert_called_with(False)
