@@ -76,7 +76,7 @@ class Backend:
         ssh_cmd = ("ssh", "-tt", remote_host) if remote_host is not None else tuple()
         self.cmd = tuple(str(p) for p in (*ssh_cmd, executable_path, *params))
 
-    def update_output(self):
+    def _update_output(self):
         while True:
             line = self.proc.stdout.readline()
             if not line:
@@ -106,7 +106,7 @@ class Backend:
                 break
 
             # Check for new output
-            self.update_output()
+            self._update_output()
 
             if self.proc.poll() is not None:
                 return False
@@ -131,7 +131,7 @@ class Backend:
                     break
 
                 # Check for new output
-                self.update_output()
+                self._update_output()
 
                 if self.proc.poll() is not None:
                     return False

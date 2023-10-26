@@ -1,7 +1,5 @@
-import types
 import pytest
 
-from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Macro
 from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC, Polarization as Pol
@@ -25,28 +23,6 @@ def method(session, mock_method):
 
 
 # TESTS
-
-
-def test_session_class_has_docstring():
-    assert Session.__doc__ is not None
-
-
-def find_members(*classes, member_type=types.FunctionType):
-    for clazz in classes:
-        for name in dir(clazz):
-            if not name.startswith('__') and isinstance(getattr(clazz, name), member_type):
-                yield getattr(clazz, name)
-
-
-@pytest.mark.parametrize("member", find_members(Session))
-def test_session_methods_have_docstrings(member):
-    assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("member", find_members(Session, member_type=types.MethodType))
-def test_session_classmethods_have_docstrings(member):
-    assert member.__doc__ is not None
-
 
 # TODO fill in missing session tests
 

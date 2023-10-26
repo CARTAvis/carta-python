@@ -1,25 +1,7 @@
-import types
 import pytest
 
 from carta.units import AngularSize, DegreesSize, ArcminSize, ArcsecSize, MilliarcsecSize, MicroarcsecSize, WorldCoordinate, DegreesCoordinate, HMSCoordinate, DMSCoordinate
 from carta.constants import NumberFormat as NF, SpatialAxis as SA
-
-
-@pytest.mark.parametrize("clazz", [AngularSize, WorldCoordinate])
-def test_class_has_docstring(clazz):
-    assert clazz.__doc__ is not None
-
-
-def find_members(*classes, member_type=types.MethodType):
-    for clazz in classes:
-        for name in dir(clazz):
-            if not name.startswith('__') and isinstance(getattr(clazz, name), member_type):
-                yield getattr(clazz, name)
-
-
-@pytest.mark.parametrize("member", find_members(AngularSize, WorldCoordinate))
-def test_class_classmethods_have_docstrings(member):
-    assert member.__doc__ is not None
 
 
 @pytest.mark.parametrize("size,valid", [
