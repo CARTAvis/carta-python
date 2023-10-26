@@ -141,6 +141,10 @@ class SmoothingMode(IntEnum):
     GAUSSIAN_BLUR = 2
 
 
+VectorOverlaySource = Enum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), type=int, start=-1)
+VectorOverlaySource.__doc__ = """Vector overlay source."""
+
+
 class Auto(StrEnum):
     """Special value for parameters to be calculated automatically."""
     AUTO = "Auto"
@@ -153,8 +157,33 @@ class ContourDashMode(StrEnum):
     NEGATIVE_ONLY = "NegativeOnly"
 
 
+PROTO_POLARIZATION = {
+    "I": 1,
+    "Q": 2,
+    "U": 3,
+    "V": 4,
+    "RR": 5,
+    "LL": 6,
+    "RL": 7,
+    "LR": 8,
+    "XX": 9,
+    "YY": 10,
+    "XY": 11,
+    "YX": 12,
+    "PTOTAL": 13,
+    "PLINEAR": 14,
+    "PFTOTAL": 15,
+    "PFLINEAR": 16,
+    "PANGLE": 17,
+}
+
+
 class Polarization(IntEnum):
     """Polarizations, corresponding to the POLARIZATIONS enum in the frontend."""
+
+    def __init__(self, value):
+        self.proto_index = PROTO_POLARIZATION[self.name]
+
     YX = -8
     XY = -7
     YY = -6

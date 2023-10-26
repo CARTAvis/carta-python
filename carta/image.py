@@ -2,14 +2,16 @@
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, CoordinateSystem, SpatialAxis, Auto
-from .util import Macro, cached
-from .units import PixelValue, AngularSize, WorldCoordinate
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, Union
+
+from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, SpatialAxis
+from .util import Macro, cached, BasePathMixin
+from .units import AngularSize, WorldCoordinate
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
 from .metadata import parse_header
+from .vector_overlay import VectorOverlay
 
 
-class Image:
+class Image(BasePathMixin):
     """This object corresponds to an image open in a CARTA frontend session.
 
     This class should not be instantiated directly. Instead, use the session object's methods for opening new images or retrieving existing images.
@@ -35,6 +37,9 @@ class Image:
 
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
+
+        # Sub-objects grouping related functions
+        self.vectors = VectorOverlay(self)
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
@@ -99,64 +104,6 @@ class Image:
 
     def __repr__(self):
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
-
-    def call_action(self, path, *args, **kwargs):
-        """Convenience wrapper for the session object's generic action method.
-
-        This method calls :obj:`carta.session.Session.call_action` after prepending this image's base path to the path parameter.
-
-        Parameters
-        ----------
-        path : string
-            The path to an action relative to this image's frame store.
-        *args
-            A variable-length list of parameters. These are passed unmodified to the session method.
-        **kwargs
-            Arbitrary keyword parameters. These are passed unmodified to the session method.
-
-        Returns
-        -------
-        object or None
-            The unmodified return value of the session method.
-        """
-        return self.session.call_action(f"{self._base_path}.{path}", *args, **kwargs)
-
-    def get_value(self, path):
-        """Convenience wrapper for the session object's generic method for retrieving attribute values.
-
-        This method calls :obj:`carta.session.Session.get_value` after prepending this image's base path to the *path* parameter.
-
-        Parameters
-        ----------
-        path : string
-            The path to an attribute relative to this image's frame store.
-
-        Returns
-        -------
-        object
-            The unmodified return value of the session method.
-        """
-        return self.session.get_value(f"{self._base_path}.{path}")
-
-    def macro(self, target, variable):
-        """Convenience wrapper for creating a :obj:`carta.util.Macro` for an image property.
-
-        This method prepends this image's base path to the *target* parameter. If *target* is the empty string, the base path will be substituted.
-
-        Parameters
-        ----------
-        target : str
-            The target frontend object.
-        variable : str
-            The variable on the target object.
-
-        Returns
-        -------
-        :obj:carta.util.Macro
-            A placeholder for a variable which will be evaluated dynamically by the frontend.
-        """
-        target = f"{self._base_path}.{target}" if target else self._base_path
-        return Macro(target, variable)
 
     # METADATA
 
@@ -390,11 +337,13 @@ class Image:
         """
         return self.get_value("validWcs")
 
-    @validate(Coordinate(), Coordinate(), NoneOr(Constant(CoordinateSystem)))
-    def set_center(self, x, y, system=None):
-        """Set the center position, in image or world coordinates. Optionally change the session-wide coordinate system.
+    @validate(Coordinate(), Coordinate())
+    def set_center(self, x, y):
+        """Set the center position, in image or world coordinates.
 
-        Coordinates must either both be image coordinates or match the current number formats. Numbers and numeric strings with no units are interpreted as degrees.
+        World coordinates are interpreted according to the session's globally set coordinate system and any custom number formats. These can be changed using :obj:`carta.session.set_coordinate_system` and :obj:`set_custom_number_format`.
+
+        Coordinates must either both be image coordinates or match the current number formats. Numbers are interpreted as image coordinates, and numeric strings with no units are interpreted as degrees.
 
         Parameters
         ----------
@@ -402,25 +351,18 @@ class Image:
             The X position.
         y : {1}
             The Y position.
-        system : {2}
-            The coordinate system. If this parameter is provided, the coordinate system will be changed session-wide before the X and Y coordinates are parsed.
 
         Raises
         ------
         ValueError
-            If a mix of image and world coordinates is provided, if world coordinates are provided and the image has no valid WCS information, or if world coordinates do not match the session-wide number format.
+            If a mix of image and world coordinates is provided, if world coordinates are provided and the image has no valid WCS information, or if world coordinates do not match the session-wide number formats.
         """
-        if system is not None:
-            self.session.set_coordinate_system(system)
-
-        x_is_pixel = PixelValue.valid(str(x))
-        y_is_pixel = PixelValue.valid(str(y))
+        x_is_pixel = isinstance(x, (int, float))
+        y_is_pixel = isinstance(y, (int, float))
 
         if x_is_pixel and y_is_pixel:
             # Image coordinates
-            x_value = PixelValue.as_float(str(x))
-            y_value = PixelValue.as_float(str(y))
-            self.call_action("setCenter", x_value, y_value)
+            self.call_action("setCenter", x, y)
 
         elif x_is_pixel or y_is_pixel:
             raise ValueError("Cannot mix image and world coordinates.")
@@ -430,15 +372,15 @@ class Image:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information. Please use image coordinates (in pixels) instead.")
 
             number_format_x, number_format_y, _ = self.session.number_format()
-            x_value = WorldCoordinate.with_format(number_format_x).from_string(str(x), SpatialAxis.X)
-            y_value = WorldCoordinate.with_format(number_format_y).from_string(str(y), SpatialAxis.Y)
+            x_value = WorldCoordinate.with_format(number_format_x).from_string(x, SpatialAxis.X)
+            y_value = WorldCoordinate.with_format(number_format_y).from_string(y, SpatialAxis.Y)
             self.call_action("setCenterWcs", str(x_value), str(y_value))
 
     @validate(Size(), Constant(SpatialAxis))
     def zoom_to_size(self, size, axis):
         """Zoom to the given size along the specified axis.
 
-        Numbers and numeric strings with no units are interpreted as arcseconds.
+        Numbers are interpreted as pixel sizes. Numeric strings with no units are interpreted as arcseconds.
 
         Parameters
         ----------
@@ -450,12 +392,10 @@ class Image:
         Raises
         ------
         ValueError
-            If world coordinates are provided and the image has no valid WCS information.
+            If an angular size is provided and the image has no valid WCS information.
         """
-        size = str(size)
-
-        if PixelValue.valid(size):
-            self.call_action(f"zoomToSize{axis.upper()}", PixelValue.as_float(size))
+        if isinstance(size, (int, float)):
+            self.call_action(f"zoomToSize{axis.upper()}", size)
         else:
             if not self.valid_wcs:
                 raise ValueError("Cannot parse angular size. This image does not contain valid WCS information. Please use a pixel size instead.")

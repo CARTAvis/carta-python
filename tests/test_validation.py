@@ -3,13 +3,13 @@ import pytest
 from carta.validation import Size, Coordinate
 
 
-@pytest.mark.parametrize('val', [123, "123arcmin", "123arcsec", "123deg", "123degree", "123degrees", "123px", "123pix", "123pixel", "123pixels", "123 arcmin", "123 arcsec", "123 deg", "123 degree", "123 degrees", "123 px", "123 pix", "123 pixel", "123 pixels", "123", "123\"", "123'"])
+@pytest.mark.parametrize('val', [123, "123arcmin", "123arcsec", "123deg", "123degree", "123degrees", "123 arcmin", "123 arcsec", "123 deg", "123 degree", "123 degrees", "123", "123\"", "123'"])
 def test_size_valid(val):
     v = Size()
     v.validate(val, None)
 
 
-@pytest.mark.parametrize('val', ["123abc", "abc", "123 \"", "123 '", ""])
+@pytest.mark.parametrize('val', ["123abc", "abc", "123 \"", "123 '", "", "123 px", "123 pix", "123 pixel", "123 pixels", "123px", "123pix", "123pixel", "123pixels"])
 def test_size_invalid(val):
     v = Size()
     with pytest.raises(ValueError) as e:
@@ -28,4 +28,4 @@ def test_coordinate_invalid(val):
     v = Coordinate()
     with pytest.raises(ValueError) as e:
         v.validate(val, None)
-    assert "not a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units" in str(e.value)
+    assert "not a number, a string in H:M:S or D:M:S format, or a numeric string with degree units" in str(e.value)

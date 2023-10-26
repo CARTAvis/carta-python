@@ -5,7 +5,7 @@ import functools
 import inspect
 
 from .util import CartaValidationFailed
-from .units import PixelValue, AngularSize, WorldCoordinate
+from .units import AngularSize, WorldCoordinate
 
 
 class Parameter:
@@ -195,9 +195,7 @@ class Number(Parameter):
 
         See :obj:`carta.validation.Parameter.validate` for general information about this method.
         """
-        try:
-            float(value)  # TODO: this will allow strings and probably other types, but they will fail below. Coerce to float??
-        except TypeError:
+        if not isinstance(value, (int, float)):
             raise TypeError(f"{value} has type {type(value)} but a number was expected.")
 
         if self.min is not None:
@@ -676,15 +674,7 @@ class Color(Union):
 
 
 class Size(Union):
-    """A representation of an angular size or a size in pixels. Can be a number or a numeric string with valid size units. Validates strings using :obj:`carta.util.PixelValue` and :obj:`carta.util.AngularSize`."""
-
-    class PixelValue(String):
-        """Helper validator class which uses :obj:`carta.util.PixelValue` to validate strings."""
-
-        def validate(self, value, parent):
-            super().validate(value, parent)
-            if not PixelValue.valid(value):
-                raise ValueError(f"{value} is not a pixel value.")
+    """A representation of an angular size or a size in pixels. Can be a number or a numeric string with valid size units. A number is assumed to be a pixel value. Validates strings using :obj:`carta.util.AngularSize`."""
 
     class AngularSize(String):
         """Helper validator class which uses :obj:`carta.util.AngularSize` to validate strings."""
@@ -697,14 +687,13 @@ class Size(Union):
     def __init__(self):
         options = (
             Number(),
-            self.PixelValue(),
             self.AngularSize(),
         )
         super().__init__(*options, description="a number or a numeric string with valid size units")
 
 
 class Coordinate(Union):
-    """A string representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units. Validates strings using :obj:`carta.util.PixelValue` and :obj:`carta.util.WorldCoordinate`."""
+    """A representation of a world coordinate or image coordinate. Can be a number, a string in H:M:S or D:M:S format, or a numeric string with degree units. A number is assumed to be a pixel value. Validates strings using :obj:`carta.util.WorldCoordinate`."""
 
     class WorldCoordinate(String):
         """Helper validator class which uses :obj:`carta.util.WorldCoordinate` to validate strings."""
@@ -717,10 +706,9 @@ class Coordinate(Union):
     def __init__(self):
         options = (
             Number(),
-            Size.PixelValue(),
             self.WorldCoordinate(),
         )
-        super().__init__(*options, description="a number, a string in H:M:S or D:M:S format, or a numeric string with degree units or pixel units")
+        super().__init__(*options, description="a number, a string in H:M:S or D:M:S format, or a numeric string with degree units")
 
 
 class Attr(str):
