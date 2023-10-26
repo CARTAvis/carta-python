@@ -3,11 +3,14 @@
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 
-from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, SpatialAxis
+from .constants import Polarization, SpatialAxis
 from .util import Macro, cached, BasePathMixin
 from .units import AngularSize, WorldCoordinate
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
+from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
 from .metadata import parse_header
+
+from .raster import Raster
+from .contours import Contours
 from .vector_overlay import VectorOverlay
 
 
@@ -39,6 +42,8 @@ class Image(BasePathMixin):
         self._frame = Macro("", self._base_path)
 
         # Sub-objects grouping related functions
+        self.raster = Raster(self)
+        self.contours = Contours(self)
         self.vectors = VectorOverlay(self)
 
     @classmethod
@@ -415,265 +420,6 @@ class Image(BasePathMixin):
             Whether the zoom level should be treated as absolute. By default it is adjusted by a scaling factor.
         """
         self.call_action("setZoom", zoom, absolute)
-
-    # STYLE
-
-    @validate(Constant(Colormap), Boolean())
-    def set_colormap(self, colormap, invert=False):
-        """Set the colormap.
-
-        By default the colormap is not inverted.
-
-        Parameters
-        ----------
-        colormap : {0}
-            The colormap.
-        invert : {1}
-            Whether the colormap should be inverted.
-        """
-        self.call_action("renderConfig.setColorMap", colormap)
-        self.call_action("renderConfig.setInverted", invert)
-
-    @validate(*all_optional(Constant(Scaling), Number(0.1, 1000000), Number(0.1, 2), Number(0, 100), Number(), Number(), Union(Number(-1, 1), Constant(Auto)), Union(Number(0, 2), Constant(Auto))))
-    def set_scaling(self, scaling=None, alpha=None, gamma=None, rank=None, min=None, max=None, bias=None, contrast=None):
-        """Set the colormap scaling.
-
-        Parameters
-        ----------
-        scaling : {0}
-            The scaling type.
-        alpha : {1}
-            The alpha value (only applicable to ``LOG`` and ``POWER`` scaling types, but set regardless of the scaling parameter provided).
-        gamma : {2}
-            The gamma value (only applicable to the ``GAMMA`` scaling type, but set regardless of the scaling parameter provided).
-        rank : {3}
-            The clip percentile rank. If this is set, *min* and *max* are ignored, and will be calculated automatically.
-        min : {4}
-            Custom clip minimum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
-        max : {5}
-            Custom clip maximum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
-        bias : {6}
-            A custom bias. Use :obj:`carta.constants.Auto.AUTO` to reset the bias to the frontend default of ``0``.
-        contrast : {7}
-            A custom contrast. Use :obj:`carta.constants.Auto.AUTO` to reset the contrast to the frontend default of ``1``.
-        """
-        if scaling is not None:
-            self.call_action("renderConfig.setScaling", scaling)
-
-        if alpha is not None:
-            self.call_action("renderConfig.setAlpha", alpha)
-
-        if gamma is not None:
-            self.call_action("renderConfig.setGamma", gamma)
-
-        if rank is not None:
-            self.set_clip_percentile(rank)
-        elif min is not None and max is not None:
-            self.call_action("renderConfig.setCustomScale", min, max)
-
-        if bias is Auto.AUTO:
-            self.call_action("renderConfig.resetBias")
-        elif bias is not None:
-            self.call_action("renderConfig.setBias", bias)
-
-        if contrast is Auto.AUTO:
-            self.call_action("renderConfig.resetContrast")
-        elif contrast is not None:
-            self.call_action("renderConfig.setContrast", contrast)
-
-    @validate(Boolean())
-    def set_raster_visible(self, state):
-        """Set the raster image visibility.
-
-        Parameters
-        ----------
-        state : {0}
-            The desired visibility state.
-        """
-        self.call_action("renderConfig.setVisible", state)
-
-    def show_raster(self):
-        """Show the raster image."""
-        self.set_raster_visible(True)
-
-    def hide_raster(self):
-        """Hide the raster image."""
-        self.set_raster_visible(False)
-
-    # CONTOURS
-
-    @validate(*all_optional(IterableOf(Number()), Constant(SmoothingMode), Number()))
-    def configure_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None):
-        """Configure contours.
-
-        Parameters
-        ----------
-        levels : {0}
-            The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``. If this is unset, the current configured levels will be used.
-        smoothing_mode : {1}
-            The smoothing mode. If this is unset, the frontend default will be used.
-        smoothing_factor : {2}
-            The smoothing kernel size in pixels. If this is unset, the frontend default will be used.
-        """
-        if levels is None:
-            levels = self.macro("contourConfig", "levels")
-        if smoothing_mode is None:
-            smoothing_mode = self.macro("contourConfig", "smoothingMode")
-        if smoothing_factor is None:
-            smoothing_factor = self.macro("contourConfig", "smoothingFactor")
-        self.call_action("contourConfig.setContourConfiguration", levels, smoothing_mode, smoothing_factor)
-
-    @validate(*all_optional(Constant(ContourDashMode), Number()))
-    def set_contour_dash(self, dash_mode=None, thickness=None):
-        """Set the contour dash style.
-
-        Parameters
-        ----------
-        dash_mode : {0}
-            The dash mode.
-        thickness : {1}
-            The dash thickness.
-        """
-        if dash_mode is not None:
-            self.call_action("contourConfig.setDashMode", dash_mode)
-        if thickness is not None:
-            self.call_action("contourConfig.setThickness", thickness)
-
-    @validate(Color())
-    def set_contour_color(self, color):
-        """Set the contour color.
-
-        This automatically disables use of the contour colormap.
-
-        Parameters
-        ----------
-        color : {0}
-            The color. The default is green.
-        """
-        self.call_action("contourConfig.setColor", color)
-        self.call_action("contourConfig.setColormapEnabled", False)
-
-    @validate(Constant(Colormap), NoneOr(Number()), NoneOr(Number()))
-    def set_contour_colormap(self, colormap, bias=None, contrast=None):
-        """Set the contour colormap.
-
-        This automatically enables use of the contour colormap.
-
-        Parameters
-        ----------
-        colormap : {0}
-            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
-        bias : {1}
-            The colormap bias.
-        contrast : {2}
-            The colormap contrast.
-        """
-        self.call_action("contourConfig.setColormap", colormap)
-        self.call_action("contourConfig.setColormapEnabled", True)
-        if bias is not None:
-            self.call_action("contourConfig.setColormapBias", bias)
-        if contrast is not None:
-            self.call_action("contourConfig.setColormapContrast", contrast)
-
-    def apply_contours(self):
-        """Apply the contour configuration."""
-        self.call_action("applyContours")
-
-    @validate(*all_optional(*configure_contours.VARGS, *set_contour_dash.VARGS, *set_contour_color.VARGS, *set_contour_colormap.VARGS))
-    def plot_contours(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, thickness=None, color=None, colormap=None, bias=None, contrast=None):
-        """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
-
-        If both a colour and a colourmap are provided, the colourmap will be visible.
-
-        Parameters
-        ----------
-        levels : {0}
-            The contour levels. This may be a numeric numpy array; e.g. the output of ``arange``. If this is unset, the current configured levels will be used.
-        smoothing_mode : {1}
-            The smoothing mode. If this is unset, the frontend default will be used.
-        smoothing_factor : {2}
-            The smoothing kernel size in pixels. If this is unset, the frontend default will be used.
-        dash_mode : {3}
-            The dash mode.
-        thickness : {4}
-            The dash thickness.
-        color : {5}
-            The color. The default is green.
-        colormap : {6}
-            The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
-        bias : {7}
-            The colormap bias.
-        contrast : {8}
-            The colormap contrast.
-        """
-        self.configure_contours(levels, smoothing_mode, smoothing_factor)
-        self.set_contour_dash(dash_mode, thickness)
-        if color is not None:
-            self.set_contour_color(color)
-        if colormap is not None:
-            self.set_contour_colormap(colormap, bias, contrast)
-        self.apply_contours()
-
-    def clear_contours(self):
-        """Clear the contours."""
-        self.call_action("clearContours", True)
-
-    @validate(Boolean())
-    def set_contours_visible(self, state):
-        """Set the contour visibility.
-
-        Parameters
-        ----------
-        state : {0}
-            The desired visibility state.
-        """
-        self.call_action("contourConfig.setVisible", state)
-
-    def show_contours(self):
-        """Show the contours."""
-        self.set_contours_visible(True)
-
-    def hide_contours(self):
-        """Hide the contours."""
-        self.set_contours_visible(False)
-
-    # HISTOGRAM
-
-    @validate(Boolean())
-    def use_cube_histogram(self, contours=False):
-        """Use the cube histogram.
-
-        Parameters
-        ----------
-        contours : {0}
-            Apply to the contours. By default this is applied to the raster image.
-        """
-        self.call_action(f"renderConfig.setUseCubeHistogram{'Contours' if contours else ''}", True)
-
-    @validate(Boolean())
-    def use_channel_histogram(self, contours=False):
-        """Use the channel histogram.
-
-        Parameters
-        ----------
-        contours : {0}
-            Apply to the contours. By default this is applied to the raster image.
-        """
-        self.call_action(f"renderConfig.setUseCubeHistogram{'Contours' if contours else ''}", False)
-
-    @validate(Number(0, 100))
-    def set_clip_percentile(self, rank):
-        """Set the clip percentile.
-
-        Parameters
-        ----------
-        rank : {0}
-            The percentile rank.
-        """
-        preset_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
-        self.call_action("renderConfig.setPercentileRank", rank)
-        if rank not in preset_ranks:
-            self.call_action("renderConfig.setPercentileRank", -1)  # select 'custom' rank button
 
     # CLOSE
 
