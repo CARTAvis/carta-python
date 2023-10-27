@@ -233,6 +233,7 @@ class Point:
         self.y = y
 
     def __eq__(self, other):
+        """Check for equality by comparing x and y attributes."""
         return hasattr(other, "x") and hasattr(other, "y") and self.x == other.x and self.y == other.y
 
     @classmethod

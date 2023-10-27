@@ -737,6 +737,8 @@ class Point(Union):
     """
 
     class NumericPoint(Union):
+        """A pair of numbers."""
+
         def __init__(self):
             options = (
                 IterableOf(Number(), min_size=2, max_size=2),
@@ -744,6 +746,8 @@ class Point(Union):
             super().__init__(*options, description="a pair of numbers")
 
     class WorldCoordinatePoint(Union):
+        """A pair of WCS coordinate strings."""
+
         def __init__(self):
             options = (
                 IterableOf(Coordinate.WorldCoordinate(), min_size=2, max_size=2),
@@ -751,6 +755,8 @@ class Point(Union):
             super().__init__(*options, description="a pair of coordinate strings")
 
     class AngularSizePoint(Union):
+        """A pair of angular size strings."""
+
         def __init__(self):
             options = (
                 IterableOf(Size.AngularSize(), min_size=2, max_size=2),
@@ -758,6 +764,8 @@ class Point(Union):
             super().__init__(*options, description="a pair of size strings")
 
     class CoordinatePoint(Union):
+        """A pair of coordinates."""
+
         def __init__(self):
             options = (
                 Point.NumericPoint(),
@@ -766,6 +774,8 @@ class Point(Union):
             super().__init__(*options, description="a pair of numbers or coordinate strings")
 
     class SizePoint(Union):
+        """A pair of angular sizes."""
+
         def __init__(self):
             options = (
                 Point.NumericPoint(),

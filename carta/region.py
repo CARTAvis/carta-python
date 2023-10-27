@@ -463,6 +463,7 @@ class Region(BasePathMixin):
     """Mapping of :obj:`carta.constants.RegionType` types to region and annotation classes. This mapping is used to select the appropriate subclass when a region or annotation object is constructed in the wrapper."""
 
     def __init_subclass__(cls, **kwargs):
+        """Automatically register subclasses in mapping from region types to classes."""
         super().__init_subclass__(**kwargs)
 
         for t in cls.REGION_TYPES:
@@ -477,6 +478,7 @@ class Region(BasePathMixin):
         self._region = Macro("", self._base_path)
 
     def __repr__(self):
+        """A human-readable representation of this region."""
         return f"{self.region_id}:{self.region_type.label}"
 
     # CREATE OR CONNECT

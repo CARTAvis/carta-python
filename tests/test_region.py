@@ -1,10 +1,8 @@
 import pytest
-import inspect
 import math
 
 from carta.session import Session
 from carta.image import Image
-import carta.region  # For docstring inspection
 from carta.region import Region
 from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF, PointShape as PS, TextPosition as TP, SpatialAxis as SA
 from carta.util import Point as Pt, Macro
@@ -144,54 +142,6 @@ def method(mocker):
 
 
 # TESTS
-
-# DOCSTRINGS
-
-
-def find_classes():
-    for name, clazz in inspect.getmembers(carta.region, inspect.isclass):
-        if not clazz.__module__ == 'carta.region':
-            continue
-        yield clazz
-
-
-def find_methods(classes):
-    for clazz in classes:
-        for name, member in inspect.getmembers(clazz, lambda m: inspect.isfunction(m) or inspect.ismethod(m)):
-            if not member.__module__ == 'carta.region':
-                continue
-            if not member.__qualname__.split('.')[0] == clazz.__name__:
-                continue
-            if member.__name__.startswith('__'):
-                continue
-            yield member
-
-
-def find_properties(classes):
-    for clazz in classes:
-        for name, member in inspect.getmembers(clazz, lambda m: isinstance(m, property)):
-            if not member.fget.__module__ == 'carta.region':
-                continue
-            if not member.fget.__qualname__.split('.')[0] == clazz.__name__:
-                continue
-            if member.fget.__name__.startswith('__'):
-                continue
-            yield member.fget
-
-
-@pytest.mark.parametrize("member", find_classes())
-def test_region_classes_have_docstrings(member):
-    assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("member", find_methods(find_classes()))
-def test_region_methods_have_docstrings(member):
-    assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("member", find_properties(find_classes()))
-def test_region_properties_have_docstrings(member):
-    assert member.__doc__ is not None
 
 # REGION SET
 
@@ -466,7 +416,6 @@ def test_set_size(region, mock_from_angular, call_action, method, property_, reg
     reg.set_size(value)
 
     if region_type == RT.ANNRULER:
-        #mock_set_points.assert_called_with([(20.0, 25.0), (0.0, -5.0)])
         mock_set_points.assert_called_with([(0.0, -5.0), (20.0, 25.0)])
     elif region_type == RT.ANNCOMPASS:
         mock_call.assert_called_with("setLength", min(expected_value.x, expected_value.y))
