@@ -80,6 +80,7 @@ def test_new(session, session_call_action, session_method, args, kwargs, expecte
 
 @pytest.mark.parametrize("name,classname", [
     ("vectors", "VectorOverlay"),
+    ("regions", "RegionSet"),
 ])
 def test_subobjects(image, name, classname):
     assert getattr(image, name).__class__.__name__ == classname
