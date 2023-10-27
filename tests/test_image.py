@@ -1,4 +1,3 @@
-import types
 import pytest
 
 from carta.image import Image
@@ -39,35 +38,6 @@ def session_method(session, mock_method):
 
 
 # TESTS
-
-# DOCSTRINGS TODO move this to a separate test file (all classes in one place; use newer code from region)
-
-
-def test_image_class_has_docstring():
-    assert Image.__doc__ is not None
-
-
-def find_members(*classes, member_type=types.FunctionType):
-    for clazz in classes:
-        for name in dir(clazz):
-            if not name.startswith('__') and isinstance(getattr(clazz, name), member_type):
-                yield getattr(clazz, name)
-
-
-@pytest.mark.parametrize("member", find_members(Image))
-def test_image_methods_have_docstrings(member):
-    assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("member", find_members(Image, member_type=types.MethodType))
-def test_image_classmethods_have_docstrings(member):
-    assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("member", [m.fget for m in find_members(Image, member_type=property)])
-def test_image_properties_have_docstrings(member):
-    assert member.__doc__ is not None
-
 
 # CREATING AN IMAGE
 

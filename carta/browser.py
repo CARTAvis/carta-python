@@ -143,6 +143,7 @@ class Browser:
         return self.new_session_from_url(backend.frontend_url, backend.token, backend=backend, timeout=timeout, debug_no_auth=backend.debug_no_auth)
 
     def exit(self, msg):
+        """Exit the browser with an error."""
         self.close()
         raise CartaBadSession(msg)
 

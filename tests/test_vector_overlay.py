@@ -9,8 +9,6 @@ from carta.constants import VectorOverlaySource as VOS, Auto, Colormap as CM
 
 @pytest.fixture
 def vector_overlay(image):
-    """Return a vector overlay object which uses the image fixture.
-    """
     return VectorOverlay(image)
 
 
@@ -27,6 +25,7 @@ def method(vector_overlay, mock_method):
 @pytest.fixture
 def image_call_action(image, mock_call_action):
     return mock_call_action(image)
+
 
 # TESTS
 
