@@ -7,6 +7,7 @@ try:
     from enum import StrEnum
 except ImportError:
     class StrEnum(str, Enum):
+        """Backwards-compatible base class for string enums."""
         pass
 
 
