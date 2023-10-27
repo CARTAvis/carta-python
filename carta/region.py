@@ -921,6 +921,35 @@ class HasEndpointsMixin:
     # GET PROPERTIES
 
     @property
+    def size(self):
+        """The size, in pixels.
+
+        Returns
+        -------
+        number
+            The width.
+        number
+            The height.
+        """
+        sx, sy = super().size
+        # negate the raw frontend value for consistency
+        return (-sx, -sy)
+
+    @property
+    def wcs_size(self):
+        """The size, in angular size units.
+
+        Returns
+        -------
+        string
+            The width.
+        string
+            The height.
+        """
+        [size] = self.region_set.image.to_angular_size_points([self.size])
+        return size
+
+    @property
     def endpoints(self):
         """The endpoints, in image coordinates.
 
@@ -968,21 +997,6 @@ class HasEndpointsMixin:
         return str(AngularSize.from_arcsec(math.hypot(*arcsec_size)))
 
     # SET PROPERTIES
-
-    @validate(Point.SizePoint())
-    def set_size(self, size):
-        """Set the size.
-
-        Both pixel and angular sizes are accepted, but both values must match.
-
-        Parameters
-        ----------
-        size : {0}
-            The new width and height, in that order.
-        """
-        [size] = self.region_set._from_angular_sizes([size])
-        sx, sy = size
-        super().set_size((-sx, -sy))  # negated for consistency with returned size
 
     @validate(*all_optional(Point.CoordinatePoint(), Point.CoordinatePoint()))
     def set_endpoints(self, start=None, end=None):
@@ -1725,7 +1739,7 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, Region):
         start = cx - dx / 2, cy - dy / 2
         end = cx + dx / 2, cy + dy / 2
 
-        self.set_control_points([end, start])  # reversed for consistency with returned size
+        self.set_control_points([start, end])
 
     @validate(*all_optional(Boolean(), Number()))
     def set_auxiliary_lines_style(self, visible=None, dash_length=None):
