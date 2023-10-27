@@ -85,9 +85,11 @@ class Macro:
         self.variable = variable
 
     def __repr__(self):
+        """A human-readable representation of this macro."""
         return f"Macro('{self.target}', '{self.variable}')"
 
     def __eq__(self, other):
+        """Check for equality by comparing representations."""
         return repr(self) == repr(other)
 
     def json(self):

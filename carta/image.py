@@ -104,6 +104,7 @@ class Image(BasePathMixin):
         return [cls(session, f["value"]) for f in image_list]
 
     def __repr__(self):
+        """A human-readable representation of this image object."""
         return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
 
     # METADATA

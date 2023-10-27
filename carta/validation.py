@@ -689,6 +689,10 @@ class Size(Union):
         """Helper validator class which uses :obj:`carta.util.AngularSize` to validate strings."""
 
         def validate(self, value, parent):
+            """Check if the value can be parsed as an angular size.
+
+            See :obj:`carta.validation.Parameter.validate` for general information about this method.
+            """
             super().validate(value, parent)
             if not AngularSize.valid(value):
                 raise ValueError(f"{value} is not an angular size.")
@@ -708,6 +712,10 @@ class Coordinate(Union):
         """Helper validator class which uses :obj:`carta.util.WorldCoordinate` to validate strings."""
 
         def validate(self, value, parent):
+            """Check if the value can be parsed as a world coordinate.
+
+            See :obj:`carta.validation.Parameter.validate` for general information about this method.
+            """
             super().validate(value, parent)
             if not WorldCoordinate.valid(value):
                 raise ValueError(f"{value} is not a world coordinate.")
@@ -812,6 +820,10 @@ class Evaluate(Parameter):
         self.kwargs = kwargs
 
     def validate(self, value, parent):
+        """Validate the value after constructing the parameter descriptor object.
+
+        See :obj:`carta.validation.Parameter.validate` for general information about this method.
+        """
         args = []
         for arg in self.args:
             if isinstance(arg, Attr):

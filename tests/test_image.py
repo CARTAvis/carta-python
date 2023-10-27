@@ -1,7 +1,5 @@
-import types
 import pytest
 
-from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Point as Pt
 from carta.constants import NumberFormat as NF, SpatialAxis as SA
@@ -10,92 +8,36 @@ from carta.constants import NumberFormat as NF, SpatialAxis as SA
 
 
 @pytest.fixture
-def session():
-    """Return a session object.
-
-    The session's protocol is set to None, so any tests that use this must also mock the session's call_action and/or higher-level functions which call it.
-    """
-    return Session(0, None)
+def get_value(image, mock_get_value):
+    return mock_get_value(image)
 
 
 @pytest.fixture
-def image(session):
-    """Return an image object which uses the session fixture.
-    """
-    return Image(session, 0)
+def call_action(image, mock_call_action):
+    return mock_call_action(image)
 
 
 @pytest.fixture
-def get_value(image, mocker):
-    """Return a mock for image's get_value."""
-    return mocker.patch.object(image, "get_value")
+def property_(image, mock_property):
+    return mock_property("carta.image.Image")
 
 
 @pytest.fixture
-def call_action(image, mocker):
-    """Return a mock for image's call_action."""
-    return mocker.patch.object(image, "call_action")
+def method(image, mock_method):
+    return mock_method(image)
 
 
 @pytest.fixture
-def session_call_action(session, mocker):
-    """Return a mock for session's call_action."""
-    return mocker.patch.object(session, "call_action")
+def session_call_action(session, mock_call_action):
+    return mock_call_action(session)
 
 
 @pytest.fixture
-def property_(mocker):
-    """Return a helper function to mock the value of a decorated image property using a simple syntax."""
-    def func(property_name, mock_value):
-        return mocker.patch(f"carta.image.Image.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
-    return func
+def session_method(session, mock_method):
+    return mock_method(session)
 
-
-@pytest.fixture
-def method(image, mocker):
-    """Return a helper function to mock the return value(s) of an image method using a simple syntax."""
-    def func(method_name, return_values):
-        return mocker.patch.object(image, method_name, side_effect=return_values)
-    return func
-
-
-@pytest.fixture
-def session_method(session, mocker):
-    """Return a helper function to mock the return value(s) of a session method using a simple syntax."""
-    def func(method_name, return_values):
-        return mocker.patch.object(session, method_name, side_effect=return_values)
-    return func
 
 # TESTS
-
-# DOCSTRINGS
-
-
-def test_image_class_has_docstring():
-    assert Image.__doc__ is not None
-
-
-def find_members(*classes, member_type=types.FunctionType):
-    for clazz in classes:
-        for name in dir(clazz):
-            if not name.startswith('__') and isinstance(getattr(clazz, name), member_type):
-                yield getattr(clazz, name)
-
-
-@pytest.mark.parametrize("member", find_members(Image))
-def test_image_methods_have_docstrings(member):
-    assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("member", find_members(Image, member_type=types.MethodType))
-def test_image_classmethods_have_docstrings(member):
-    assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("member", [m.fget for m in find_members(Image, member_type=property)])
-def test_image_properties_have_docstrings(member):
-    assert member.__doc__ is not None
-
 
 # CREATING AN IMAGE
 

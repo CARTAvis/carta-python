@@ -26,6 +26,7 @@ class AngularSize:
         self.value = value
 
     def __init_subclass__(cls, **kwargs):
+        """Automatically register subclasses corresponding to size units."""
         super().__init_subclass__(**kwargs)
         cls._update_unit_regex(cls.INPUT_UNITS)
 
@@ -130,6 +131,7 @@ class AngularSize:
         return unit(arcsec / unit.ARCSEC_FACTOR)
 
     def __str__(self):
+        """The canonical string representation of this size."""
         if type(self) is AngularSize:
             raise NotImplementedError()
         value = self.value * self.FACTOR
@@ -332,6 +334,7 @@ class DegreesCoordinate(WorldCoordinate):
         self.degrees = degrees
 
     def __str__(self):
+        """The canonical string representation of this coordinate."""
         return f"{self.degrees:g}"
 
 
@@ -378,11 +381,13 @@ class SexagesimalCoordinate(WorldCoordinate):
         self.seconds = seconds
 
     def __str__(self):
+        """The canonical string representation of this coordinate."""
         fractional_seconds, whole_seconds = math.modf(self.seconds)
         fraction_string = f"{fractional_seconds:g}".lstrip("0") if fractional_seconds else ""
         return f"{self.hours_or_degrees:g}:{self.minutes:0>2.0f}:{whole_seconds:0>2.0f}{fraction_string}"
 
     def as_tuple(self):
+        """The tuple representation of this coordinate."""
         return self.hours_or_degrees, self.minutes, self.seconds
 
 

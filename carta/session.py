@@ -58,6 +58,7 @@ class Session:
         self._pwd = None
 
     def __del__(self):
+        """Delete this session object."""
         self.close()
 
     @classmethod
@@ -220,6 +221,7 @@ class Session:
         return browser.new_session_with_backend(executable_path, remote_host, params, timeout, token, frontend_url_timeout)
 
     def __repr__(self):
+        """A human-readable representation of this session object."""
         return f"Session(session_id={self.session_id}, uri={self._protocol.frontend_url if self._protocol else None})"
 
     def call_action(self, path, *args, **kwargs):
