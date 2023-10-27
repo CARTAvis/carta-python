@@ -1,26 +1,8 @@
 import pytest
 
-from carta.session import Session
-from carta.image import Image
 from carta.vector_overlay import VectorOverlay
 from carta.util import Macro
 from carta.constants import VectorOverlaySource as VOS, Auto, Colormap as CM
-
-
-@pytest.fixture
-def session():
-    """Return a session object.
-
-    The session's protocol is set to None, so any tests that use this must also mock the session's call_action and/or higher-level functions which call it.
-    """
-    return Session(0, None)
-
-
-@pytest.fixture
-def image(session):
-    """Return an image object which uses the session fixture.
-    """
-    return Image(session, 0)
 
 
 @pytest.fixture
