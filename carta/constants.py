@@ -142,6 +142,10 @@ class SmoothingMode(IntEnum):
     GAUSSIAN_BLUR = 2
 
 
+VectorOverlaySource = Enum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), type=int, start=-1)
+VectorOverlaySource.__doc__ = """Vector overlay source."""
+
+
 class Auto(StrEnum):
     """Special value for parameters to be calculated automatically."""
     AUTO = "Auto"

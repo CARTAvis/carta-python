@@ -2,11 +2,13 @@
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
+
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, SpatialAxis
 from .util import Macro, cached, BasePathMixin
 from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
 from .metadata import parse_header
+from .vector_overlay import VectorOverlay
 
 
 class Image(BasePathMixin):
@@ -35,6 +37,9 @@ class Image(BasePathMixin):
 
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
+
+        # Sub-objects grouping related functions
+        self.vectors = VectorOverlay(self)
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
