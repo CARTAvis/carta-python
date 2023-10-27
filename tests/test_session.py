@@ -1,7 +1,5 @@
-import types
 import pytest
 
-from carta.session import Session
 from carta.image import Image
 from carta.util import CartaValidationFailed, Macro
 from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC, Polarization as Pol
@@ -10,65 +8,21 @@ from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexCompone
 
 
 @pytest.fixture
-def session():
-    """Return a session object.
-
-    The session's protocol is set to None, so any tests that use this must also mock the session's call_action and/or higher-level functions which call it.
-    """
-    return Session(0, None)
+def get_value(session, mock_get_value):
+    return mock_get_value(session)
 
 
 @pytest.fixture
-def get_value(session, mocker):
-    """Return a mock for session's get_value."""
-    return mocker.patch.object(session, "get_value")
+def call_action(session, mock_call_action):
+    return mock_call_action(session)
 
 
 @pytest.fixture
-def call_action(session, mocker):
-    """Return a mock for session's call_action."""
-    return mocker.patch.object(session, "call_action")
-
-
-@pytest.fixture
-def property_(mocker):
-    """Return a helper function to mock the value of a decorated session property using a simple syntax."""
-    def func(property_name, mock_value):
-        return mocker.patch(f"carta.session.Session.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
-    return func
-
-
-@pytest.fixture
-def method(session, mocker):
-    """Return a helper function to mock the return value(s) of an session method using a simple syntax."""
-    def func(method_name, return_values):
-        return mocker.patch.object(session, method_name, side_effect=return_values)
-    return func
+def method(session, mock_method):
+    return mock_method(session)
 
 
 # TESTS
-
-
-def test_session_class_has_docstring():
-    assert Session.__doc__ is not None
-
-
-def find_members(*classes, member_type=types.FunctionType):
-    for clazz in classes:
-        for name in dir(clazz):
-            if not name.startswith('__') and isinstance(getattr(clazz, name), member_type):
-                yield getattr(clazz, name)
-
-
-@pytest.mark.parametrize("member", find_members(Session))
-def test_session_methods_have_docstrings(member):
-    assert member.__doc__ is not None
-
-
-@pytest.mark.parametrize("member", find_members(Session, member_type=types.MethodType))
-def test_session_classmethods_have_docstrings(member):
-    assert member.__doc__ is not None
-
 
 # TODO fill in missing session tests
 

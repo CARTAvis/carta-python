@@ -12,6 +12,7 @@ from .util import logger, CartaBadRequest, CartaRequestFailed, CartaActionFailed
 
 
 class AuthType:
+    """The type of authentication used to connect to the backend or controller."""
     BACKEND, CONTROLLER, NONE = 0, 1, 2
 
 
