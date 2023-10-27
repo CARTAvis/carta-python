@@ -1656,8 +1656,6 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, Region):
         ((sx, sy), (ex, ey)) = self.endpoints
         rad = math.atan2(ex - sx, sy - ey)
         rotation = math.degrees(rad)
-        if ey > sy:
-            rotation += 180
         rotation = (rotation + 360) % 360
         return rotation
 
