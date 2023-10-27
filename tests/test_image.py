@@ -26,25 +26,25 @@ def image(session):
 
 
 @pytest.fixture
-def mock_get_value(image, mocker):
+def get_value(image, mocker):
     """Return a mock for image's get_value."""
     return mocker.patch.object(image, "get_value")
 
 
 @pytest.fixture
-def mock_call_action(image, mocker):
+def call_action(image, mocker):
     """Return a mock for image's call_action."""
     return mocker.patch.object(image, "call_action")
 
 
 @pytest.fixture
-def mock_session_call_action(session, mocker):
+def session_call_action(session, mocker):
     """Return a mock for session's call_action."""
     return mocker.patch.object(session, "call_action")
 
 
 @pytest.fixture
-def mock_property(mocker):
+def property_(mocker):
     """Return a helper function to mock the value of a decorated image property using a simple syntax."""
     def func(property_name, mock_value):
         return mocker.patch(f"carta.image.Image.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
@@ -52,7 +52,7 @@ def mock_property(mocker):
 
 
 @pytest.fixture
-def mock_method(image, mocker):
+def method(image, mocker):
     """Return a helper function to mock the return value(s) of an image method using a simple syntax."""
     def func(method_name, return_values):
         return mocker.patch.object(image, method_name, side_effect=return_values)
@@ -60,7 +60,7 @@ def mock_method(image, mocker):
 
 
 @pytest.fixture
-def mock_session_method(session, mocker):
+def session_method(session, mocker):
     """Return a helper function to mock the return value(s) of a session method using a simple syntax."""
     def func(method_name, return_values):
         return mocker.patch.object(session, method_name, side_effect=return_values)
@@ -119,13 +119,13 @@ def test_image_properties_have_docstrings(member):
     (["subdir", "image.fits", "", True, False], {"make_active": False},
      ["appendFile", "/my_data/subdir", "image.fits", "", False, False, False]),
 ])
-def test_new(session, mock_session_call_action, mock_session_method, args, kwargs, expected_params):
-    mock_session_method("pwd", ["/my_data"])
-    mock_session_call_action.side_effect = [123]
+def test_new(session, session_call_action, session_method, args, kwargs, expected_params):
+    session_method("pwd", ["/my_data"])
+    session_call_action.side_effect = [123]
 
     image_object = Image.new(session, *args, **kwargs)
 
-    mock_session_call_action.assert_called_with(*expected_params, return_path='frameInfo.fileId')
+    session_call_action.assert_called_with(*expected_params, return_path='frameInfo.fileId')
 
     assert type(image_object) is Image
     assert image_object.session == session
@@ -139,24 +139,24 @@ def test_new(session, mock_session_call_action, mock_session_method, args, kwarg
     ("directory", "frameInfo.directory"),
     ("width", "frameInfo.fileInfoExtended.width"),
 ])
-def test_simple_properties(image, property_name, expected_path, mock_get_value):
+def test_simple_properties(image, property_name, expected_path, get_value):
     getattr(image, property_name)
-    mock_get_value.assert_called_with(expected_path)
+    get_value.assert_called_with(expected_path)
 
 # TODO tests for all existing functions to be filled in
 
 
-def test_make_active(image, mock_session_call_action):
+def test_make_active(image, session_call_action):
     image.make_active()
-    mock_session_call_action.assert_called_with("setActiveFrameById", 0)
+    session_call_action.assert_called_with("setActiveFrameById", 0)
 
 
 @pytest.mark.parametrize("channel", [0, 10, 19])
-def test_set_channel_valid(image, channel, mock_call_action, mock_property):
-    mock_property("depth", 20)
+def test_set_channel_valid(image, channel, call_action, property_):
+    property_("depth", 20)
 
     image.set_channel(channel)
-    mock_call_action.assert_called_with("setChannels", channel, image.macro("", "requiredStokes"), True)
+    call_action.assert_called_with("setChannels", channel, image.macro("", "requiredStokes"), True)
 
 
 @pytest.mark.parametrize("channel,error_contains", [
@@ -164,8 +164,8 @@ def test_set_channel_valid(image, channel, mock_call_action, mock_property):
     (1.5, "not an increment of 1"),
     (-3, "must be greater or equal"),
 ])
-def test_set_channel_invalid(image, channel, error_contains, mock_property):
-    mock_property("depth", 20)
+def test_set_channel_invalid(image, channel, error_contains, property_):
+    property_("depth", 20)
 
     with pytest.raises(CartaValidationFailed) as e:
         image.set_channel(channel)
@@ -174,13 +174,13 @@ def test_set_channel_invalid(image, channel, error_contains, mock_property):
 
 @pytest.mark.parametrize("x", [-30, 0, 10, 12.3, 30])
 @pytest.mark.parametrize("y", [-30, 0, 10, 12.3, 30])
-def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
+def test_set_center_valid_pixels(image, property_, call_action, x, y):
     # Currently we have no range validation, for consistency with WCS coordinates.
-    mock_property("width", 20)
-    mock_property("height", 20)
+    property_("width", 20)
+    property_("height", 20)
 
     image.set_center(x, y)
-    mock_call_action.assert_called_with("setCenter", x, y)
+    call_action.assert_called_with("setCenter", x, y)
 
 
 @pytest.mark.parametrize("x,y,x_fmt,y_fmt,x_norm,y_norm", [
@@ -191,12 +191,12 @@ def test_set_center_valid_pixels(image, mock_property, mock_call_action, x, y):
     ("12h34m56.789s", "5h34m56.789s", NF.HMS, NF.HMS, "12:34:56.789", "5:34:56.789"),
     ("12d34m56.789s", "12d34m56.789s", NF.DMS, NF.DMS, "12:34:56.789", "12:34:56.789"),
 ])
-def test_set_center_valid_wcs(image, mock_property, mock_session_method, mock_call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
-    mock_property("valid_wcs", True)
-    mock_session_method("number_format", [(x_fmt, y_fmt, None)])
+def test_set_center_valid_wcs(image, property_, session_method, call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
+    property_("valid_wcs", True)
+    session_method("number_format", [(x_fmt, y_fmt, None)])
 
     image.set_center(x, y)
-    mock_call_action.assert_called_with("setCenterWcs", x_norm, y_norm)
+    call_action.assert_called_with("setCenterWcs", x_norm, y_norm)
 
 
 @pytest.mark.parametrize("x,y,wcs,x_fmt,y_fmt,error_contains", [
@@ -207,11 +207,11 @@ def test_set_center_valid_wcs(image, mock_property, mock_session_method, mock_ca
     (123, "123", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
     ("123", 123, True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
 ])
-def test_set_center_invalid(image, mock_property, mock_session_method, mock_call_action, x, y, wcs, x_fmt, y_fmt, error_contains):
-    mock_property("width", 200)
-    mock_property("height", 200)
-    mock_property("valid_wcs", wcs)
-    mock_session_method("number_format", [(x_fmt, y_fmt, None)])
+def test_set_center_invalid(image, property_, session_method, call_action, x, y, wcs, x_fmt, y_fmt, error_contains):
+    property_("width", 200)
+    property_("height", 200)
+    property_("valid_wcs", wcs)
+    session_method("number_format", [(x_fmt, y_fmt, None)])
 
     with pytest.raises(Exception) as e:
         image.set_center(x, y)
@@ -228,10 +228,10 @@ def test_set_center_invalid(image, mock_property, mock_session_method, mock_call
     ("123deg", "zoomToSize{0}Wcs", "123deg"),
     ("123 deg", "zoomToSize{0}Wcs", "123deg"),
 ])
-def test_zoom_to_size(image, mock_property, mock_call_action, axis, val, action, norm):
-    mock_property("valid_wcs", True)
+def test_zoom_to_size(image, property_, call_action, axis, val, action, norm):
+    property_("valid_wcs", True)
     image.zoom_to_size(val, axis)
-    mock_call_action.assert_called_with(action.format(axis.upper()), norm)
+    call_action.assert_called_with(action.format(axis.upper()), norm)
 
 
 @pytest.mark.parametrize("axis", [SA.X, SA.Y])
@@ -240,17 +240,17 @@ def test_zoom_to_size(image, mock_property, mock_call_action, axis, val, action,
     ("abc", True, "Invalid function parameter"),
     ("123arcsec", False, "does not contain valid WCS information"),
 ])
-def test_zoom_to_size_invalid(image, mock_property, axis, val, wcs, error_contains):
-    mock_property("valid_wcs", wcs)
+def test_zoom_to_size_invalid(image, property_, axis, val, wcs, error_contains):
+    property_("valid_wcs", wcs)
     with pytest.raises(Exception) as e:
         image.zoom_to_size(val, axis)
     assert error_contains in str(e.value)
 
 
-def test_from_world_coordinate_points(image, mock_call_action):
-    mock_call_action.return_value = [{"x": 1, "y": 2}, {"x": 3, "y": 4}, {"x": 5, "y": 6}]
+def test_from_world_coordinate_points(image, call_action):
+    call_action.return_value = [{"x": 1, "y": 2}, {"x": 3, "y": 4}, {"x": 5, "y": 6}]
     points = image.from_world_coordinate_points([("1", "2"), ("3", "4"), ("5", "6")])
-    mock_call_action.assert_called_with("getImagePosFromWCS", [Pt("1", "2"), Pt("3", "4"), Pt("5", "6")])
+    call_action.assert_called_with("getImagePosFromWCS", [Pt("1", "2"), Pt("3", "4"), Pt("5", "6")])
     assert points == [(1, 2), (3, 4), (5, 6)]
 
 
@@ -260,10 +260,10 @@ def test_from_world_coordinate_points_invalid(image):
     assert "not a pair of coordinate strings" in str(e.value)
 
 
-def test_to_world_coordinate_points(image, mock_call_action):
-    mock_call_action.return_value = [{"x": "1", "y": "2"}, {"x": "3", "y": "4"}, {"x": "5", "y": "6"}]
+def test_to_world_coordinate_points(image, call_action):
+    call_action.return_value = [{"x": "1", "y": "2"}, {"x": "3", "y": "4"}, {"x": "5", "y": "6"}]
     points = image.to_world_coordinate_points([(1, 2), (3, 4), (5, 6)])
-    mock_call_action.assert_called_with("getWCSFromImagePos", [Pt(1, 2), Pt(3, 4), Pt(5, 6)])
+    call_action.assert_called_with("getWCSFromImagePos", [Pt(1, 2), Pt(3, 4), Pt(5, 6)])
     assert points == [("1", "2"), ("3", "4"), ("5", "6")]
 
 
@@ -277,9 +277,9 @@ def test_to_world_coordinate_points_invalid(image):
     ("100\"", SA.X, ("getImageXValueFromArcsec", 100)),
     ("100\"", SA.Y, ("getImageYValueFromArcsec", 100)),
 ])
-def test_from_angular_size(image, mock_call_action, size, axis, expected_call):
+def test_from_angular_size(image, call_action, size, axis, expected_call):
     image.from_angular_size(size, axis)
-    mock_call_action.assert_called_with(*expected_call)
+    call_action.assert_called_with(*expected_call)
 
 
 @pytest.mark.parametrize("size,error_contains", [
@@ -292,8 +292,8 @@ def test_from_angular_size_invalid(image, size, error_contains):
     assert error_contains in str(e.value)
 
 
-def test_from_angular_size_points(mocker, image, mock_method):
-    mock_from_angular_size = mock_method("from_angular_size", [1, 2, 3, 4])
+def test_from_angular_size_points(mocker, image, method):
+    mock_from_angular_size = method("from_angular_size", [1, 2, 3, 4])
     points = image.from_angular_size_points([("1", "2"), ("3", "4")])
     mock_from_angular_size.assert_has_calls([
         mocker.call("1", SA.X),
@@ -304,10 +304,10 @@ def test_from_angular_size_points(mocker, image, mock_method):
     assert points == [(1, 2), (3, 4)]
 
 
-def test_to_angular_size_points(mocker, image, mock_call_action):
-    mock_call_action.side_effect = [{"x": "1", "y": "2"}, {"x": "3", "y": "4"}]
+def test_to_angular_size_points(mocker, image, call_action):
+    call_action.side_effect = [{"x": "1", "y": "2"}, {"x": "3", "y": "4"}]
     points = image.to_angular_size_points([(1, 2), (3, 4)])
-    mock_call_action.assert_has_calls([
+    call_action.assert_has_calls([
         mocker.call("getWcsSizeInArcsec", Pt(1, 2)),
         mocker.call("getWcsSizeInArcsec", Pt(3, 4)),
     ])

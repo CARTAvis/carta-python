@@ -19,19 +19,19 @@ def session():
 
 
 @pytest.fixture
-def mock_get_value(session, mocker):
+def get_value(session, mocker):
     """Return a mock for session's get_value."""
     return mocker.patch.object(session, "get_value")
 
 
 @pytest.fixture
-def mock_call_action(session, mocker):
+def call_action(session, mocker):
     """Return a mock for session's call_action."""
     return mocker.patch.object(session, "call_action")
 
 
 @pytest.fixture
-def mock_property(mocker):
+def property_(mocker):
     """Return a helper function to mock the value of a decorated session property using a simple syntax."""
     def func(property_name, mock_value):
         return mocker.patch(f"carta.session.Session.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
@@ -39,7 +39,7 @@ def mock_property(mocker):
 
 
 @pytest.fixture
-def mock_method(session, mocker):
+def method(session, mocker):
     """Return a helper function to mock the return value(s) of an session method using a simple syntax."""
     def func(method_name, return_values):
         return mocker.patch.object(session, method_name, side_effect=return_values)
@@ -82,31 +82,31 @@ def test_session_classmethods_have_docstrings(member):
     ("foo/..", "/current/dir"),
     ("foo/../bar", "/current/dir/bar"),
 ])
-def test_resolve_file_path(session, mock_method, path, expected_path):
-    mock_method("pwd", ["/current/dir"])
+def test_resolve_file_path(session, method, path, expected_path):
+    method("pwd", ["/current/dir"])
     assert session.resolve_file_path(path) == expected_path
 
 
-def test_pwd(session, mock_call_action, mock_get_value):
-    mock_get_value.side_effect = ["current/dir/"]
+def test_pwd(session, call_action, get_value):
+    get_value.side_effect = ["current/dir/"]
     pwd = session.pwd()
-    mock_call_action.assert_called_with("fileBrowserStore.getFileList", Macro('fileBrowserStore', 'startingDirectory'))
-    mock_get_value.assert_called_with("fileBrowserStore.fileList.directory")
+    call_action.assert_called_with("fileBrowserStore.getFileList", Macro('fileBrowserStore', 'startingDirectory'))
+    get_value.assert_called_with("fileBrowserStore.fileList.directory")
     assert pwd == "/current/dir"
 
 
-def test_ls(session, mock_method, mock_call_action):
-    mock_method("pwd", ["/current/dir"])
-    mock_call_action.side_effect = [{"files": [{"name": "foo.fits"}, {"name": "bar.fits"}], "subdirectories": [{"name": "baz"}]}]
+def test_ls(session, method, call_action):
+    method("pwd", ["/current/dir"])
+    call_action.side_effect = [{"files": [{"name": "foo.fits"}, {"name": "bar.fits"}], "subdirectories": [{"name": "baz"}]}]
     ls = session.ls()
-    mock_call_action.assert_called_with("backendService.getFileList", "/current/dir", 2)
+    call_action.assert_called_with("backendService.getFileList", "/current/dir", 2)
     assert ls == ["bar.fits", "baz/", "foo.fits"]
 
 
-def test_cd(session, mock_method, mock_call_action):
-    mock_method("resolve_file_path", ["/resolved/file/path"])
+def test_cd(session, method, call_action):
+    method("resolve_file_path", ["/resolved/file/path"])
     session.cd("original/path")
-    mock_call_action.assert_called_with("fileBrowserStore.saveStartingDirectory", "/resolved/file/path")
+    call_action.assert_called_with("fileBrowserStore.saveStartingDirectory", "/resolved/file/path")
 
 # OPENING IMAGES
 
@@ -178,8 +178,8 @@ def test_open_LEL_image(mocker, session, args, kwargs, expected_args, expected_k
 
 
 @pytest.mark.parametrize("append", [True, False])
-def test_open_images(mocker, session, mock_method, append):
-    mock_open_image = mock_method("open_image", ["1", "2", "3"])
+def test_open_images(mocker, session, method, append):
+    mock_open_image = method("open_image", ["1", "2", "3"])
     images = session.open_images(["foo.fits", "bar.fits", "baz.fits"], append)
     mock_open_image.assert_has_calls([
         mocker.call("foo.fits", append=append),
@@ -201,14 +201,14 @@ def test_open_images(mocker, session, mock_method, append):
     (True, "appendConcatFile"),
     (False, "openConcatFile"),
 ])
-def test_open_hypercube_guess_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
-    mock_method("pwd", ["/current/dir"])
-    mock_method("resolve_file_path", ["/resolved/path"] * 3)
-    mock_call_action.side_effect = [*expected_args[0], 123]
+def test_open_hypercube_guess_polarization(mocker, session, call_action, method, paths, expected_args, append, expected_command):
+    method("pwd", ["/current/dir"])
+    method("resolve_file_path", ["/resolved/path"] * 3)
+    call_action.side_effect = [*expected_args[0], 123]
 
     hypercube = session.open_hypercube(paths, append)
 
-    mock_call_action.assert_has_calls([
+    call_action.assert_has_calls([
         mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "foo.fits", ""),
         mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "bar.fits", ""),
         mocker.call("fileBrowserStore.getStokesFile", "/resolved/path", "baz.fits", ""),
@@ -234,16 +234,16 @@ def test_open_hypercube_guess_polarization(mocker, session, mock_call_action, mo
         {"directory": "/resolved/path", "file": "bar.fits", "hdu": "", "polarizationType": 1},
     ], "Duplicate polarizations deduced"),
 ])
-def test_open_hypercube_guess_polarization_bad(mocker, session, mock_call_action, mock_method, paths, expected_calls, mocked_side_effect, expected_error):
-    mock_method("pwd", ["/current/dir"])
-    mock_method("resolve_file_path", ["/resolved/path"] * 3)
-    mock_call_action.side_effect = mocked_side_effect
+def test_open_hypercube_guess_polarization_bad(mocker, session, call_action, method, paths, expected_calls, mocked_side_effect, expected_error):
+    method("pwd", ["/current/dir"])
+    method("resolve_file_path", ["/resolved/path"] * 3)
+    call_action.side_effect = mocked_side_effect
 
     with pytest.raises(ValueError) as e:
         session.open_hypercube(paths)
     assert expected_error in str(e.value)
 
-    mock_call_action.assert_has_calls([mocker.call(*args) for args in expected_calls])
+    call_action.assert_has_calls([mocker.call(*args) for args in expected_calls])
 
 
 @pytest.mark.parametrize("paths,expected_args", [
@@ -258,14 +258,14 @@ def test_open_hypercube_guess_polarization_bad(mocker, session, mock_call_action
     (True, "appendConcatFile"),
     (False, "openConcatFile"),
 ])
-def test_open_hypercube_explicit_polarization(mocker, session, mock_call_action, mock_method, paths, expected_args, append, expected_command):
-    mock_method("pwd", ["/current/dir"])
-    mock_method("resolve_file_path", ["/resolved/path"] * 3)
-    mock_call_action.side_effect = [123]
+def test_open_hypercube_explicit_polarization(mocker, session, call_action, method, paths, expected_args, append, expected_command):
+    method("pwd", ["/current/dir"])
+    method("resolve_file_path", ["/resolved/path"] * 3)
+    call_action.side_effect = [123]
 
     hypercube = session.open_hypercube(paths, append)
 
-    mock_call_action.assert_has_calls([
+    call_action.assert_has_calls([
         mocker.call(expected_command, *expected_args),
     ])
 
@@ -279,9 +279,9 @@ def test_open_hypercube_explicit_polarization(mocker, session, mock_call_action,
     (["foo.fits"], "at least 2"),
 ])
 @pytest.mark.parametrize("append", [True, False])
-def test_open_hypercube_bad(mocker, session, mock_call_action, mock_method, paths, expected_error, append):
-    mock_method("pwd", ["/current/dir"])
-    mock_method("resolve_file_path", ["/resolved/path"] * 3)
+def test_open_hypercube_bad(mocker, session, call_action, method, paths, expected_error, append):
+    method("pwd", ["/current/dir"])
+    method("resolve_file_path", ["/resolved/path"] * 3)
 
     with pytest.raises(Exception) as e:
         session.open_hypercube(paths, append)
@@ -292,9 +292,9 @@ def test_open_hypercube_bad(mocker, session, mock_call_action, mock_method, path
 
 
 @pytest.mark.parametrize("system", CoordinateSystem)
-def test_set_coordinate_system(session, mock_call_action, system):
+def test_set_coordinate_system(session, call_action, system):
     session.set_coordinate_system(system)
-    mock_call_action.assert_called_with("overlayStore.global.setSystem", system)
+    call_action.assert_called_with("overlayStore.global.setSystem", system)
 
 
 def test_set_coordinate_system_invalid(session):
@@ -303,18 +303,18 @@ def test_set_coordinate_system_invalid(session):
     assert "Invalid function parameter" in str(e.value)
 
 
-def test_coordinate_system(session, mock_get_value):
-    mock_get_value.return_value = "AUTO"
+def test_coordinate_system(session, get_value):
+    get_value.return_value = "AUTO"
     system = session.coordinate_system()
-    mock_get_value.assert_called_with("overlayStore.global.system")
+    get_value.assert_called_with("overlayStore.global.system")
     assert isinstance(system, CoordinateSystem)
 
 
 @pytest.mark.parametrize("x", NF)
 @pytest.mark.parametrize("y", NF)
-def test_set_custom_number_format(mocker, session, mock_call_action, x, y):
+def test_set_custom_number_format(mocker, session, call_action, x, y):
     session.set_custom_number_format(x, y)
-    mock_call_action.assert_has_calls([
+    call_action.assert_has_calls([
         mocker.call("overlayStore.numbers.setFormatX", x),
         mocker.call("overlayStore.numbers.setFormatY", y),
         mocker.call("overlayStore.numbers.setCustomFormat", True),
@@ -332,15 +332,15 @@ def test_set_custom_number_format_invalid(session, x, y):
     assert "Invalid function parameter" in str(e.value)
 
 
-def test_clear_custom_number_format(session, mock_call_action):
+def test_clear_custom_number_format(session, call_action):
     session.clear_custom_number_format()
-    mock_call_action.assert_called_with("overlayStore.numbers.setCustomFormat", False)
+    call_action.assert_called_with("overlayStore.numbers.setCustomFormat", False)
 
 
-def test_number_format(session, mock_get_value, mocker):
-    mock_get_value.side_effect = [NF.DEGREES, NF.DEGREES, False]
+def test_number_format(session, get_value, mocker):
+    get_value.side_effect = [NF.DEGREES, NF.DEGREES, False]
     x, y, _ = session.number_format()
-    mock_get_value.assert_has_calls([
+    get_value.assert_has_calls([
         mocker.call("overlayStore.numbers.formatTypeX"),
         mocker.call("overlayStore.numbers.formatTypeY"),
         mocker.call("overlayStore.numbers.customFormat"),
