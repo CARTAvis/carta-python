@@ -1,8 +1,6 @@
 import pytest
 import math
 
-from carta.session import Session
-from carta.image import Image
 from carta.region import Region
 from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF, PointShape as PS, TextPosition as TP, SpatialAxis as SA
 from carta.util import Point as Pt, Macro
@@ -13,41 +11,18 @@ from carta.util import Point as Pt, Macro
 
 
 @pytest.fixture
-def session():
-    """Return a session object.
-
-    The session's protocol is set to None,  so any tests that use this must also mock the session's call_action and/or higher-level functions which call it.
-    """
-    return Session(0, None)
+def session_call_action(session, mock_call_action):
+    return mock_call_action(session)
 
 
 @pytest.fixture
-def image(session):
-    """Return an image object which uses the session fixture.
-    """
-    return Image(session, 0)
+def session_method(session, mock_method):
+    return mock_method(session)
 
 
 @pytest.fixture
-def session_call_action(session, mocker):
-    """Return a mock for session's call_action."""
-    return mocker.patch.object(session, "call_action")
-
-
-@pytest.fixture
-def session_method(session, mocker):
-    """Return a helper function to mock the return value(s) of a session method using a simple syntax."""
-    def func(method_name, return_values):
-        return mocker.patch.object(session, method_name, side_effect=return_values)
-    return func
-
-
-@pytest.fixture
-def image_method(image, mocker):
-    """Return a helper function to mock the return value(s) of an image method using a simple syntax."""
-    def func(method_name, return_values):
-        return mocker.patch.object(image, method_name, side_effect=return_values)
-    return func
+def image_method(image, mock_method):
+    return mock_method(image)
 
 
 @pytest.fixture
@@ -64,23 +39,18 @@ def mock_to_angular(image_method):
 
 
 @pytest.fixture
-def regionset_get_value(image, mocker):
-    """Return a mock for image.regions' get_value."""
-    return mocker.patch.object(image.regions, "get_value")
+def regionset_get_value(image, mock_get_value):
+    return mock_get_value(image.regions)
 
 
 @pytest.fixture
-def regionset_call_action(image, mocker):
-    """Return a mock for image.regions' call_action."""
-    return mocker.patch.object(image.regions, "call_action")
+def regionset_call_action(image, mock_call_action):
+    return mock_call_action(image.regions)
 
 
 @pytest.fixture
-def regionset_method(image, mocker):
-    """Return a helper function to mock the return value(s) of a session method using a simple syntax."""
-    def func(method_name, return_values):
-        return mocker.patch.object(image.regions, method_name, side_effect=return_values)
-    return func
+def regionset_method(image, mock_method):
+    return mock_method(image.regions)
 
 
 @pytest.fixture
@@ -97,12 +67,10 @@ def mock_from_angular(regionset_method):
 
 
 @pytest.fixture
-def region(mocker, image):
-    """Return a factory for a new region object which uses the image fixture, specifying a class and/or ID.
-    """
+def region(image, mock_property):
     def func(region_type=None, region_id=0):
         clazz = Region if region_type is None else Region.region_class(region_type)
-        mocker.patch(f"carta.region.{clazz.__name__}.region_type", new_callable=mocker.PropertyMock, return_value=region_type)
+        mock_property(f"carta.region.{clazz.__name__}")("region_type", region_type)
         reg = clazz(image.regions, region_id)
         return reg
     return func
@@ -110,34 +78,29 @@ def region(mocker, image):
 
 @pytest.fixture
 def get_value(mocker):
-    """Return a factory for a mock for a region object's get_value."""
-    def func(region, mock_value=None):
-        return mocker.patch.object(region, "get_value", return_value=mock_value)
+    def func(reg, mock_value=None):
+        return mocker.patch.object(reg, "get_value", return_value=mock_value)
     return func
 
 
 @pytest.fixture
-def call_action(mocker):
-    """Return a factory for a mock for a region object's call_action."""
-    def func(region):
-        return mocker.patch.object(region, "call_action")
+def call_action(mock_call_action):
+    def func(reg):
+        return mock_call_action(reg)
     return func
 
 
 @pytest.fixture
-def property_(mocker):
-    """Return a factory for a mock for a region object's decorated property."""
-    def func(region, property_name, mock_value=None):
-        class_name = region.__class__.__name__  # Is this going to work? Do we need to import it?
-        return mocker.patch(f"carta.region.{class_name}.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
+def property_(mock_property):
+    def func(reg):
+        return mock_property(f"carta.region.{reg.__class__.__name__}")
     return func
 
 
 @pytest.fixture
-def method(mocker):
-    """Return a factory for a mock for a region object's method."""
-    def func(region, method_name, return_values):
-        return mocker.patch.object(region, method_name, side_effect=return_values)
+def method(mock_method):
+    def func(reg):
+        return mock_method(reg)
     return func
 
 
@@ -266,7 +229,7 @@ def test_regionset_add_region_with_type(mocker, image, regionset_method, mock_fr
 
 def test_regionset_clear(mocker, image, regionset_method, method, region):
     regionlist = [region(), region(), region()]
-    mock_deletes = [method(r, "delete", None) for r in regionlist]
+    mock_deletes = [method(r)("delete", None) for r in regionlist]
     regionset_method("list", [regionlist])
 
     image.regions.clear()
@@ -299,7 +262,7 @@ def test_center(region, get_value, region_type):
 @pytest.mark.parametrize("region_type", [t for t in RT])
 def test_wcs_center(region, property_, mock_to_world, region_type):
     reg = region(region_type)
-    property_(reg, "center", (20, 30))
+    property_(reg)("center", (20, 30))
 
     wcs_center = reg.wcs_center
 
@@ -335,7 +298,7 @@ def test_wcs_size(region, get_value, property_, mock_to_angular, region_type):
 
     if region_type in {RT.ELLIPSE, RT.ANNELLIPSE, RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER}:
         # Bypasses wcsSize to call own (overridden) size and converts to angular units
-        property_(reg, "size", (20, 30))
+        property_(reg)("size", (20, 30))
     elif region_type in {RT.POINT, RT.ANNPOINT}:
         # Simulate undefined size
         reg_get_value = get_value(reg, {"x": None, "y": None})
@@ -385,9 +348,9 @@ def test_set_center(region, mock_from_world, call_action, method, property_, reg
     reg = region(region_type)
 
     if region_type == RT.ANNRULER:
-        property_(reg, "size", (-10, -10))
-        property_(reg, "rotation", 135)
-        mock_set_points = method(reg, "set_control_points", None)
+        property_(reg)("size", (-10, -10))
+        property_(reg)("rotation", 135)
+        mock_set_points = method(reg)("set_control_points", None)
     else:
         mock_call = call_action(reg)
 
@@ -408,8 +371,8 @@ def test_set_size(region, mock_from_angular, call_action, method, property_, reg
     reg = region(region_type)
 
     if region_type == RT.ANNRULER:
-        mock_set_points = method(reg, "set_control_points", None)
-        property_(reg, "center", (10, 10))
+        mock_set_points = method(reg)("set_control_points", None)
+        property_(reg)("center", (10, 10))
     else:
         mock_call = call_action(reg)
 
@@ -506,7 +469,7 @@ def test_rotation(region, get_value, property_, region_type):
     reg = region(region_type)
 
     if region_type == RT.ANNRULER:
-        property_(reg, "endpoints", [(90, 110), (110, 90)])
+        property_(reg)("endpoints", [(90, 110), (110, 90)])
     else:
         mock_rotation = get_value(reg, "dummy")
 
@@ -524,9 +487,9 @@ def test_set_rotation(region, call_action, method, property_, region_type):
     reg = region(region_type)
 
     if region_type == RT.ANNRULER:
-        property_(reg, "center", (100, 100))
-        property_(reg, "size", (20, 20))
-        mock_set_points = method(reg, "set_control_points", None)
+        property_(reg)("center", (100, 100))
+        property_(reg)("size", (20, 20))
+        mock_set_points = method(reg)("set_control_points", None)
     else:
         mock_call = call_action(reg)
 
@@ -541,7 +504,7 @@ def test_set_rotation(region, call_action, method, property_, region_type):
 @pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})
 def test_vertices(region, property_, region_type):
     reg = region(region_type)
-    property_(reg, "control_points", [(10, 10), (20, 30), (30, 20)])
+    property_(reg)("control_points", [(10, 10), (20, 30), (30, 20)])
     vertices = reg.vertices
     assert vertices == [(10, 10), (20, 30), (30, 20)]
 
@@ -549,7 +512,7 @@ def test_vertices(region, property_, region_type):
 @pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})
 def test_wcs_vertices(region, property_, mock_to_world, region_type):
     reg = region(region_type)
-    property_(reg, "control_points", [(10, 10), (20, 30), (30, 20)])
+    property_(reg)("control_points", [(10, 10), (20, 30), (30, 20)])
     vertices = reg.wcs_vertices
     assert vertices == [("10", "10"), ("20", "30"), ("30", "20")]
 
@@ -558,7 +521,7 @@ def test_wcs_vertices(region, property_, mock_to_world, region_type):
 @pytest.mark.parametrize("vertex", [(30, 40), ("30", "40")])
 def test_set_vertex(region, method, mock_from_world, region_type, vertex):
     reg = region(region_type)
-    mock_set_control_point = method(reg, "set_control_point", None)
+    mock_set_control_point = method(reg)("set_control_point", None)
     reg.set_vertex(1, vertex)
     mock_set_control_point.assert_called_with(1, (30, 40))
 
@@ -570,7 +533,7 @@ def test_set_vertex(region, method, mock_from_world, region_type, vertex):
 ])
 def test_set_vertices(region, method, mock_from_world, region_type, vertices):
     reg = region(region_type)
-    mock_set_control_points = method(reg, "set_control_points", None)
+    mock_set_control_points = method(reg)("set_control_points", None)
     reg.set_vertices(vertices)
     mock_set_control_points.assert_called_with([(10, 10), (20, 30), (30, 20)])
 
@@ -578,7 +541,7 @@ def test_set_vertices(region, method, mock_from_world, region_type, vertices):
 @pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
 def test_endpoints(region, property_, region_type):
     reg = region(region_type)
-    property_(reg, "control_points", [(10, 10), (20, 30)])
+    property_(reg)("control_points", [(10, 10), (20, 30)])
     endpoints = reg.endpoints
     assert endpoints == [(10, 10), (20, 30)]
 
@@ -586,7 +549,7 @@ def test_endpoints(region, property_, region_type):
 @pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
 def test_wcs_endpoints(region, property_, mock_to_world, region_type):
     reg = region(region_type)
-    property_(reg, "control_points", [(10, 10), (20, 30)])
+    property_(reg)("control_points", [(10, 10), (20, 30)])
     endpoints = reg.wcs_endpoints
     assert endpoints == [("10", "10"), ("20", "30")]
 
@@ -594,7 +557,7 @@ def test_wcs_endpoints(region, property_, mock_to_world, region_type):
 @pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
 def test_length(region, property_, region_type):
     reg = region(region_type)
-    property_(reg, "size", (30, 40))
+    property_(reg)("size", (30, 40))
     length = reg.length
     assert length == 50
 
@@ -602,7 +565,7 @@ def test_length(region, property_, region_type):
 @pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER})
 def test_wcs_length(region, property_, region_type):
     reg = region(region_type)
-    property_(reg, "wcs_size", ("30", "40"))
+    property_(reg)("wcs_size", ("30", "40"))
     length = reg.wcs_length
     assert length == "50\""
 
@@ -618,7 +581,7 @@ def test_wcs_length(region, property_, region_type):
 ])
 def test_set_endpoints(mocker, region, method, mock_from_world, region_type, args, kwargs, expected_calls):
     reg = region(region_type)
-    mock_set_control_point = method(reg, "set_control_point", None)
+    mock_set_control_point = method(reg)("set_control_point", None)
     reg.set_endpoints(*args, **kwargs)
     mock_set_control_point.assert_has_calls([mocker.call(*c) for c in expected_calls])
 
@@ -628,9 +591,9 @@ def test_set_endpoints(mocker, region, method, mock_from_world, region_type, arg
 def test_set_length(mocker, region, property_, region_type, length):
     reg = region(region_type)
 
-    property_(reg, "length", 100)
-    property_(reg, "wcs_length", "100")
-    property_(reg, "rotation", 45)
+    property_(reg)("length", 100)
+    property_(reg)("wcs_length", "100")
+    property_(reg)("rotation", 45)
     mock_region_set_size = mocker.patch.object(Region, "set_size")
 
     reg.set_length(length)
@@ -699,8 +662,8 @@ def test_set_pointer_style(mocker, region, call_action, region_type, args, kwarg
 @pytest.mark.parametrize("region_type", {RT.RECTANGLE, RT.ANNRECTANGLE})
 def test_corners(region, property_, region_type):
     reg = region(region_type)
-    property_(reg, "center", (100, 200))
-    property_(reg, "size", (30, 40))
+    property_(reg)("center", (100, 200))
+    property_(reg)("size", (30, 40))
 
     bottom_left, top_right = reg.corners
 
@@ -711,7 +674,7 @@ def test_corners(region, property_, region_type):
 @pytest.mark.parametrize("region_type", {RT.RECTANGLE, RT.ANNRECTANGLE})
 def test_wcs_corners(region, property_, mock_to_world, region_type):
     reg = region(region_type)
-    property_(reg, "corners", [(85, 180), (115, 220)])
+    property_(reg)("corners", [(85, 180), (115, 220)])
 
     bottom_left, top_right = reg.wcs_corners
 
@@ -728,8 +691,8 @@ def test_wcs_corners(region, property_, mock_to_world, region_type):
 ])
 def test_set_corners(region, method, property_, mock_from_world, region_type, args, kwargs, expected_args):
     reg = region(region_type)
-    property_(reg, "corners", [(85, 180), (115, 220)])
-    mock_set_control_points = method(reg, "set_control_points", None)
+    property_(reg)("corners", [(85, 180), (115, 220)])
+    mock_set_control_points = method(reg)("set_control_points", None)
 
     reg.set_corners(*args, **kwargs)
 
