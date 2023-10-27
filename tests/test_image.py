@@ -4,6 +4,7 @@ from carta.image import Image
 from carta.util import CartaValidationFailed, Point as Pt
 from carta.constants import NumberFormat as NF, SpatialAxis as SA
 
+
 # FIXTURES
 
 
@@ -72,6 +73,16 @@ def test_new(session, session_call_action, session_method, args, kwargs, expecte
     assert type(image_object) is Image
     assert image_object.session == session
     assert image_object.image_id == 123
+
+
+# SUBOBJECTS
+
+
+@pytest.mark.parametrize("name,classname", [
+    ("vectors", "VectorOverlay"),
+])
+def test_subobjects(image, name, classname):
+    assert getattr(image, name).__class__.__name__ == classname
 
 
 # SIMPLE PROPERTIES TODO to be completed.

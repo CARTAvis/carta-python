@@ -96,3 +96,12 @@ carta.validation module
    :members:
    :undoc-members:
    :show-inheritance:
+
+carta.vector_overlay module
+---------------------------
+
+.. automodule:: carta.vector_overlay
+   :members:
+   :undoc-members:
+   :show-inheritance:
+

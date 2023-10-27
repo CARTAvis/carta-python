@@ -9,6 +9,7 @@ from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, Point
 from .region import RegionSet
 from .metadata import parse_header
+from .vector_overlay import VectorOverlay
 
 
 class Image(BasePathMixin):
@@ -40,6 +41,8 @@ class Image(BasePathMixin):
         self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
 
+        # Sub-objects grouping related functions
+        self.vectors = VectorOverlay(self)
         self.regions = RegionSet(self)
 
     @classmethod
