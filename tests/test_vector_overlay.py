@@ -7,43 +7,32 @@ from carta.constants import VectorOverlaySource as VOS, Auto, Colormap as CM
 
 @pytest.fixture
 def vector_overlay(image):
-    """Return a vector overlay object which uses the image fixture.
-    """
     return VectorOverlay(image)
 
 
 @pytest.fixture
-def get_value(vector_overlay, mocker):
-    """Return a mock for vector overlay's get_value."""
-    return mocker.patch.object(vector_overlay, "get_value")
+def get_value(vector_overlay, mock_get_value):
+    return mock_get_value(vector_overlay)
 
 
 @pytest.fixture
-def call_action(vector_overlay, mocker):
-    """Return a mock for vector overlay's call_action."""
-    return mocker.patch.object(vector_overlay, "call_action")
+def call_action(vector_overlay, mock_call_action):
+    return mock_call_action(vector_overlay)
 
 
 @pytest.fixture
-def image_call_action(image, mocker):
-    """Return a mock for image's call_action."""
-    return mocker.patch.object(image, "call_action")
+def image_call_action(image, mock_call_action):
+    return mock_call_action(image)
 
 
 @pytest.fixture
-def property_(mocker):
-    """Return a helper function to mock the value of a decorated vector overlay property using a simple syntax."""
-    def func(property_name, mock_value):
-        return mocker.patch(f"carta.vector_overlay.VectorOverlay.{property_name}", new_callable=mocker.PropertyMock, return_value=mock_value)
-    return func
+def property_(mock_property):
+    return mock_property("carta.vector_overlay.VectorOverlay")
 
 
 @pytest.fixture
-def method(vector_overlay, mocker):
-    """Return a helper function to mock the return value(s) of an vector overlay method using a simple syntax."""
-    def func(method_name, return_values):
-        return mocker.patch.object(vector_overlay, method_name, side_effect=return_values)
-    return func
+def method(vector_overlay, mock_method):
+    return mock_method(vector_overlay)
 
 
 @pytest.mark.parametrize("args,kwargs,expected_args", [
