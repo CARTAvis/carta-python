@@ -19,11 +19,6 @@ def call_action(session, mock_call_action):
     return mock_call_action(session)
 
 
-# @pytest.fixture
-# def property_(session, mock_property):
-    # return mock_property("carta.session.Session")
-
-
 @pytest.fixture
 def method(session, mock_method):
     return mock_method(session)
