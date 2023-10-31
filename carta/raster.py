@@ -42,9 +42,9 @@ class Raster(BasePathMixin):
         self.call_action("setColorMap", colormap)
         self.call_action("setInverted", invert)
 
-    @validate(*all_optional(Constant(Scaling), Number(0.1, 1000000), Number(0.1, 2), Number(0, 100), Number(), Number(), Union(Number(-1, 1), Constant(Auto)), Union(Number(0, 2), Constant(Auto))))
-    def set_scaling(self, scaling=None, alpha=None, gamma=None, rank=None, min=None, max=None, bias=None, contrast=None):
-        """Set the colormap scaling.
+    @validate(*all_optional(Constant(Scaling), Number(0.1, 1000000), Number(0.1, 2)))
+    def set_scaling(self, scaling=None, alpha=None, gamma=None):
+        """Set the colormap scaling options.
 
         Parameters
         ----------
@@ -54,16 +54,6 @@ class Raster(BasePathMixin):
             The alpha value (only applicable to ``LOG`` and ``POWER`` scaling types, but set regardless of the scaling parameter provided).
         gamma : {2}
             The gamma value (only applicable to the ``GAMMA`` scaling type, but set regardless of the scaling parameter provided).
-        rank : {3}
-            The clip percentile rank. If this is set, *min* and *max* are ignored, and will be calculated automatically.
-        min : {4}
-            Custom clip minimum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
-        max : {5}
-            Custom clip maximum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
-        bias : {6}
-            A custom bias. Use :obj:`carta.constants.Auto.AUTO` to reset the bias to the frontend default of ``0``.
-        contrast : {7}
-            A custom contrast. Use :obj:`carta.constants.Auto.AUTO` to reset the contrast to the frontend default of ``1``.
         """
         if scaling is not None:
             self.call_action("setScaling", scaling)
@@ -74,11 +64,41 @@ class Raster(BasePathMixin):
         if gamma is not None:
             self.call_action("setGamma", gamma)
 
+    @validate(*all_optional(Number(0, 100), Number(), Number()))
+    def set_clip(self, rank=None, min=None, max=None):
+        """Set the clip options.
+
+        Parameters
+        ----------
+        rank : {0}
+            The clip percentile rank. If this is set, *min* and *max* are ignored, and will be calculated automatically.
+        min : {1}
+            Custom clip minimum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
+        max : {2}
+            Custom clip maximum. Only used if both *min* and *max* are set. Ignored if *rank* is set.
+        """
+
+        preset_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
+
         if rank is not None:
-            self.set_clip_percentile(rank)
+            self.call_action("setPercentileRank", rank)
+            if rank not in preset_ranks:
+                self.call_action("setPercentileRank", -1)  # select 'custom' rank button
+
         elif min is not None and max is not None:
             self.call_action("setCustomScale", min, max)
 
+    @validate(*all_optional(Union(Number(-1, 1), Constant(Auto)), Union(Number(0, 2), Constant(Auto))))
+    def set_bias_and_contrast(self, bias=None, contrast=None):
+        """Set the bias and contrast.
+
+        Parameters
+        ----------
+        bias : {0}
+            A custom bias. Use :obj:`carta.constants.Auto.AUTO` to reset the bias to the frontend default of ``0``.
+        contrast : {1}
+            A custom contrast. Use :obj:`carta.constants.Auto.AUTO` to reset the contrast to the frontend default of ``1``.
+        """
         if bias is Auto.AUTO:
             self.call_action("resetBias")
         elif bias is not None:
@@ -110,40 +130,10 @@ class Raster(BasePathMixin):
 
     # HISTOGRAM
 
-    # TODO TODO TODO move contours to contours!!
-    @validate(Boolean())
-    def use_cube_histogram(self, contours=False):
-        """Use the cube histogram.
+    def use_cube_histogram(self):
+        """Use the cube histogram."""
+        self.call_action("setUseCubeHistogram", True)
 
-        Parameters
-        ----------
-        contours : {0}
-            Apply to the contours. By default this is applied to the raster component.
-        """
-        self.call_action(f"setUseCubeHistogram{'Contours' if contours else ''}", True)
-
-    # TODO TODO TODO move contours to contours!!
-    @validate(Boolean())
-    def use_channel_histogram(self, contours=False):
-        """Use the channel histogram.
-
-        Parameters
-        ----------
-        contours : {0}
-            Apply to the contours. By default this is applied to the raster component.
-        """
-        self.call_action(f"setUseCubeHistogram{'Contours' if contours else ''}", False)
-
-    @validate(Number(0, 100))
-    def set_clip_percentile(self, rank):
-        """Set the clip percentile.
-
-        Parameters
-        ----------
-        rank : {0}
-            The percentile rank.
-        """
-        preset_ranks = [90, 95, 99, 99.5, 99.9, 99.95, 99.99, 100]
-        self.call_action("setPercentileRank", rank)
-        if rank not in preset_ranks:
-            self.call_action("setPercentileRank", -1)  # select 'custom' rank button
+    def use_channel_histogram(self):
+        """Use the channel histogram."""
+        self.call_action("setUseCubeHistogram", False)
