@@ -128,4 +128,3 @@ def test_use_cube_histogram(raster, call_action):
 def test_use_channel_histogram(raster, call_action):
     raster.use_channel_histogram()
     call_action.assert_called_with("setUseCubeHistogram", False)
-
