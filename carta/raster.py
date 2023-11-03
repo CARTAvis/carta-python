@@ -28,23 +28,21 @@ class Raster(BasePathMixin):
 
     @validate(Constant(Colormap), Boolean())
     def set_colormap(self, colormap, invert=False):
-        """Set the colormap.
-
-        By default the colormap is not inverted.
+        """Set the raster colormap.
 
         Parameters
         ----------
         colormap : {0}
             The colormap.
         invert : {1}
-            Whether the colormap should be inverted.
+            Whether the colormap should be inverted. This is false by default.
         """
         self.call_action("setColorMap", colormap)
         self.call_action("setInverted", invert)
 
     @validate(*all_optional(Constant(Scaling), Number(0.1, 1000000), Number(0.1, 2)))
     def set_scaling(self, scaling=None, alpha=None, gamma=None):
-        """Set the colormap scaling options.
+        """Set the raster colormap scaling options.
 
         Parameters
         ----------
@@ -66,7 +64,7 @@ class Raster(BasePathMixin):
 
     @validate(*all_optional(Number(0, 100), Number(), Number()))
     def set_clip(self, rank=None, min=None, max=None):
-        """Set the clip options.
+        """Set the raster clip options.
 
         Parameters
         ----------
@@ -90,7 +88,7 @@ class Raster(BasePathMixin):
 
     @validate(*all_optional(Union(Number(-1, 1), Constant(Auto)), Union(Number(0, 2), Constant(Auto))))
     def set_bias_and_contrast(self, bias=None, contrast=None):
-        """Set the bias and contrast.
+        """Set the raster bias and contrast.
 
         Parameters
         ----------
@@ -131,9 +129,9 @@ class Raster(BasePathMixin):
     # HISTOGRAM
 
     def use_cube_histogram(self):
-        """Use the cube histogram."""
+        """Use the cube histogram for the raster component."""
         self.call_action("setUseCubeHistogram", True)
 
     def use_channel_histogram(self):
-        """Use the channel histogram."""
+        """Use the channel histogram for the raster component."""
         self.call_action("setUseCubeHistogram", False)

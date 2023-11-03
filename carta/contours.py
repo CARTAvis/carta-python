@@ -2,7 +2,7 @@
 
 from .util import BasePathMixin
 from .constants import Colormap, SmoothingMode, ContourDashMode
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, all_optional
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, all_optional, vargs
 
 
 class Contours(BasePathMixin):
@@ -103,7 +103,7 @@ class Contours(BasePathMixin):
         """Apply the contour configuration."""
         self.image.call_action("applyContours")
 
-    @validate(*all_optional(*configure.VARGS, *set_style.VARGS, *set_color.VARGS, *set_colormap.VARGS))
+    @validate(*all_optional(*vargs(configure, set_style, set_color, set_colormap)))
     def plot(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, dash_thickness=None, color=None, colormap=None, bias=None, contrast=None):
         """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
 
@@ -164,10 +164,10 @@ class Contours(BasePathMixin):
     # HISTOGRAM
 
     def use_cube_histogram(self):
-        """Use the cube histogram."""
+        """Use the cube histogram for contours."""
         self.image.raster.call_action("setUseCubeHistogramContours", True)
 
     @validate(Boolean())
     def use_channel_histogram(self):
-        """Use the channel histogram."""
+        """Use the channel histogram for contours."""
         self.image.raster.call_action("setUseCubeHistogramContours", False)
