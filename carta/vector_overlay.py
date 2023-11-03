@@ -252,17 +252,17 @@ class VectorOverlay(BasePathMixin):
         changes_made = False
 
         for method, args in [
-            ("configure", (angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)),
-            ("set_thickness", (thickness,)),
-            ("set_intensity_range", (intensity_min, intensity_max)),
-            ("set_length_range", (length_min, length_max)),
-            ("set_rotation_offset", (rotation_offset,)),
-            ("set_color", (color,)),
-            ("set_colormap", (colormap,)),
-            ("set_bias_and_contrast", (bias, contrast)),
+            (self.configure, (angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)),
+            (self.set_thickness, (thickness,)),
+            (self.set_intensity_range, (intensity_min, intensity_max)),
+            (self.set_length_range, (length_min, length_max)),
+            (self.set_rotation_offset, (rotation_offset,)),
+            (self.set_color, (color,)),
+            (self.set_colormap, (colormap,)),
+            (self.set_bias_and_contrast, (bias, contrast)),
         ]:
             if any(a is not None for a in args):
-                getattr(self, method)(*args)
+                method(*args)
                 changes_made = True
 
         if changes_made:

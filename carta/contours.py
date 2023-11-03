@@ -2,7 +2,7 @@
 
 from .util import BasePathMixin
 from .constants import Colormap, SmoothingMode, ContourDashMode
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, all_optional, vargs
+from .validation import validate, Number, Color, Constant, Boolean, IterableOf, all_optional, vargs
 
 
 class Contours(BasePathMixin):
@@ -39,16 +39,17 @@ class Contours(BasePathMixin):
         smoothing_factor : {2}
             The smoothing kernel size in pixels. If this is unset, the frontend default will be used.
         """
-        if levels is None:
-            levels = self.macro("", "levels")
-        if smoothing_mode is None:
-            smoothing_mode = self.macro("", "smoothingMode")
-        if smoothing_factor is None:
-            smoothing_factor = self.macro("", "smoothingFactor")
-        self.call_action("setContourConfiguration", levels, smoothing_mode, smoothing_factor)
+        if levels is not None or smoothing_mode is not None or smoothing_factor is not None:
+            if levels is None:
+                levels = self.macro("", "levels")
+            if smoothing_mode is None:
+                smoothing_mode = self.macro("", "smoothingMode")
+            if smoothing_factor is None:
+                smoothing_factor = self.macro("", "smoothingFactor")
+            self.call_action("setContourConfiguration", levels, smoothing_mode, smoothing_factor)
 
     @validate(*all_optional(Constant(ContourDashMode), Number()))
-    def set_style(self, dash_mode=None, dash_thickness=None):
+    def set_dash(self, dash_mode=None, dash_thickness=None):
         """Set the contour dash style.
 
         Parameters
@@ -77,23 +78,31 @@ class Contours(BasePathMixin):
         self.call_action("setColor", color)
         self.call_action("setColormapEnabled", False)
 
-    @validate(Constant(Colormap), NoneOr(Number()), NoneOr(Number()))
-    def set_colormap(self, colormap, bias=None, contrast=None):
+    @validate(Constant(Colormap))
+    def set_colormap(self, colormap):
         """Set the contour colormap.
 
-        This automatically enables use of the contour colormap.
+        This also automatically enables the colormap.
 
         Parameters
         ----------
         colormap : {0}
             The colormap. The default is :obj:`carta.constants.Colormap.VIRIDIS`.
-        bias : {1}
-            The colormap bias.
-        contrast : {2}
-            The colormap contrast.
         """
         self.call_action("setColormap", colormap)
         self.call_action("setColormapEnabled", True)
+
+    @validate(*all_optional(Number(-1, 1), Number(0, 2)))
+    def set_bias_and_contrast(self, bias=None, contrast=None):
+        """Set the contour bias and contrast.
+
+        Parameters
+        ----------
+        bias : {0}
+            The colormap bias. The initial value is ``0``.
+        contrast : {1}
+            The colormap contrast. The initial value is ``1``.
+        """
         if bias is not None:
             self.call_action("setColormapBias", bias)
         if contrast is not None:
@@ -103,7 +112,7 @@ class Contours(BasePathMixin):
         """Apply the contour configuration."""
         self.image.call_action("applyContours")
 
-    @validate(*all_optional(*vargs(configure, set_style, set_color, set_colormap)))
+    @validate(*all_optional(*vargs(configure, set_dash, set_color, set_colormap, set_bias_and_contrast)))
     def plot(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, dash_thickness=None, color=None, colormap=None, bias=None, contrast=None):
         """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
 
@@ -130,13 +139,21 @@ class Contours(BasePathMixin):
         contrast : {8}
             The colormap contrast.
         """
-        self.configure(levels, smoothing_mode, smoothing_factor)
-        self.set_style(dash_mode, dash_thickness)
-        if color is not None:
-            self.set_color(color)
-        if colormap is not None:
-            self.set_colormap(colormap, bias, contrast)
-        self.apply()
+        changes_made = False
+
+        for method, args in [
+            (self.configure, (levels, smoothing_mode, smoothing_factor)),
+            (self.set_dash, (dash_mode, dash_thickness)),
+            (self.set_color, (color,)),
+            (self.set_colormap, (colormap,)),
+            (self.set_bias_and_contrast, (bias, contrast)),
+        ]:
+            if any(a is not None for a in args):
+                method(*args)
+                changes_made = True
+
+        if changes_made:
+            self.apply()
 
     def clear(self):
         """Clear the contours."""
