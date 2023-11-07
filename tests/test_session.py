@@ -1,8 +1,8 @@
 import pytest
 
 from carta.image import Image
-from carta.util import CartaValidationFailed, Macro
-from carta.constants import CoordinateSystem, NumberFormat as NF, ComplexComponent as CC, Polarization as Pol
+from carta.util import Macro
+from carta.constants import ComplexComponent as CC, Polarization as Pol
 
 # FIXTURES
 
@@ -241,64 +241,3 @@ def test_open_hypercube_bad(mocker, session, call_action, method, paths, expecte
     with pytest.raises(Exception) as e:
         session.open_hypercube(paths, append)
     assert expected_error in str(e.value)
-
-
-# OVERLAY
-
-
-@pytest.mark.parametrize("system", CoordinateSystem)
-def test_set_coordinate_system(session, call_action, system):
-    session.set_coordinate_system(system)
-    call_action.assert_called_with("overlayStore.global.setSystem", system)
-
-
-def test_set_coordinate_system_invalid(session):
-    with pytest.raises(CartaValidationFailed) as e:
-        session.set_coordinate_system("invalid")
-    assert "Invalid function parameter" in str(e.value)
-
-
-def test_coordinate_system(session, get_value):
-    get_value.return_value = "AUTO"
-    system = session.coordinate_system()
-    get_value.assert_called_with("overlayStore.global.system")
-    assert isinstance(system, CoordinateSystem)
-
-
-@pytest.mark.parametrize("x", NF)
-@pytest.mark.parametrize("y", NF)
-def test_set_custom_number_format(mocker, session, call_action, x, y):
-    session.set_custom_number_format(x, y)
-    call_action.assert_has_calls([
-        mocker.call("overlayStore.numbers.setFormatX", x),
-        mocker.call("overlayStore.numbers.setFormatY", y),
-        mocker.call("overlayStore.numbers.setCustomFormat", True),
-    ])
-
-
-@pytest.mark.parametrize("x,y", [
-    ("invalid", "invalid"),
-    (NF.DEGREES, "invalid"),
-    ("invalid", NF.DEGREES),
-])
-def test_set_custom_number_format_invalid(session, x, y):
-    with pytest.raises(CartaValidationFailed) as e:
-        session.set_custom_number_format(x, y)
-    assert "Invalid function parameter" in str(e.value)
-
-
-def test_clear_custom_number_format(session, call_action):
-    session.clear_custom_number_format()
-    call_action.assert_called_with("overlayStore.numbers.setCustomFormat", False)
-
-
-def test_number_format(session, get_value, mocker):
-    get_value.side_effect = [NF.DEGREES, NF.DEGREES, False]
-    x, y, _ = session.number_format()
-    get_value.assert_has_calls([
-        mocker.call("overlayStore.numbers.formatTypeX"),
-        mocker.call("overlayStore.numbers.formatTypeY"),
-        mocker.call("overlayStore.numbers.customFormat"),
-    ])
-    assert isinstance(x, NF)
-    assert isinstance(y, NF)

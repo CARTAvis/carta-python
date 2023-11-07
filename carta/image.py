@@ -32,6 +32,12 @@ class Image(BasePathMixin):
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session.
+    raster : :obj:`carta.raster.Raster`
+        Sub-object with functions related to the raster image.
+    contours : :obj:`carta.contours.Contours`
+        Sub-object with functions related to the contours.
+    vectors : :obj:`carta.vector_overlay.VectorOverlay`
+        Sub-object with functions related to the vector overlay.
     """
 
     def __init__(self, session, image_id):
@@ -377,7 +383,7 @@ class Image(BasePathMixin):
             if not self.valid_wcs:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information. Please use image coordinates (in pixels) instead.")
 
-            number_format_x, number_format_y, _ = self.session.number_format()
+            number_format_x, number_format_y, _ = self.session.overlay.number_format
             x_value = WorldCoordinate.with_format(number_format_x).from_string(x, SpatialAxis.X)
             y_value = WorldCoordinate.with_format(number_format_y).from_string(y, SpatialAxis.Y)
             self.call_action("setCenterWcs", str(x_value), str(y_value))

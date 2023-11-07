@@ -145,9 +145,9 @@ def test_set_center_valid_pixels(image, property_, call_action, x, y):
     ("12h34m56.789s", "5h34m56.789s", NF.HMS, NF.HMS, "12:34:56.789", "5:34:56.789"),
     ("12d34m56.789s", "12d34m56.789s", NF.DMS, NF.DMS, "12:34:56.789", "12:34:56.789"),
 ])
-def test_set_center_valid_wcs(image, property_, session_method, call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
+def test_set_center_valid_wcs(image, property_, mock_property, call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
     property_("valid_wcs", True)
-    session_method("number_format", [(x_fmt, y_fmt, None)])
+    mock_property("carta.wcs_overlay.WCSOverlay")("number_format", (x_fmt, y_fmt, None))
 
     image.set_center(x, y)
     call_action.assert_called_with("setCenterWcs", x_norm, y_norm)
@@ -161,11 +161,11 @@ def test_set_center_valid_wcs(image, property_, session_method, call_action, x, 
     (123, "123", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
     ("123", 123, True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
 ])
-def test_set_center_invalid(image, property_, session_method, call_action, x, y, wcs, x_fmt, y_fmt, error_contains):
+def test_set_center_invalid(image, property_, mock_property, call_action, x, y, wcs, x_fmt, y_fmt, error_contains):
     property_("width", 200)
     property_("height", 200)
     property_("valid_wcs", wcs)
-    session_method("number_format", [(x_fmt, y_fmt, None)])
+    mock_property("carta.wcs_overlay.WCSOverlay")("number_format", (x_fmt, y_fmt, None))
 
     with pytest.raises(Exception) as e:
         image.set_center(x, y)
