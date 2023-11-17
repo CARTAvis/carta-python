@@ -551,7 +551,7 @@ class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, Overla
         """
         return self.get_value("customFormat")
 
-    @validate((*all_optional(Constant(NumberFormat), Constant(NumberFormat))))
+    @validate(*all_optional(Constant(NumberFormat), Constant(NumberFormat)))
     def set_format(self, format_x=None, format_y=None):
         """Set the X and/or Y number format.
 
