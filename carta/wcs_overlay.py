@@ -1,12 +1,14 @@
-"""This module contains functionality for interacting with the WCS overlay. The class in this module should not be instantiated directly. When a session object is created, an overlay object is automatically created as a property."""
+"""This module contains functionality for interacting with the WCS overlay. The classes in this module should not be instantiated directly. When a session object is created, an overlay object is automatically created as a property, and overlay component objects are created as its subproperties."""
 
-from .util import logger, BasePathMixin
-from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, NumberFormat
-from .validation import validate, String, Number, Constant, Boolean, NoneOr, OneOf
+import re
+
+from .util import BasePathMixin
+from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, NumberFormat, FontFamily, FontStyle, ColorbarPosition
+from .validation import validate, String, Number, Constant, Boolean, all_optional
 
 
 class WCSOverlay(BasePathMixin):
-    """Utility object for collecting session functions related to the WCS overlay.
+    """Utility object for collecting session functions related to the WCS overlay. Most functions are additionally grouped in subcomponents, which can be accessed directly by name or looked up in a mapping by `carta.constants.Overlay` enum.
 
     Parameters
     ----------
@@ -19,23 +21,42 @@ class WCSOverlay(BasePathMixin):
         The image associated with this overlay object.
     session : :obj:`carta.session.Session` object
         The session object associated with this overlay object.
+    global_ : :obj:`carta.wcs_overlay.Global` object
+        The global settings subcomponent.
+    title : :obj:`carta.wcs_overlay.Title` object
+        The title settings subcomponent.
+    grid : :obj:`carta.wcs_overlay.Grid` object
+        The grid settings subcomponent.
+    border : :obj:`carta.wcs_overlay.Border` object
+        The border settings subcomponent.
+    ticks : :obj:`carta.wcs_overlay.Ticks` object
+        The ticks settings subcomponent.
+    axes : :obj:`carta.wcs_overlay.Axes` object
+        The axes settings subcomponent.
+    numbers : :obj:`carta.wcs_overlay.Numbers` object
+        The numbers settings subcomponent.
+    labels : :obj:`carta.wcs_overlay.Labels` object
+        The labels settings subcomponent.
+    colorbar : :obj:`carta.wcs_overlay.Colorbar` object
+        The colorbar settings subcomponent.
+    beam : :obj:`carta.wcs_overlay.Beam` object
+        The beam settings subcomponent.
+    components : dict
+        A mapping of all subcomponents, with :obj:`carta.constants.Overlay` enums as keys.
     """
-
-    class Component(BasePathMixin):
-        """Internal helper class for simplifying component paths."""
-
-        def __init__(self, component):
-            self._base_path = f"overlayStore.{component}"
 
     def __init__(self, session):
         self.session = session
         self._base_path = "overlayStore"
 
-        self._components = {}
+        self.components = {}
         for component in Overlay:
-            component_obj = WCSOverlay.Component(component)
-            self._components[component] = component_obj
-            setattr(self, f"_{component.name.lower()}", component_obj)
+            self.components[component] = OverlayComponent.CLASS[component]()
+            name = component.name.lower()
+            # This is a reserved word.
+            if name == "global":
+                name += "_"
+            setattr(self, f"{name}", self.components[component])
 
     @validate(Constant(PaletteColor))
     def palette_to_rgb(self, color):
@@ -71,289 +92,921 @@ class WCSOverlay(BasePathMixin):
         """
         self.call_action("setViewDimension", width, height)
 
-    @validate(Constant(CoordinateSystem))
-    def set_coordinate_system(self, system=CoordinateSystem.AUTO):
-        """Set the coordinate system.
+    def toggle_labels(self):
+        """Toggle the overlay labels."""
+        self.call_action("toggleLabels")
 
-        Parameters
-        ----------
-        system : {0}
-            The coordinate system.
-        """
-        self._global.call_action("setSystem", system)
 
+class OverlayComponent(BasePathMixin):
+    """A single WCS overlay component."""
+
+    CLASS = {}
+    """Mapping of :obj:`carta.constants.Overlay` enums to component classes. This mapping is used to select the appropriate subclass when an overlay component object is constructed in the wrapper."""
+
+    def __init_subclass__(cls, **kwargs):
+        """Automatically register subclasses in mapping from overlay component enums to classes."""
+        super().__init_subclass__(**kwargs)
+
+        OverlayComponent.CLASS[cls.COMPONENT] = cls
+
+    def __init__(self):
+        self._base_path = f"overlayStore.{self.COMPONENT}"
+
+
+class HasColor:
+    """Components which inherit this class have a palette color setting."""
     @property
-    def coordinate_system(self):
-        """Get the coordinate system.
-
-        Returns
-        ----------
-        :obj:`carta.constants.CoordinateSystem`
-            The coordinate system.
-        """
-        return CoordinateSystem(self._global.get_value("system"))
-
-    @validate(Constant(LabelType))
-    def set_label_type(self, label_type):
-        """Set the label type.
-
-        Parameters
-        ----------
-        label_type : {0}
-            The label type.
-        """
-        self._global.call_action("setLabelType", label_type)
-
-    @validate(NoneOr(String()), NoneOr(String()), NoneOr(String()))
-    def set_text(self, title=None, label_x=None, label_y=None):
-        """Set custom title and/or the axis label text.
-
-        Parameters
-        ----------
-        title : {0}
-            The title text.
-        label_x : {1}
-            The X-axis text.
-        label_y : {2}
-            The Y-axis text.
-        """
-        if title is not None:
-            self._title.call_action("setCustomTitleString", title)
-            self._title.call_action("setCustomText", True)
-        if label_x is not None:
-            self._labels.call_action("setCustomLabelX", label_x)
-        if label_y is not None:
-            self._labels.call_action("setCustomLabelX", label_y)
-        if label_x is not None or label_y is not None:
-            self._labels.call_action("setCustomText", True)
-
-    def clear_text(self):
-        """Clear all custom title and axis text."""
-        self._title.call_action("setCustomText", False)
-        self._labels.call_action("setCustomText", False)
-
-    @validate(OneOf(Overlay.TITLE, Overlay.NUMBERS, Overlay.LABELS), NoneOr(String()), NoneOr(Number()))
-    def set_font(self, component, font=None, font_size=None):
-        """Set the font and/or font size of an overlay component.
-
-        TODO: can we get the allowed font names from somewhere?
-
-        Parameters
-        ----------
-        component : {0}
-            The overlay component.
-        font : {1}
-            The font name.
-        font_size : {2}
-            The font size.
-        """
-        if font is not None:
-            self._components[component].call_action("setFont", font)
-        if font_size is not None:
-            self._components[component].call_action("setFontSize", font_size)
-
-    @validate(NoneOr(Constant(NumberFormat)), NoneOr(Constant(NumberFormat)))
-    def set_custom_number_format(self, x_format=None, y_format=None):
-        """Set a custom X and Y number format.
-
-        Parameters
-        ----------
-        x_format : {0}
-            The X format. If this is unset, the last custom X format to be set will be restored.
-        x_format : {1}
-            The Y format. If this is unset, the last custom Y format to be set will be restored.
-        """
-        if x_format is not None:
-            self._numbers.call_action("setFormatX", x_format)
-        if y_format is not None:
-            self._numbers.call_action("setFormatY", y_format)
-        self._numbers.call_action("setCustomFormat", True)
-
-    def clear_custom_number_format(self):
-        """Disable the custom X and Y number format."""
-        self._numbers.call_action("setCustomFormat", False)
-
-    @property
-    def number_format(self):
-        """Return the current X and Y number formats, and whether they are a custom setting.
-
-        If the image has no WCS information, both the X and Y formats will be ``None``.
-
-        If a custom number format is not set, the format is derived from the coordinate system.
+    def color(self):
+        """The color of this component.
 
         Returns
         -------
-        tuple (a member of :obj:`carta.constants.NumberFormat` or ``None``, a member of :obj:`carta.constants.NumberFormat` or ``None``, boolean)
-            A tuple containing the X format, the Y format, and whether a custom format is set.
+        a member of :obj:`carta.constants.color.PaletteColor`
+            The color.
         """
-        number_format_x = self._numbers.get_value("formatTypeX")
-        number_format_y = self._numbers.get_value("formatTypeY")
-        custom_format = self._numbers.get_value("customFormat")
-        return NumberFormat(number_format_x), NumberFormat(number_format_y), custom_format
+        return PaletteColor(self.get_value("color"))
 
-    @validate(NoneOr(Constant(BeamType)), NoneOr(Number()), NoneOr(Number()), NoneOr(Number()))
-    def set_beam(self, beam_type=None, width=None, shift_x=None, shift_y=None):
-        """Set the beam properties.
-
-        Parameters
-        ----------
-        beam_type : {0}
-            The beam type.
-        width : {1}
-            The beam width.
-        shift_x : {2}
-            The X position.
-        shift_y : {3}
-            The Y position.
-        """
-        if beam_type is not None:
-            self._beam.call_action("setBeamType", beam_type)
-        if width is not None:
-            self._beam.call_action("setWidth", width)
-        if shift_x is not None:
-            self._beam.call_action("setShiftX", shift_x)
-        if shift_y is not None:
-            self._beam.call_action("setShiftY", shift_y)
-
-    @validate(Constant(PaletteColor), Constant(Overlay))
-    def set_color(self, color, component=Overlay.GLOBAL):
-        """Set the custom color on an overlay component, or the global color.
+    @validate(Constant(PaletteColor))
+    def set_color(self, color):
+        """Set the color of this component.
 
         Parameters
         ----------
         color : {0}
             The color.
-        component : {1}
-            The overlay component.
         """
-        self._components[component].call_action("setColor", color)
-        if component not in (Overlay.GLOBAL, Overlay.BEAM):
-            self._components[component].call_action("setCustomColor", True)
+        self.call_action("setColor", color)
 
-    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)))
-    def clear_color(self, component):
-        """Clear the custom color from an overlay component.
 
-        Parameters
-        ----------
-        component : {0}
-            The overlay component.
-        """
-        if component == Overlay.BEAM:
-            logger.warning("Cannot clear the color from the beam component. A color must be set on this component explicitly.")
-            return
-
-        self._components[component].call_action("setCustomColor", False)
-
-    @validate(Constant(Overlay))
-    def color(self, component):
-        """The color of an overlay component.
-
-        If called on the global overlay options, this function returns the global (default) overlay color. For any single overlay component other than the beam, it returns its custom color if a custom color is enabled, otherwise None. For the beam it returns the beam color.
-
-        Parameters
-        ----------
-        component : {0}
-            The overlay component.
+class HasCustomColor(HasColor):
+    """Components which inherit this class have a palette color setting and a custom color flag."""
+    @property
+    def custom_color(self):
+        """Whether a custom color is applied to this component.
 
         Returns
         -------
-        A member of :obj:`carta.constants.PaletteColor` or None
-            The color of the component or None if no custom color is set on the component.
+        boolean
+            Whether a custom color is applied.
         """
-        if component in (Overlay.GLOBAL, Overlay.BEAM) or self._components[component].get_value("customColor"):
-            return PaletteColor(self._components[component].get_value("color"))
+        return self.get_value("customColor")
 
-    @validate(Number(min=0, interval=Number.EXCLUDE), OneOf(Overlay.GRID, Overlay.BORDER, Overlay.TICKS, Overlay.AXES, Overlay.COLORBAR))
-    def set_width(self, width, component):
-        """Set the line width of an overlay component.
+    @validate(Constant(PaletteColor))
+    def set_color(self, color):
+        """Set the color of this component.
+
+        This automatically enables the use of a custom color.
 
         Parameters
         ----------
-        component : {0}
-            The overlay component.
+        color : {0}
+            The color.
         """
-        self._components[component].call_action("setWidth", width)
+        self.call_action("setColor", color)
+        self.set_custom_color(True)
 
-    @validate(OneOf(Overlay.GRID, Overlay.BORDER, Overlay.TICKS, Overlay.AXES, Overlay.COLORBAR))
-    def width(self, component):
-        """The line width of an overlay component.
+    @validate(Boolean())
+    def set_custom_color(self, state):
+        """Set whether a custom color should be applied to this component.
 
         Parameters
         ----------
-        component : {0}
-            The overlay component.
+        state : {0}
+            Whether a custom color should be applied to this component. By default the global color is applied.
+        """
+        self.call_action("setCustomColor", state)
+
+
+class HasCustomText:
+    """Components which inherit this class have a custom text flag. Different components have different text properties, which are set separately."""
+    @property
+    def custom_text(self):
+        """Whether custom text is applied to this component.
 
         Returns
+        -------
+        boolean
+            Whether custom text is applied.
+        """
+        return self.get_value("customText")
+
+    @validate(Boolean())
+    def set_custom_text(self, state):
+        """Set whether custom text should be applied to this component.
+
+        Parameters
         ----------
+        state : {0}
+            Whether custom text should be applied to this component. By default the text is generated automatically.
+        """
+        self.call_action("setCustomText", state)
+
+
+class HasFont:
+    """Components which inherit this class have a font setting."""
+    @property
+    def font(self):
+        """The font of this component.
+
+        Returns
+        -------
+        member of :obj:`carta.constants.FontFamily`
+            The font family.
+        member of :obj:`carta.constants.FontStyle`
+            The font style.
+        """
+        font_family, font_style = divmod(self.get_value("font"))
+        return FontFamily(font_family), FontStyle(font_style)
+
+    @validate(*all_optional(Constant(FontFamily), Constant(FontStyle)))
+    def set_font(self, font_family, font_style):
+        """Set the font of this component.
+
+        Parameters
+        ----------
+        font_family : {0}
+            The font family.
+        font_style : {1}
+            The font style.
+        """
+        if font_family is None or font_style is None:
+            current_family, current_style = self.font
+        if font_family is None:
+            font_family = current_family
+        if font_style is None:
+            font_style = current_style
+        font_id = 4 * font_family + font_style
+        self.call_action("setFont", font_id)
+
+
+class HasVisibility:
+    """Components which inherit this class have a visibility setting, including ``show`` and ``hide`` aliases."""
+    @property
+    def visible(self):
+        """The visibility of this component.
+
+        Returns
+        -------
+        boolean
+            Whether this component is visible.
+        """
+        return self.get_value("visible")
+
+    @validate(Boolean())
+    def set_visible(self, state):
+        """Set the visibility of this component.
+
+        Parameters
+        ----------
+        visible : {0}
+            Whether this component should be visible.
+        """
+        self.call_action("setVisible", state)
+
+    def show(self):
+        """Show this component."""
+        self.set_visible(True)
+
+    def hide(self):
+        """Hide this component."""
+        self.set_visible(False)
+
+
+class HasWidth:
+    """Components which inherit this class have a width setting."""
+    @property
+    def width(self):
+        """The width of this component.
+
+        Returns
+        -------
+        boolean
+            The width.
+        """
+        return self.get_value("width")
+
+    @validate(Number.POSITIVE)
+    def set_width(self, width):
+        """Set the width of this component.
+
+        Parameters
+        ----------
+        width : {0}
+            The width.
+        """
+        self.call_action("setWidth", width)
+
+
+class HasRotation:
+    """Components which inherit this class have a rotation setting."""
+    @property
+    def rotation(self):
+        """The rotation of this component.
+
+        Returns
+        -------
         number
-            The line width of the component.
+            The rotation in degrees.
         """
-        return self._components[component].get_value("width")
+        return self.get_value("rotation")
 
-    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)), Boolean())
-    def set_visible(self, component, visible):
-        """Set the visibility of an overlay component.
-
-        Ticks cannot be shown or hidden in AST, but it is possible to set the width to a very small non-zero number to make them effectively invisible.
+    @validate(Number(min=-90, max=90, step=90))
+    def set_rotation(self, rotation):
+        """Set the rotation of this component.
 
         Parameters
         ----------
-        component : {0}
-            The overlay component.
-        visible : {1}
-            The visibility state.
+        rotation: {0}
+            The rotation in degrees.
         """
-        if component == Overlay.TICKS:
-            logger.warning("Ticks cannot be shown or hidden.")
-            return
+        self.call_action("setRotation", rotation)
 
-        self._components[component].call_action("setVisible", visible)
 
-    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)))
-    def visible(self, component):
-        """Whether an overlay component is visible.
-
-        Ticks cannot be shown or hidden in AST.
-
-        Parameters
-        ----------
-        component : {0}
-            The overlay component.
+class HasCustomPrecision:
+    """Components which inherit this class have a precision setting and a custom precision flag."""
+    @property
+    def precision(self):
+        """The precision of this component.
 
         Returns
         -------
-        boolean or None
-            Whether the component is visible, or None for an invalid component.
+        number
+            The precision.
         """
-        if component == Overlay.TICKS:
-            logger.warning("Ticks cannot be shown or hidden.")
-            return
+        return self.get_value("precision")
 
-        return self._components[component].get_value("visible")
+    @property
+    def custom_precision(self):
+        """Whether a custom precision is applied to this component.
 
-    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)))
-    def show(self, component):
-        """Show an overlay component.
+        Returns
+        -------
+        boolean
+            Whether a custom precision is applied.
+        """
+        return self.get_value("customPrecision")
+
+    @validate(Number(min=0))
+    def set_precision(self, precision):
+        """Set the precision of this component.
+
+        This also automatically enables the custom precision.
 
         Parameters
         ----------
-        component : {0}
-            The overlay component.
+        precision : {0}
+            The precision.
         """
-        self.set_visible(component, True)
+        self.call_action("setPrecision", precision)
+        self.set_custom_precision(True)
 
-    @validate(Constant(Overlay, exclude=(Overlay.GLOBAL,)))
-    def hide(self, component):
-        """Hide an overlay component.
+    @validate(Boolean())
+    def set_custom_precision(self, state):
+        """Set whether a custom precision should be applied to this component.
 
         Parameters
         ----------
-        component : {0}
-            The overlay component.
+        state
+            Whether a custom precision should be applied.
         """
-        self.set_visible(component, False)
+        self.call_action("setCustomPrecision", state)
 
-    def toggle_labels(self):
-        """Toggle the overlay labels."""
-        self.call_action("toggleLabels")
+
+class Global(HasColor, OverlayComponent):
+    """The global WCS overlay configuration."""
+    COMPONENT = Overlay.GLOBAL
+
+    @property
+    def tolerance(self):
+        """The tolerance.
+
+        Returns
+        -------
+        number
+            The tolerance, as a percentage.
+        """
+        return self.get_value("tolerance")
+
+    @property
+    def coordinate_system(self):
+        """The coordinate system.
+
+        Returns
+        -------
+        a member of :obj:`carta.constants.CoordinateSystem`
+            The coordinate system.
+        """
+        return CoordinateSystem(self.get_value("system"))
+
+    @property
+    def labelling(self):
+        """The labelling (internal or external).
+
+        Returns
+        -------
+        a member of :obj:`carta.constants.LabelType`
+            The type of labelling.
+        """
+        return LabelType(self.get_value("labelType"))
+
+    @validate(Number.PERCENTAGE)
+    def set_tolerance(self, tolerance):
+        """Set the tolerance.
+
+        Parameters
+        ----------
+        tolerance : {0}
+            The tolerance, as a percentage.
+        """
+        self.call_action("setTolerance", tolerance)
+
+    @validate(Constant(CoordinateSystem))
+    def set_coordinate_system(self, coordinate_system):
+        """Set the coordinate system.
+
+        Parameters
+        ----------
+        coordinate_system : {0}
+            The coordinate system.
+        """
+        self.call_action("setSystem", coordinate_system)
+
+    @validate(Constant(LabelType))
+    def set_labelling(self, labelling):
+        """Set the type of labelling (internal or external).
+
+        Parameters
+        ----------
+        labelling : {0}
+            The type of labelling.
+        """
+        self.call_action("setLabelType", labelling)
+
+
+class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayComponent):
+    """The WCS overlay title configuration."""
+    COMPONENT = Overlay.TITLE
+
+
+class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
+    """The WCS overlay grid configuration."""
+    COMPONENT = Overlay.GRID
+
+    @property
+    def gap(self):
+        """The gap.
+
+        Returns
+        -------
+        number
+            The X gap.
+        number
+            The Y gap.
+        """
+        return self.get_value("gapX"), self.get_value("gapY")
+
+    @property
+    def custom_gap(self):
+        """Whether a custom gap is applied to this component.
+
+        Returns
+        -------
+        boolean
+            Whether a custom gap is applied.
+        """
+        return self.get_value("customGap")
+
+    @validate(*all_optional(Number.POSITIVE, Number.POSITIVE))
+    def set_gap(self, gap_x, gap_y):
+        """Set the gap.
+
+        This also automatically enables the custom gap.
+
+        Parameters
+        ----------
+        gap_x : {0}
+            The X gap.
+        gap_y : {1}
+            The Y gap.
+        """
+        if gap_x is not None:
+            self.call_action("setGapX", gap_x)
+        if gap_y is not None:
+            self.call_action("setGapY", gap_y)
+        self.set_custom_gap(True)
+
+    @validate(Boolean())
+    def set_custom_gap(self, state):
+        """Set whether a custom gap should be applied to this component.
+
+        Parameters
+        ----------
+        state : {0}
+            Whether a custom gap should be applied.
+        """
+        self.call_action("setCustomGap", state)
+
+
+class Border(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
+    """The WCS overlay border configuration."""
+    COMPONENT = Overlay.BORDER
+
+
+class Axes(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
+    """The WCS overlay axes configuration."""
+    COMPONENT = Overlay.AXES
+
+
+class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, OverlayComponent):
+    """The WCS overlay numbers configuration."""
+    COMPONENT = Overlay.NUMBERS
+
+    @property
+    def format(self):
+        """The X and Y number format.
+
+        If the image has no WCS information, both the X and Y formats will be ``None``.
+
+        If a custom number format is not set, this returns the default format set by the coordinate system.
+
+        Returns
+        -------
+        a member of :obj:`carta.constants.NumberFormat` or ``None``
+            The X format.
+        a member of :obj:`carta.constants.NumberFormat` or ``None``
+            The Y format.
+        """
+        format_x = self.get_value("formatTypeX")
+        format_y = self.get_value("formatTypeY")
+        return NumberFormat(format_x), NumberFormat(format_y)
+
+    @property
+    def custom_format(self):
+        """Whether a custom format is applied to the numbers.
+
+        Returns
+        -------
+        boolean
+            Whether a custom format is applied.
+        """
+        return self.get_value("customFormat")
+
+    @validate((*all_optional(Constant(NumberFormat), Constant(NumberFormat))))
+    def set_format(self, format_x=None, format_y=None):
+        """Set the X and/or Y number format.
+
+        This also automatically enables the custom number format.
+
+        Parameters
+        ----------
+        format_x : {0}
+            The X format. If this is unset, the last custom X format to be set will be restored.
+        format_y : {1}
+            The Y format. If this is unset, the last custom Y format to be set will be restored.
+        """
+        if format_x is not None:
+            self.call_action("setFormatX", format_x)
+        if format_y is not None:
+            self.call_action("setFormatY", format_y)
+        self.set_custom_format(True)
+
+    @validate(Boolean())
+    def set_custom_format(self, state):
+        """Set whether a custom format should be applied to the numbers.
+
+        Parameters
+        ----------
+        state : {0}
+            Whether a custom format should be applied.
+        """
+        self.call_action("setCustomFormat", state)
+
+
+class Labels(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayComponent):
+    """The WCS overlay labels configuration."""
+    COMPONENT = Overlay.LABELS
+
+    @property
+    def label_text(self):
+        """The label text.
+
+        If a custom label text has not been set, these values will be blank.
+
+        Returns
+        -------
+        string
+            The X label text.
+        string
+            The Y label text.
+        """
+        return self.get_value("customLabelX"), self.get_value("customLabelY")
+
+    @validate(*all_optional(String(), String()))
+    def set_label_text(self, label_x=None, label_y=None):
+        """Set the label text.
+
+        This also automatically enables the custom label text.
+
+        Parameters
+        ----------
+        label_x : {0}
+            The X-axis label text.
+        label_y : {1}
+            The Y-axis label text.
+        """
+        if label_x is not None:
+            self.call_action("setCustomLabelX", label_x)
+        if label_y is not None:
+            self.call_action("setCustomLabelX", label_y)
+        if label_x is not None or label_y is not None:
+            self.call_action("setCustomText", True)
+
+
+class Ticks(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
+    """The WCS overlay ticks configuration."""
+    COMPONENT = Overlay.TICKS
+
+    @property
+    def density(self):
+        """The density.
+
+        Returns
+        -------
+        number
+            The X density.CustomDensity
+        number
+            The Y density.
+        """
+        return self.get_value("densityX"), self.get_value("densityY")
+
+    @property
+    def custom_density(self):
+        """Whether a custom density is applied to the ticks.
+
+        Returns
+        -------
+        boolean
+            Whether a custom density is applied.
+        """
+        return self.get_value("customDensity")
+
+    @property
+    def draw_on_all_edges(self):
+        """Whether the ticks are drawn on all edges.
+
+        Returns
+        -------
+        boolean
+            Whether the ticks are drawn on all edges.
+        """
+        return self.get_value("drawAll")
+
+    @property
+    def minor_length(self):
+        """The minor tick length.
+
+        Returns
+        -------
+        number
+            The minor length, as a percentage.
+        """
+        return self.get_value("length")
+
+    @property
+    def major_length(self):
+        """The major tick length.
+
+        Returns
+        -------
+        number
+            The major length, as a percentage.
+        """
+        return self.get_value("majorLength")
+
+    @validate(*all_optional(Number.POSITIVE, Number.POSITIVE))
+    def set_density(self, density_x=None, density_y=None):
+        """Set the density.
+
+        This also automatically enables the custom density.
+        """
+        if density_x is not None:
+            self.call_action("setDensityX", density_x)
+        if density_y is not None:
+            self.call_action("setDensityY", density_y)
+        self.set_custom_density(True)
+
+    @validate(Boolean())
+    def set_custom_density(self, state):
+        """Set whether a custom density should be applied to the ticks.
+
+        Parameters
+        ----------
+        state : {0}
+            Whether a custom density should be applied.
+        """
+        self.call_action("setCustomDensity", state)
+
+    @validate(Boolean())
+    def set_draw_on_all_edges(self, state):
+        """Set whether the ticks should be drawn on all edges.
+
+        Parameters
+        ----------
+        state : {0}
+            Whether the ticks should be drawn on all edges.
+        """
+        self.call_action("setDrawAll", state)
+
+    @validate(Number.PERCENTAGE)
+    def set_minor_length(self, length):
+        """Set the minor tick length.
+
+        Parameters
+        ----------
+        length : {0}
+            The minor tick length, as a percentage.
+        """
+        self.call_action("setLength", length)
+
+    @validate(Number.PERCENTAGE)
+    def set_major_length(self, length):
+        """Set the major tick length.
+
+        Parameters
+        ----------
+        length : {0}
+            The major tick length, as a percentage.
+        """
+        self.call_action("setMajorLength", length)
+
+
+class ColorbarComponent:
+    """Base class for components of the WCS overlay colorbar."""
+
+    def __init__(self, colorbar):
+        self.colorbar = colorbar
+
+    def call_action(self, path, *args, **kwargs):
+        """Convenience wrapper for the colorbar object's generic action method.
+
+        This method calls :obj:`carta.wcs_overlay.Colorbar.call_action` after inserting this subcomponent's name prefix into the path parameter. It assumes that the action name starts with a lowercase word, and that the prefix should be inserted after this word with a leading capital letter.
+
+        Parameters
+        ----------
+        path : string
+            The path to an action relative to the colorbar object's store, with this subcomponent's name prefix omitted.
+        *args
+            A variable-length list of parameters. These are passed unmodified to the colorbar method.
+        **kwargs
+            Arbitrary keyword parameters. These are passed unmodified to the colorbar method.
+
+        Returns
+        -------
+        object or None
+            The unmodified return value of the colorbar method.
+        """
+        path = re.sub(r"(?:.*\.)*(.*?)([A-Z].*)", rf"\1{self.PREFIX.title()}\2", path)
+        self.colorbar.call_action(path, *args, **kwargs)
+
+    def get_value(self, path, return_path=None):
+        """Convenience wrapper for the colorbar object's generic method for retrieving attribute values.
+
+        This method calls :obj:`carta.wcs_overlay.Colorbar.get_value` after inserting this subcomponent's name prefix into the path parameter. It assumes that the attribute name starts with a lowercase letter, that the prefix should be inserted before it, and that the first letter of the original name should be capitalised.
+
+        Parameters
+        ----------
+        path : string
+            The path to an attribute relative to the colorbar object's store, with this subcomponent's name prefix omitted.
+        return_path : string, optional
+            Specifies a subobject of the attribute value which should be returned instead of the whole object.
+
+        Returns
+        -------
+        object
+            The unmodified return value of the colorbar method.
+        """
+        def rewrite(m):
+            before, first, rest = m.groups()
+            return f"{before}{self.PREFIX}{first.upper()}{rest}"
+
+        path = re.sub(r"((?:.*\.)?.*?)(.)(.*)", rewrite, path)
+        return self.colorbar.get_value(path, return_path=return_path)
+
+
+class ColorbarBorder(HasVisibility, HasWidth, HasCustomColor, ColorbarComponent):
+    """The WCS overlay colorbar border configuration."""
+    PREFIX = "border"
+
+
+class ColorbarTicks(HasVisibility, HasWidth, HasCustomColor, ColorbarComponent):
+    """The WCS overlay colorbar ticks configuration."""
+    PREFIX = "tick"
+
+    @property
+    def density(self):
+        """The colorbar ticks density.
+
+        Returns
+        -------
+        number
+            The density.
+        """
+        return self.get_value("density")
+
+    @property
+    def length(self):
+        """The colorbar ticks length.
+
+        Returns
+        -------
+        number
+            The length.
+        """
+        return self.get_value("len")
+
+    @validate(Number.POSITIVE)
+    def set_density(self, density):
+        """Set the colorbar ticks density.
+
+        Parameters
+        ----------
+        density : {0}
+            The density.
+        """
+        self.call_action("setDensity", density)
+
+    @validate(Number.POSITIVE)
+    def set_length(self, length):
+        """Set the colorbar ticks length.
+
+        Parameters
+        ----------
+        length : {0}
+            The length.
+        """
+        self.call_action("setLen", length)
+
+
+class ColorbarNumbers(HasVisibility, HasCustomPrecision, HasCustomColor, HasCustomText, HasFont, HasRotation, ColorbarComponent):
+    """The WCS overlay colorbar numbers configuration."""
+    PREFIX = "number"
+
+
+class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRotation, ColorbarComponent):
+    """The WCS overlay colorbar label configuration."""
+    PREFIX = "label"
+
+
+class ColorbarGradient(HasVisibility, ColorbarComponent):
+    """The WCS overlay colorbar gradient configuration."""
+    PREFIX = "gradient"
+
+
+class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
+    """The WCS overlay colorbar configuration.
+
+    This component has subcomponents which are configured separately through properties on this object.
+
+    Attributes
+    ----------
+    border : :obj:`carta.wcs_overlay.ColorbarBorder` object
+        The border subcomponent.
+    ticks : :obj:`carta.wcs_overlay.ColorbarTicks` object
+        The ticks subcomponent.
+    numbers : :obj:`carta.wcs_overlay.ColorbarNumbers` object
+        The numbers subcomponent.
+    label : :obj:`carta.wcs_overlay.ColorbarLabel` object
+        The label subcomponent.
+    gradient : :obj:`carta.wcs_overlay.ColorbarGradient` object
+        The gradient subcomponent.
+    """
+    COMPONENT = Overlay.COLORBAR
+
+    def __init__(self):
+        self.border = ColorbarBorder(self)
+        self.ticks = ColorbarTicks(self)
+        self.numbers = ColorbarNumbers(self)
+        self.label = ColorbarLabel(self)
+        self.gradient = ColorbarGradient(self)
+
+    @property
+    def interactive(self):
+        """Whether the colorbar is interactive.
+
+        Returns
+        -------
+        boolean
+            Whether the colorbar is interactive.
+        """
+        return self.get_value("interactive")
+
+    @property
+    def offset(self):
+        """The colorbar offset.
+
+        Returns
+        -------
+        number
+            The offset, in pixels.
+        """
+        return self.get_value("offset")
+
+    @property
+    def position(self):
+        """The colorbar position.
+
+        Returns
+        -------
+        a member of :obj:`carta.constants.ColorbarPosition`
+            The position.
+        """
+        return ColorbarPosition(self.get_value("position"))
+
+    @validate(Boolean())
+    def set_interactive(self, state):
+        """Set whether the colorbar should be interactive.
+
+        Parameters
+        ----------
+        state : {0}
+            Whether the colorbar should be interactive.
+        """
+        self.call_action("setInteractive", state)
+
+    @validate(Number(min=0))
+    def set_offset(self, offset):
+        """Set the colorbar offset.
+
+        Parameters
+        ----------
+        offset : {0}
+            The offset, in pixels.
+        """
+        self.call_action("setOffset", offset)
+
+    @validate(Constant(ColorbarPosition))
+    def set_position(self, position):
+        """Set the colorbar position.
+
+        Parameters
+        ----------
+        offset : {0}
+            The position.
+        """
+        self.call_action("setPosition", position)
+
+
+class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
+    """The WCS overlay beam configuration."""
+    COMPONENT = Overlay.BEAM
+
+    @property
+    def position(self):
+        """The beam position.
+
+        Returns
+        -------
+        number
+            The X beam position, in pixels.
+        number
+            The Y beam position, in pixels.
+        """
+        return self.get_value("shiftX"), self.get_value("shiftY")
+
+    @property
+    def beam_type(self):
+        """The beam type.
+
+        Returns
+        -------
+        a member of :obj:`carta.constants.BeamType`
+            The beam type.
+        """
+        return BeamType(self.get_value("beam_type"))
+
+    @validate(*all_optional(Number(), Number()))
+    def set_position(self, position_x=None, position_y=None):
+        """Set the beam position.
+
+        Parameters
+        ----------
+        position_x : {0}
+            The X position, in pixels.
+        position_y : {1}
+            The Y position, in pixels.
+        """
+        if position_x is not None:
+            self._beam.call_action("setShiftX", position_x)
+        if position_y is not None:
+            self._beam.call_action("setShiftY", position_y)
+
+    @validate(Constant(BeamType))
+    def set_beam_type(self, beam_type):
+        """Set the beam type.
+
+        Parameters
+        ----------
+        beam_type : {0}
+            The beam type.
+        """
+        self.call_action("setBeamType", beam_type)

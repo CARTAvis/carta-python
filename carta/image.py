@@ -6,7 +6,7 @@ Image objects should not be instantiated directly, and should only be created th
 from .constants import Polarization, SpatialAxis
 from .util import Macro, cached, BasePathMixin
 from .units import AngularSize, WorldCoordinate
-from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
+from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, String
 from .metadata import parse_header
 
 from .raster import Raster
@@ -243,6 +243,36 @@ class Image(BasePathMixin):
         """
         return [Polarization(p) for p in self.get_value("polarizations")]
 
+    # PER-IMAGE WCS OVERLAY
+
+    @validate(String())
+    def set_custom_title(self, title_text):
+        """Set a custom title for this image.
+
+        This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
+
+        Parameters
+        ----------
+        title_text : {0}
+            The custom title text.
+        """
+        self.call_action("setTitleCustomText", title_text)
+        self.session.overlay.title.set_custom_text(True)
+
+    @validate(String())
+    def set_custom_colorbar_label(self, label_text):
+        """Set a custom colorbar label for this image.
+
+        This also automatically enables custom colorbar label text for all images. It can be disabled with :obj:`carta.wcs_overlay.Colorbar.set_label_custom_text`.
+
+        Parameters
+        ----------
+        label_text : {0}
+            The custom colorbar label text.
+        """
+        self.call_action("setColorbarLabelCustomText", label_text)
+        self.session.overlay.colorbar.set_label_custom_text(True)
+
     # SELECTION
 
     def make_active(self):
@@ -383,7 +413,7 @@ class Image(BasePathMixin):
             if not self.valid_wcs:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information. Please use image coordinates (in pixels) instead.")
 
-            number_format_x, number_format_y, _ = self.session.overlay.number_format
+            number_format_x, number_format_y = self.session.overlay.numbers.format
             x_value = WorldCoordinate.with_format(number_format_x).from_string(x, SpatialAxis.X)
             y_value = WorldCoordinate.with_format(number_format_y).from_string(y, SpatialAxis.Y)
             self.call_action("setCenterWcs", str(x_value), str(y_value))

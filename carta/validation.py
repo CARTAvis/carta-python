@@ -251,6 +251,10 @@ class Number(Parameter):
         return " ".join(desc)
 
 
+Number.POSITIVE = Number(min=0, interval=Number.EXCLUDE)
+Number.PERCENTAGE = Number(0, 100)
+
+
 class Boolean(Parameter):
     """A boolean parameter."""
 

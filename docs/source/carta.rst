@@ -97,3 +97,11 @@ carta.vector_overlay module
    :undoc-members:
    :show-inheritance:
 
+carta.wcs_overlay module
+------------------------
+
+.. automodule:: carta.wcs_overlay
+   :members:
+   :undoc-members:
+   :show-inheritance:
+

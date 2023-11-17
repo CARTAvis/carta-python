@@ -147,7 +147,7 @@ def test_set_center_valid_pixels(image, property_, call_action, x, y):
 ])
 def test_set_center_valid_wcs(image, property_, mock_property, call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
     property_("valid_wcs", True)
-    mock_property("carta.wcs_overlay.WCSOverlay")("number_format", (x_fmt, y_fmt, None))
+    mock_property("carta.wcs_overlay.Numbers")("format", (x_fmt, y_fmt))
 
     image.set_center(x, y)
     call_action.assert_called_with("setCenterWcs", x_norm, y_norm)
@@ -165,7 +165,7 @@ def test_set_center_invalid(image, property_, mock_property, call_action, x, y, 
     property_("width", 200)
     property_("height", 200)
     property_("valid_wcs", wcs)
-    mock_property("carta.wcs_overlay.WCSOverlay")("number_format", (x_fmt, y_fmt, None))
+    mock_property("carta.wcs_overlay.Numbers")("format", (x_fmt, y_fmt))
 
     with pytest.raises(Exception) as e:
         image.set_center(x, y)
