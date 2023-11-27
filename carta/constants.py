@@ -52,8 +52,8 @@ class LabelType(StrEnum):
 
 class BeamType(StrEnum):
     """Beam types."""
-    OPEN = "Open"
-    SOLID = "Solid"
+    OPEN = "open"
+    SOLID = "solid"
 
 
 # BlueprintJS colour palettes (2 and 4)

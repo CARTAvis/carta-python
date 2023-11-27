@@ -26,7 +26,14 @@ def method(session, mock_method):
 
 # TODO fill in missing session tests
 
+@pytest.mark.parametrize("name,classname", [
+    ("overlay", "WCSOverlay"),
+])
+def test_subobjects(session, name, classname):
+    assert getattr(session, name).__class__.__name__ == classname
+
 # PATHS
+
 
 @pytest.mark.parametrize("path, expected_path", [
     ("foo", "/current/dir/foo"),

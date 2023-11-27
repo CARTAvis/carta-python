@@ -41,22 +41,36 @@ class WCSOverlay(BasePathMixin):
         The colorbar settings subcomponent.
     beam : :obj:`carta.wcs_overlay.Beam` object
         The beam settings subcomponent.
-    components : dict
-        A mapping of all subcomponents, with :obj:`carta.constants.Overlay` enums as keys.
     """
 
     def __init__(self, session):
         self.session = session
         self._base_path = "overlayStore"
 
-        self.components = {}
+        self._components = {}
         for component in Overlay:
-            self.components[component] = OverlayComponent.CLASS[component]()
+            self._components[component] = OverlayComponent.CLASS[component]()
             name = component.name.lower()
             # This is a reserved word.
             if name == "global":
                 name += "_"
-            setattr(self, f"{name}", self.components[component])
+            setattr(self, f"{name}", self._components[component])
+
+    @validate(Constant(Overlay))
+    def get(self, component):
+        """Access an overlay component subobject by name.
+
+        Parameters
+        ----------
+        component : {0}
+            The component to access.
+
+        Returns
+        -------
+        A member of :obj:`carta.wcs_overlay.OverlayComponent`
+            The overlay component object.
+        """
+        return self._components[component]
 
     @validate(Constant(PaletteColor))
     def palette_to_rgb(self, color):
@@ -75,7 +89,7 @@ class WCSOverlay(BasePathMixin):
             The RGB value of the palette colour in the session's current theme, as a 6-digit hexadecimal with a leading ``#``.
         """
         color = PaletteColor(color)
-        if self.get_value("darkTheme"):
+        if self.session.get_value("darkTheme"):
             return color.rgb_dark
         return color.rgb_light
 
@@ -215,7 +229,7 @@ class HasFont:
         member of :obj:`carta.constants.FontStyle`
             The font style.
         """
-        font_family, font_style = divmod(self.get_value("font"))
+        font_family, font_style = divmod(self.get_value("font"), 4)
         return FontFamily(font_family), FontStyle(font_style)
 
     @validate(*all_optional(Constant(FontFamily), Constant(FontStyle)))
@@ -493,7 +507,8 @@ class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
             self.call_action("setGapX", gap_x)
         if gap_y is not None:
             self.call_action("setGapY", gap_y)
-        self.set_custom_gap(True)
+        if gap_x is not None or gap_y is not None:
+            self.set_custom_gap(True)
 
     @validate(Boolean())
     def set_custom_gap(self, state):
@@ -555,20 +570,21 @@ class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, Overla
     def set_format(self, format_x=None, format_y=None):
         """Set the X and/or Y number format.
 
-        This also automatically enables the custom number format.
+        This also automatically enables the custom number format, if either of the format parameters is set. If only one format is provided, the other will be set to the last previously used custom format, or to the system default.
 
         Parameters
         ----------
         format_x : {0}
-            The X format. If this is unset, the last custom X format to be set will be restored.
+            The X format.
         format_y : {1}
-            The Y format. If this is unset, the last custom Y format to be set will be restored.
+            The Y format.
         """
         if format_x is not None:
             self.call_action("setFormatX", format_x)
         if format_y is not None:
             self.call_action("setFormatY", format_y)
-        self.set_custom_format(True)
+        if format_x is not None or format_y is not None:
+            self.set_custom_format(True)
 
     @validate(Boolean())
     def set_custom_format(self, state):
@@ -617,7 +633,7 @@ class Labels(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayCompo
         if label_x is not None:
             self.call_action("setCustomLabelX", label_x)
         if label_y is not None:
-            self.call_action("setCustomLabelX", label_y)
+            self.call_action("setCustomLabelY", label_y)
         if label_x is not None or label_y is not None:
             self.call_action("setCustomText", True)
 
@@ -633,7 +649,7 @@ class Ticks(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         Returns
         -------
         number
-            The X density.CustomDensity
+            The X density.
         number
             The Y density.
         """
@@ -693,7 +709,8 @@ class Ticks(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
             self.call_action("setDensityX", density_x)
         if density_y is not None:
             self.call_action("setDensityY", density_y)
-        self.set_custom_density(True)
+        if density_x is not None or density_y is not None:
+            self.set_custom_density(True)
 
     @validate(Boolean())
     def set_custom_density(self, state):
@@ -982,7 +999,7 @@ class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
         a member of :obj:`carta.constants.BeamType`
             The beam type.
         """
-        return BeamType(self.get_value("beam_type"))
+        return BeamType(self.get_value("beamType"))
 
     @validate(*all_optional(Number(), Number()))
     def set_position(self, position_x=None, position_y=None):
@@ -996,9 +1013,9 @@ class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
             The Y position, in pixels.
         """
         if position_x is not None:
-            self._beam.call_action("setShiftX", position_x)
+            self.call_action("setShiftX", position_x)
         if position_y is not None:
-            self._beam.call_action("setShiftY", position_y)
+            self.call_action("setShiftY", position_y)
 
     @validate(Constant(BeamType))
     def set_beam_type(self, beam_type):
