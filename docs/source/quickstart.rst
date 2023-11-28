@@ -156,19 +156,20 @@ Properties specific to individual images can be accessed through image objects:
     img.set_zoom(4)
 
     # change colormap
-    img.set_colormap(Colormap.VIRIDIS)
+    img.raster.set_colormap(Colormap.VIRIDIS)
     # more advanced options
-    img.set_colormap(Colormap.VIRIDIS, invert=True)
-    img.set_scaling(Scaling.LOG, alpha=100, min=-0.5, max=30)
+    img.raster.set_colormap(Colormap.VIRIDIS, invert=True)
+    img.raster.set_scaling(Scaling.LOG, alpha=100)
+    img.raster.set_clip(min=-0.5, max=30)
 
     # add contours
     levels = np.arange(5, 5 * 5, 4)
-    img.configure_contours(levels)
-    img.apply_contours()
+    img.contours.configure(levels)
+    img.contours.apply()
     # use a constant colour
-    img.set_contour_color("red")
+    img.contours.set_color("red")
     # or use a colourmap
-    img.set_contour_colormap(Colormap.REDS)
+    img.contours.set_colormap(Colormap.REDS)
     
 Changing session properties
 ---------------------------
@@ -177,14 +178,14 @@ Properties which affect the whole session can be set through the session object:
 
 .. code-block:: python
 
-    from carta.constants import CoordinateSystem, PaletteColor, Overlay
+    from carta.constants import CoordinateSystem, PaletteColor
 
     # change some overlay properties
-    session.set_view_area(1000, 1000)
-    session.set_coordinate_system(CoordinateSystem.FK5)
-    session.set_color(PaletteColor.RED)
-    session.set_color(PaletteColor.VIOLET, Overlay.TICKS)
-    session.show(Overlay.TITLE)
+    session.overlay.set_view_area(1000, 1000)
+    session.overlay.global.set_coordinate_system(CoordinateSystem.FK5)
+    session.overlay.global.set_color(PaletteColor.RED)
+    session.overlay.ticks.set_color(PaletteColor.VIOLET)
+    session.overlay.title.show()
     
 Saving or displaying an image
 -----------------------------
