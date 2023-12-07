@@ -934,8 +934,8 @@ class HasEndpointsMixin:
             The height.
         """
         sx, sy = super().size
-        # negate the raw frontend value for consistency
-        return (-sx, -sy)
+        # return the magnitudes of the raw frontend values for consistency
+        return (abs(sx), abs(sy))
 
     @property
     def wcs_size(self):
@@ -999,6 +999,33 @@ class HasEndpointsMixin:
         return str(AngularSize.from_arcsec(math.hypot(*arcsec_size)))
 
     # SET PROPERTIES
+
+    @validate(Point.SizePoint())
+    def set_size(self, size):
+        """Set the size.
+
+        Both pixel and angular sizes are accepted, but both values must match. Signs will be ignored; the orientation of the line will be preserved (unless one of the dimensions is set to zero).
+
+        Parameters
+        ----------
+        size : {0}
+            The new width and height, in that order.
+        """
+        [size] = self.region_set._from_angular_sizes([size])
+
+        x, y = size
+        cx, cy = self.center
+        rad = math.radians(self.rotation)
+
+        x = abs(x)
+        y = abs(y)
+        dx = math.copysign(x, math.sin(rad) or 1)
+        dy = -math.copysign(y, math.cos(rad) or 1)
+
+        start = cx - dx / 2, cy - dy / 2
+        end = cx + dx / 2, cy + dy / 2
+
+        self.set_control_points([start, end])
 
     @validate(*all_optional(Point.CoordinatePoint(), Point.CoordinatePoint()))
     def set_endpoints(self, start=None, end=None):
@@ -1716,27 +1743,6 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, Region):
         rad = math.radians(rotation)
         dx = math.hypot(*self.size) * math.sin(rad)
         dy = math.hypot(*self.size) * -1 * math.cos(rad)
-
-        start = cx - dx / 2, cy - dy / 2
-        end = cx + dx / 2, cy + dy / 2
-
-        self.set_control_points([start, end])
-
-    @validate(Point.SizePoint())
-    def set_size(self, size):
-        """Set the size.
-
-        Both pixel and angular sizes are accepted, but both values must match.
-
-        Parameters
-        ----------
-        size : {0}
-            The new width and height, in that order.
-        """
-        [size] = self.region_set._from_angular_sizes([size])
-
-        cx, cy = self.center
-        dx, dy = size
 
         start = cx - dx / 2, cy - dy / 2
         end = cx + dx / 2, cy + dy / 2
