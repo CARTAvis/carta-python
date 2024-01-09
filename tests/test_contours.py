@@ -43,15 +43,14 @@ def test_configure(contours, call_action, method, args, kwargs, expected_args):
         call_action.assert_called_with("setContourConfiguration", *expected_args)
 
 
-@pytest.mark.parametrize("args,kwargs,expected_calls", [
-    ([], {}, []),
-    ([CDM.DASHED, 2], {}, [("setDashMode", CDM.DASHED), ("setThickness", 2)]),
-    ([], {"dash_mode": CDM.DASHED}, [("setDashMode", CDM.DASHED)]),
-    ([], {"dash_thickness": 2}, [("setThickness", 2)]),
-])
-def test_set_dash(mocker, contours, call_action, args, kwargs, expected_calls):
-    contours.set_dash(*args, **kwargs)
-    call_action.assert_has_calls([mocker.call(*call) for call in expected_calls])
+def test_set_dash_mode(mocker, contours, call_action):
+    contours.set_dash_mode(CDM.DASHED)
+    call_action.assert_called_with("setDashMode", CDM.DASHED)
+
+
+def test_set_thickness(mocker, contours, call_action):
+    contours.set_thickness(2)
+    call_action.assert_called_with("setThickness", 2)
 
 
 def test_set_color(mocker, contours, call_action):
@@ -93,16 +92,17 @@ def test_clear(contours, image_call_action):
 
 @pytest.mark.parametrize("args,kwargs,expected_calls", [
     ([], {}, []),
-    ([[1, 2, 3], SM.GAUSSIAN_BLUR, 4, CDM.DASHED, 2, "blue", CM.VIRIDIS, 0.5, 1.5], {}, [("configure", [1, 2, 3], SM.GAUSSIAN_BLUR, 4), ("set_dash", CDM.DASHED, 2), ("set_color", "blue"), ("set_colormap", CM.VIRIDIS), ("set_bias_and_contrast", 0.5, 1.5), ("apply",)]),
+    ([[1, 2, 3], SM.GAUSSIAN_BLUR, 4, CDM.DASHED, 2, "blue", CM.VIRIDIS, 0.5, 1.5], {}, [("configure", [1, 2, 3], SM.GAUSSIAN_BLUR, 4), ("set_dash_mode", CDM.DASHED), ("set_thickness", 2), ("set_color", "blue"), ("set_colormap", CM.VIRIDIS), ("set_bias_and_contrast", 0.5, 1.5), ("apply",)]),
     ([], {"smoothing_mode": SM.GAUSSIAN_BLUR}, [("configure", None, SM.GAUSSIAN_BLUR, None), ("apply",)]),
-    ([], {"dash_mode": CDM.DASHED}, [("set_dash", CDM.DASHED, None), ("apply",)]),
+    ([], {"dash_mode": CDM.DASHED}, [("set_dash_mode", CDM.DASHED), ("apply",)]),
+    ([], {"thickness": 2}, [("set_thickness", 2), ("apply",)]),
     ([], {"color": "blue"}, [("set_color", "blue"), ("apply",)]),
     ([], {"colormap": CM.VIRIDIS}, [("set_colormap", CM.VIRIDIS), ("apply",)]),
     ([], {"bias": 0.5}, [("set_bias_and_contrast", 0.5, None), ("apply",)]),
 ])
 def test_plot(contours, method, args, kwargs, expected_calls):
     mocks = {}
-    for method_name in ("configure", "set_dash", "set_color", "set_colormap", "set_bias_and_contrast", "apply"):
+    for method_name in ("configure", "set_dash_mode", "set_thickness", "set_color", "set_colormap", "set_bias_and_contrast", "apply"):
         mocks[method_name] = method(method_name, None)
 
     contours.plot(*args, **kwargs)

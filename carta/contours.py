@@ -48,21 +48,27 @@ class Contours(BasePathMixin):
                 smoothing_factor = self.macro("", "smoothingFactor")
             self.call_action("setContourConfiguration", levels, smoothing_mode, smoothing_factor)
 
-    @validate(*all_optional(Constant(ContourDashMode), Number()))
-    def set_dash(self, dash_mode=None, dash_thickness=None):
-        """Set the contour dash style.
+    @validate(Constant(ContourDashMode))
+    def set_dash_mode(self, dash_mode):
+        """Set the contour dash mode.
 
         Parameters
         ----------
         dash_mode : {0}
             The dash mode.
-        dash_thickness : {1}
-            The dash thickness.
         """
-        if dash_mode is not None:
-            self.call_action("setDashMode", dash_mode)
-        if dash_thickness is not None:
-            self.call_action("setThickness", dash_thickness)
+        self.call_action("setDashMode", dash_mode)
+
+    @validate(Number())
+    def set_thickness(self, thickness):
+        """Set the contour thickness.
+
+        Parameters
+        ----------
+        thickness : {0}
+            The thickness.
+        """
+        self.call_action("setThickness", thickness)
 
     @validate(Color())
     def set_color(self, color):
@@ -112,8 +118,8 @@ class Contours(BasePathMixin):
         """Apply the contour configuration."""
         self.image.call_action("applyContours")
 
-    @validate(*all_optional(*vargs(configure, set_dash, set_color, set_colormap, set_bias_and_contrast)))
-    def plot(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, dash_thickness=None, color=None, colormap=None, bias=None, contrast=None):
+    @validate(*all_optional(*vargs(configure, set_dash_mode, set_thickness, set_color, set_colormap, set_bias_and_contrast)))
+    def plot(self, levels=None, smoothing_mode=None, smoothing_factor=None, dash_mode=None, thickness=None, color=None, colormap=None, bias=None, contrast=None):
         """Configure contour levels, scaling, dash, and colour or colourmap; and apply contours; in a single step.
 
         If both a colour and a colourmap are provided, the colourmap will be visible.
@@ -128,8 +134,8 @@ class Contours(BasePathMixin):
             The smoothing kernel size in pixels. If this is unset, the frontend default will be used.
         dash_mode : {3}
             The dash mode.
-        dash_thickness : {4}
-            The dash thickness.
+        thickness : {4}
+            The thickness.
         color : {5}
             The color. The default is green.
         colormap : {6}
@@ -143,7 +149,8 @@ class Contours(BasePathMixin):
 
         for method, args in [
             (self.configure, (levels, smoothing_mode, smoothing_factor)),
-            (self.set_dash, (dash_mode, dash_thickness)),
+            (self.set_dash_mode, (dash_mode,)),
+            (self.set_thickness, (thickness,)),
             (self.set_color, (color,)),
             (self.set_colormap, (colormap,)),
             (self.set_bias_and_contrast, (bias, contrast)),
