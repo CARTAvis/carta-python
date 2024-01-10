@@ -991,7 +991,7 @@ class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
         return self.get_value("shiftX"), self.get_value("shiftY")
 
     @property
-    def beam_type(self):
+    def type(self):
         """The beam type.
 
         Returns
@@ -1018,7 +1018,7 @@ class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
             self.call_action("setShiftY", position_y)
 
     @validate(Constant(BeamType))
-    def set_beam_type(self, beam_type):
+    def set_type(self, beam_type):
         """Set the beam type.
 
         Parameters
