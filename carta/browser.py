@@ -4,6 +4,7 @@ import time
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 
 from .backend import Backend
@@ -87,7 +88,7 @@ class Browser:
 
             try:
                 # We can't use .text because Selenium is too clever to return the text of invisible elements.
-                session_id = int(self.driver.find_element_by_id("info-session-id").get_attribute("textContent"))
+                session_id = int(self.driver.find_element(By.ID, "info-session-id").get_attribute("textContent"))
             except (NoSuchElementException, ValueError) as e:
                 last_error = str(e)
                 time.sleep(1)
