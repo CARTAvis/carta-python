@@ -184,14 +184,3 @@ class Contours(BasePathMixin):
     def hide(self):
         """Hide the contours."""
         self.set_visible(False)
-
-    # HISTOGRAM
-
-    def use_cube_histogram(self):
-        """Use the cube histogram for contours."""
-        self.image.raster.call_action("setUseCubeHistogramContours", True)
-
-    @validate(Boolean())
-    def use_channel_histogram(self):
-        """Use the channel histogram for contours."""
-        self.image.raster.call_action("setUseCubeHistogramContours", False)

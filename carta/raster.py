@@ -125,13 +125,3 @@ class Raster(BasePathMixin):
     def hide(self):
         """Hide the raster component."""
         self.set_visible(False)
-
-    # HISTOGRAM
-
-    def use_cube_histogram(self):
-        """Use the cube histogram for the raster component."""
-        self.call_action("setUseCubeHistogram", True)
-
-    def use_channel_histogram(self):
-        """Use the channel histogram for the raster component."""
-        self.call_action("setUseCubeHistogram", False)

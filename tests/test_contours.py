@@ -127,15 +127,3 @@ def test_hide(contours, method):
     mock_set_visible = method("set_visible", None)
     contours.hide()
     mock_set_visible.assert_called_with(False)
-
-
-def test_use_cube_histogram(contours, image, mock_call_action):
-    raster_call_action = mock_call_action(image.raster)
-    contours.use_cube_histogram()
-    raster_call_action.assert_called_with("setUseCubeHistogramContours", True)
-
-
-def test_use_channel_histogram(contours, image, mock_call_action):
-    raster_call_action = mock_call_action(image.raster)
-    contours.use_channel_histogram()
-    raster_call_action.assert_called_with("setUseCubeHistogramContours", False)
