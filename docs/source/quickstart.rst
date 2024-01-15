@@ -182,8 +182,8 @@ Properties which affect the whole session can be set through the session object:
 
     # change some overlay properties
     session.overlay.set_view_area(1000, 1000)
-    session.overlay.global.set_coordinate_system(CoordinateSystem.FK5)
-    session.overlay.global.set_color(PaletteColor.RED)
+    session.overlay.global_.set_coordinate_system(CoordinateSystem.FK5)
+    session.overlay.global_.set_color(PaletteColor.RED)
     session.overlay.ticks.set_color(PaletteColor.VIOLET)
     session.overlay.title.show()
     

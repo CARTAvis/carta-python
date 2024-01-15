@@ -21,7 +21,7 @@ class WCSOverlay(BasePathMixin):
         The image associated with this overlay object.
     session : :obj:`carta.session.Session` object
         The session object associated with this overlay object.
-    global_ : :obj:`carta.wcs_overlay.Global` object
+    global\_ : :obj:`carta.wcs_overlay.Global` object
         The global settings subcomponent.
     title : :obj:`carta.wcs_overlay.Title` object
         The title settings subcomponent.
