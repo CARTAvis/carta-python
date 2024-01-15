@@ -103,7 +103,7 @@ DARK_THEME = {
 
 
 class PaletteColor(StrEnum):
-    """Palette colours used for overlay elements.
+    """Palette colours used for WCS overlay elements.
 
     Members of this enum class have additional attributes.
 
@@ -131,7 +131,7 @@ class PaletteColor(StrEnum):
 Overlay = StrEnum('Overlay', [(c.upper(), c) for c in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar")] + [('BEAM', 'beam.settingsForDisplay')])
 Overlay.__doc__ = """WCS overlay elements.
 
-    Member values are paths to stores corresponding to these elements, relative to the overlay store.
+    Member values are paths to stores corresponding to these elements, relative to the WCS overlay store.
     """
 
 

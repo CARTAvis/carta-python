@@ -257,7 +257,7 @@ class Image(BasePathMixin):
             The custom title text.
         """
         self.call_action("setTitleCustomText", title_text)
-        self.session.overlay.title.set_custom_text(True)
+        self.session.wcs.title.set_custom_text(True)
 
     @validate(String())
     def set_custom_colorbar_label(self, label_text):
@@ -271,7 +271,7 @@ class Image(BasePathMixin):
             The custom colorbar label text.
         """
         self.call_action("setColorbarLabelCustomText", label_text)
-        self.session.overlay.colorbar.set_label_custom_text(True)
+        self.session.wcs.colorbar.set_label_custom_text(True)
 
     # SELECTION
 
@@ -413,7 +413,7 @@ class Image(BasePathMixin):
             if not self.valid_wcs:
                 raise ValueError("Cannot parse world coordinates. This image does not contain valid WCS information. Please use image coordinates (in pixels) instead.")
 
-            number_format_x, number_format_y = self.session.overlay.numbers.format
+            number_format_x, number_format_y = self.session.wcs.numbers.format
             x_value = WorldCoordinate.with_format(number_format_x).from_string(x, SpatialAxis.X)
             y_value = WorldCoordinate.with_format(number_format_y).from_string(y, SpatialAxis.Y)
             self.call_action("setCenterWcs", str(x_value), str(y_value))

@@ -42,7 +42,7 @@ class Session:
         The browser object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.create` or :obj:`carta.session.Session.start_and_create`.
     backend : :obj:`carta.backend.Backend`
         The backend object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.start_and_create`.
-    overlay : :obj:`carta.wcs_overlay.WCSOverlay`
+    wcs : :obj:`carta.wcs_overlay.WCSOverlay`
         Sub-object with functions related to the WCS overlay.
 
     Attributes
@@ -58,7 +58,7 @@ class Session:
         self._backend = backend
 
         # Sub-objects grouping related functions
-        self.overlay = WCSOverlay(self)
+        self.wcs = WCSOverlay(self)
 
     def __del__(self):
         """Delete this session object."""
