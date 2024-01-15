@@ -49,12 +49,8 @@ class WCSOverlay(BasePathMixin):
 
         self._components = {}
         for component in Overlay:
-            comp = OverlayComponent.CLASS[component]()
-            # Simplest way to do this without having to handle additional init parameters in all the mixins
-            comp.session = self.session
-
+            comp = OverlayComponent.CLASS[component](self)
             self._components[component] = comp
-
             name = component.name.lower()
             # This is a reserved word.
             if name == "global":
@@ -117,7 +113,13 @@ class WCSOverlay(BasePathMixin):
 
 
 class OverlayComponent(BasePathMixin):
-    """A single WCS overlay component."""
+    """A single WCS overlay component.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
 
     CLASS = {}
     """Mapping of :obj:`carta.constants.Overlay` enums to component classes. This mapping is used to select the appropriate subclass when an overlay component object is constructed in the wrapper."""
@@ -128,12 +130,14 @@ class OverlayComponent(BasePathMixin):
 
         OverlayComponent.CLASS[cls.COMPONENT] = cls
 
-    def __init__(self):
+    def __init__(self, overlay):
         self._base_path = f"overlayStore.{self.COMPONENT}"
+        self.session = overlay.session
 
 
 class HasColor:
     """Components which inherit this class have a palette color setting."""
+
     @property
     def color(self):
         """The color of this component.
@@ -159,6 +163,7 @@ class HasColor:
 
 class HasCustomColor(HasColor):
     """Components which inherit this class have a palette color setting and a custom color flag."""
+
     @property
     def custom_color(self):
         """Whether a custom color is applied to this component.
@@ -198,6 +203,7 @@ class HasCustomColor(HasColor):
 
 class HasCustomText:
     """Components which inherit this class have a custom text flag. Different components have different text properties, which are set separately."""
+
     @property
     def custom_text(self):
         """Whether custom text is applied to this component.
@@ -223,6 +229,7 @@ class HasCustomText:
 
 class HasFont:
     """Components which inherit this class have a font setting."""
+
     @property
     def font(self):
         """The font of this component.
@@ -260,6 +267,7 @@ class HasFont:
 
 class HasVisibility:
     """Components which inherit this class have a visibility setting, including ``show`` and ``hide`` aliases."""
+
     @property
     def visible(self):
         """The visibility of this component.
@@ -293,6 +301,7 @@ class HasVisibility:
 
 class HasWidth:
     """Components which inherit this class have a width setting."""
+
     @property
     def width(self):
         """The width of this component.
@@ -318,6 +327,7 @@ class HasWidth:
 
 class HasRotation:
     """Components which inherit this class have a rotation setting."""
+
     @property
     def rotation(self):
         """The rotation of this component.
@@ -343,6 +353,7 @@ class HasRotation:
 
 class HasCustomPrecision:
     """Components which inherit this class have a precision setting and a custom precision flag."""
+
     @property
     def precision(self):
         """The precision of this component.
@@ -392,7 +403,13 @@ class HasCustomPrecision:
 
 
 class Global(HasColor, OverlayComponent):
-    """The global WCS overlay configuration."""
+    """The global WCS overlay configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.GLOBAL
 
     @property
@@ -463,12 +480,24 @@ class Global(HasColor, OverlayComponent):
 
 
 class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayComponent):
-    """The WCS overlay title configuration."""
+    """The WCS overlay title configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.TITLE
 
 
 class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
-    """The WCS overlay grid configuration."""
+    """The WCS overlay grid configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.GRID
 
     @property
@@ -528,17 +557,35 @@ class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
 
 
 class Border(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
-    """The WCS overlay border configuration."""
+    """The WCS overlay border configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.BORDER
 
 
 class Axes(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
-    """The WCS overlay axes configuration."""
+    """The WCS overlay axes configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.AXES
 
 
 class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, OverlayComponent):
-    """The WCS overlay numbers configuration."""
+    """The WCS overlay numbers configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.NUMBERS
 
     @property
@@ -604,7 +651,13 @@ class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, Overla
 
 
 class Labels(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayComponent):
-    """The WCS overlay labels configuration."""
+    """The WCS overlay labels configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.LABELS
 
     @property
@@ -644,7 +697,13 @@ class Labels(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayCompo
 
 
 class Ticks(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
-    """The WCS overlay ticks configuration."""
+    """The WCS overlay ticks configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.TICKS
 
     @property
@@ -763,7 +822,13 @@ class Ticks(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
 
 
 class ColorbarComponent:
-    """Base class for components of the WCS overlay colorbar."""
+    """Base class for components of the WCS overlay colorbar.
+
+    Attributes
+    ----------
+    colorbar : :obj:`carta.wcs_overlay.Colorbar` object
+        The colorbar object associated with this colorbar component.
+    """
 
     def __init__(self, colorbar):
         self.colorbar = colorbar
@@ -816,12 +881,24 @@ class ColorbarComponent:
 
 
 class ColorbarBorder(HasVisibility, HasWidth, HasCustomColor, ColorbarComponent):
-    """The WCS overlay colorbar border configuration."""
+    """The WCS overlay colorbar border configuration.
+
+    Attributes
+    ----------
+    colorbar : :obj:`carta.wcs_overlay.Colorbar` object
+        The colorbar object associated with this colorbar component.
+    """
     PREFIX = "border"
 
 
 class ColorbarTicks(HasVisibility, HasWidth, HasCustomColor, ColorbarComponent):
-    """The WCS overlay colorbar ticks configuration."""
+    """The WCS overlay colorbar ticks configuration.
+
+    Attributes
+    ----------
+    colorbar : :obj:`carta.wcs_overlay.Colorbar` object
+        The colorbar object associated with this colorbar component.
+    """
     PREFIX = "tick"
 
     @property
@@ -870,17 +947,35 @@ class ColorbarTicks(HasVisibility, HasWidth, HasCustomColor, ColorbarComponent):
 
 
 class ColorbarNumbers(HasVisibility, HasCustomPrecision, HasCustomColor, HasCustomText, HasFont, HasRotation, ColorbarComponent):
-    """The WCS overlay colorbar numbers configuration."""
+    """The WCS overlay colorbar numbers configuration.
+
+    Attributes
+    ----------
+    colorbar : :obj:`carta.wcs_overlay.Colorbar` object
+        The colorbar object associated with this colorbar component.
+    """
     PREFIX = "number"
 
 
 class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRotation, ColorbarComponent):
-    """The WCS overlay colorbar label configuration."""
+    """The WCS overlay colorbar label configuration.
+
+    Attributes
+    ----------
+    colorbar : :obj:`carta.wcs_overlay.Colorbar` object
+        The colorbar object associated with this colorbar component.
+    """
     PREFIX = "label"
 
 
 class ColorbarGradient(HasVisibility, ColorbarComponent):
-    """The WCS overlay colorbar gradient configuration."""
+    """The WCS overlay colorbar gradient configuration.
+
+    Attributes
+    ----------
+    colorbar : :obj:`carta.wcs_overlay.Colorbar` object
+        The colorbar object associated with this colorbar component.
+    """
     PREFIX = "gradient"
 
 
@@ -891,6 +986,8 @@ class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
 
     Attributes
     ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
     border : :obj:`carta.wcs_overlay.ColorbarBorder` object
         The border subcomponent.
     ticks : :obj:`carta.wcs_overlay.ColorbarTicks` object
@@ -904,7 +1001,8 @@ class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
     """
     COMPONENT = Overlay.COLORBAR
 
-    def __init__(self):
+    def __init__(self, overlay):
+        super().__init__(overlay)
         self.border = ColorbarBorder(self)
         self.ticks = ColorbarTicks(self)
         self.numbers = ColorbarNumbers(self)
@@ -979,7 +1077,13 @@ class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
 
 
 class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
-    """The WCS overlay beam configuration."""
+    """The WCS overlay beam configuration.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session object associated with this overlay component.
+    """
     COMPONENT = Overlay.BEAM
 
     @property
