@@ -21,7 +21,7 @@ class WCSOverlay(BasePathMixin):
         The image associated with this overlay object.
     session : :obj:`carta.session.Session` object
         The session object associated with this overlay object.
-    global\_ : :obj:`carta.wcs_overlay.Global` object
+    global\\_ : :obj:`carta.wcs_overlay.Global` object
         The global settings subcomponent.
     title : :obj:`carta.wcs_overlay.Title` object
         The title settings subcomponent.
@@ -49,12 +49,17 @@ class WCSOverlay(BasePathMixin):
 
         self._components = {}
         for component in Overlay:
-            self._components[component] = OverlayComponent.CLASS[component]()
+            comp = OverlayComponent.CLASS[component]()
+            # Simplest way to do this without having to handle additional init parameters in all the mixins
+            comp.session = self.session
+
+            self._components[component] = comp
+
             name = component.name.lower()
             # This is a reserved word.
             if name == "global":
                 name += "_"
-            setattr(self, f"{name}", self._components[component])
+            setattr(self, f"{name}", comp)
 
     @validate(Constant(Overlay))
     def get(self, component):
