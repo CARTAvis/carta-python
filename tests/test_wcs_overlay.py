@@ -747,11 +747,11 @@ def test_beam_position(mocker, overlay, component_get_value):
 def test_beam_set_type(overlay, component_call_action):
     beam_call_action = component_call_action(O.BEAM)
     overlay.beam.set_type(BT.SOLID)
-    beam_call_action.assert_called_with("setBeamType", BT.SOLID)
+    beam_call_action.assert_called_with("setType", BT.SOLID)
 
 
 def test_beam_type(overlay, component_get_value):
     beam_get_value = component_get_value(O.BEAM, "solid")
     beam_type = overlay.beam.type
-    beam_get_value.assert_called_with("beamType")
+    beam_get_value.assert_called_with("type")
     assert beam_type == BT.SOLID

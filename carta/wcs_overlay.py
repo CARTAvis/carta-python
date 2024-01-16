@@ -1108,7 +1108,7 @@ class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
         a member of :obj:`carta.constants.BeamType`
             The beam type.
         """
-        return BeamType(self.get_value("beamType"))
+        return BeamType(self.get_value("type"))
 
     @validate(*all_optional(Number(), Number()))
     def set_position(self, position_x=None, position_y=None):
@@ -1135,4 +1135,4 @@ class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
         beam_type : {0}
             The beam type.
         """
-        self.call_action("setBeamType", beam_type)
+        self.call_action("setType", beam_type)
