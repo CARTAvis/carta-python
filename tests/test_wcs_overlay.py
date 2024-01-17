@@ -605,7 +605,6 @@ def test_colorbar_set_numbers_properties(mocker, overlay, component_call_action)
     overlay.colorbar.numbers.set_custom_precision(False)
     overlay.colorbar.numbers.set_color(PC.ROSE)
     overlay.colorbar.numbers.set_custom_color(False)
-    overlay.colorbar.numbers.set_custom_text(False)
     overlay.colorbar.numbers.set_font(FF.ARIAL, FS.BOLD)
     overlay.colorbar.numbers.set_rotation(90)
 
@@ -617,7 +616,6 @@ def test_colorbar_set_numbers_properties(mocker, overlay, component_call_action)
         mocker.call("setNumberColor", PC.ROSE),
         mocker.call("setNumberCustomColor", True),
         mocker.call("setNumberCustomColor", False),
-        mocker.call("setNumberCustomText", False),
         mocker.call("setNumberFont", 9),
         mocker.call("setNumberRotation", 90),
     ])
@@ -625,14 +623,13 @@ def test_colorbar_set_numbers_properties(mocker, overlay, component_call_action)
 
 def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
     colorbar_get_value = component_get_value(O.COLORBAR)
-    colorbar_get_value.side_effect = [True, 3, True, "auto-rose", True, True, 9, 90]
+    colorbar_get_value.side_effect = [True, 3, True, "auto-rose", True, 9, 90]
 
     visible = overlay.colorbar.numbers.visible
     precision = overlay.colorbar.numbers.precision
     custom_precision = overlay.colorbar.numbers.custom_precision
     color = overlay.colorbar.numbers.color
     custom_color = overlay.colorbar.numbers.custom_color
-    custom_text = overlay.colorbar.numbers.custom_text
     family, style = overlay.colorbar.numbers.font
     rotation = overlay.colorbar.numbers.rotation
 
@@ -642,7 +639,6 @@ def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
         mocker.call("numberCustomPrecision", return_path=None),
         mocker.call("numberColor", return_path=None),
         mocker.call("numberCustomColor", return_path=None),
-        mocker.call("numberCustomText", return_path=None),
         mocker.call("numberFont", return_path=None),
         mocker.call("numberRotation", return_path=None),
     ])
@@ -652,7 +648,6 @@ def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
     assert custom_precision is True
     assert color == PC.ROSE
     assert custom_color is True
-    assert custom_text is True
     assert family == FF.ARIAL
     assert style == FS.BOLD
     assert rotation == 90

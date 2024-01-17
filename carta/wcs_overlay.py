@@ -946,7 +946,7 @@ class ColorbarTicks(HasVisibility, HasWidth, HasCustomColor, ColorbarComponent):
         self.call_action("setLen", length)
 
 
-class ColorbarNumbers(HasVisibility, HasCustomPrecision, HasCustomColor, HasCustomText, HasFont, HasRotation, ColorbarComponent):
+class ColorbarNumbers(HasVisibility, HasCustomPrecision, HasCustomColor, HasFont, HasRotation, ColorbarComponent):
     """The WCS overlay colorbar numbers configuration.
 
     Attributes
