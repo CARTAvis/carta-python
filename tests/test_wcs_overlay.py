@@ -200,6 +200,22 @@ def test_font_arial(overlay, component_get_value, comp_enum):
     assert style == FS.BOLD
 
 
+@pytest.mark.parametrize("comp_enum", [O.TITLE, O.NUMBERS, O.LABELS])
+def test_set_font_size(overlay, component_call_action, comp_enum):
+    comp = overlay.get(comp_enum)
+    comp_call_action = component_call_action(comp_enum)
+    comp.set_font_size(20)
+    comp_call_action.assert_called_with("setFontSize", 20)
+
+
+@pytest.mark.parametrize("comp_enum", [O.TITLE, O.NUMBERS, O.LABELS])
+def test_font_size(overlay, component_get_value, comp_enum):
+    comp = overlay.get(comp_enum)
+    comp_get_value = component_get_value(comp_enum, 20)
+    comp.font_size
+    comp_get_value.assert_called_with("fontSize")
+
+
 @pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL})
 def test_set_visible(overlay, component_call_action, comp_enum):
     comp = overlay.get(comp_enum)
@@ -624,6 +640,7 @@ def test_colorbar_set_numbers_properties(mocker, overlay, component_call_action)
     overlay.colorbar.numbers.set_color(PC.ROSE)
     overlay.colorbar.numbers.set_custom_color(False)
     overlay.colorbar.numbers.set_font(FF.ARIAL, FS.BOLD)
+    overlay.colorbar.numbers.set_font_size(20)
     overlay.colorbar.numbers.set_rotation(90)
 
     colorbar_call_action.assert_has_calls([
@@ -635,13 +652,14 @@ def test_colorbar_set_numbers_properties(mocker, overlay, component_call_action)
         mocker.call("setNumberCustomColor", True),
         mocker.call("setNumberCustomColor", False),
         mocker.call("setNumberFont", 9),
+        mocker.call("setNumberFontSize", 20),
         mocker.call("setNumberRotation", 90),
     ])
 
 
 def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
     colorbar_get_value = component_get_value(O.COLORBAR)
-    colorbar_get_value.side_effect = [True, 3, True, "auto-rose", True, 9, 90]
+    colorbar_get_value.side_effect = [True, 3, True, "auto-rose", True, 9, 20, 90]
 
     visible = overlay.colorbar.numbers.visible
     precision = overlay.colorbar.numbers.precision
@@ -649,6 +667,7 @@ def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
     color = overlay.colorbar.numbers.color
     custom_color = overlay.colorbar.numbers.custom_color
     family, style = overlay.colorbar.numbers.font
+    font_size = overlay.colorbar.numbers.font_size
     rotation = overlay.colorbar.numbers.rotation
 
     colorbar_get_value.assert_has_calls([
@@ -658,6 +677,7 @@ def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
         mocker.call("numberColor", return_path=None),
         mocker.call("numberCustomColor", return_path=None),
         mocker.call("numberFont", return_path=None),
+        mocker.call("numberFontSize", return_path=None),
         mocker.call("numberRotation", return_path=None),
     ])
 
@@ -668,6 +688,7 @@ def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
     assert custom_color is True
     assert family == FF.ARIAL
     assert style == FS.BOLD
+    assert font_size == 20
     assert rotation == 90
 
 
@@ -679,6 +700,7 @@ def test_colorbar_set_label_properties(mocker, overlay, component_call_action):
     overlay.colorbar.label.set_custom_color(False)
     overlay.colorbar.label.set_custom_text(False)
     overlay.colorbar.label.set_font(FF.ARIAL, FS.BOLD)
+    overlay.colorbar.label.set_font_size(20)
     overlay.colorbar.label.set_rotation(90)
 
     colorbar_call_action.assert_has_calls([
@@ -688,19 +710,21 @@ def test_colorbar_set_label_properties(mocker, overlay, component_call_action):
         mocker.call("setLabelCustomColor", False),
         mocker.call("setLabelCustomText", False),
         mocker.call("setLabelFont", 9),
+        mocker.call("setLabelFontSize", 20),
         mocker.call("setLabelRotation", 90),
     ])
 
 
 def test_colorbar_get_label_properties(mocker, overlay, component_get_value):
     colorbar_get_value = component_get_value(O.COLORBAR)
-    colorbar_get_value.side_effect = [True, "auto-rose", True, True, 9, 90]
+    colorbar_get_value.side_effect = [True, "auto-rose", True, True, 9, 20, 90]
 
     visible = overlay.colorbar.label.visible
     color = overlay.colorbar.label.color
     custom_color = overlay.colorbar.label.custom_color
     custom_text = overlay.colorbar.label.custom_text
     family, style = overlay.colorbar.label.font
+    font_size = overlay.colorbar.label.font_size
     rotation = overlay.colorbar.label.rotation
 
     colorbar_get_value.assert_has_calls([
@@ -709,6 +733,7 @@ def test_colorbar_get_label_properties(mocker, overlay, component_get_value):
         mocker.call("labelCustomColor", return_path=None),
         mocker.call("labelCustomText", return_path=None),
         mocker.call("labelFont", return_path=None),
+        mocker.call("labelFontSize", return_path=None),
         mocker.call("labelRotation", return_path=None),
     ])
 
@@ -718,6 +743,7 @@ def test_colorbar_get_label_properties(mocker, overlay, component_get_value):
     assert custom_text is True
     assert family == FF.ARIAL
     assert style == FS.BOLD
+    assert font_size == 20
     assert rotation == 90
 
 

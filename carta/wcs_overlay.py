@@ -250,6 +250,17 @@ class HasFont:
         font_family, font_style = divmod(font_id, 4)
         return FontFamily(font_family), FontStyle(font_style)
 
+    @property
+    def font_size(self):
+        """The font size of this component.
+
+        Returns
+        -------
+        number
+            The font size, in pixels.
+        """
+        return self.get_value("fontSize")
+
     @validate(*all_optional(Constant(FontFamily), Constant(FontStyle)))
     def set_font(self, font_family, font_style):
         """Set the font of this component.
@@ -274,6 +285,17 @@ class HasFont:
         elif font_id == 10:
             font_id = 9
         self.call_action("setFont", font_id)
+
+    @validate(Number())
+    def set_font_size(self, font_size):
+        """Set the font size of this component.
+
+        Parameters
+        ----------
+        font_size : {0}
+            The font size, in pixels.
+        """
+        self.call_action("setFontSize", font_size)
 
 
 class HasVisibility:
