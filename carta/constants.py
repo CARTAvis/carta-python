@@ -228,8 +228,8 @@ class FontFamily(IntEnum):
 class FontStyle(IntEnum):
     """Font style used in WCS overlay components."""
     NORMAL = 0
-    BOLD = 1
-    ITALIC = 2
+    ITALIC = 1
+    BOLD = 2
     BOLD_ITALIC = 3
 
 

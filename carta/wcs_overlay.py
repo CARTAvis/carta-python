@@ -241,7 +241,13 @@ class HasFont:
         member of :obj:`carta.constants.FontStyle`
             The font style.
         """
-        font_family, font_style = divmod(self.get_value("font"), 4)
+        font_id = self.get_value("font")
+        # Special fix for broken pattern in frontend
+        if font_id == 9:
+            font_id = 10
+        elif font_id == 10:
+            font_id = 9
+        font_family, font_style = divmod(font_id, 4)
         return FontFamily(font_family), FontStyle(font_style)
 
     @validate(*all_optional(Constant(FontFamily), Constant(FontStyle)))
@@ -262,6 +268,11 @@ class HasFont:
         if font_style is None:
             font_style = current_style
         font_id = 4 * font_family + font_style
+        # Special fix for broken pattern in frontend
+        if font_id == 9:
+            font_id = 10
+        elif font_id == 10:
+            font_id = 9
         self.call_action("setFont", font_id)
 
 

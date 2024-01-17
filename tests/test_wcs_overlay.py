@@ -168,12 +168,30 @@ def test_custom_text(overlay, component_get_value, comp_enum):
 def test_set_font(overlay, component_call_action, comp_enum):
     comp = overlay.get(comp_enum)
     comp_call_action = component_call_action(comp_enum)
+    comp.set_font(FF.TIMES, FS.ITALIC)
+    comp_call_action.assert_called_with("setFont", 5)
+
+
+@pytest.mark.parametrize("comp_enum", [O.TITLE, O.NUMBERS, O.LABELS])
+def test_font(overlay, component_get_value, comp_enum):
+    comp = overlay.get(comp_enum)
+    comp_get_value = component_get_value(comp_enum, 5)
+    family, style = comp.font
+    comp_get_value.assert_called_with("font")
+    assert family == FF.TIMES
+    assert style == FS.ITALIC
+
+
+@pytest.mark.parametrize("comp_enum", [O.TITLE, O.NUMBERS, O.LABELS])
+def test_set_font_arial(overlay, component_call_action, comp_enum):
+    comp = overlay.get(comp_enum)
+    comp_call_action = component_call_action(comp_enum)
     comp.set_font(FF.ARIAL, FS.BOLD)
     comp_call_action.assert_called_with("setFont", 9)
 
 
 @pytest.mark.parametrize("comp_enum", [O.TITLE, O.NUMBERS, O.LABELS])
-def test_font(overlay, component_get_value, comp_enum):
+def test_font_arial(overlay, component_get_value, comp_enum):
     comp = overlay.get(comp_enum)
     comp_get_value = component_get_value(comp_enum, 9)
     family, style = comp.font
