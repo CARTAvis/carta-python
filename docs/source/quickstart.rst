@@ -134,7 +134,7 @@ Helper methods on the session object open images in the frontend and return imag
 
     # Open or append images
     img1 = session.open_image("data/hdf5/first_file.hdf5")
-    img2 = session.append_image("data/fits/second_file.fits")
+    img2 = session.open_image("data/fits/second_file.fits", append=True)
         
 Changing image properties
 -------------------------
