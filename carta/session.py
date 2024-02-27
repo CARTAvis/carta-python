@@ -13,7 +13,7 @@ from .image import Image
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, PanelMode, GridMode, ComplexComponent, NumberFormat, Polarization
 from .backend import Backend
 from .protocol import Protocol
-from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
+from .util import logger, Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl, Point as Pt
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, OneOf, IterableOf, MapOf, Union
 
 
@@ -325,8 +325,7 @@ class Session:
         list
             The list of files and subdirectories in the frontend file browser's current starting directory.
         """
-        self.call_action("fileBrowserStore.getFileList", self.pwd())
-        file_list = self.get_value("fileBrowserStore.fileList")
+        file_list = self.call_action("backendService.getFileList", self.pwd(), 2)
         items = []
         if "files" in file_list:
             items.extend([f["name"] for f in file_list["files"]])
@@ -941,7 +940,7 @@ class Session:
     def set_cursor(self, x, y):
         """Set the curson position.
 
-        TODO: this is a precursor to making z-profiles available, but currently the relevant functionality is not exposed by the frontend.
+        TODO: this is a precursor to making z-profiles available, but currently the relevant functionality is not exposed by the frontend. There is also a frontend issue which is preventing the cursor from being updated correctly (it is updated only in the profiles).
 
         Parameters
         ----------
@@ -951,7 +950,7 @@ class Session:
             The Y position.
 
         """
-        self.active_frame().call_action("regionSet.regions[0].setControlPoint", 0, [x, y])
+        self.active_frame().regions.call_action("updateCursorRegionPosition", Pt(x, y))
 
     # SAVE IMAGE
 

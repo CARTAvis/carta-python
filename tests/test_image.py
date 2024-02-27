@@ -1,7 +1,7 @@
 import pytest
 
 from carta.image import Image
-from carta.util import CartaValidationFailed
+from carta.util import CartaValidationFailed, Point as Pt
 from carta.constants import NumberFormat as NF, SpatialAxis as SA
 
 
@@ -80,6 +80,7 @@ def test_new(session, session_call_action, session_method, args, kwargs, expecte
 
 @pytest.mark.parametrize("name,classname", [
     ("vectors", "VectorOverlay"),
+    ("regions", "RegionSet"),
 ])
 def test_subobjects(image, name, classname):
     assert getattr(image, name).__class__.__name__ == classname
@@ -198,3 +199,70 @@ def test_zoom_to_size_invalid(image, property_, axis, val, wcs, error_contains):
     with pytest.raises(Exception) as e:
         image.zoom_to_size(val, axis)
     assert error_contains in str(e.value)
+
+
+def test_from_world_coordinate_points(image, call_action):
+    call_action.return_value = [{"x": 1, "y": 2}, {"x": 3, "y": 4}, {"x": 5, "y": 6}]
+    points = image.from_world_coordinate_points([("1", "2"), ("3", "4"), ("5", "6")])
+    call_action.assert_called_with("getImagePosFromWCS", [Pt("1", "2"), Pt("3", "4"), Pt("5", "6")])
+    assert points == [(1, 2), (3, 4), (5, 6)]
+
+
+def test_from_world_coordinate_points_invalid(image):
+    with pytest.raises(CartaValidationFailed) as e:
+        image.from_world_coordinate_points([(1, 2), (3, 4), (5, 6)])
+    assert "not a pair of coordinate strings" in str(e.value)
+
+
+def test_to_world_coordinate_points(image, call_action):
+    call_action.return_value = [{"x": "1", "y": "2"}, {"x": "3", "y": "4"}, {"x": "5", "y": "6"}]
+    points = image.to_world_coordinate_points([(1, 2), (3, 4), (5, 6)])
+    call_action.assert_called_with("getWCSFromImagePos", [Pt(1, 2), Pt(3, 4), Pt(5, 6)])
+    assert points == [("1", "2"), ("3", "4"), ("5", "6")]
+
+
+def test_to_world_coordinate_points_invalid(image):
+    with pytest.raises(CartaValidationFailed) as e:
+        image.to_world_coordinate_points([("1", "2"), ("3", "4"), ("5", "6")])
+    assert "not a pair of numbers" in str(e.value)
+
+
+@pytest.mark.parametrize("size,axis,expected_call", [
+    ("100\"", SA.X, ("getImageXValueFromArcsec", 100)),
+    ("100\"", SA.Y, ("getImageYValueFromArcsec", 100)),
+])
+def test_from_angular_size(image, call_action, size, axis, expected_call):
+    image.from_angular_size(size, axis)
+    call_action.assert_called_with(*expected_call)
+
+
+@pytest.mark.parametrize("size,error_contains", [
+    (100, "a string was expected"),
+    ("100abc", "not an angular size"),
+])
+def test_from_angular_size_invalid(image, size, error_contains):
+    with pytest.raises(CartaValidationFailed) as e:
+        image.from_angular_size(size, SA.X)
+    assert error_contains in str(e.value)
+
+
+def test_from_angular_size_points(mocker, image, method):
+    mock_from_angular_size = method("from_angular_size", [1, 2, 3, 4])
+    points = image.from_angular_size_points([("1", "2"), ("3", "4")])
+    mock_from_angular_size.assert_has_calls([
+        mocker.call("1", SA.X),
+        mocker.call("2", SA.Y),
+        mocker.call("3", SA.X),
+        mocker.call("4", SA.Y),
+    ])
+    assert points == [(1, 2), (3, 4)]
+
+
+def test_to_angular_size_points(mocker, image, call_action):
+    call_action.side_effect = [{"x": "1", "y": "2"}, {"x": "3", "y": "4"}]
+    points = image.to_angular_size_points([(1, 2), (3, 4)])
+    call_action.assert_has_calls([
+        mocker.call("getWcsSizeInArcsec", Pt(1, 2)),
+        mocker.call("getWcsSizeInArcsec", Pt(3, 4)),
+    ])
+    assert points == [("1", "2"), ("3", "4")]

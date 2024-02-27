@@ -4,9 +4,10 @@ Image objects should not be instantiated directly, and should only be created th
 """
 
 from .constants import Colormap, Scaling, SmoothingMode, ContourDashMode, Polarization, SpatialAxis
-from .util import Macro, cached, BasePathMixin
+from .util import Macro, cached, BasePathMixin, Point as Pt
 from .units import AngularSize, WorldCoordinate
-from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional
+from .validation import validate, Number, Color, Constant, Boolean, NoneOr, IterableOf, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, all_optional, Point
+from .region import RegionSet
 from .metadata import parse_header
 from .vector_overlay import VectorOverlay
 
@@ -29,6 +30,8 @@ class Image(BasePathMixin):
         The session object associated with this image.
     image_id : integer
         The ID identifying this image within the session.
+    regions : :obj:`carta.region.RegionSet` object
+        Functions for manipulating regions associated with this image.
     """
 
     def __init__(self, session, image_id):
@@ -40,6 +43,7 @@ class Image(BasePathMixin):
 
         # Sub-objects grouping related functions
         self.vectors = VectorOverlay(self)
+        self.regions = RegionSet(self)
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
@@ -670,6 +674,113 @@ class Image(BasePathMixin):
         self.call_action("renderConfig.setPercentileRank", rank)
         if rank not in preset_ranks:
             self.call_action("renderConfig.setPercentileRank", -1)  # select 'custom' rank button
+
+    # COORDINATE AND SIZE CONVERSIONS
+
+    @validate(IterableOf(Point.WorldCoordinatePoint()))
+    def from_world_coordinate_points(self, points):
+        """Convert world coordinate points to image coordinate points.
+
+        The points must have string values which can be parsed as world coordinates using the current globally set coordinate system (and any custom number formats).
+
+        Parameters
+        ----------
+        points : {0}
+            Points with string values which are valid world coordinates.
+
+        Returns
+        -------
+        iterable of numeric points
+            Points with numeric values which are image coordinates.
+        """
+        points = [Pt(*p) for p in points]
+        converted_points = self.call_action("getImagePosFromWCS", points)
+        return [Pt(**p).as_tuple() for p in converted_points]
+
+    @validate(IterableOf(Point.NumericPoint()))
+    def to_world_coordinate_points(self, points):
+        """Convert image coordinate points to world coordinate points.
+
+        The points must be numeric.
+
+        Parameters
+        ----------
+        points : {0}
+            Points with numeric values which are valid image coordinates.
+
+        Returns
+        -------
+        iterable of string coordinate points
+            Points with string values which are world coordinates.
+        """
+        points = [Pt(*p) for p in points]
+        converted_points = self.call_action("getWCSFromImagePos", points)
+        return [Pt(**p).as_tuple() for p in converted_points]
+
+    @validate(Size.AngularSize(), Constant(SpatialAxis))
+    def from_angular_size(self, size, axis):
+        """Convert angular size to pixel size.
+
+        Parameters
+        ----------
+        size : {0}
+            The angular size.
+        axis : {1}
+            The axis.
+
+        Returns
+        -------
+        float
+            The pixel size.
+        """
+        arcsec = AngularSize.from_string(size).arcsec
+        if axis == SpatialAxis.X:
+            return self.call_action("getImageXValueFromArcsec", arcsec)
+        if axis == SpatialAxis.Y:
+            return self.call_action("getImageYValueFromArcsec", arcsec)
+
+    @validate(IterableOf(Point.AngularSizePoint()))
+    def from_angular_size_points(self, points):
+        """Convert angular size points to pixel size points.
+
+        The points must have string values which can be parsed as angular sizes.
+
+        Parameters
+        ----------
+        points : {0}
+            Points with string values which are valid angular sizes.
+
+        Returns
+        -------
+        iterable of numeric points
+            Points with numeric values which are pixel sizes.
+        """
+        converted_points = []
+        for x, y in points:
+            converted_points.append((self.from_angular_size(x, SpatialAxis.X), self.from_angular_size(y, SpatialAxis.Y)))
+        return converted_points
+
+    @validate(IterableOf(Point.NumericPoint()))
+    def to_angular_size_points(self, points):
+        """Convert pixel size points to angular size points.
+
+        The points must be numeric.
+
+        Parameters
+        ----------
+        points : {0}
+            Points with numeric values which are valid image coordinates.
+
+        Returns
+        -------
+        iterable of angular size points
+            Points with string values which are angular sizes.
+        """
+        converted_points = []
+        for p in points:
+            converted = self.call_action("getWcsSizeInArcsec", Pt(*p))
+            converted_points.append(Pt(**converted).as_tuple())
+        return converted_points
 
     # CLOSE
 

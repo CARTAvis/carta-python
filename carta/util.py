@@ -5,6 +5,8 @@ import json
 import functools
 import re
 
+from .units import AngularSize, WorldCoordinate
+
 logger = logging.getLogger("carta_scripting")
 logger.setLevel(logging.WARN)
 logger.addHandler(logging.StreamHandler())
@@ -207,3 +209,88 @@ class BasePathMixin:
         """
         target = f"{self._base_path}.{target}" if target else self._base_path
         return Macro(target, variable)
+
+
+class Point:
+    """A pair of coordinates or sizes.
+
+    This object may have numeric or string values, and may be used to represent a pair of coordinates or a pair of sizes.
+
+    Numbers should be interpreted as pixel values, and strings should be valid WCS coordinates or angular sizes. Different types of values should not be combined.
+
+    Functions exposed to the user should accept pairs of points as two-item iterables, and use this object internally to ensure that the correct serialization is sent to the frontend. It is the responsibility of calling functions to ensure that the object is interpreted correctly.
+
+    Parameters
+    ----------
+    x : number or string
+        The *x* value.
+    y : number or string
+        The *y* value.
+    """
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __eq__(self, other):
+        """Check for equality by comparing x and y attributes."""
+        return hasattr(other, "x") and hasattr(other, "y") and self.x == other.x and self.y == other.y
+
+    @classmethod
+    def is_pixel(cls, x, y):
+        """Whether this is a pair of pixel values.
+
+        Returns
+        -------
+        boolean
+            Whether both values are numeric and should be interpreted as pixels.
+        """
+        return isinstance(x, (int, float)) and isinstance(y, (int, float))
+
+    @classmethod
+    def is_wcs_coordinate(cls, x, y):
+        """Whether this is a pair of world coordinates.
+
+        Returns
+        -------
+        boolean
+            Whether both values are strings and can be parsed as valid world coordinates.
+        """
+        return isinstance(x, str) and isinstance(y, str) and WorldCoordinate.valid(x) and WorldCoordinate.valid(y)
+
+    @classmethod
+    def is_angular_size(cls, x, y):
+        """Whether this is a pair of angular sizes.
+
+        Returns
+        -------
+        boolean
+            Whether both values are strings and can be parsed as valid angular sizes.
+        """
+        return isinstance(x, str) and isinstance(y, str) and AngularSize.valid(x) and AngularSize.valid(y)
+
+    def json(self):
+        """The JSON serialization of this object.
+
+        This is the format in which these values should be sent to the frontend.
+
+        Returns
+        -------
+        dict
+            A dictionary which can be coerced to a 2D point object in the frontend after serialization and deserialization.
+        """
+        return {"x": self.x, "y": self.y}
+
+    def as_tuple(self):
+        """The tuple representation of this object.
+
+        This is the format in which these values should be returned to the user.
+
+        Returns
+        -------
+        number or string
+            The X value.
+        number or string
+            The Y value.
+        """
+        return self.x, self.y

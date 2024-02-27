@@ -551,8 +551,10 @@ class MapOf(IterableOf):
         The value parameter descriptor.
     """
 
-    def __init__(self, key_param, value_param, min_size=None, max_size=None):
+    def __init__(self, key_param, value_param, min_size=None, max_size=None, required_keys=set(), exact_keys=False):
         self.value_param = value_param
+        self.required_keys = required_keys
+        self.exact_keys = exact_keys
         super().__init__(key_param, min_size, max_size)
 
     def validate(self, value, parent):
@@ -568,6 +570,13 @@ class MapOf(IterableOf):
             if str(e).endswith("has no attribute 'values'"):
                 raise ValueError(f"{value} is not a dictionary, but {self.description} was expected.")
             raise e
+
+        if self.exact_keys:
+            if self.required_keys != set(value):
+                raise ValueError(f"Dictionary {value} does not have required exact keys {self.required_keys}.")
+        else:
+            if not self.required_keys <= set(value):
+                raise ValueError(f"Required keys {self.required_keys} not found in dictionary {value}.")
 
         super().validate(value, parent)
 
@@ -717,6 +726,70 @@ class Coordinate(Union):
             self.WorldCoordinate(),
         )
         super().__init__(*options, description="a number, a string in H:M:S or D:M:S format, or a numeric string with degree units")
+
+
+class Point(Union):
+    """A pair of numbers, WCS coordinate strings, or angular size strings, as an iterable with two values (which will be evaluated as ``x`` and ``y`` values in that order). Numbers will be interpreted as pixel values.
+
+    More fine-grained combinations of value options (numeric only, world coordinate only, angular size only, any coordinate, any size) are provided as local classes which may also be used individually.
+
+    The two values must always match (numbers, string coordinates and string sizes can't be mixed).
+    """
+
+    class NumericPoint(Union):
+        """A pair of numbers."""
+
+        def __init__(self):
+            options = (
+                IterableOf(Number(), min_size=2, max_size=2),
+            )
+            super().__init__(*options, description="a pair of numbers")
+
+    class WorldCoordinatePoint(Union):
+        """A pair of WCS coordinate strings."""
+
+        def __init__(self):
+            options = (
+                IterableOf(Coordinate.WorldCoordinate(), min_size=2, max_size=2),
+            )
+            super().__init__(*options, description="a pair of coordinate strings")
+
+    class AngularSizePoint(Union):
+        """A pair of angular size strings."""
+
+        def __init__(self):
+            options = (
+                IterableOf(Size.AngularSize(), min_size=2, max_size=2),
+            )
+            super().__init__(*options, description="a pair of size strings")
+
+    class CoordinatePoint(Union):
+        """A pair of coordinates."""
+
+        def __init__(self):
+            options = (
+                Point.NumericPoint(),
+                Point.WorldCoordinatePoint(),
+            )
+            super().__init__(*options, description="a pair of numbers or coordinate strings")
+
+    class SizePoint(Union):
+        """A pair of angular sizes."""
+
+        def __init__(self):
+            options = (
+                Point.NumericPoint(),
+                Point.AngularSizePoint(),
+            )
+            super().__init__(*options, description="a pair of numbers or size strings")
+
+    def __init__(self):
+        options = (
+            self.NumericPoint(),
+            self.WorldCoordinatePoint(),
+            self.AngularSizePoint(),
+        )
+        super().__init__(*options, description="a pair of numbers, coordinate strings, or size strings")
 
 
 class Attr(str):

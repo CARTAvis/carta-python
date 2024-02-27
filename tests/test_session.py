@@ -49,12 +49,11 @@ def test_pwd(session, call_action, get_value):
     assert pwd == "/current/dir"
 
 
-def test_ls(session, method, call_action, get_value):
+def test_ls(session, method, call_action):
     method("pwd", ["/current/dir"])
-    get_value.side_effect = [{"files": [{"name": "foo.fits"}, {"name": "bar.fits"}], "subdirectories": [{"name": "baz"}]}]
+    call_action.side_effect = [{"files": [{"name": "foo.fits"}, {"name": "bar.fits"}], "subdirectories": [{"name": "baz"}]}]
     ls = session.ls()
-    call_action.assert_called_with("fileBrowserStore.getFileList", "/current/dir")
-    get_value.assert_called_with("fileBrowserStore.fileList")
+    call_action.assert_called_with("backendService.getFileList", "/current/dir", 2)
     assert ls == ["bar.fits", "baz/", "foo.fits"]
 
 
