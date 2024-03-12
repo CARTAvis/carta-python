@@ -729,7 +729,7 @@ class Labels(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayCompo
             self.call_action("setCustomText", True)
 
 
-class Ticks(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
+class Ticks(HasCustomColor, HasWidth, OverlayComponent):
     """The WCS overlay ticks configuration.
 
     Attributes
