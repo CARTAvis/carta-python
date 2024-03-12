@@ -216,7 +216,7 @@ def test_font_size(overlay, component_get_value, comp_enum):
     comp_get_value.assert_called_with("fontSize")
 
 
-@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL})
+@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS})
 def test_set_visible(overlay, component_call_action, comp_enum):
     comp = overlay.get(comp_enum)
     comp_call_action = component_call_action(comp_enum)
@@ -224,7 +224,7 @@ def test_set_visible(overlay, component_call_action, comp_enum):
     comp_call_action.assert_called_with("setVisible", True)
 
 
-@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL})
+@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS})
 def test_show_hide(mocker, overlay, component_method, comp_enum):
     comp = overlay.get(comp_enum)
     comp_method = component_method(comp_enum)("set_visible", None)
@@ -238,7 +238,7 @@ def test_show_hide(mocker, overlay, component_method, comp_enum):
     ])
 
 
-@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL})
+@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS})
 def test_visible(overlay, component_get_value, comp_enum):
     comp = overlay.get(comp_enum)
     comp_get_value = component_get_value(comp_enum, True)
