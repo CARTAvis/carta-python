@@ -4,7 +4,6 @@ from carta.image import Image
 from carta.util import CartaValidationFailed
 from carta.constants import NumberFormat as NF, SpatialAxis as SA
 
-
 # FIXTURES
 
 
@@ -79,6 +78,8 @@ def test_new(session, session_call_action, session_method, args, kwargs, expecte
 
 
 @pytest.mark.parametrize("name,classname", [
+    ("raster", "Raster"),
+    ("contours", "Contours"),
     ("vectors", "VectorOverlay"),
 ])
 def test_subobjects(image, name, classname):
@@ -144,9 +145,9 @@ def test_set_center_valid_pixels(image, property_, call_action, x, y):
     ("12h34m56.789s", "5h34m56.789s", NF.HMS, NF.HMS, "12:34:56.789", "5:34:56.789"),
     ("12d34m56.789s", "12d34m56.789s", NF.DMS, NF.DMS, "12:34:56.789", "12:34:56.789"),
 ])
-def test_set_center_valid_wcs(image, property_, session_method, call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
+def test_set_center_valid_wcs(image, property_, mock_property, call_action, x, y, x_fmt, y_fmt, x_norm, y_norm):
     property_("valid_wcs", True)
-    session_method("number_format", [(x_fmt, y_fmt, None)])
+    mock_property("carta.wcs_overlay.Numbers")("format", (x_fmt, y_fmt))
 
     image.set_center(x, y)
     call_action.assert_called_with("setCenterWcs", x_norm, y_norm)
@@ -160,11 +161,11 @@ def test_set_center_valid_wcs(image, property_, session_method, call_action, x, 
     (123, "123", True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
     ("123", 123, True, NF.DEGREES, NF.DEGREES, "Cannot mix image and world coordinates"),
 ])
-def test_set_center_invalid(image, property_, session_method, call_action, x, y, wcs, x_fmt, y_fmt, error_contains):
+def test_set_center_invalid(image, property_, mock_property, call_action, x, y, wcs, x_fmt, y_fmt, error_contains):
     property_("width", 200)
     property_("height", 200)
     property_("valid_wcs", wcs)
-    session_method("number_format", [(x_fmt, y_fmt, None)])
+    mock_property("carta.wcs_overlay.Numbers")("format", (x_fmt, y_fmt))
 
     with pytest.raises(Exception) as e:
         image.set_center(x, y)
@@ -198,3 +199,17 @@ def test_zoom_to_size_invalid(image, property_, axis, val, wcs, error_contains):
     with pytest.raises(Exception) as e:
         image.zoom_to_size(val, axis)
     assert error_contains in str(e.value)
+
+
+def test_set_custom_colorbar_label(session, image, call_action, mock_method):
+    label_set_custom_text = mock_method(session.wcs.colorbar.label)("set_custom_text", None)
+    image.set_custom_colorbar_label("Custom text here!")
+    call_action.assert_called_with("setColorbarLabelCustomText", "Custom text here!")
+    label_set_custom_text.assert_called_with(True)
+
+
+def test_set_custom_title(session, image, call_action, mock_method):
+    title_set_custom_text = mock_method(session.wcs.title)("set_custom_text", None)
+    image.set_custom_title("Custom text here!")
+    call_action.assert_called_with("setTitleCustomText", "Custom text here!")
+    title_set_custom_text.assert_called_with(True)

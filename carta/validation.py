@@ -3,6 +3,7 @@
 import re
 import functools
 import inspect
+import itertools
 
 from .util import CartaValidationFailed
 from .units import AngularSize, WorldCoordinate
@@ -248,6 +249,10 @@ class Number(Parameter):
             desc.append(f", in increments of {self.step}{offset}")
 
         return " ".join(desc)
+
+
+Number.POSITIVE = Number(min=0, interval=Number.EXCLUDE)
+Number.PERCENTAGE = Number(0, 100)
 
 
 class Boolean(Parameter):
@@ -892,3 +897,20 @@ def all_optional(*vargs):
         The same parameters in the same order, but with all non-optional parameters made optional (that is, wrapped in a obj:`carta.validation.NoneOr` parameter).
     """
     return tuple(NoneOr(param) if not isinstance(param, NoneOr) else param for param in vargs)
+
+
+def vargs(*functions):
+    """Helper function for extracting validation parameters from functions.
+
+    For improved legibility in functions which reuse validation parameters from other functions.
+
+    Parameters
+    ----------
+    *functions : iterable of functions
+
+    Returns
+    -------
+    iterable of :obj:`carta.validation.Parameter` objects
+        The validation parameters of the given functions, in order, unpacked into a 1D sequence.
+    """
+    return itertools.chain.from_iterable(f.VARGS for f in functions)

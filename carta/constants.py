@@ -52,8 +52,8 @@ class LabelType(StrEnum):
 
 class BeamType(StrEnum):
     """Beam types."""
-    OPEN = "Open"
-    SOLID = "Solid"
+    OPEN = "open"
+    SOLID = "solid"
 
 
 # BlueprintJS colour palettes (2 and 4)
@@ -103,7 +103,7 @@ DARK_THEME = {
 
 
 class PaletteColor(StrEnum):
-    """Palette colours used for overlay elements.
+    """Palette colours used for WCS overlay elements.
 
     Members of this enum class have additional attributes.
 
@@ -129,9 +129,9 @@ class PaletteColor(StrEnum):
 
 
 Overlay = StrEnum('Overlay', [(c.upper(), c) for c in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar")] + [('BEAM', 'beam.settingsForDisplay')])
-Overlay.__doc__ = """Overlay elements.
+Overlay.__doc__ = """WCS overlay elements.
 
-    Member values are paths to stores corresponding to these elements, relative to the overlay store.
+    Member values are paths to stores corresponding to these elements, relative to the WCS overlay store.
     """
 
 
@@ -214,3 +214,27 @@ class GridMode(StrEnum):
     """Grid modes."""
     DYNAMIC = "dynamic"
     FIXED = "fixed"
+
+
+class FontFamily(IntEnum):
+    """Font family used in WCS overlay components."""
+    SANS_SERIF = 0
+    TIMES = 1
+    ARIAL = 2
+    PALATINO = 3
+    COURIER_NEW = 4
+
+
+class FontStyle(IntEnum):
+    """Font style used in WCS overlay components."""
+    NORMAL = 0
+    ITALIC = 1
+    BOLD = 2
+    BOLD_ITALIC = 3
+
+
+class ColorbarPosition(StrEnum):
+    """Colorbar positions."""
+    RIGHT = "right"
+    TOP = "top"
+    BOTTOM = "bottom"
