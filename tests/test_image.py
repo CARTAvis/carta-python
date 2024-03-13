@@ -199,3 +199,17 @@ def test_zoom_to_size_invalid(image, property_, axis, val, wcs, error_contains):
     with pytest.raises(Exception) as e:
         image.zoom_to_size(val, axis)
     assert error_contains in str(e.value)
+
+
+def test_set_custom_colorbar_label(session, image, call_action, mock_method):
+    label_set_custom_text = mock_method(session.wcs.colorbar.label)("set_custom_text", None)
+    image.set_custom_colorbar_label("Custom text here!")
+    call_action.assert_called_with("setColorbarLabelCustomText", "Custom text here!")
+    label_set_custom_text.assert_called_with(True)
+
+
+def test_set_custom_title(session, image, call_action, mock_method):
+    title_set_custom_text = mock_method(session.wcs.title)("set_custom_text", None)
+    image.set_custom_title("Custom text here!")
+    call_action.assert_called_with("setTitleCustomText", "Custom text here!")
+    title_set_custom_text.assert_called_with(True)

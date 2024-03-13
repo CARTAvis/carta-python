@@ -263,7 +263,7 @@ class Image(BasePathMixin):
     def set_custom_colorbar_label(self, label_text):
         """Set a custom colorbar label for this image.
 
-        This also automatically enables custom colorbar label text for all images. It can be disabled with :obj:`carta.wcs_overlay.Colorbar.set_label_custom_text`.
+        This also automatically enables custom colorbar label text for all images. It can be disabled with :obj:`carta.wcs_overlay.ColorbarLabel.set_custom_text`.
 
         Parameters
         ----------
@@ -271,7 +271,7 @@ class Image(BasePathMixin):
             The custom colorbar label text.
         """
         self.call_action("setColorbarLabelCustomText", label_text)
-        self.session.wcs.colorbar.set_label_custom_text(True)
+        self.session.wcs.colorbar.label.set_custom_text(True)
 
     # SELECTION
 
