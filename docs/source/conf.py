@@ -38,6 +38,7 @@ release = version
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
+    'sphinx_tabs.tabs',
 ]
 
 napoleon_google_docstring = False
