@@ -218,12 +218,12 @@ Properties which affect the whole session can be set through the session object:
 
     from carta.constants import CoordinateSystem, PaletteColor
 
-    # change some overlay properties
-    session.overlay.set_view_area(1000, 1000)
-    session.overlay.global_.set_coordinate_system(CoordinateSystem.FK5)
-    session.overlay.global_.set_color(PaletteColor.RED)
-    session.overlay.ticks.set_color(PaletteColor.VIOLET)
-    session.overlay.title.show()
+    # change some WCS overlay properties
+    session.wcs.set_view_area(1000, 1000)
+    session.wcs.global_.set_coordinate_system(CoordinateSystem.FK5)
+    session.wcs.global_.set_color(PaletteColor.RED)
+    session.wcs.ticks.set_color(PaletteColor.VIOLET)
+    session.wcs.title.show()
     
 Saving or displaying an image
 -----------------------------
