@@ -6,12 +6,13 @@ Image objects should not be instantiated directly, and should only be created th
 from .constants import Polarization, SpatialAxis
 from .util import Macro, cached, BasePathMixin
 from .units import AngularSize, WorldCoordinate
-from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, String
+from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
 from .metadata import parse_header
 
 from .raster import Raster
 from .contours import Contours
 from .vector_overlay import VectorOverlay
+from .wcs_overlay import ImageWCSOverlay
 
 
 class Image(BasePathMixin):
@@ -38,6 +39,8 @@ class Image(BasePathMixin):
         Sub-object with functions related to the contours.
     vectors : :obj:`carta.vector_overlay.VectorOverlay`
         Sub-object with functions related to the vector overlay.
+    wcs :  :obj:`carta.wcs_overlay.ImageWCSOverlay`
+        Sub-object with functions related to the WCS overlay.
     """
 
     def __init__(self, session, image_id):
@@ -51,6 +54,7 @@ class Image(BasePathMixin):
         self.raster = Raster(self)
         self.contours = Contours(self)
         self.vectors = VectorOverlay(self)
+        self.wcs = ImageWCSOverlay(self)
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
@@ -242,36 +246,6 @@ class Image(BasePathMixin):
             The available polarizations.
         """
         return [Polarization(p) for p in self.get_value("polarizations")]
-
-    # PER-IMAGE WCS OVERLAY
-
-    @validate(String())
-    def set_custom_title(self, title_text):
-        """Set a custom title for this image.
-
-        This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
-
-        Parameters
-        ----------
-        title_text : {0}
-            The custom title text.
-        """
-        self.call_action("setTitleCustomText", title_text)
-        self.session.wcs.title.set_custom_text(True)
-
-    @validate(String())
-    def set_custom_colorbar_label(self, label_text):
-        """Set a custom colorbar label for this image.
-
-        This also automatically enables custom colorbar label text for all images. It can be disabled with :obj:`carta.wcs_overlay.ColorbarLabel.set_custom_text`.
-
-        Parameters
-        ----------
-        label_text : {0}
-            The custom colorbar label text.
-        """
-        self.call_action("setColorbarLabelCustomText", label_text)
-        self.session.wcs.colorbar.label.set_custom_text(True)
 
     # SELECTION
 

@@ -1,7 +1,7 @@
 import pytest
 
 from carta.util import CartaValidationFailed
-from carta.wcs_overlay import WCSOverlay
+from carta.wcs_overlay import ImageWCSConnector
 from carta.constants import NumberFormat as NF, Overlay as O, CoordinateSystem as CS, PaletteColor as PC, FontFamily as FF, FontStyle as FS, LabelType as LT, ColorbarPosition as CP, BeamType as BT
 
 
@@ -10,7 +10,7 @@ from carta.constants import NumberFormat as NF, Overlay as O, CoordinateSystem a
 
 @pytest.fixture
 def overlay(session):
-    return WCSOverlay(session)
+    return session.wcs
 
 
 @pytest.fixture
@@ -52,6 +52,22 @@ def component_method(overlay, mock_method):
     def func(comp_enum):
         return mock_method(overlay.get(comp_enum))
     return func
+
+
+@pytest.fixture
+def image_beam_method(image, mock_method):
+    return mock_method(image.wcs.beam)
+
+
+@pytest.fixture
+def image_beam_property(mock_property):
+    return mock_property("carta.wcs_overlay.ImageWCSOverlay.ImageBeam")
+
+
+@pytest.fixture
+def mock_images(image, mocker):
+    return mocker.patch.object(ImageWCSConnector, "_images", return_value=[image])
+
 
 # TESTS
 
@@ -102,7 +118,7 @@ def test_toggle_labels(overlay, call_action):
 
 # COMPONENT TESTS
 
-@pytest.mark.parametrize("comp_enum", [O.GLOBAL, O.BEAM])
+@pytest.mark.parametrize("comp_enum", [O.GLOBAL])
 def test_set_color(overlay, comp_enum, component_call_action):
     comp = overlay.get(comp_enum)
     comp_call_action = component_call_action(comp_enum)
@@ -129,7 +145,7 @@ def test_set_custom_color(overlay, comp_enum, component_call_action):
     comp_call_action.assert_called_with("setCustomColor", True)
 
 
-@pytest.mark.parametrize("comp_enum", O)
+@pytest.mark.parametrize("comp_enum", set(O) - {O.BEAM})
 def test_color(overlay, component_get_value, comp_enum):
     comp_get_value = component_get_value(comp_enum, "auto-rose")
     comp = overlay.get(comp_enum)
@@ -216,7 +232,7 @@ def test_font_size(overlay, component_get_value, comp_enum):
     comp_get_value.assert_called_with("fontSize")
 
 
-@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS})
+@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS, O.BEAM})
 def test_set_visible(overlay, component_call_action, comp_enum):
     comp = overlay.get(comp_enum)
     comp_call_action = component_call_action(comp_enum)
@@ -224,7 +240,7 @@ def test_set_visible(overlay, component_call_action, comp_enum):
     comp_call_action.assert_called_with("setVisible", True)
 
 
-@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS})
+@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS, O.BEAM})
 def test_show_hide(mocker, overlay, component_method, comp_enum):
     comp = overlay.get(comp_enum)
     comp_method = component_method(comp_enum)("set_visible", None)
@@ -238,7 +254,7 @@ def test_show_hide(mocker, overlay, component_method, comp_enum):
     ])
 
 
-@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS})
+@pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.TICKS, O.BEAM})
 def test_visible(overlay, component_get_value, comp_enum):
     comp = overlay.get(comp_enum)
     comp_get_value = component_get_value(comp_enum, True)
@@ -247,7 +263,7 @@ def test_visible(overlay, component_get_value, comp_enum):
     assert visible is True
 
 
-@pytest.mark.parametrize("comp_enum", [O.GRID, O.BORDER, O.AXES, O.TICKS, O.COLORBAR, O.BEAM])
+@pytest.mark.parametrize("comp_enum", [O.GRID, O.BORDER, O.AXES, O.TICKS, O.COLORBAR])
 def test_set_width(overlay, component_call_action, comp_enum):
     comp = overlay.get(comp_enum)
     comp_call_action = component_call_action(comp_enum)
@@ -255,7 +271,7 @@ def test_set_width(overlay, component_call_action, comp_enum):
     comp_call_action.assert_called_with("setWidth", 5)
 
 
-@pytest.mark.parametrize("comp_enum", [O.GRID, O.BORDER, O.AXES, O.TICKS, O.COLORBAR, O.BEAM])
+@pytest.mark.parametrize("comp_enum", [O.GRID, O.BORDER, O.AXES, O.TICKS, O.COLORBAR])
 def test_width(overlay, component_get_value, comp_enum):
     comp = overlay.get(comp_enum)
     comp_get_value = component_get_value(comp_enum, 5)
@@ -414,9 +430,9 @@ def test_numbers_custom_precision(overlay, component_get_value):
     assert custom_precision is True
 
 
-def test_labels_set_label_text(mocker, overlay, component_call_action):
+def test_labels_set_text(mocker, overlay, component_call_action):
     labels_call_action = component_call_action(O.LABELS)
-    overlay.labels.set_label_text("AAA", "BBB")
+    overlay.labels.set_text("AAA", "BBB")
     labels_call_action.assert_has_calls([
         mocker.call("setCustomLabelX", "AAA"),
         mocker.call("setCustomLabelY", "BBB"),
@@ -424,10 +440,10 @@ def test_labels_set_label_text(mocker, overlay, component_call_action):
     ])
 
 
-def test_labels_label_text(mocker, overlay, component_get_value):
+def test_labels_text(mocker, overlay, component_get_value):
     labels_get_value = component_get_value(O.LABELS)
     labels_get_value.side_effect = ["AAA", "BBB"]
-    label_x, label_y = overlay.labels.label_text
+    label_x, label_y = overlay.labels.text
     labels_get_value.assert_has_calls([mocker.call("customLabelX"), mocker.call("customLabelY")])
     assert label_x == "AAA"
     assert label_y == "BBB"
@@ -765,32 +781,101 @@ def test_colorbar_get_gradient_properties(mocker, overlay, component_get_value):
     assert visible is True
 
 
-def test_beam_set_position(mocker, overlay, component_call_action):
-    beam_call_action = component_call_action(O.BEAM)
-    overlay.beam.set_position(2, 3)
-    beam_call_action.assert_has_calls([
-        mocker.call("setShiftX", 2),
-        mocker.call("setShiftY", 3),
-    ])
+# PER-IMAGE WCS
+# These tests check that the per-image functions are called. Those functions are tested in test_image.
+
+def test_beam_set_position(overlay, mock_images, image_beam_method):
+    image_beam_set_position = image_beam_method("set_position", None)
+    overlay.beam.set_position(2, 3, [0])
+    image_beam_set_position.assert_called_with(2, 3)
 
 
-def test_beam_position(mocker, overlay, component_get_value):
-    beam_get_value = component_get_value(O.BEAM)
-    beam_get_value.side_effect = [2, 3]
-    pos_x, pos_y = overlay.beam.position
-    beam_get_value.assert_has_calls([mocker.call("shiftX"), mocker.call("shiftY")])
+def test_beam_position(overlay, mock_images, image_beam_property):
+    image_beam_property("position", (2, 3))
+    pos_x, pos_y = overlay.beam.position([0])[0]
     assert pos_x == 2
     assert pos_y == 3
 
 
-def test_beam_set_type(overlay, component_call_action):
-    beam_call_action = component_call_action(O.BEAM)
-    overlay.beam.set_type(BT.SOLID)
-    beam_call_action.assert_called_with("setType", BT.SOLID)
+def test_beam_set_type(overlay, mock_images, image_beam_method):
+    image_beam_set_type = image_beam_method("set_type", None)
+    overlay.beam.set_type(BT.SOLID, [0])
+    image_beam_set_type.assert_called_with(BT.SOLID)
 
 
-def test_beam_type(overlay, component_get_value):
-    beam_get_value = component_get_value(O.BEAM, "solid")
-    beam_type = overlay.beam.type
-    beam_get_value.assert_called_with("type")
+def test_beam_type(overlay, mock_images, image_beam_property):
+    image_beam_property("type", BT.SOLID)
+    beam_type = overlay.beam.type([0])[0]
     assert beam_type == BT.SOLID
+
+
+def test_beam_set_color(overlay, mock_images, image_beam_method):
+    image_beam_set_color = image_beam_method("set_color", None)
+    overlay.beam.set_color(PC.ROSE, [0])
+    image_beam_set_color.assert_called_with(PC.ROSE)
+
+
+def test_beam_color(overlay, mock_images, image_beam_property):
+    image_beam_property("color", PC.ROSE)
+    color = overlay.beam.color([0])[0]
+    assert color == PC.ROSE
+
+
+def test_beam_set_visible(overlay, mock_images, image_beam_method):
+    image_beam_set_visible = image_beam_method("set_visible", None)
+    overlay.beam.set_visible(True, [0])
+    image_beam_set_visible.assert_called_with(True)
+
+
+def test_beam_show_hide(mocker, overlay, mock_images, image_beam_method):
+    image_beam_set_visible = image_beam_method("set_visible", None)
+
+    overlay.beam.show([0])
+    overlay.beam.hide([0])
+
+    image_beam_set_visible.assert_has_calls([
+        mocker.call(True),
+        mocker.call(False),
+    ])
+
+
+def test_beam_visible(overlay, mock_images, image_beam_property):
+    image_beam_property("visible", True)
+    visible = overlay.beam.visible([0])[0]
+    assert visible
+
+
+def test_beam_set_width(overlay, mock_images, image_beam_method):
+    image_beam_set_width = image_beam_method("set_width", None)
+    overlay.beam.set_width(2, [0])
+    image_beam_set_width.assert_called_with(2)
+
+
+def test_beam_width(overlay, mock_images, image_beam_property):
+    image_beam_property("width", 2)
+    width = overlay.beam.width([0])[0]
+    assert width == 2
+
+
+def test_colorbar_set_text(overlay, mock_images, image, mock_method):
+    image_set_colorbar_text = mock_method(image.wcs.colorbar.label)("set_text", None)
+    overlay.colorbar.label.set_text("Custom text here!", 0)
+    image_set_colorbar_text.assert_called_with("Custom text here!")
+
+
+def test_colorbar_text(overlay, mock_images, image, mock_property):
+    mock_property("carta.wcs_overlay.ImageWCSOverlay.ImageColorbar.ImageColorbarLabel")("text", "Custom text here!")
+    text = overlay.colorbar.label.text(0)
+    assert text == "Custom text here!"
+
+
+def test_title_set_text(overlay, mock_images, image, mock_method):
+    image_set_title_text = mock_method(image.wcs.title)("set_text", None)
+    overlay.title.set_text("Custom text here!", 0)
+    image_set_title_text.assert_called_with("Custom text here!")
+
+
+def test_title_text(overlay, mock_images, image, mock_property):
+    mock_property("carta.wcs_overlay.ImageWCSOverlay.ImageTitle")("text", "Custom text here!")
+    text = overlay.title.text(0)
+    assert text == "Custom text here!"

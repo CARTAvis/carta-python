@@ -27,7 +27,7 @@ def method(session, mock_method):
 # TODO fill in missing session tests
 
 @pytest.mark.parametrize("name,classname", [
-    ("wcs", "WCSOverlay"),
+    ("wcs", "SessionWCSOverlay"),
 ])
 def test_subobjects(session, name, classname):
     assert getattr(session, name).__class__.__name__ == classname

@@ -2,7 +2,7 @@ import pytest
 
 from carta.image import Image
 from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, SpatialAxis as SA
+from carta.constants import NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT
 
 # FIXTURES
 
@@ -30,6 +30,11 @@ def method(image, mock_method):
 @pytest.fixture
 def session_call_action(session, mock_call_action):
     return mock_call_action(session)
+
+
+@pytest.fixture
+def session_get_value(session, mock_get_value):
+    return mock_get_value(session)
 
 
 @pytest.fixture
@@ -81,6 +86,7 @@ def test_new(session, session_call_action, session_method, args, kwargs, expecte
     ("raster", "Raster"),
     ("contours", "Contours"),
     ("vectors", "VectorOverlay"),
+    ("wcs", "ImageWCSOverlay"),
 ])
 def test_subobjects(image, name, classname):
     assert getattr(image, name).__class__.__name__ == classname
@@ -201,15 +207,107 @@ def test_zoom_to_size_invalid(image, property_, axis, val, wcs, error_contains):
     assert error_contains in str(e.value)
 
 
+# PER-IMAGE WCS
+
 def test_set_custom_colorbar_label(session, image, call_action, mock_method):
     label_set_custom_text = mock_method(session.wcs.colorbar.label)("set_custom_text", None)
-    image.set_custom_colorbar_label("Custom text here!")
+    image.wcs.colorbar.label.set_text("Custom text here!")
     call_action.assert_called_with("setColorbarLabelCustomText", "Custom text here!")
     label_set_custom_text.assert_called_with(True)
 
 
+def test_colorbar_label(image, get_value):
+    get_value.side_effect = ["Custom text here!"]
+    text = image.wcs.colorbar.label.text
+    get_value.assert_called_with("colorbarLabelCustomText")
+    assert text == "Custom text here!"
+
+
 def test_set_custom_title(session, image, call_action, mock_method):
     title_set_custom_text = mock_method(session.wcs.title)("set_custom_text", None)
-    image.set_custom_title("Custom text here!")
+    image.wcs.title.set_text("Custom text here!")
     call_action.assert_called_with("setTitleCustomText", "Custom text here!")
     title_set_custom_text.assert_called_with(True)
+
+
+def test_title(image, get_value):
+    get_value.side_effect = ["Custom text here!"]
+    text = image.wcs.title.text
+    get_value.assert_called_with("titleCustomText")
+    assert text == "Custom text here!"
+
+
+def test_beam_set_position(mocker, image, session_call_action):
+    image.wcs.beam.set_position(2, 3)
+    session_call_action.assert_has_calls([
+        mocker.call("frameMap[0].overlayBeamSettings.setShiftX", 2),
+        mocker.call("frameMap[0].overlayBeamSettings.setShiftY", 3),
+    ])
+
+
+def test_beam_position(mocker, image, session_get_value):
+    session_get_value.side_effect = [2, 3]
+    pos_x, pos_y = image.wcs.beam.position
+    session_get_value.assert_has_calls([
+        mocker.call("frameMap[0].overlayBeamSettings.shiftX", return_path=None),
+        mocker.call("frameMap[0].overlayBeamSettings.shiftY", return_path=None),
+    ])
+    assert pos_x == 2
+    assert pos_y == 3
+
+
+def test_beam_set_type(image, session_call_action):
+    image.wcs.beam.set_type(BT.SOLID)
+    session_call_action.assert_called_with("frameMap[0].overlayBeamSettings.setType", BT.SOLID)
+
+
+def test_beam_type(image, session_get_value):
+    session_get_value.side_effect = ["solid"]
+    beam_type = image.wcs.beam.type
+    session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.type", return_path=None)
+    assert beam_type == BT.SOLID
+
+
+def test_beam_set_color(image, session_call_action):
+    image.wcs.beam.set_color(PC.ROSE)
+    session_call_action.assert_called_with("frameMap[0].overlayBeamSettings.setColor", PC.ROSE)
+
+
+def test_beam_color(image, session_get_value):
+    session_get_value.side_effect = ["auto-rose"]
+    color = image.wcs.beam.color
+    session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.color", return_path=None)
+    assert color == PC.ROSE
+
+
+def test_beam_set_visible(image, session_call_action):
+    image.wcs.beam.set_visible(True)
+    session_call_action.assert_called_with("frameMap[0].overlayBeamSettings.setVisible", True)
+
+
+def test_beam_show_hide(mocker, image, session_call_action):
+    image.wcs.beam.show()
+    image.wcs.beam.hide()
+    session_call_action.assert_has_calls([
+        mocker.call("frameMap[0].overlayBeamSettings.setVisible", True),
+        mocker.call("frameMap[0].overlayBeamSettings.setVisible", False),
+    ])
+
+
+def test_beam_visible(image, session_get_value):
+    session_get_value.side_effect = [True]
+    visible = image.wcs.beam.visible
+    session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.visible", return_path=None)
+    assert visible
+
+
+def test_beam_set_width(image, session_call_action):
+    image.wcs.beam.set_width(2)
+    session_call_action.assert_called_with("frameMap[0].overlayBeamSettings.setWidth", 2)
+
+
+def test_beam_width(image, session_get_value):
+    session_get_value.side_effect = [2]
+    width = image.wcs.beam.width
+    session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.width", return_path=None)
+    assert width == 2

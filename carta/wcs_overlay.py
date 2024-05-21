@@ -1,14 +1,15 @@
 """This module contains functionality for interacting with the WCS overlay. The classes in this module should not be instantiated directly. When a session object is created, an overlay object is automatically created as a property, and overlay component objects are created as its subproperties."""
 
 import re
+from operator import attrgetter
 
 from .util import BasePathMixin
 from .constants import CoordinateSystem, LabelType, BeamType, PaletteColor, Overlay, NumberFormat, FontFamily, FontStyle, ColorbarPosition
-from .validation import validate, String, Number, Constant, Boolean, all_optional
+from .validation import validate, String, Number, Constant, Boolean, NoneOr, IterableOf, all_optional
 
 
-class WCSOverlay(BasePathMixin):
-    """Utility object for collecting session functions related to the WCS overlay. Most functions are additionally grouped in subcomponents, which can be accessed directly by name or looked up in a mapping by `carta.constants.Overlay` enum.
+class SessionWCSOverlay(BasePathMixin):
+    """Utility object for collecting functions related to the global WCS overlay settings for the session. Most functions are additionally grouped in subcomponents, which can be accessed directly by name or looked up in a mapping by `carta.constants.Overlay` enum.
 
     Parameters
     ----------
@@ -17,8 +18,6 @@ class WCSOverlay(BasePathMixin):
 
     Attributes
     ----------
-    image : :obj:`carta.image.Image` object
-        The image associated with this overlay object.
     session : :obj:`carta.session.Session` object
         The session object associated with this overlay object.
     global\\_ : :obj:`carta.wcs_overlay.Global` object
@@ -435,6 +434,29 @@ class HasCustomPrecision:
         self.call_action("setCustomPrecision", state)
 
 
+class ImageWCSConnector:
+    """This is a helper mixin with functions which let a session WCS component delegate calls to image WCS components."""
+
+    ANY_IDS = NoneOr(IterableOf(Number.ID))
+
+    def _images(self, image_ids=None):
+        """Internal helper function for fetching image objects."""
+        if image_ids is None:
+            return self.session.image_list()
+        return [self.session.image_by_id(image_id) for image_id in image_ids]
+
+    def _get_image_wcs_properties(self, image_ids, property_path):
+        """Internal helper function for fetching wcs properties from multiple images."""
+        images = self._images(image_ids)
+        return tuple(attrgetter(property_path)(image.wcs) for image in images)
+
+    def _call_image_wcs_functions(self, image_ids, function_path, *function_args):
+        """Internal helper function for executing wcs functions on multiple images."""
+        images = self._images(image_ids)
+        for image in images:
+            attrgetter(function_path)(image.wcs)(*function_args)
+
+
 class Global(HasColor, OverlayComponent):
     """The global WCS overlay configuration.
 
@@ -512,7 +534,7 @@ class Global(HasColor, OverlayComponent):
         self.call_action("setLabelType", labelling)
 
 
-class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayComponent):
+class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, ImageWCSConnector, OverlayComponent):
     """The WCS overlay title configuration.
 
     Attributes
@@ -521,6 +543,37 @@ class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayCompon
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.TITLE
+
+    @validate(Number.ID)
+    def text(self, image_id):
+        """The custom title text for the specified image.
+
+        Parameters
+        ----------
+        image_id : {0}
+            The image to query.
+
+        Returns
+        -------
+        string
+            The title text of the specified image.
+        """
+        return self._get_image_wcs_properties([image_id], "title.text")[0]
+
+    @validate(String(), Number.ID)
+    def set_text(self, title_text, image_id):
+        """Set the custom title text for the specified image.
+
+        This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
+
+        Parameters
+        ----------
+        title_text : {0}
+            The custom title text for the specified image.
+        image_id : {1}
+            The image to configure.
+        """
+        self._call_image_wcs_functions([image_id], "title.set_text", title_text)
 
 
 class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
@@ -694,7 +747,7 @@ class Labels(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayCompo
     COMPONENT = Overlay.LABELS
 
     @property
-    def label_text(self):
+    def text(self):
         """The label text.
 
         If a custom label text has not been set, these values will be blank.
@@ -709,7 +762,7 @@ class Labels(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayCompo
         return self.get_value("customLabelX"), self.get_value("customLabelY")
 
     @validate(*all_optional(String(), String()))
-    def set_label_text(self, label_x=None, label_y=None):
+    def set_text(self, label_x=None, label_y=None):
         """Set the label text.
 
         This also automatically enables the custom label text.
@@ -861,10 +914,13 @@ class ColorbarComponent:
     ----------
     colorbar : :obj:`carta.wcs_overlay.Colorbar` object
         The colorbar object associated with this colorbar component.
+    session : :obj:`carta.session.Session` object
+        The session object associated with this colorbar component.
     """
 
     def __init__(self, colorbar):
         self.colorbar = colorbar
+        self.session = colorbar.session
 
     def call_action(self, path, *args, **kwargs):
         """Convenience wrapper for the colorbar object's generic action method.
@@ -990,7 +1046,7 @@ class ColorbarNumbers(HasVisibility, HasCustomPrecision, HasCustomColor, HasFont
     PREFIX = "number"
 
 
-class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRotation, ColorbarComponent):
+class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRotation, ImageWCSConnector, ColorbarComponent):
     """The WCS overlay colorbar label configuration.
 
     Attributes
@@ -999,6 +1055,38 @@ class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRo
         The colorbar object associated with this colorbar component.
     """
     PREFIX = "label"
+
+    @validate(Number.ID)
+    def text(self, image_id):
+        """The custom colorbar label text for the specified image.
+
+        Parameters
+        ----------
+        image_id : {0}
+            The image to query.
+
+        Returns
+        -------
+        string
+            The colorbar label text of the specified image.
+        """
+        return self._get_image_wcs_properties([image_id], "colorbar.label.text")[0]
+
+    @validate(String(), Number.ID)
+    def set_text(self, label_text, image_id):
+        """Set the custom colorbar label text for the specified image.
+
+        This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
+
+        Parameters
+        ----------
+        label_text : {0}
+            The custom colorbar label text for the specified image.
+        image_id : {1}
+            The image to configure.
+
+        """
+        self._call_image_wcs_functions([image_id], "colorbar.label.set_text", label_text)
 
 
 class ColorbarGradient(HasVisibility, ColorbarComponent):
@@ -1109,8 +1197,15 @@ class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         self.call_action("setPosition", position)
 
 
-class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
+# TODO TODO TODO this needs to be rewritten to take an additional image ID(s) parameter and forward the command
+# TODO don't try to be clever with decorators; just write out the functions.
+
+# TODO also don't forget to hook up the title and colorbar
+
+class Beam(ImageWCSConnector, OverlayComponent):
     """The WCS overlay beam configuration.
+
+    All beam settings are per-image. Through this object, settings can be retrieved or applied to a single image, all images, or a subset of images.
 
     Attributes
     ----------
@@ -1119,32 +1214,88 @@ class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
     """
     COMPONENT = Overlay.BEAM
 
-    @property
-    def position(self):
+    @validate(ImageWCSConnector.ANY_IDS)
+    def position(self, image_ids=None):
         """The beam position.
 
+        Parameters
+        ----------
+        image_ids : {0}
+            The images to query. By default, values will be returned for all images.
+
         Returns
         -------
-        number
-            The X beam position, in pixels.
-        number
-            The Y beam position, in pixels.
+        tuple of (number, number) tuples
+            The X and Y beam positions of the specified images, in pixels.
         """
-        return self.get_value("shiftX"), self.get_value("shiftY")
+        return self._get_image_wcs_properties(image_ids, "beam.position")
 
-    @property
-    def type(self):
+    @validate(ImageWCSConnector.ANY_IDS)
+    def type(self, image_ids=None):
         """The beam type.
 
+        Parameters
+        ----------
+        image_ids : {0}
+            The images to query. By default, values will be returned for all images.
+
         Returns
         -------
-        a member of :obj:`carta.constants.BeamType`
-            The beam type.
+        tuple of members of :obj:`carta.constants.BeamType`
+            The beam types of the specified images.
         """
-        return BeamType(self.get_value("type"))
+        return self._get_image_wcs_properties(image_ids, "beam.type")
 
-    @validate(*all_optional(Number(), Number()))
-    def set_position(self, position_x=None, position_y=None):
+    @validate(ImageWCSConnector.ANY_IDS)
+    def color(self, image_ids=None):
+        """The color of this component.
+
+        Parameters
+        ----------
+        image_ids : {0}
+            The images to query. By default, values will be returned for all images.
+
+        Returns
+        -------
+        tuple of members of :obj:`carta.constants.color.PaletteColor`
+            The colors of the beam in the specified images.
+        """
+        return self._get_image_wcs_properties(image_ids, "beam.color")
+
+    @validate(ImageWCSConnector.ANY_IDS)
+    def visible(self, image_ids=None):
+        """The visibility of this component.
+
+        Parameters
+        ----------
+        image_ids : {0}
+            The images to query. By default, values will be returned for all images.
+
+        Returns
+        -------
+        tuple of boolean
+            Whether the beam is visible in the specified images.
+        """
+        return self._get_image_wcs_properties(image_ids, "beam.visible")
+
+    @validate(ImageWCSConnector.ANY_IDS)
+    def width(self, image_ids=None):
+        """The width of this component.
+
+        Parameters
+        ----------
+        image_ids : {0}
+            The images to query. By default, values will be returned for all images.
+
+        Returns
+        -------
+        tuple of boolean
+            The width of the beam in the specified images.
+        """
+        return self._get_image_wcs_properties(image_ids, "beam.width")
+
+    @validate(*all_optional(Number(), Number(), ImageWCSConnector.ANY_IDS))
+    def set_position(self, position_x=None, position_y=None, image_ids=None):
         """Set the beam position.
 
         Parameters
@@ -1153,19 +1304,265 @@ class Beam(HasColor, HasVisibility, HasWidth, OverlayComponent):
             The X position, in pixels.
         position_y : {1}
             The Y position, in pixels.
+        image_ids : {2}
+            The images to configure. By default, the settings will be changed for all images.
         """
-        if position_x is not None:
-            self.call_action("setShiftX", position_x)
-        if position_y is not None:
-            self.call_action("setShiftY", position_y)
+        self._call_image_wcs_functions(image_ids, "beam.set_position", position_x, position_y)
 
-    @validate(Constant(BeamType))
-    def set_type(self, beam_type):
+    @validate(Constant(BeamType), ImageWCSConnector.ANY_IDS)
+    def set_type(self, beam_type, image_ids=None):
         """Set the beam type.
 
         Parameters
         ----------
         beam_type : {0}
             The beam type.
+        image_ids : {1}
+            The images to configure. By default, the settings will be changed for all images.
         """
-        self.call_action("setType", beam_type)
+        self._call_image_wcs_functions(image_ids, "beam.set_type", beam_type)
+
+    @validate(Constant(PaletteColor), ImageWCSConnector.ANY_IDS)
+    def set_color(self, color, image_ids=None):
+        """Set the color of this component.
+
+        Parameters
+        ----------
+        color : {0}
+            The color.
+        image_ids : {1}
+            The images to configure. By default, the settings will be changed for all images.
+        """
+        self._call_image_wcs_functions(image_ids, "beam.set_color", color)
+
+    @validate(Boolean(), ImageWCSConnector.ANY_IDS)
+    def set_visible(self, state, image_ids=None):
+        """Set the visibility of this component.
+
+        Parameters
+        ----------
+        visible : {0}
+            Whether this component should be visible.
+        image_ids : {1}
+            The images to configure. By default, the settings will be changed for all images.
+        """
+        self._call_image_wcs_functions(image_ids, "beam.set_visible", state)
+
+    @validate(ImageWCSConnector.ANY_IDS)
+    def show(self, image_ids=None):
+        """Show this component.
+
+        Parameters
+        ----------
+        image_ids : {0}
+            The images to configure. By default, the settings will be changed for all images.
+        """
+        self.set_visible(True, image_ids)
+
+    @validate(ImageWCSConnector.ANY_IDS)
+    def hide(self, image_ids=None):
+        """Hide this component.
+
+        Parameters
+        ----------
+        image_ids : {0}
+            The images to configure. By default, the settings will be changed for all images.
+        """
+        self.set_visible(False, image_ids)
+
+    @validate(Number.POSITIVE, ImageWCSConnector.ANY_IDS)
+    def set_width(self, width, image_ids=None):
+        """Set the width of this component.
+
+        Parameters
+        ----------
+        width : {0}
+            The width.
+        image_ids : {1}
+            The images to configure. By default, the settings will be changed for all images.
+        """
+        self._call_image_wcs_functions(image_ids, "beam.set_width", width)
+
+
+class ImageWCSOverlay(BasePathMixin):
+    """Utility object for collecting functions related to the WCS overlay settings for individual images. These functions are grouped in subcomponents, which can be accessed directly by name or looked up in a mapping by `carta.constants.Overlay` enum.
+
+    This object is only used to access WCS settings that are applied per-image. Global WCS settings are accessed through the :obj:`carta.wcs_overlay.SessionWCSOverlay` object.
+
+    Parameters
+    ----------
+    image : :obj:`carta.image.Image` object
+        The image object associated with this overlay object.
+
+    Attributes
+    ----------
+    title : :obj:`carta.wcs_overlay.ImageWCSOverlay.ImageTitle` object
+        The title settings subcomponent.
+    colorbar : :obj:`carta.wcs_overlay.ImageWCSOverlay.ImageColorbar` object
+        The colorbar settings subcomponent.
+    beam : :obj:`carta.wcs_overlay.ImageWCSOverlay.ImageBeam` object
+        The beam settings subcomponent.
+    """
+
+    class ImageTitle():
+        """The image WCS overlay title configuration.
+
+        Attributes
+        ----------
+        image : :obj:`carta.image.Image` object
+            The image object associated with this overlay component.
+        """
+
+        def __init__(self, image):
+            self.image = image
+
+        @property
+        def text(self):
+            """The custom title text for this image.
+
+            Returns
+            -------
+            string
+                The title text.
+            """
+            return self.image.get_value("titleCustomText")
+
+        @validate(String())
+        def set_text(self, title_text):
+            """Set the custom title text for this image.
+
+            This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
+
+            Parameters
+            ----------
+            title_text : {0}
+                The custom title text.
+            """
+            self.image.call_action("setTitleCustomText", title_text)
+            self.image.session.wcs.title.set_custom_text(True)
+
+    class ImageColorbar():
+        """The image WCS overlay title configuration.
+
+        Attributes
+        ----------
+        label : :obj:`carta.wcs_overlay.ImageWCSOverlay.ImageColorbar.ImageColorbarLabel` object
+            The label subcomponent.
+        """
+
+        class ImageColorbarLabel():
+            """The image WCS overlay colorbar label configuration.
+
+            Attributes
+            ----------
+            image : :obj:`carta.image.Image` object
+                The image object associated with this overlay component.
+            """
+
+            def __init__(self, image):
+                self.image = image
+
+            @property
+            def text(self):
+                """The custom colorbar label text for this image.
+
+                Returns
+                -------
+                string
+                    The title text.
+                """
+                return self.image.get_value("colorbarLabelCustomText")
+
+            def set_text(self, label_text):
+                """Set the custom colorbar label text for this image.
+
+                This also automatically enables custom colorbar label text for all images. It can be disabled with :obj:`carta.wcs_overlay.ColorbarLabel.set_custom_text`.
+
+                Parameters
+                ----------
+                label_text : {0}
+                    The custom colorbar label text.
+                """
+                self.image.call_action("setColorbarLabelCustomText", label_text)
+                self.image.session.wcs.colorbar.label.set_custom_text(True)
+
+        def __init__(self, image):
+            self.label = self.ImageColorbarLabel(image)
+
+    class ImageBeam(HasColor, HasVisibility, HasWidth, BasePathMixin):
+        """The image WCS overlay beam configuration.
+
+        Attributes
+        ----------
+        image : :obj:`carta.image.Image` object
+            The image object associated with this overlay component.
+        session : :obj:`carta.session.Session` object
+            The session object associated with this overlay component.
+        """
+
+        def __init__(self, image):
+            self._base_path = f"{image._base_path}.overlayBeamSettings"
+            self.session = image.session
+
+        @property
+        def position(self):
+            """The beam position.
+
+            Returns
+            -------
+            number
+                The X beam position, in pixels.
+            number
+                The Y beam position, in pixels.
+            """
+            return self.get_value("shiftX"), self.get_value("shiftY")
+
+        @property
+        def type(self):
+            """The beam type.
+
+            Returns
+            -------
+            a member of :obj:`carta.constants.BeamType`
+                The beam type.
+            """
+            return BeamType(self.get_value("type"))
+
+        @validate(*all_optional(Number(), Number()))
+        def set_position(self, position_x=None, position_y=None):
+            """Set the beam position.
+
+            Parameters
+            ----------
+            position_x : {0}
+                The X position, in pixels.
+            position_y : {1}
+                The Y position, in pixels.
+            """
+            if position_x is not None:
+                self.call_action("setShiftX", position_x)
+            if position_y is not None:
+                self.call_action("setShiftY", position_y)
+
+        @validate(Constant(BeamType))
+        def set_type(self, beam_type):
+            """Set the beam type.
+
+            Parameters
+            ----------
+            beam_type : {0}
+                The beam type.
+            """
+            self.call_action("setType", beam_type)
+
+    def __init__(self, image):
+        self._components = {}
+        for component, clazz in {
+            Overlay.TITLE: self.ImageTitle,
+            Overlay.COLORBAR: self.ImageColorbar,
+            Overlay.BEAM: self.ImageBeam
+        }.items():
+            comp = clazz(image)
+            self._components[component] = comp
+            name = component.name.lower()
+            setattr(self, f"{name}", comp)

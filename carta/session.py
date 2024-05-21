@@ -15,7 +15,7 @@ from .backend import Backend
 from .protocol import Protocol
 from .util import Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, MapOf, Union
-from .wcs_overlay import WCSOverlay
+from .wcs_overlay import SessionWCSOverlay
 
 
 class Session:
@@ -42,7 +42,7 @@ class Session:
         The browser object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.create` or :obj:`carta.session.Session.start_and_create`.
     backend : :obj:`carta.backend.Backend`
         The backend object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.start_and_create`.
-    wcs : :obj:`carta.wcs_overlay.WCSOverlay`
+    wcs : :obj:`carta.wcs_overlay.SessionWCSOverlay`
         Sub-object with functions related to the WCS overlay.
 
     Attributes
@@ -58,7 +58,7 @@ class Session:
         self._backend = backend
 
         # Sub-objects grouping related functions
-        self.wcs = WCSOverlay(self)
+        self.wcs = SessionWCSOverlay(self)
 
     def __del__(self):
         """Delete this session object."""
@@ -523,6 +523,23 @@ class Session:
             The currently active image.
         """
         image_id = self.get_value("activeFrame.frameInfo.fileId")
+        return Image(self, image_id)
+
+    def image_by_id(self, image_id):
+        """Return an image object with the specified ID.
+
+        This is a helper function which constructs a :obj:`carta.image.Image` object with the specified ID, without checking whether an image with that ID is currently open. It is the caller's responsibility to ensure this.
+
+        Parameters
+        ----------
+        image_id : integer
+            The ID of the image to return.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The image with the specified ID.
+        """
         return Image(self, image_id)
 
     def clear_spatial_reference(self):

@@ -253,6 +253,7 @@ class Number(Parameter):
 
 Number.POSITIVE = Number(min=0, interval=Number.EXCLUDE)
 Number.PERCENTAGE = Number(0, 100)
+Number.ID = Number(min=0, step=1)
 
 
 class Boolean(Parameter):
