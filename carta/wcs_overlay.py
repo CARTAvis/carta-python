@@ -544,36 +544,36 @@ class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, ImageWCSConne
     """
     COMPONENT = Overlay.TITLE
 
-    @validate(Number.ID)
-    def text(self, image_id):
-        """The custom title text for the specified image.
+    @validate(ImageWCSConnector.ANY_IDS)
+    def text(self, image_ids=None):
+        """The custom title text for the specified images.
 
         Parameters
         ----------
-        image_id : {0}
-            The image to query.
+        image_ids : {0}
+            The images to query.
 
         Returns
         -------
-        string
-            The title text of the specified image.
+        tuple of string
+            The title text of the specified images.
         """
-        return self._get_image_wcs_properties([image_id], "title.text")[0]
+        return self._get_image_wcs_properties(image_ids, "title.text")
 
-    @validate(String(), Number.ID)
-    def set_text(self, title_text, image_id):
-        """Set the custom title text for the specified image.
+    @validate(String(), ImageWCSConnector.ANY_IDS)
+    def set_text(self, title_text, image_ids=None):
+        """Set the custom title text for the specified images.
 
         This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
 
         Parameters
         ----------
         title_text : {0}
-            The custom title text for the specified image.
-        image_id : {1}
-            The image to configure.
+            The custom title text for the specified images.
+        image_ids : {1}
+            The images to configure.
         """
-        self._call_image_wcs_functions([image_id], "title.set_text", title_text)
+        self._call_image_wcs_functions(image_ids, "title.set_text", title_text)
 
 
 class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
@@ -1056,37 +1056,37 @@ class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRo
     """
     PREFIX = "label"
 
-    @validate(Number.ID)
-    def text(self, image_id):
-        """The custom colorbar label text for the specified image.
+    @validate(ImageWCSConnector.ANY_IDS)
+    def text(self, image_ids=None):
+        """The custom colorbar label text for the specified images.
 
         Parameters
         ----------
-        image_id : {0}
-            The image to query.
+        image_ids : {0}
+            The images to query.
 
         Returns
         -------
-        string
-            The colorbar label text of the specified image.
+        tuple of string
+            The colorbar label text of the specified images.
         """
-        return self._get_image_wcs_properties([image_id], "colorbar.label.text")[0]
+        return self._get_image_wcs_properties(image_ids, "colorbar.label.text")
 
-    @validate(String(), Number.ID)
-    def set_text(self, label_text, image_id):
-        """Set the custom colorbar label text for the specified image.
+    @validate(String(), ImageWCSConnector.ANY_IDS)
+    def set_text(self, label_text, image_ids=None):
+        """Set the custom colorbar label text for the specified images.
 
         This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
 
         Parameters
         ----------
         label_text : {0}
-            The custom colorbar label text for the specified image.
-        image_id : {1}
-            The image to configure.
+            The custom colorbar label text for the specified images.
+        image_ids : {1}
+            The images to configure.
 
         """
-        self._call_image_wcs_functions([image_id], "colorbar.label.set_text", label_text)
+        self._call_image_wcs_functions(image_ids, "colorbar.label.set_text", label_text)
 
 
 class ColorbarGradient(HasVisibility, ColorbarComponent):

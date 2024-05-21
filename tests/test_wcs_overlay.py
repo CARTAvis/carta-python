@@ -859,23 +859,23 @@ def test_beam_width(overlay, mock_images, image_beam_property):
 
 def test_colorbar_set_text(overlay, mock_images, image, mock_method):
     image_set_colorbar_text = mock_method(image.wcs.colorbar.label)("set_text", None)
-    overlay.colorbar.label.set_text("Custom text here!", 0)
+    overlay.colorbar.label.set_text("Custom text here!", [0])
     image_set_colorbar_text.assert_called_with("Custom text here!")
 
 
 def test_colorbar_text(overlay, mock_images, image, mock_property):
     mock_property("carta.wcs_overlay.ImageWCSOverlay.ImageColorbar.ImageColorbarLabel")("text", "Custom text here!")
-    text = overlay.colorbar.label.text(0)
+    text = overlay.colorbar.label.text([0])[0]
     assert text == "Custom text here!"
 
 
 def test_title_set_text(overlay, mock_images, image, mock_method):
     image_set_title_text = mock_method(image.wcs.title)("set_text", None)
-    overlay.title.set_text("Custom text here!", 0)
+    overlay.title.set_text("Custom text here!", [0])
     image_set_title_text.assert_called_with("Custom text here!")
 
 
 def test_title_text(overlay, mock_images, image, mock_property):
     mock_property("carta.wcs_overlay.ImageWCSOverlay.ImageTitle")("text", "Custom text here!")
-    text = overlay.title.text(0)
+    text = overlay.title.text([0])[0]
     assert text == "Custom text here!"
