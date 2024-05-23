@@ -93,7 +93,6 @@ class SessionWCSOverlay(BasePathMixin):
             return color.rgb_dark
         return color.rgb_light
 
-    # TODO this should be moved to a "view" subcomponent in image
     @validate(Number(), Number())
     def set_view_area(self, width, height):
         """Set the dimensions of the view area.
@@ -1197,11 +1196,6 @@ class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         """
         self.call_action("setPosition", position)
 
-
-# TODO TODO TODO this needs to be rewritten to take an additional image ID(s) parameter and forward the command
-# TODO don't try to be clever with decorators; just write out the functions.
-
-# TODO also don't forget to hook up the title and colorbar
 
 class Beam(ImageWCSConnector, OverlayComponent):
     """The WCS overlay beam configuration.
