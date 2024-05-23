@@ -1,7 +1,7 @@
 """This module contains functionality for interacting with the raster component of an image. The class in this module should not be instantiated directly. When an image object is created, a raster object is automatically created as a property."""
 
 from .util import BasePathMixin
-from .constants import Colormap, Scaling, Auto
+from .constants import Colormap, Scaling, Auto, PaletteColor
 from .validation import validate, Number, Constant, Boolean, all_optional, Union
 
 
@@ -125,3 +125,89 @@ class Raster(BasePathMixin):
     def hide(self):
         """Hide the raster component."""
         self.set_visible(False)
+
+
+class SessionRaster:
+    """Utility object for collecting global raster image settings.
+
+    Parameters
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session associated with these settings.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session` object
+        The session associated with these settings.
+    """
+
+    def __init__(self, session):
+        self.session = session
+
+    @property
+    def pixel_grid_visible(self):
+        """Whether the pixel grid is visible.
+
+        Returns
+        -------
+        boolean
+            The visibility.
+        """
+        return self.session._preferences.get("pixelGridVisible")
+
+    @property
+    def pixel_grid_color(self):
+        """The pixel grid color.
+
+        Returns
+        -------
+        a member of :obj:`carta.constants.color.PaletteColor`
+            The color.
+        """
+        return PaletteColor(self.session._preferences.get("pixelGridColor"))
+
+    @validate(Boolean())
+    def set_pixel_grid_visible(self, visible):
+        """Set the visibility of the pixel grid.
+
+        Parameters
+        ----------
+        visible : {0}
+            Whether the pixel grid should be visible.
+        """
+        self.session._preferences.set("pixelGridVisible", visible)
+
+    def show_pixel_grid(self):
+        """Show the pixel grid."""
+        self.set_pixel_grid_visible(True)
+
+    def hide_pixel_grid(self):
+        """Hide the pixel grid."""
+        self.set_pixel_grid_visible(False)
+
+    @validate(Constant(PaletteColor))
+    def set_pixel_grid_color(self, color):
+        """Set the color of the pixel grid.
+
+        Parameters
+        ----------
+        color : {0}
+            The color.
+        """
+        self.session._preferences.set("pixelGridColor", color)
+
+    @validate(*all_optional(Boolean(), Constant(PaletteColor)))
+    def set_pixel_grid(self, visible=None, color=None):
+        """Set the pixel grid properties.
+
+        Parameters
+        ----------
+        visible : {0}
+            Whether the pixel grid should be visible.
+        color : {1}
+            The pixel grid color.
+        """
+        if visible is not None:
+            self.set_pixel_grid_visible(visible)
+        if color is not None:
+            self.set_pixel_grid_color(color)

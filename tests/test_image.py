@@ -265,7 +265,7 @@ def test_beam_type(image, session_get_value):
     session_get_value.side_effect = ["solid"]
     beam_type = image.wcs.beam.type
     session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.type", return_path=None)
-    assert beam_type == BT.SOLID
+    assert beam_type is BT.SOLID
 
 
 def test_beam_set_color(image, session_call_action):
@@ -277,7 +277,7 @@ def test_beam_color(image, session_get_value):
     session_get_value.side_effect = ["auto-rose"]
     color = image.wcs.beam.color
     session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.color", return_path=None)
-    assert color == PC.ROSE
+    assert color is PC.ROSE
 
 
 def test_beam_set_visible(image, session_call_action):

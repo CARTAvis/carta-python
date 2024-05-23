@@ -151,7 +151,7 @@ def test_color(overlay, component_get_value, comp_enum):
     comp = overlay.get(comp_enum)
     color = comp.color
     comp_get_value.assert_called_with("color")
-    assert color == PC.ROSE
+    assert color is PC.ROSE
 
 
 @pytest.mark.parametrize("comp_enum", set(O) - {O.GLOBAL, O.BEAM})
@@ -194,8 +194,8 @@ def test_font(overlay, component_get_value, comp_enum):
     comp_get_value = component_get_value(comp_enum, 5)
     family, style = comp.font
     comp_get_value.assert_called_with("font")
-    assert family == FF.TIMES
-    assert style == FS.ITALIC
+    assert family is FF.TIMES
+    assert style is FS.ITALIC
 
 
 @pytest.mark.parametrize("comp_enum", [O.TITLE, O.NUMBERS, O.LABELS])
@@ -212,8 +212,8 @@ def test_font_arial(overlay, component_get_value, comp_enum):
     comp_get_value = component_get_value(comp_enum, 9)
     family, style = comp.font
     comp_get_value.assert_called_with("font")
-    assert family == FF.ARIAL
-    assert style == FS.BOLD
+    assert family is FF.ARIAL
+    assert style is FS.BOLD
 
 
 @pytest.mark.parametrize("comp_enum", [O.TITLE, O.NUMBERS, O.LABELS])
@@ -303,7 +303,7 @@ def test_global_labelling(overlay, component_get_value):
     global_get_value = component_get_value(O.GLOBAL, "Exterior")
     labelling = overlay.global_.labelling
     global_get_value.assert_called_with("labelType")
-    assert labelling == LT.EXTERIOR
+    assert labelling is LT.EXTERIOR
 
 
 @pytest.mark.parametrize("system", CS)
@@ -556,7 +556,7 @@ def test_colorbar_position(overlay, component_get_value):
     colorbar_get_value = component_get_value(O.COLORBAR, "bottom")
     position = overlay.colorbar.position
     colorbar_get_value.assert_called_with("position")
-    assert position == CP.BOTTOM
+    assert position is CP.BOTTOM
 
 
 def test_colorbar_set_border_properties(mocker, overlay, component_call_action):
@@ -594,7 +594,7 @@ def test_colorbar_get_border_properties(mocker, overlay, component_get_value):
 
     assert visible is True
     assert width == 3
-    assert color == PC.ROSE
+    assert color is PC.ROSE
     assert custom_color is True
 
 
@@ -641,7 +641,7 @@ def test_colorbar_get_ticks_properties(mocker, overlay, component_get_value):
 
     assert visible is True
     assert width == 3
-    assert color == PC.ROSE
+    assert color is PC.ROSE
     assert custom_color is True
     assert density == 3
     assert length == 3
@@ -700,10 +700,10 @@ def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
     assert visible is True
     assert precision == 3
     assert custom_precision is True
-    assert color == PC.ROSE
+    assert color is PC.ROSE
     assert custom_color is True
-    assert family == FF.ARIAL
-    assert style == FS.BOLD
+    assert family is FF.ARIAL
+    assert style is FS.BOLD
     assert font_size == 20
     assert rotation == 90
 
@@ -754,11 +754,11 @@ def test_colorbar_get_label_properties(mocker, overlay, component_get_value):
     ])
 
     assert visible is True
-    assert color == PC.ROSE
+    assert color is PC.ROSE
     assert custom_color is True
     assert custom_text is True
-    assert family == FF.ARIAL
-    assert style == FS.BOLD
+    assert family is FF.ARIAL
+    assert style is FS.BOLD
     assert font_size == 20
     assert rotation == 90
 
@@ -806,7 +806,7 @@ def test_beam_set_type(overlay, mock_images, image_beam_method):
 def test_beam_type(overlay, mock_images, image_beam_property):
     image_beam_property("type", BT.SOLID)
     beam_type = overlay.beam.type([0])[0]
-    assert beam_type == BT.SOLID
+    assert beam_type is BT.SOLID
 
 
 def test_beam_set_color(overlay, mock_images, image_beam_method):
@@ -818,7 +818,7 @@ def test_beam_set_color(overlay, mock_images, image_beam_method):
 def test_beam_color(overlay, mock_images, image_beam_property):
     image_beam_property("color", PC.ROSE)
     color = overlay.beam.color([0])[0]
-    assert color == PC.ROSE
+    assert color is PC.ROSE
 
 
 def test_beam_set_visible(overlay, mock_images, image_beam_method):

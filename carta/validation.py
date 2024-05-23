@@ -45,6 +45,28 @@ class Parameter:
         return "UNKNOWN"
 
 
+class Any(Parameter):
+    """Any value. This class is used to skip validation for a specific parameter."""
+
+    def validate(self, value, parent):
+        """Always pass.
+
+        See :obj:`carta.validation.Parameter.validate` for general information about this method.
+        """
+        pass
+
+    @property
+    def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
+        return "any value"
+
+
 class InstanceOf(Parameter):
     """A parameter which is an instance of the provided type or tuple of types.
 

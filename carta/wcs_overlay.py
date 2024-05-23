@@ -93,6 +93,7 @@ class SessionWCSOverlay(BasePathMixin):
             return color.rgb_dark
         return color.rgb_light
 
+    # TODO this should be moved to a "view" subcomponent in image
     @validate(Number(), Number())
     def set_view_area(self, width, height):
         """Set the dimensions of the view area.
@@ -1404,7 +1405,7 @@ class ImageWCSOverlay(BasePathMixin):
         The beam settings subcomponent.
     """
 
-    class ImageTitle():
+    class ImageTitle:
         """The image WCS overlay title configuration.
 
         Attributes
@@ -1441,7 +1442,7 @@ class ImageWCSOverlay(BasePathMixin):
             self.image.call_action("setTitleCustomText", title_text)
             self.image.session.wcs.title.set_custom_text(True)
 
-    class ImageColorbar():
+    class ImageColorbar:
         """The image WCS overlay title configuration.
 
         Attributes
@@ -1450,7 +1451,7 @@ class ImageWCSOverlay(BasePathMixin):
             The label subcomponent.
         """
 
-        class ImageColorbarLabel():
+        class ImageColorbarLabel:
             """The image WCS overlay colorbar label configuration.
 
             Attributes

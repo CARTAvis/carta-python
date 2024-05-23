@@ -16,6 +16,8 @@ from .protocol import Protocol
 from .util import Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, MapOf, Union
 from .wcs_overlay import SessionWCSOverlay
+from .raster import SessionRaster
+from .preferences import Preferences
 
 
 class Session:
@@ -42,13 +44,15 @@ class Session:
         The browser object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.create` or :obj:`carta.session.Session.start_and_create`.
     backend : :obj:`carta.backend.Backend`
         The backend object associated with this session. This is created automatically when a new session is created with :obj:`carta.session.Session.start_and_create`.
-    wcs : :obj:`carta.wcs_overlay.SessionWCSOverlay`
-        Sub-object with functions related to the WCS overlay.
 
     Attributes
     ----------
     session_id : integer
         The ID of the CARTA frontend session associated with this object.
+    wcs : :obj:`carta.wcs_overlay.SessionWCSOverlay`
+        Sub-object with functions related to the WCS overlay.
+    raster : :obj:`carta.raster.SessionRaster`
+        Sub-object with functions related to the global raster image settings.
     """
 
     def __init__(self, session_id, protocol, browser=None, backend=None):
@@ -56,9 +60,11 @@ class Session:
         self._protocol = protocol
         self._browser = browser
         self._backend = backend
+        self._preferences = Preferences(self)
 
         # Sub-objects grouping related functions
         self.wcs = SessionWCSOverlay(self)
+        self.raster = SessionRaster(self)
 
     def __del__(self):
         """Delete this session object."""

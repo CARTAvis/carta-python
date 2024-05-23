@@ -41,6 +41,14 @@ carta.metadata module
    :undoc-members:
    :show-inheritance:
 
+carta.preferences module
+---------------------
+
+.. automodule:: carta.preferences
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.protocol module
 ---------------------
 

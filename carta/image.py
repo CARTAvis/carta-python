@@ -432,6 +432,16 @@ class Image(BasePathMixin):
         """
         self.call_action("setZoom", zoom, absolute)
 
+    # SPECTRAL CONVERSION
+
+    # TODO set coordinate
+    # TODO set system
+    # TODO set both
+    # TODO add constants; generate validator from supported; exclude non-PV?
+
+    # TODO pixel grid is global; goes under session
+    # TODO put all this under a "viewer"?
+
     # CLOSE
 
     def close(self):
