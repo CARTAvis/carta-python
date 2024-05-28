@@ -3,10 +3,10 @@
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 
-from .constants import Polarization, SpatialAxis
+from .constants import Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
 from .util import Macro, cached, BasePathMixin
 from .units import AngularSize, WorldCoordinate
-from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate
+from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr
 from .metadata import parse_header
 
 from .raster import Raster
@@ -434,10 +434,101 @@ class Image(BasePathMixin):
 
     # SPECTRAL CONVERSION
 
-    # TODO set coordinate
-    # TODO set system
-    # TODO set both
-    # TODO add constants; generate validator from supported; exclude non-PV?
+    @property
+    @cached
+    def is_pv(self):
+        """Whether this is a position-velocity image.
+
+        Returns
+        -------
+        boolean
+            Whether this is a position-velocity image.
+        """
+        return self.get_value("isPVImage")
+
+    @property
+    @cached
+    def spectral_systems_supported(self):
+        """The spectral systems supported by this image.
+
+        Returns
+        -------
+        set of :obj:`carta.constants.SpectralSystem`
+            The supported spectral systems.
+        """
+        return {SpectralSystem(s) for s in self.get_value("spectralSystemsSupported")}
+
+    @property
+    @cached
+    def spectral_coordinate_types_supported(self):
+        """The spectral coordinate types supported by this image.
+
+        Returns
+        -------
+        set of :obj:`carta.constants.SpectralType`
+            The supported spectral coordinate types.
+        """
+        types = {v['type'] for v in self.get_value("spectralCoordsSupported").values()} - {"CHANNEL"}
+        return {SpectralType(t) for t in types}
+
+    @validate(Constant(SpectralSystem))
+    def set_spectral_system(self, spectral_system):
+        """Set the coordinate system used for the spectral axis in the image viewer.
+
+        This is only applicable to position-velocity images.
+
+        Parameters
+        ----------
+        spectral_system : {0}
+            The spectral system to use.
+
+        Raises
+        ------
+        ValueError
+            If this is not a position-velocity image, or the system is not supported.
+        """
+        if not self.is_pv:
+            raise ValueError("Cannot set spectral system. This is not a position-velocity image.")
+        spectral_system = SpectralSystem(spectral_system)
+        if spectral_system not in self.spectral_systems_supported:
+            raise ValueError(f"Cannot set spectral system. Unsupported system: {spectral_system}.")
+        self.call_action("setSpectralSystem", spectral_system)
+
+    @validate(Constant(SpectralType), NoneOr(Constant(SpectralUnit)))
+    def set_spectral_coordinate(self, spectral_type, spectral_unit=None):
+        """Set the coordinate type and unit used for the spectral axis in the image viewer.
+
+        This is only applicable to position-velocity images.
+
+        Parameters
+        ----------
+        spectral_type : {0}
+            The spectral type to use.
+        spectral_unit : {1}
+            The spectral unit to use. If this is omitted, the default unit for the type will be used.
+
+        Raises
+        ------
+        ValueError
+            If this is not a position-velocity image, or the type is not supported, or the unit is not supported.
+        """
+        if not self.is_pv:
+            raise ValueError("Cannot set spectral coordinate. This is not a position-velocity image.")
+
+        spectral_type = SpectralType(spectral_type)
+        description = spectral_type.description
+        if spectral_type not in self.spectral_coordinate_types_supported:
+            raise ValueError(f"Cannot set spectral coordinate. Unsupported type: {description}.")
+
+        if spectral_unit is not None:
+            spectral_unit = SpectralUnit(spectral_unit)
+            if spectral_unit not in spectral_type.units:
+                raise ValueError(f"Cannot set spectral coordinate. Unsupported unit: {spectral_unit}.")
+        else:
+            spectral_unit = spectral_type.default_unit
+
+        spectral_coordinate_string = description if spectral_unit is None else f"{description} ({spectral_unit})"
+        self.call_action("setSpectralCoordinate", spectral_coordinate_string)
 
     # CLOSE
 

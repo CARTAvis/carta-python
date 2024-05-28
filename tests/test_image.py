@@ -2,7 +2,7 @@ import pytest
 
 from carta.image import Image
 from carta.util import CartaValidationFailed
-from carta.constants import NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT
+from carta.constants import NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
 
 # FIXTURES
 
@@ -311,3 +311,76 @@ def test_beam_width(image, session_get_value):
     width = image.wcs.beam.width
     session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.width", return_path=None)
     assert width == 2
+
+
+def test_spectral_systems_supported(image, get_value):
+    get_value.side_effect = [{"LSRK", "LSRD"}]
+    systems = image.spectral_systems_supported
+    get_value.assert_called_with("spectralSystemsSupported")
+    assert systems == {SS.LSRK, SS.LSRD}
+
+
+def test_spectral_coordinate_types_supported(image, get_value):
+    get_value.side_effect = [{"one": {'type': 'AWAV', 'unit': 'Angstrom'}, "two": {'type': 'AWAV', 'unit': 'm'}, "three": {'type': 'FREQ', 'unit': 'GHz'}}]
+    types = image.spectral_coordinate_types_supported
+    get_value.assert_called_with("spectralCoordsSupported")
+    assert types == {ST.AWAV, ST.FREQ}
+
+
+def test_set_spectral_system(image, property_, call_action):
+    property_("is_pv", True)
+    property_("spectral_systems_supported", {SS.LSRK, SS.LSRD})
+    image.set_spectral_system(SS.LSRK)
+    call_action.assert_called_with("setSpectralSystem", SS.LSRK)
+
+
+def test_set_spectral_system_no_pv(image, property_):
+    property_("is_pv", False)
+    with pytest.raises(ValueError) as e:
+        image.set_spectral_system(SS.LSRK)
+    assert "not a position-velocity image" in str(e.value)
+
+
+def test_set_spectral_system_bad_system(image, property_):
+    property_("is_pv", True)
+    property_("spectral_systems_supported", {SS.LSRK, SS.LSRD})
+    with pytest.raises(ValueError) as e:
+        image.set_spectral_system(SS.BARY)
+    assert "Unsupported system: BARYCENT" in str(e.value)
+
+
+def test_set_spectral_coordinate(image, property_, call_action):
+    property_("is_pv", True)
+    property_("spectral_coordinate_types_supported", {ST.VRAD, ST.VOPT})
+    image.set_spectral_coordinate(ST.VRAD, SU.MS)
+    call_action.assert_called_with("setSpectralCoordinate", "Radio velocity (m/s)")
+
+
+def test_set_spectral_coordinate_default_unit(image, property_, call_action):
+    property_("is_pv", True)
+    property_("spectral_coordinate_types_supported", {ST.VRAD, ST.VOPT})
+    image.set_spectral_coordinate(ST.VRAD)
+    call_action.assert_called_with("setSpectralCoordinate", "Radio velocity (km/s)")
+
+
+def test_set_spectral_coordinate_no_pv(image, property_):
+    property_("is_pv", False)
+    with pytest.raises(ValueError) as e:
+        image.set_spectral_coordinate(ST.VRAD)
+    assert "not a position-velocity image" in str(e.value)
+
+
+def test_set_spectral_coordinate_bad_type(image, property_):
+    property_("is_pv", True)
+    property_("spectral_coordinate_types_supported", {ST.VRAD, ST.VOPT})
+    with pytest.raises(ValueError) as e:
+        image.set_spectral_coordinate(ST.FREQ)
+    assert "Unsupported type: Frequency" in str(e.value)
+
+
+def test_set_spectral_coordinate_bad_unit(image, property_):
+    property_("is_pv", True)
+    property_("spectral_coordinate_types_supported", {ST.VRAD, ST.VOPT})
+    with pytest.raises(ValueError) as e:
+        image.set_spectral_coordinate(ST.VRAD, SU.HZ)
+    assert "Unsupported unit: Hz" in str(e.value)
