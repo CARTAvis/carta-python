@@ -25,6 +25,14 @@ carta.constants module
    :undoc-members:
    :show-inheritance:
 
+carta.contours module
+---------------------
+
+.. automodule:: carta.contours
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.image module
 ------------------
 
@@ -42,7 +50,7 @@ carta.metadata module
    :show-inheritance:
 
 carta.preferences module
----------------------
+------------------------
 
 .. automodule:: carta.preferences
    :members:
@@ -53,6 +61,14 @@ carta.protocol module
 ---------------------
 
 .. automodule:: carta.protocol
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.raster module
+-------------------
+
+.. automodule:: carta.raster
    :members:
    :undoc-members:
    :show-inheritance:
