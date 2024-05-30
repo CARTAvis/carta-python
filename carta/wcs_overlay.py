@@ -106,10 +106,6 @@ class SessionWCSOverlay(BasePathMixin):
         """
         self.call_action("setViewDimension", width, height)
 
-    def toggle_labels(self):
-        """Toggle the overlay labels."""
-        self.call_action("toggleLabels")
-
 
 class OverlayComponent(BasePathMixin):
     """A single WCS overlay component.

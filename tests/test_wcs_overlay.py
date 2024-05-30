@@ -111,11 +111,6 @@ def test_set_view_area(overlay, call_action):
     call_action.assert_called_with("setViewDimension", 100, 200)
 
 
-def test_toggle_labels(overlay, call_action):
-    overlay.toggle_labels()
-    call_action.assert_called()
-
-
 # COMPONENT TESTS
 
 @pytest.mark.parametrize("comp_enum", [O.GLOBAL])
