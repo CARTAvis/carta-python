@@ -437,12 +437,12 @@ class Image(BasePathMixin):
     @property
     @cached
     def is_pv(self):
-        """Whether this is a position-velocity image.
+        """Whether this is a spatial-spectral image.
 
         Returns
         -------
         boolean
-            Whether this is a position-velocity image.
+            Whether this is a spatial-spectral image.
         """
         return self.get_value("isPVImage")
 
@@ -475,7 +475,7 @@ class Image(BasePathMixin):
     def set_spectral_system(self, spectral_system):
         """Set the coordinate system used for the spectral axis in the image viewer.
 
-        This is only applicable to position-velocity images.
+        This is only applicable to spatial-spectral images, such as position-velocity images or cubes with permuted axes like ``RA-FREQ-DEC``.
 
         Parameters
         ----------
@@ -485,7 +485,7 @@ class Image(BasePathMixin):
         Raises
         ------
         ValueError
-            If this is not a position-velocity image, or the system is not supported.
+            If this is not a spatial-spectral image, or the system is not supported.
         """
         if not self.is_pv:
             raise ValueError("Cannot set spectral system. This is not a position-velocity image.")
@@ -498,7 +498,7 @@ class Image(BasePathMixin):
     def set_spectral_coordinate(self, spectral_type, spectral_unit=None):
         """Set the coordinate type and unit used for the spectral axis in the image viewer.
 
-        This is only applicable to position-velocity images.
+        This is only applicable to spatial-spectral images, such as position-velocity images or cubes with permuted axes like ``RA-FREQ-DEC``.
 
         Parameters
         ----------
@@ -510,7 +510,7 @@ class Image(BasePathMixin):
         Raises
         ------
         ValueError
-            If this is not a position-velocity image, or the type is not supported, or the unit is not supported.
+            If this is not a spatial-spectral image, or the type is not supported, or the unit is not supported.
         """
         if not self.is_pv:
             raise ValueError("Cannot set spectral coordinate. This is not a position-velocity image.")
