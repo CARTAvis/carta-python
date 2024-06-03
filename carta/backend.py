@@ -58,8 +58,7 @@ class Backend:
         A backend object with a process which has not been started.
 
     """
-    FRONTEND_URL = re.compile(r"CARTA is accessible at (http://.*?:\d+/\?token=(.*))")
-    FRONTEND_URL_NO_AUTH = re.compile(r"CARTA is accessible at (http://(.*?):\d+.*)")
+    FRONTEND_URL = re.compile(r"CARTA is accessible at (http://.*)")
     SESSION_ID = re.compile(r"Session (\d+) \[[\d.]+\] Connected.")
 
     def __init__(self, params, executable_path="carta", remote_host=None, token=None, frontend_url_timeout=10, session_creation_timeout=0):
@@ -96,9 +95,6 @@ class Backend:
         self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, cwd=pathlib.Path.home(), preexec_fn=os.setpgrp)
         os.set_blocking(self.proc.stdout.fileno(), False)
 
-        frontend_url_re = self.FRONTEND_URL if not self.debug_no_auth else self.FRONTEND_URL_NO_AUTH
-        token_string = None
-
         start = time.time()
 
         while self.frontend_url is None:
@@ -112,15 +108,15 @@ class Backend:
                 return False
 
             for line in self.output:
-                m = frontend_url_re.search(line)
+                m = self.FRONTEND_URL.search(line)
                 if m:
-                    self.frontend_url, token_string = m.groups()
+                    self.frontend_url = m.group(1)
                     break
 
             time.sleep(1)
 
-        if token_string is not None and self.token is None and not self.debug_no_auth:
-            self.token = BackendToken(token_string)
+        if self.frontend_url is not None and self.token is None and not self.debug_no_auth:
+            _, self.token = BackendToken.split_token_from_url(self.frontend_url)
 
         # Only try to parse the session ID if it has been requested
         if self.session_creation_timeout > 0:

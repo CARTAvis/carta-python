@@ -56,7 +56,7 @@ class Protocol:
 
     def __init__(self, frontend_url, token=None, debug_no_auth=False):
         self.frontend_url = frontend_url
-        self.base_url, token_from_url = self.split_token_from_url(frontend_url)
+        self.base_url, token_from_url = BackendToken.split_token_from_url(frontend_url)
 
         if debug_no_auth:
             self.auth = AuthType.NONE
@@ -144,44 +144,6 @@ class Protocol:
             token.save(path)
 
         return token
-
-    @staticmethod
-    def split_token_from_url(url):
-        """Extract a backend token from a frontend URL.
-
-        Parameters
-        ----------
-        url : string
-            The URL of the frontend.
-
-        Returns
-        -------
-        string
-            The URL with the backend token removed.
-        :obj:`carta.token.BackendToken` object or None
-            The object representing the backend token.
-
-        Raises
-        ------
-        CartaBadUrl
-            If an invalid URL was provided.
-
-        """
-        parsed_url = urllib.parse.urlparse(url)
-
-        if not (parsed_url.scheme and parsed_url.netloc):
-            raise CartaBadUrl(f"Could not parse URL {url}.")
-
-        parsed_query = urllib.parse.parse_qs(parsed_url.query)
-
-        base_url = parsed_url._replace(query='').geturl().rstrip("/")
-
-        if "token" not in parsed_query:
-            token = None
-        else:
-            token = BackendToken(parsed_query["token"][0])
-
-        return base_url, token
 
     @property
     def domain(self):
