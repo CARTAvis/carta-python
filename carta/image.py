@@ -7,7 +7,7 @@ Image objects should not be instantiated directly, and should only be created th
 from .constants import Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
 from .util import Macro, cached, BasePathMixin, Point as Pt
 from .units import AngularSize, WorldCoordinate
-from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr, IterableOf, all_optional, Point
+from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr, IterableOf, Point
 from .metadata import parse_header
 
 from .raster import Raster
@@ -60,7 +60,6 @@ class Image(BasePathMixin):
         self.vectors = VectorOverlay(self)
         self.wcs = ImageWCSOverlay(self)
         self.regions = RegionSet(self)
-
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):

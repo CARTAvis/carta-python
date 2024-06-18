@@ -20,6 +20,7 @@ from .wcs_overlay import SessionWCSOverlay
 from .raster import SessionRaster
 from .preferences import Preferences
 
+
 class Session:
     """This object corresponds to a CARTA frontend session.
 
