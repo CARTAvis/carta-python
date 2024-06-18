@@ -3,6 +3,7 @@
 import re
 import functools
 import inspect
+import itertools
 
 from .util import CartaValidationFailed
 from .units import AngularSize, WorldCoordinate
@@ -42,6 +43,28 @@ class Parameter:
             The description.
         """
         return "UNKNOWN"
+
+
+class Any(Parameter):
+    """Any value. This class is used to skip validation for a specific parameter."""
+
+    def validate(self, value, parent):
+        """Always pass.
+
+        See :obj:`carta.validation.Parameter.validate` for general information about this method.
+        """
+        pass
+
+    @property
+    def description(self):
+        """A human-readable description of this parameter descriptor.
+
+        Returns
+        -------
+        string
+            The description.
+        """
+        return "any value"
 
 
 class InstanceOf(Parameter):
@@ -248,6 +271,11 @@ class Number(Parameter):
             desc.append(f", in increments of {self.step}{offset}")
 
         return " ".join(desc)
+
+
+Number.POSITIVE = Number(min=0, interval=Number.EXCLUDE)
+Number.PERCENTAGE = Number(0, 100)
+Number.ID = Number(min=0, step=1)
 
 
 class Boolean(Parameter):
@@ -892,3 +920,20 @@ def all_optional(*vargs):
         The same parameters in the same order, but with all non-optional parameters made optional (that is, wrapped in a obj:`carta.validation.NoneOr` parameter).
     """
     return tuple(NoneOr(param) if not isinstance(param, NoneOr) else param for param in vargs)
+
+
+def vargs(*functions):
+    """Helper function for extracting validation parameters from functions.
+
+    For improved legibility in functions which reuse validation parameters from other functions.
+
+    Parameters
+    ----------
+    *functions : iterable of functions
+
+    Returns
+    -------
+    iterable of :obj:`carta.validation.Parameter` objects
+        The validation parameters of the given functions, in order, unpacked into a 1D sequence.
+    """
+    return itertools.chain.from_iterable(f.VARGS for f in functions)

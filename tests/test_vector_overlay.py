@@ -4,15 +4,12 @@ from carta.vector_overlay import VectorOverlay
 from carta.util import Macro
 from carta.constants import VectorOverlaySource as VOS, Auto, Colormap as CM
 
+# FIXTURES
+
 
 @pytest.fixture
 def vector_overlay(image):
     return VectorOverlay(image)
-
-
-@pytest.fixture
-def get_value(vector_overlay, mock_get_value):
-    return mock_get_value(vector_overlay)
 
 
 @pytest.fixture
@@ -21,18 +18,16 @@ def call_action(vector_overlay, mock_call_action):
 
 
 @pytest.fixture
+def method(vector_overlay, mock_method):
+    return mock_method(vector_overlay)
+
+
+@pytest.fixture
 def image_call_action(image, mock_call_action):
     return mock_call_action(image)
 
 
-@pytest.fixture
-def property_(mock_property):
-    return mock_property("carta.vector_overlay.VectorOverlay")
-
-
-@pytest.fixture
-def method(vector_overlay, mock_method):
-    return mock_method(vector_overlay)
+# TESTS
 
 
 @pytest.mark.parametrize("args,kwargs,expected_args", [
@@ -74,25 +69,38 @@ def test_configure(vector_overlay, call_action, method, args, kwargs, expected_a
         call_action.assert_called_with("setVectorOverlayConfiguration", *expected_args)
 
 
-@pytest.mark.parametrize("args,kwargs,expected_calls", [
+def test_set_thickness(vector_overlay, call_action):
+    vector_overlay.set_thickness(5)
+    call_action.assert_called_with("setThickness", 5)
+
+
+@pytest.mark.parametrize("args,kwargs,expected_args", [
     # Nothing
-    ((), {}, ()),
+    ((), {}, None),
     # Everything
-    ((1, 2, 3, 4, 5, 6), {}, (
-        ("setThickness", 1),
-        ("setIntensityRange", 2, 3),
-        ("setLengthRange", 4, 5),
-        ("setRotationOffset", 6),
-    )),
+    ((2, 3), {}, ("setIntensityRange", 2, 3)),
     # No intensity min; auto intensity max
-    ((), {"intensity_max": Auto.AUTO}, (("setIntensityRange", "M(intensityMin)", Macro.UNDEFINED),)),
+    ((), {"intensity_max": Auto.AUTO}, ("setIntensityRange", "M(intensityMin)", Macro.UNDEFINED)),
     # Auto intensity min; no intensity max
-    ((), {"intensity_min": Auto.AUTO}, (("setIntensityRange", Macro.UNDEFINED, "M(intensityMax)"),)),
+    ((), {"intensity_min": Auto.AUTO}, ("setIntensityRange", Macro.UNDEFINED, "M(intensityMax)")),
 ])
-def test_set_style(mocker, vector_overlay, call_action, method, args, kwargs, expected_calls):
+def test_set_intensity_range(vector_overlay, call_action, method, args, kwargs, expected_args):
     method("macro", lambda _, v: f"M({v})")
-    vector_overlay.set_style(*args, **kwargs)
-    call_action.assert_has_calls([mocker.call(*call) for call in expected_calls])
+    vector_overlay.set_intensity_range(*args, **kwargs)
+    if expected_args is not None:
+        call_action.assert_called_with(*expected_args)
+    else:
+        call_action.assert_not_called()
+
+
+def test_set_length_range(vector_overlay, call_action):
+    vector_overlay.set_length_range(2, 3)
+    call_action.assert_called_with("setLengthRange", 2, 3)
+
+
+def test_set_rotation_offset(vector_overlay, call_action):
+    vector_overlay.set_rotation_offset(5)
+    call_action.assert_called_with("setRotationOffset", 5)
 
 
 def test_set_color(mocker, vector_overlay, call_action):
@@ -103,15 +111,22 @@ def test_set_color(mocker, vector_overlay, call_action):
     ])
 
 
+def test_set_colormap(mocker, vector_overlay, call_action):
+    vector_overlay.set_colormap(CM.VIRIDIS)
+    call_action.assert_has_calls([
+        mocker.call("setColormap", CM.VIRIDIS),
+        mocker.call("setColormapEnabled", True),
+    ])
+
+
 @pytest.mark.parametrize("args,kwargs,expected_calls", [
     ([], {}, []),
-    ([CM.VIRIDIS, 0.5, 1.5], {}, [("setColormap", CM.VIRIDIS), ("setColormapEnabled", True), ("setColormapBias", 0.5), ("setColormapContrast", 1.5)]),
-    ([CM.VIRIDIS], {}, [("setColormap", CM.VIRIDIS), ("setColormapEnabled", True)]),
+    ([0.5, 1.5], {}, [("setColormapBias", 0.5), ("setColormapContrast", 1.5)]),
     ([], {"bias": 0.5}, [("setColormapBias", 0.5)]),
     ([], {"contrast": 1.5}, [("setColormapContrast", 1.5)]),
 ])
-def test_set_colormap(mocker, vector_overlay, call_action, args, kwargs, expected_calls):
-    vector_overlay.set_colormap(*args, **kwargs)
+def test_set_bias_and_contrast(mocker, vector_overlay, call_action, args, kwargs, expected_calls):
+    vector_overlay.set_bias_and_contrast(*args, **kwargs)
     call_action.assert_has_calls([mocker.call(*call) for call in expected_calls])
 
 
@@ -127,13 +142,13 @@ def test_clear(vector_overlay, image_call_action):
 
 @pytest.mark.parametrize("args,kwargs,expected_calls", [
     ([], {}, []),
-    ([VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5, 1, 2, 3, 4, 5, 6, "blue", CM.VIRIDIS, 0.5, 1.5], {}, [("configure", VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5), ("set_style", 1, 2, 3, 4, 5, 6), ("set_color", "blue"), ("set_colormap", CM.VIRIDIS, 0.5, 1.5), ("apply",)]),
-    ([], {"pixel_averaging": 1, "thickness": 2, "color": "blue", "bias": 0.5}, [("configure", None, None, None, 1, None, None, None, None, None, None), ("set_style", 2, None, None, None, None, None), ("set_color", "blue"), ("set_colormap", None, 0.5, None), ("apply",)]),
-    ([], {"thickness": 2}, [("set_style", 2, None, None, None, None, None), ("apply",)]),
+    ([VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5, 1, 2, 3, 4, 5, 6, "blue", CM.VIRIDIS, 0.5, 1.5], {}, [("configure", VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5), ("set_thickness", 1), ("set_intensity_range", 2, 3), ("set_length_range", 4, 5), ("set_rotation_offset", 6), ("set_color", "blue"), ("set_colormap", CM.VIRIDIS), ("set_bias_and_contrast", 0.5, 1.5), ("apply",)]),
+    ([], {"pixel_averaging": 1, "thickness": 2, "color": "blue", "bias": 0.5}, [("configure", None, None, None, 1, None, None, None, None, None, None), ("set_thickness", 2), ("set_color", "blue"), ("set_bias_and_contrast", 0.5, None), ("apply",)]),
+    ([], {"thickness": 2}, [("set_thickness", 2), ("apply",)]),
 ])
 def test_plot(vector_overlay, method, args, kwargs, expected_calls):
     mocks = {}
-    for method_name in ("configure", "set_style", "set_color", "set_colormap", "apply"):
+    for method_name in ("configure", "set_thickness", "set_intensity_range", "set_length_range", "set_rotation_offset", "set_color", "set_colormap", "set_bias_and_contrast", "apply"):
         mocks[method_name] = method(method_name, None)
 
     vector_overlay.plot(*args, **kwargs)

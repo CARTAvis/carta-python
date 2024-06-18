@@ -207,3 +207,15 @@ class BasePathMixin:
         """
         target = f"{self._base_path}.{target}" if target else self._base_path
         return Macro(target, variable)
+
+
+def camel(*parts):
+    """Convert an iterable of strings to a camel case string."""
+    parts = [p for p in parts if p]
+    parts[1:] = [p.title() for p in parts[1:]]
+    return "".join(parts)
+
+
+def snake(*parts):
+    """Convert an iterable of strings to a snake case string."""
+    return "_".join([p for p in parts if p])
