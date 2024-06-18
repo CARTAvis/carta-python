@@ -4,8 +4,9 @@ import math
 import base64
 import datetime
 import json
+import urllib
 
-from .util import CartaBadToken
+from .util import CartaBadToken, CartaBadUrl
 
 
 class Token:
@@ -37,6 +38,43 @@ class BackendToken(Token):
 
     def __init__(self, string):
         super().__init__(string)
+
+    @staticmethod
+    def split_token_from_url(url):
+        """Extract a backend token from a frontend URL.
+
+        Parameters
+        ----------
+        url : string
+            The URL of the frontend.
+
+        Returns
+        -------
+        string
+            The URL with the backend token removed.
+        :obj:`carta.token.BackendToken` object or None
+            The object representing the backend token.
+
+        Raises
+        ------
+        CartaBadUrl
+            If an invalid URL was provided.
+        """
+        parsed_url = urllib.parse.urlparse(url)
+
+        if not (parsed_url.scheme and parsed_url.netloc):
+            raise CartaBadUrl(f"Could not parse URL {url}.")
+
+        parsed_query = urllib.parse.parse_qs(parsed_url.query)
+
+        base_url = parsed_url._replace(query='').geturl().rstrip("/")
+
+        if "token" not in parsed_query:
+            token = None
+        else:
+            token = BackendToken(parsed_query["token"][0])
+
+        return base_url, token
 
 
 class ControllerToken(Token):
