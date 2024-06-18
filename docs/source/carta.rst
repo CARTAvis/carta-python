@@ -25,6 +25,14 @@ carta.constants module
    :undoc-members:
    :show-inheritance:
 
+carta.contours module
+---------------------
+
+.. automodule:: carta.contours
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.image module
 ------------------
 
@@ -41,10 +49,26 @@ carta.metadata module
    :undoc-members:
    :show-inheritance:
 
+carta.preferences module
+------------------------
+
+.. automodule:: carta.preferences
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.protocol module
 ---------------------
 
 .. automodule:: carta.protocol
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.raster module
+-------------------
+
+.. automodule:: carta.raster
    :members:
    :undoc-members:
    :show-inheritance:
@@ -101,6 +125,14 @@ carta.vector_overlay module
 ---------------------------
 
 .. automodule:: carta.vector_overlay
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.wcs_overlay module
+------------------------
+
+.. automodule:: carta.wcs_overlay
    :members:
    :undoc-members:
    :show-inheritance:

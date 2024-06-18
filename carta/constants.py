@@ -52,8 +52,8 @@ class LabelType(StrEnum):
 
 class BeamType(StrEnum):
     """Beam types."""
-    OPEN = "Open"
-    SOLID = "Solid"
+    OPEN = "open"
+    SOLID = "solid"
 
 
 # BlueprintJS colour palettes (2 and 4)
@@ -103,7 +103,7 @@ DARK_THEME = {
 
 
 class PaletteColor(StrEnum):
-    """Palette colours used for overlay elements.
+    """Palette colours used for WCS overlay elements.
 
     Members of this enum class have additional attributes.
 
@@ -129,9 +129,9 @@ class PaletteColor(StrEnum):
 
 
 Overlay = StrEnum('Overlay', [(c.upper(), c) for c in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar")] + [('BEAM', 'beam.settingsForDisplay')])
-Overlay.__doc__ = """Overlay elements.
+Overlay.__doc__ = """WCS overlay elements.
 
-    Member values are paths to stores corresponding to these elements, relative to the overlay store.
+    Member values are paths to stores corresponding to these elements, relative to the WCS overlay store.
     """
 
 
@@ -297,3 +297,95 @@ class AnnotationFont(StrEnum):
     HELVETICA = "Helvetica"
     TIMES = "Times"
     COURIER = "Courier"
+
+
+class FontFamily(IntEnum):
+    """Font family used in WCS overlay components."""
+    SANS_SERIF = 0
+    TIMES = 1
+    ARIAL = 2
+    PALATINO = 3
+    COURIER_NEW = 4
+
+
+class FontStyle(IntEnum):
+    """Font style used in WCS overlay components."""
+    NORMAL = 0
+    ITALIC = 1
+    BOLD = 2
+    BOLD_ITALIC = 3
+
+
+class ColorbarPosition(StrEnum):
+    """Colorbar positions."""
+    RIGHT = "right"
+    TOP = "top"
+    BOTTOM = "bottom"
+
+
+class SpectralSystem(StrEnum):
+    """Spectral systems."""
+    LSRK = "LSRK"
+    LSRD = "LSRD"
+    BARY = "BARYCENT"
+    TOPO = "TOPOCENT"
+
+
+class SpectralUnit(StrEnum):
+    """Spectral units."""
+    KMS = "km/s"
+    MS = "m/s"
+    GHZ = "GHz"
+    MHZ = "MHz"
+    KHZ = "kHz"
+    HZ = "Hz"
+    M = "m"
+    MM = "mm"
+    UM = "um"
+    NM = "nm"
+    ANGSTROM = "Angstrom"
+
+
+SPECTRAL_TYPE_DESCRIPTION = {
+    "VRAD": "Radio velocity",
+    "VOPT": "Optical velocity",
+    "FREQ": "Frequency",
+    "WAVE": "Vacuum wavelength",
+    "AWAV": "Air wavelength",
+}
+
+
+SPECTRAL_TYPE_UNITS = {
+    "VRAD": (SpectralUnit.KMS, SpectralUnit.MS),
+    "VOPT": (SpectralUnit.KMS, SpectralUnit.MS),
+    "FREQ": (SpectralUnit.GHZ, SpectralUnit.MHZ, SpectralUnit.KHZ, SpectralUnit.HZ),
+    "WAVE": (SpectralUnit.MM, SpectralUnit.M, SpectralUnit.UM, SpectralUnit.NM, SpectralUnit.ANGSTROM),
+    "AWAV": (SpectralUnit.MM, SpectralUnit.M, SpectralUnit.UM, SpectralUnit.NM, SpectralUnit.ANGSTROM),
+}
+
+
+class SpectralType(StrEnum):
+    """Spectral types.
+
+    Members of this enum class have additional attributes.
+
+    Attributes
+    ----------
+    description : string
+        The human-readable description of this type.
+    units : set of :obj:`carta.constants.SpectralUnit`
+        The units supported for this type.
+    default_unit : :obj:`carta.constants.SpectralUnit`
+        The default unit for this type.
+    """
+
+    def __init__(self, value):
+        self.description = SPECTRAL_TYPE_DESCRIPTION[self.name]
+        self.units = set(SPECTRAL_TYPE_UNITS[self.name])
+        self.default_unit = SPECTRAL_TYPE_UNITS[self.name][0]
+
+    VRAD = "VRAD",
+    VOPT = "VOPT",
+    FREQ = "FREQ",
+    WAVE = "WAVE",
+    AWAV = "AWAV",

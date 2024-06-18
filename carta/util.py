@@ -294,3 +294,15 @@ class Point:
             The Y value.
         """
         return self.x, self.y
+
+
+def camel(*parts):
+    """Convert an iterable of strings to a camel case string."""
+    parts = [p for p in parts if p]
+    parts[1:] = [p.title() for p in parts[1:]]
+    return "".join(parts)
+
+
+def snake(*parts):
+    """Convert an iterable of strings to a snake case string."""
+    return "_".join([p for p in parts if p])
