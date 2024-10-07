@@ -182,10 +182,11 @@ Properties specific to individual images can be accessed through image objects:
 .. code-block:: python
 
     import numpy as np
-    from carta.constants import Colormap, Scaling
+    from carta.constants import Colormap, Scaling, Polarization
 
-    # change the channel
-    img.set_channel_stokes(10, 0, True)
+    # change the channel and polarization
+    img.set_channel(10)
+    img.set_polarization(Polarization.Q)
     # various commands for handling spatial and spectral matching are also available
 
     # pan and zoom
