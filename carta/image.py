@@ -3,14 +3,15 @@
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 
-from .constants import Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
-from .util import Macro, cached, BasePathMixin
-from .units import AngularSize, WorldCoordinate
-from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr
-from .metadata import parse_header
-
-from .raster import Raster
+from .constants import (Polarization, SpatialAxis, SpectralSystem,
+                        SpectralType, SpectralUnit)
 from .contours import Contours
+from .metadata import parse_header
+from .raster import Raster
+from .units import AngularSize, WorldCoordinate
+from .util import BasePathMixin, CartaActionFailed, Macro, cached
+from .validation import (Attr, Attrs, Boolean, Constant, Coordinate, Evaluate,
+                         NoneOr, Number, OneOf, Size, validate)
 from .vector_overlay import VectorOverlay
 from .wcs_overlay import ImageWCSOverlay
 
@@ -251,7 +252,12 @@ class Image(BasePathMixin):
 
     def make_active(self):
         """Make this the active image."""
-        self.session.call_action("setActiveFrameById", self.image_id)
+        try:
+            # Before CARTA 5.0.0
+            self.session.call_action("setActiveFrameById", self.image_id)
+        except CartaActionFailed:
+            # After CARTA 5.0.0 (inclusive)
+            self.session.call_action("setActiveImageByFileId", self.image_id)
 
     def make_spatial_reference(self):
         """Make this image the spatial reference."""
