@@ -171,8 +171,9 @@ Helper methods on the session object open images in the frontend and return imag
 .. code-block:: python
 
     # Open or append images
-    img1 = session.open_image("data/hdf5/first_file.hdf5")
-    img2 = session.open_image("data/fits/second_file.fits", append=True)
+    img0 = session.open_image("data/hdf5/first_file.hdf5")
+    img1 = session.open_image("data/fits/second_file.fits", append=True)
+    img2 = session.open_image("data/fits/third_file.fits", append=True)
         
 Changing image properties
 -------------------------
@@ -192,7 +193,7 @@ Properties specific to individual images can be accessed through image objects:
     # pan and zoom
     y, x = img.shape[-2:]
     img.set_center(x/2, y/2)
-    img.set_zoom(4)
+    img.set_zoom_level(4)
 
     # change colormap
     img.raster.set_colormap(Colormap.VIRIDIS)
@@ -225,7 +226,76 @@ Properties which affect the whole session can be set through the session object:
     session.wcs.global_.set_color(PaletteColor.RED)
     session.wcs.ticks.set_color(PaletteColor.VIOLET)
     session.wcs.title.show()
-    
+
+Making color blended image
+--------------------------
+
+Create a color blending object from a list of images.
+
+.. code-block:: python
+
+    from carta.colorblending import ColorBlending
+    from carta.constants import Colormap, ColormapSet
+
+    # Make a color blending object
+    # Warning: This will break the current spatial matching and
+    #          use the first image as the spatial reference
+    # Note: The base layer (id = 0) cannot be deleted or reordered.
+    cb = ColorBlending.from_images(session, [img0, img1, img2])
+
+    # Get layer objects
+    layers = cb.layer_list()
+
+    # Set colormap for individual layers
+    layers[0].set_colormap(Colormap.REDS)
+    layers[1].set_colormap(Colormap.GREENS)
+    layers[2].set_colormap(Colormap.BLUES)
+
+    # Or apply an existing colormap set
+    cb.set_colormap_set(ColormapSet.RGB)
+
+    # Print the current alpha values of all layers
+    print(cb.alpha)
+
+    # Set alpha for individual layers
+    layers[0].set_alpha(0.7)
+    layers[1].set_alpha(0.8)
+    layers[2].set_alpha(0.9)
+
+    # Or set alpha for all layers at once
+    cb.set_alpha([0.7, 0.8, 0.9])
+
+    # Reorder layers (except the base layer)
+    # Since the base layer (id = 0) cannot be reordered,
+    # the layers will be reordered as [img0, img2, img1]
+    cb.reorder_layers([2, 1])
+
+    # Remove the last layer (id = 2)
+    cb.delete_layer(2)
+
+    # Add a new layer
+    # The layer to be added cannot be one of the current layers
+    cb.add_layer(img1)
+
+    # Set center
+    cb.set_center(100, 100)
+
+    # Set zoom level
+    cb.set_zoom_level(2)
+
+    # Set the color blending object as the active frame
+    cb.make_active()
+
+    # Set contour visibility
+    # This will hide the contours (if any)
+    cb.set_contour_visible(False)
+
+    # Close the color blending object
+    cb.close()
+
+.. note::
+    When you would like to reorder the layers, especially when the base layer (id = 0) is involved, it is more recommended to close the current color blending object and create a new one.
+
 Saving or displaying an image
 -----------------------------
 
