@@ -230,6 +230,23 @@ Properties which affect the whole session can be set through the session object:
 Making color blended image
 --------------------------
 
+Create a color blending object from a list of files.
+
+.. code-block:: python
+
+    from carta.colorblending import ColorBlending
+    from carta.constants import Colormap, ColormapSet
+
+    # Make a color blending object
+    # Warning: setting `append=False` will close any existing images
+    # Note: The base layer (id = 0) cannot be deleted or reordered.
+    files = [
+        "data/hdf5/first_file.hdf5",
+        "data/fits/second_file.fits",
+        "data/fits/third_file.fits",
+    ]
+    cb = ColorBlending.from_files(session, files, append=False)
+
 Create a color blending object from a list of images.
 
 .. code-block:: python
@@ -242,6 +259,10 @@ Create a color blending object from a list of images.
     #          use the first image as the spatial reference
     # Note: The base layer (id = 0) cannot be deleted or reordered.
     cb = ColorBlending.from_images(session, [img0, img1, img2])
+
+Manipulate properties of the color blending object and the underlying images.
+
+.. code-block:: python
 
     # Get layer objects
     layers = cb.layer_list()

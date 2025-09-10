@@ -1,29 +1,37 @@
 from .constants import Colormap, ColormapSet
 from .image import Image
 from .util import BasePathMixin, CartaActionFailed, Macro, cached
-from .validation import (Boolean, Constant, Coordinate, InstanceOf, IterableOf,
-                         Number, validate)
+from .validation import (
+    Boolean,
+    Constant,
+    Coordinate,
+    InstanceOf,
+    IterableOf,
+    Number,
+    validate,
+)
 
 
 class Layer(BasePathMixin):
     """This object represents a single layer in a color blending object.
-`
-    Parameters
-    ----------
-    colorblending : :obj:`carta.colorblending.ColorBlending`
-        The color blending object.
-    layer_id : int
-        The layer ID.
+    `
+        Parameters
+        ----------
+        colorblending : :obj:`carta.colorblending.ColorBlending`
+            The color blending object.
+        layer_id : int
+            The layer ID.
 
-    Attributes
-    ----------
-    colorblending : :obj:`carta.colorblending.ColorBlending`
-        The color blending object.
-    layer_id : int
-        The layer ID.
-    session : :obj:`carta.session.Session`
-        The session object associated with this layer.
+        Attributes
+        ----------
+        colorblending : :obj:`carta.colorblending.ColorBlending`
+            The color blending object.
+        layer_id : int
+            The layer ID.
+        session : :obj:`carta.session.Session`
+            The session object associated with this layer.
     """
+
     def __init__(self, colorblending, layer_id):
         self.colorblending = colorblending
         self.layer_id = layer_id
@@ -58,7 +66,7 @@ class Layer(BasePathMixin):
         cb_name = self.colorblending.file_name
         repr_content = [
             f"{session_id}:{cb_id}:{cb_name}",
-            f"{self.layer_id}:{self.file_name}"
+            f"{self.layer_id}:{self.file_name}",
         ]
         return ":".join(repr_content)
 
@@ -108,10 +116,8 @@ class Layer(BasePathMixin):
         invert : bool
             Whether the colormap should be inverted. This is false by default.
         """
-        self.call_action(
-            "renderConfig.setColorMap", colormap)
-        self.call_action(
-            "renderConfig.setInverted", invert)
+        self.call_action("renderConfig.setColorMap", colormap)
+        self.call_action("renderConfig.setInverted", invert)
 
 
 class ColorBlending(BasePathMixin):
@@ -131,6 +137,7 @@ class ColorBlending(BasePathMixin):
     image_id : int
         The image ID.
     """
+
     def __init__(self, session, image_id):
         self.session = session
         self.image_id = image_id
@@ -139,8 +146,7 @@ class ColorBlending(BasePathMixin):
         self._base_path = f"{path}[{self.image_id}]"
         self._frame = Macro("", self._base_path)
 
-        self.base_frame = Image(
-            self.session, self.layer_list()[0].image_id)
+        self.base_frame = Image(self.session, self.layer_list()[0].image_id)
 
     @classmethod
     def from_images(cls, session, images):
@@ -163,15 +169,40 @@ class ColorBlending(BasePathMixin):
         # Align the other images to the spatial reference
         for image in images[1:]:
             success = image.call_action(
-                "setSpatialReference", images[0]._frame)
+                "setSpatialReference", images[0]._frame
+            )
             if not success:
                 name = image.file_name
                 raise CartaActionFailed(
-                    f"Failed to set spatial reference for image {name}.")
+                    f"Failed to set spatial reference for image {name}."
+                )
 
         command = "imageViewConfigStore.createColorBlending"
         image_id = session.call_action(command, return_path="id")
         return cls(session, image_id)
+
+    @classmethod
+    def from_files(cls, session, files, append=False):
+        """Create a color blending object from a list of files.
+
+        Parameters
+        ----------
+        session : :obj:`carta.session.Session`
+            The session object.
+        files : list of string
+            The files to be blended.
+        append : bool
+            Whether the images should be appended to existing images.
+            By default this is ``False`` and any existing open images
+            are closed.
+
+        Returns
+        -------
+        :obj:`carta.colorblending.ColorBlending`
+            A new color blending object.
+        """
+        images = session.open_images(files, append=append)
+        return cls.from_images(session, images)
 
     def __repr__(self):
         """A human-readable representation of this color blending object."""
@@ -201,7 +232,8 @@ class ColorBlending(BasePathMixin):
             The image ID.
         """
         imageview_names = self.session.get_value(
-            "imageViewConfigStore.imageNames")
+            "imageViewConfigStore.imageNames"
+        )
         return imageview_names.index(self.file_name)
 
     @property
@@ -229,6 +261,7 @@ class ColorBlending(BasePathMixin):
         list of :obj:`carta.colorblending.Layer`
             A list of Layer objects.
         """
+
         def count_layers():
             idx = 0
             while True:
@@ -238,6 +271,7 @@ class ColorBlending(BasePathMixin):
                 except CartaActionFailed:
                     break
             return idx
+
         return [Layer(self, i) for i in range(count_layers())]
 
     def add_layer(self, image):
@@ -411,4 +445,5 @@ class ColorBlending(BasePathMixin):
     def close(self):
         """Close this color blending object."""
         self.session.call_action(
-            "imageViewConfigStore.removeColorBlending", self._frame)
+            "imageViewConfigStore.removeColorBlending", self._frame
+        )
