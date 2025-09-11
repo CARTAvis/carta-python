@@ -1,10 +1,10 @@
 import pytest
 
 from carta.colorblending import ColorBlending, Layer
+from carta.constants import Colormap as CM
+from carta.constants import ColormapSet as CMS
 from carta.image import Image
-from carta.util import Macro, CartaActionFailed, CartaValidationFailed
-from carta.constants import Colormap as CM, ColormapSet as CMS
-
+from carta.util import CartaActionFailed, CartaValidationFailed, Macro
 
 # FIXTURES
 
@@ -126,7 +126,9 @@ def test_colorblending_file_name(colorblending, cb_get_value):
     cb_get_value.assert_called_with("filename")
 
 
-def test_colorblending_imageview_id(session, colorblending, session_get_value, cb_property):
+def test_colorblending_imageview_id(
+    session, colorblending, session_get_value, cb_property
+):
     cb_property("file_name", "imgC")
     session_get_value.side_effect = [["imgA", "imgB", "imgC", "imgD"]]
     assert colorblending.imageview_id == 2
@@ -138,7 +140,9 @@ def test_colorblending_alpha(colorblending, cb_get_value):
     cb_get_value.assert_called_with("alpha")
 
 
-def test_colorblending_make_active(session, colorblending, cb_property, session_call_action):
+def test_colorblending_make_active(
+    session, colorblending, cb_property, session_call_action
+):
     cb_property("imageview_id", 9)
     colorblending.make_active()
     session_call_action.assert_called_with("setActiveImageByIndex", 9)
@@ -154,7 +158,11 @@ def test_colorblending_layer_list_derived(session, mocker):
 
     # Simulate two layers and then failure for third
     gv = mocker.patch.object(cb, "get_value")
-    gv.side_effect = [1, 2, CartaActionFailed("stop")]  # fileIds for idx 0,1 then fail
+    gv.side_effect = [
+        1,
+        2,
+        CartaActionFailed("stop"),
+    ]  # fileIds for idx 0,1 then fail
 
     layers = cb.layer_list()
     assert [ly.layer_id for ly in layers] == [0, 1]
@@ -166,15 +174,21 @@ def test_colorblending_add_layer(colorblending, cb_call_action, image):
 
 
 @pytest.mark.parametrize("idx,expected_param", [(1, 0), (3, 2)])
-def test_colorblending_delete_layer(colorblending, cb_call_action, idx, expected_param):
+def test_colorblending_delete_layer(
+    colorblending, cb_call_action, idx, expected_param
+):
     colorblending.delete_layer(idx)
     cb_call_action.assert_called_with("deleteSelectedFrame", expected_param)
 
 
 @pytest.mark.parametrize("idx,expected_param", [(1, 0), (5, 4)])
-def test_colorblending_set_layer(colorblending, cb_call_action, image, idx, expected_param):
+def test_colorblending_set_layer(
+    colorblending, cb_call_action, image, idx, expected_param
+):
     colorblending.set_layer(image, idx)
-    cb_call_action.assert_called_with("setSelectedFrame", expected_param, image._frame)
+    cb_call_action.assert_called_with(
+        "setSelectedFrame", expected_param, image._frame
+    )
 
 
 def test_colorblending_reorder_layers(session, colorblending, mocker):
@@ -184,7 +198,11 @@ def test_colorblending_reorder_layers(session, colorblending, mocker):
             self.layer_id = lid
             self.image_id = iid
 
-    mocker.patch.object(ColorBlending, "layer_list", return_value=[_L(0, 10), _L(1, 20), _L(2, 30)])
+    mocker.patch.object(
+        ColorBlending,
+        "layer_list",
+        return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
+    )
     del_layer = mocker.patch.object(colorblending, "delete_layer")
     add_layer = mocker.patch.object(colorblending, "add_layer")
 
@@ -241,11 +259,23 @@ def test_colorblending_set_alpha_invalid(colorblending, vals):
     "getter,method,action,state",
     [
         ("rasterVisible", "set_raster_visible", "toggleRasterVisible", True),
-        ("contourVisible", "set_contour_visible", "toggleContourVisible", True),
-        ("vectorOverlayVisible", "set_vectoroverlay_visible", "toggleVectorOverlayVisible", False),
+        (
+            "contourVisible",
+            "set_contour_visible",
+            "toggleContourVisible",
+            True,
+        ),
+        (
+            "vectorOverlayVisible",
+            "set_vectoroverlay_visible",
+            "toggleVectorOverlayVisible",
+            False,
+        ),
     ],
 )
-def test_colorblending_toggle_visibility_when_needed(colorblending, cb_get_value, cb_call_action, getter, method, action, state):
+def test_colorblending_toggle_visibility_when_needed(
+    colorblending, cb_get_value, cb_call_action, getter, method, action, state
+):
     # Current state opposite to desired -> should toggle
     cb_get_value.side_effect = [not state]
     getattr(colorblending, method)(state)
@@ -256,11 +286,23 @@ def test_colorblending_toggle_visibility_when_needed(colorblending, cb_get_value
     "getter,method,action,state",
     [
         ("rasterVisible", "set_raster_visible", "toggleRasterVisible", True),
-        ("contourVisible", "set_contour_visible", "toggleContourVisible", False),
-        ("vectorOverlayVisible", "set_vectoroverlay_visible", "toggleVectorOverlayVisible", True),
+        (
+            "contourVisible",
+            "set_contour_visible",
+            "toggleContourVisible",
+            False,
+        ),
+        (
+            "vectorOverlayVisible",
+            "set_vectoroverlay_visible",
+            "toggleVectorOverlayVisible",
+            True,
+        ),
     ],
 )
-def test_colorblending_toggle_visibility_noop(colorblending, cb_get_value, cb_call_action, getter, method, action, state):
+def test_colorblending_toggle_visibility_noop(
+    colorblending, cb_get_value, cb_call_action, getter, method, action, state
+):
     # Current state equals desired -> no toggle
     cb_get_value.side_effect = [state]
     getattr(colorblending, method)(state)
@@ -293,27 +335,41 @@ def test_colorblending_from_images_success(session, mocker):
     mocker.patch.object(ColorBlending, "__init__", return_value=None)
     cb = ColorBlending.from_images(session, [img0, img1])
     assert isinstance(cb, ColorBlending)
-    session.call_action.assert_any_call("setSpatialReference", img0._frame, False)
+    session.call_action.assert_any_call(
+        "setSpatialReference", img0._frame, False
+    )
     img1.call_action.assert_called_with("setSpatialReference", img0._frame)
-    session.call_action.assert_called_with("imageViewConfigStore.createColorBlending", return_path="id")
+    session.call_action.assert_called_with(
+        "imageViewConfigStore.createColorBlending", return_path="id"
+    )
 
 
-def test_colorblending_from_images_alignment_failure(session, mocker):
+def test_colorblending_from_images_alignment_failure(
+    session, mocker, mock_property
+):
     img0 = Image(session, 100)
     img1 = Image(session, 200)
 
     mocker.patch.object(session, "call_action")
-    mocker.patch.object(type(img1), "file_name", new_callable=mocker.PropertyMock, return_value="bad.fits")
+    mock_property("carta.image.Image")("file_name", "bad.fits")
     mocker.patch.object(img1, "call_action", return_value=False)
 
     with pytest.raises(CartaActionFailed) as e:
         ColorBlending.from_images(session, [img0, img1])
-    assert "Failed to set spatial reference for image bad.fits." in str(e.value)
+    assert "Failed to set spatial reference for image bad.fits." in str(
+        e.value
+    )
 
 
 def test_colorblending_from_files(session, mocker):
-    mock_open_images = mocker.patch.object(session, "open_images", return_value=[Image(session, 1), Image(session, 2)])
-    mock_from_images = mocker.patch.object(ColorBlending, "from_images", return_value="CB")
+    mock_open_images = mocker.patch.object(
+        session,
+        "open_images",
+        return_value=[Image(session, 1), Image(session, 2)],
+    )
+    mock_from_images = mocker.patch.object(
+        ColorBlending, "from_images", return_value="CB"
+    )
     out = ColorBlending.from_files(session, ["a.fits", "b.fits"], append=True)
     mock_open_images.assert_called_with(["a.fits", "b.fits"], append=True)
     mock_from_images.assert_called()
