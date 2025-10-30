@@ -276,9 +276,6 @@ def test_size(region, get_value, region_type):
 
     if region_type in {RT.POINT, RT.ANNPOINT}:
         reg_get_value = get_value(reg, None)
-    elif region_type in {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER}:
-        # Check that we get the absolute values of these
-        reg_get_value = get_value(reg, {"x": -20, "y": -30})
     else:
         reg_get_value = get_value(reg, {"x": 20, "y": 30})
 
@@ -297,7 +294,7 @@ def test_size(region, get_value, region_type):
 def test_wcs_size(region, get_value, property_, mock_to_angular, region_type):
     reg = region(region_type)
 
-    if region_type in {RT.ELLIPSE, RT.ANNELLIPSE, RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER}:
+    if region_type in {RT.ELLIPSE, RT.ANNELLIPSE}:
         # Bypasses wcsSize to call own (overridden) size and converts to angular units
         property_(reg)("size", (20, 30))
     elif region_type in {RT.POINT, RT.ANNPOINT}:
@@ -308,7 +305,7 @@ def test_wcs_size(region, get_value, property_, mock_to_angular, region_type):
 
     size = reg.wcs_size
 
-    if region_type in {RT.ELLIPSE, RT.ANNELLIPSE, RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER}:
+    if region_type in {RT.ELLIPSE, RT.ANNELLIPSE}:
         mock_to_angular.assert_called_with([(20, 30)])
         assert size == ("20", "30")
     elif region_type in {RT.POINT, RT.ANNPOINT}:
@@ -345,22 +342,11 @@ def test_simple_properties(region, get_value, method_name, value_name):
     ((20, 30), Pt(20, 30)),
     (("20", "30"), Pt(20, 30)),
 ])
-def test_set_center(region, mock_from_world, call_action, method, property_, region_type, value, expected_value):
+def test_set_center(region, mock_from_world, call_action, region_type, value, expected_value):
     reg = region(region_type)
-
-    if region_type == RT.ANNRULER:
-        property_(reg)("size", (-10, -10))
-        property_(reg)("rotation", 135)
-        mock_set_points = method(reg)("set_control_points", None)
-    else:
-        mock_call = call_action(reg)
-
+    mock_call = call_action(reg)
     reg.set_center(value)
-
-    if region_type == RT.ANNRULER:
-        mock_set_points.assert_called_with([(15, 25), (25, 35)])
-    else:
-        mock_call.assert_called_with("setCenter", expected_value)
+    mock_call.assert_called_with("setCenter", expected_value)
 
 
 @pytest.mark.parametrize("region_type", [t for t in RT])
@@ -369,21 +355,12 @@ def test_set_center(region, mock_from_world, call_action, method, property_, reg
     ((-20, -30), Pt(-20, -30)),
     (("20", "30"), Pt(20, 30)),
 ])
-def test_set_size(region, mock_from_angular, call_action, method, property_, region_type, value, expected_value):
+def test_set_size(region, mock_from_angular, call_action, region_type, value, expected_value):
     reg = region(region_type)
-
-    if region_type in {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER}:
-        mock_set_points = method(reg)("set_control_points", None)
-        property_(reg)("center", (10, 10))
-        property_(reg)("rotation", 135)
-    else:
-        mock_call = call_action(reg)
-
+    mock_call = call_action(reg)
     reg.set_size(value)
 
-    if region_type in {RT.LINE, RT.ANNLINE, RT.ANNVECTOR, RT.ANNRULER}:
-        mock_set_points.assert_called_with([(0.0, -5.0), (20.0, 25.0)])
-    elif region_type == RT.ANNCOMPASS:
+    if region_type == RT.ANNCOMPASS:
         mock_call.assert_called_with("setLength", min(expected_value.x, expected_value.y))
     elif region_type in {RT.ELLIPSE, RT.ANNELLIPSE}:
         mock_call.assert_called_with("setSize", Pt(expected_value.y / 2, expected_value.x / 2))
@@ -468,40 +445,20 @@ def test_delete(region, regionset_call_action):
 
 
 @pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.RECTANGLE, RT.ANNRECTANGLE, RT.ELLIPSE, RT.ANNELLIPSE, RT.ANNTEXT, RT.ANNVECTOR, RT.ANNRULER})
-def test_rotation(region, get_value, property_, region_type):
+def test_rotation(region, get_value, region_type):
     reg = region(region_type)
-
-    if region_type == RT.ANNRULER:
-        property_(reg)("endpoints", [(90, 110), (110, 90)])
-    else:
-        mock_rotation = get_value(reg, "dummy")
-
+    mock_rotation = get_value(reg, "dummy")
     value = reg.rotation
-
-    if region_type == RT.ANNRULER:
-        assert value == 45
-    else:
-        mock_rotation.assert_called_with("rotation")
-        assert value == "dummy"
+    mock_rotation.assert_called_with("rotation")
+    assert value == "dummy"
 
 
 @pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.RECTANGLE, RT.ANNRECTANGLE, RT.ELLIPSE, RT.ANNELLIPSE, RT.ANNTEXT, RT.ANNVECTOR, RT.ANNRULER})
-def test_set_rotation(region, call_action, method, property_, region_type):
+def test_set_rotation(region, call_action, region_type):
     reg = region(region_type)
-
-    if region_type == RT.ANNRULER:
-        property_(reg)("center", (100, 100))
-        property_(reg)("size", (20, 20))
-        mock_set_points = method(reg)("set_control_points", None)
-    else:
-        mock_call = call_action(reg)
-
+    mock_call = call_action(reg)
     reg.set_rotation(45)
-
-    if region_type == RT.ANNRULER:
-        mock_set_points.assert_called_with([(90, 110), (110, 90)])
-    else:
-        mock_call.assert_called_with("setRotation", 45)
+    mock_call.assert_called_with("setRotation", 45)
 
 
 @pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})

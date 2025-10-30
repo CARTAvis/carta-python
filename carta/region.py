@@ -923,35 +923,6 @@ class HasEndpointsMixin:
     # GET PROPERTIES
 
     @property
-    def size(self):
-        """The size, in pixels.
-
-        Returns
-        -------
-        number
-            The width.
-        number
-            The height.
-        """
-        sx, sy = super().size
-        # return the magnitudes of the raw frontend values for consistency
-        return (abs(sx), abs(sy))
-
-    @property
-    def wcs_size(self):
-        """The size, in angular size units.
-
-        Returns
-        -------
-        string
-            The width.
-        string
-            The height.
-        """
-        [size] = self.region_set.image.to_angular_size_points([self.size])
-        return size
-
-    @property
     def endpoints(self):
         """The endpoints, in image coordinates.
 
@@ -999,33 +970,6 @@ class HasEndpointsMixin:
         return str(AngularSize.from_arcsec(math.hypot(*arcsec_size)))
 
     # SET PROPERTIES
-
-    @validate(Point.SizePoint())
-    def set_size(self, size):
-        """Set the size.
-
-        Both pixel and angular sizes are accepted, but both values must match. Signs will be ignored; the orientation of the line will be preserved (unless one of the dimensions is set to zero).
-
-        Parameters
-        ----------
-        size : {0}
-            The new width and height, in that order.
-        """
-        [size] = self.region_set._from_angular_sizes([size])
-
-        x, y = size
-        cx, cy = self.center
-        rad = math.radians(self.rotation)
-
-        x = abs(x)
-        y = abs(y)
-        dx = math.copysign(x, math.sin(rad) or 1)
-        dy = -math.copysign(y, math.cos(rad) or 1)
-
-        start = cx - dx / 2, cy - dy / 2
-        end = cx + dx / 2, cy + dy / 2
-
-        self.set_control_points([start, end])
 
     @validate(*all_optional(Point.CoordinatePoint(), Point.CoordinatePoint()))
     def set_endpoints(self, start=None, end=None):
@@ -1645,7 +1589,7 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
             self.call_action("setEastArrowhead", east)
 
 
-class RulerAnnotation(HasFontMixin, HasEndpointsMixin, Region):
+class RulerAnnotation(HasFontMixin, HasEndpointsMixin, HasRotationMixin, Region):
     """A ruler annotation."""
     REGION_TYPES = (RegionType.ANNRULER,)
     """The region types corresponding to this class."""
@@ -1687,67 +1631,7 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, Region):
         """
         return Pt(**self.get_value("textOffset")).as_tuple()
 
-    @property
-    def rotation(self):
-        """The rotation, in degrees.
-
-        Returns
-        -------
-        number
-            The rotation.
-        """
-        ((sx, sy), (ex, ey)) = self.endpoints
-        rad = math.atan2(ex - sx, sy - ey)
-        rotation = math.degrees(rad)
-        rotation = (rotation + 360) % 360
-        return rotation
-
     # SET PROPERTIES
-
-    @validate(Point.CoordinatePoint())
-    def set_center(self, center):
-        """Set the center position.
-
-        Both image and world coordinates are accepted, but both values must match.
-
-        Parameters
-        ----------
-        center : {0}
-            The new center position.
-        """
-        [center] = self.region_set._from_world_coordinates([center])
-        cx, cy = center
-
-        rad = math.radians(self.rotation)
-        dx = math.hypot(*self.size) * math.sin(rad)
-        dy = math.hypot(*self.size) * -1 * math.cos(rad)
-
-        start = cx - dx / 2, cy - dy / 2
-        end = cx + dx / 2, cy + dy / 2
-
-        self.set_control_points([start, end])
-
-    @validate(Number())
-    def set_rotation(self, rotation):
-        """Set the rotation.
-
-        Parameters
-        ----------
-        angle : {0}
-            The new rotation, in degrees.
-        """
-        rotation = rotation + 360 % 360
-
-        cx, cy = self.center
-
-        rad = math.radians(rotation)
-        dx = math.hypot(*self.size) * math.sin(rad)
-        dy = math.hypot(*self.size) * -1 * math.cos(rad)
-
-        start = cx - dx / 2, cy - dy / 2
-        end = cx + dx / 2, cy + dy / 2
-
-        self.set_control_points([start, end])
 
     @validate(*all_optional(Boolean(), Number()))
     def set_auxiliary_lines_style(self, visible=None, dash_length=None):
