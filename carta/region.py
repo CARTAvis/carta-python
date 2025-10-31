@@ -193,6 +193,31 @@ class RegionSet(BasePathMixin):
             pass
         return points
 
+    def _center_size_from_corners(self, bottom_left, top_right):
+        """Internal utility function for calculating a center point and a size from a bottom-left and top-right corner.
+
+        The corner points provided must be in image coordinates, and the returned center and size values are in image coordinates and pixel sizes, respectively.
+
+        Parameters
+        ----------
+        bottom_left : point in image coordinates
+            The bottom-left corner.
+        top_right : point in image coordinates
+            The top-right corner.
+
+        Returns
+        -------
+        point in image coordinates
+            The center point.
+        pair of pixel sizes
+            The size.
+        """
+        bottom_left = Pt(*bottom_left)
+        top_right = Pt(*top_right)
+        size = Pt(top_right.x - bottom_left.x, top_right.y - bottom_left.y)
+        center = size.x / 2 + bottom_left.x, size.y / 2 + bottom_left.y
+        return center, size.as_tuple()
+
     @validate(Point.CoordinatePoint(), Boolean(), String())
     def add_point(self, center, annotation=False, name=""):
         """Add a new point region or point annotation to this image.
@@ -215,9 +240,9 @@ class RegionSet(BasePathMixin):
         region_type = RegionType.ANNPOINT if annotation else RegionType.POINT
         return self.add_region(region_type, [center], name=name)
 
-    @validate(Point.CoordinatePoint(), Point.SizePoint(), Boolean(), Number(), String())
-    def add_rectangle(self, center, size, annotation=False, rotation=0, name=""):
-        """Add a new rectangular region or rectangular annotation to this image.
+    @validate(Point.CoordinatePoint(), Point.SizePoint(), Number(), Boolean(), String())
+    def add_rectangle(self, center, size, rotation=0, annotation=False, name=""):
+        """Add a new rectangular region or rectangular annotation to this image with the center point and size provided.
 
         Parameters
         ----------
@@ -225,10 +250,10 @@ class RegionSet(BasePathMixin):
             The center position.
         size : {1}
             The size. The two values will be interpreted as the width and height, respectively.
-        annotation : {2}
-            Whether this region should be an annotation. Defaults to ``False``.
-        rotation : {3}
+        rotation : {2}
             The rotation, in degrees. Defaults to zero.
+        annotation : {3}
+            Whether this region should be an annotation. Defaults to ``False``.
         name : {4}
             The name. Defaults to the empty string.
 
@@ -242,9 +267,36 @@ class RegionSet(BasePathMixin):
         region_type = RegionType.ANNRECTANGLE if annotation else RegionType.RECTANGLE
         return self.add_region(region_type, [center, size], rotation, name)
 
-    @validate(Point.CoordinatePoint(), Point.SizePoint(), Boolean(), Number(), String())
-    def add_ellipse(self, center, semi_axes, annotation=False, rotation=0, name=""):
-        """Add a new elliptical region or elliptical annotation to this image.
+    @validate(Point.CoordinatePoint(), Point.CoordinatePoint(), Number(), Boolean(), String())
+    def add_rectangle_from_corners(self, bottom_left, top_right, rotation=0, annotation=False, name=""):
+        """Add a new rectangular region or rectangular annotation to this image with the bottom-left and top-right corners provided.
+
+        Parameters
+        ----------
+        bottom_left : {0}
+            The bottom-left corner position.
+        top_right : {1}
+            The top-right corner position.
+        rotation : {2}
+            The rotation, in degrees. Defaults to zero.
+        annotation : {3}
+            Whether this region should be an annotation. Defaults to ``False``.
+        name : {4}
+            The name. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.Region` object
+            A new region object.
+        """
+        [bottom_left] = self._from_world_coordinates([bottom_left])
+        [top_right] = self._from_world_coordinates([top_right])
+        center, size = self._center_size_from_corners(bottom_left, top_right)
+        return self.add_rectangle(center, size, rotation, annotation, name)
+
+    @validate(Point.CoordinatePoint(), Point.SizePoint(), Number(), Boolean(), String())
+    def add_ellipse(self, center, semi_axes, rotation=0, annotation=False, name=""):
+        """Add a new elliptical region or elliptical annotation to this image with the center point and semi-axes provided.
 
         Parameters
         ----------
@@ -252,10 +304,10 @@ class RegionSet(BasePathMixin):
             The center position.
         semi_axes : {1}
             The semi-axes. The two values will be interpreted as the north-south and east-west axes, respectively.
-        annotation : {2}
-            Whether this region should be an annotation. Defaults to ``False``.
-        rotation : {3}
+        rotation : {2}
             The rotation, in degrees. Defaults to zero.
+        annotation : {3}
+            Whether this region should be an annotation. Defaults to ``False``.
         name : {4}
             The name. Defaults to the empty string.
 
@@ -269,6 +321,62 @@ class RegionSet(BasePathMixin):
 
         region_type = RegionType.ANNELLIPSE if annotation else RegionType.ELLIPSE
         return self.add_region(region_type, [center, semi_axes], rotation, name)
+
+    @validate(Point.CoordinatePoint(), Point.SizePoint(), Number(), Boolean(), String())
+    def add_ellipse_from_size(self, center, size, rotation=0, annotation=False, name=""):
+        """Add a new elliptical region or elliptical annotation to this image with the center point and size provided.
+
+        The width and height will be used to calculate the semi-axes: the north-south semi-axis is equal to half of the height, and the east-west semi-axis is equal to half of the width.
+
+        Parameters
+        ----------
+        center : {0}
+            The center position.
+        size : {1}
+            The size. The two values will be interpreted as the width and height, respectively.
+        rotation : {2}
+            The rotation, in degrees. Defaults to zero.
+        annotation : {3}
+            Whether this region should be an annotation. Defaults to ``False``.
+        name : {4}
+            The name. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.Region` object
+            A new region object.
+        """
+        [size] = self._from_angular_sizes([size])
+        width, height = size
+        semi_axes = height / 2, width / 2
+        return self.add_ellipse(center, semi_axes, rotation, annotation, name)
+
+    @validate(Point.CoordinatePoint(), Point.SizePoint(), Number(), Boolean(), String())
+    def add_ellipse_from_corners(self, bottom_left, top_right, rotation=0, annotation=False, name=""):
+        """Add a new elliptical region or elliptical annotation to this image with the bottom-left and top-right corners provided.
+
+        Parameters
+        ----------
+        bottom_left : {0}
+            The bottom-left corner position.
+        top_right : {1}
+            The top-right corner position.
+        rotation : {2}
+            The rotation, in degrees. Defaults to zero.
+        annotation : {3}
+            Whether this region should be an annotation. Defaults to ``False``.
+        name : {4}
+            The name. Defaults to the empty string.
+
+        Returns
+        -------
+        :obj:`carta.region.Region` object
+            A new region object.
+        """
+        [bottom_left] = self._from_world_coordinates([bottom_left])
+        [top_right] = self._from_world_coordinates([top_right])
+        center, size = self._center_size_from_corners(bottom_left, top_right)
+        return self.add_ellipse_from_size(center, size, rotation, annotation, name)
 
     @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())), Boolean(), String())
     def add_polygon(self, points, annotation=False, name=""):
