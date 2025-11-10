@@ -272,7 +272,7 @@ def test_region_type(image, get_value):
     assert region_type == RT.RECTANGLE
 
 
-@pytest.mark.parametrize("region_type", [t for t in RT])
+@pytest.mark.parametrize("region_type", {t for t in RT})
 def test_center(region, get_value, region_type):
     reg = region(region_type)
     reg_get_value = get_value(reg, {"x": 20, "y": 30})
@@ -283,7 +283,7 @@ def test_center(region, get_value, region_type):
     assert center == (20, 30)
 
 
-@pytest.mark.parametrize("region_type", [t for t in RT])
+@pytest.mark.parametrize("region_type", {t for t in RT})
 def test_wcs_center(region, property_, mock_to_world, region_type):
     reg = region(region_type)
     property_(reg)("center", (20, 30))
@@ -294,7 +294,7 @@ def test_wcs_center(region, property_, mock_to_world, region_type):
     assert wcs_center == ("20", "30")
 
 
-@pytest.mark.parametrize("region_type", [t for t in RT])
+@pytest.mark.parametrize("region_type", {t for t in RT})
 def test_size(region, get_value, region_type):
     reg = region(region_type)
 
@@ -314,7 +314,7 @@ def test_size(region, get_value, region_type):
         assert size == (20, 30)
 
 
-@pytest.mark.parametrize("region_type", [t for t in RT])
+@pytest.mark.parametrize("region_type", {t for t in RT})
 def test_wcs_size(region, get_value, property_, mock_to_angular, region_type):
     reg = region(region_type)
 
@@ -361,7 +361,7 @@ def test_simple_properties(region, get_value, method_name, value_name):
     assert value == "dummy"
 
 
-@pytest.mark.parametrize("region_type", [t for t in RT])
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
 @pytest.mark.parametrize("value,expected_value", [
     ((20, 30), Pt(20, 30)),
     (("20", "30"), Pt(20, 30)),
@@ -373,11 +373,28 @@ def test_set_center(region, mock_from_world, call_action, region_type, value, ex
     mock_call.assert_called_with("setCenter", expected_value)
 
 
-@pytest.mark.parametrize("region_type", [t for t in RT])
+@pytest.mark.parametrize("region_type", {RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
+@pytest.mark.parametrize("value,expected_value", [
+    ((15, 25), [(5, 15), (15, 35), (25, 25)]),
+    (("15", "25"), [(5, 15), (15, 35), (25, 25)]),
+])
+def test_set_center_poly(region, mock_from_world, method, property_, region_type, value, expected_value):
+    reg = region(region_type)
+
+    property_(reg)("vertices", [(10, 10), (20, 30), (30, 20)])
+    property_(reg)("center", (20, 20))
+    mock_set_vertices = method(reg)("set_vertices", None)
+    reg.set_center(value)
+
+    mock_set_vertices.assert_called_with(expected_value)
+
+
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
 @pytest.mark.parametrize("value,expected_value", [
     ((20, 30), Pt(20, 30)),
-    ((-20, -30), Pt(-20, -30)),
+    ((-20, -30), Pt(20, 30)),
     (("20", "30"), Pt(20, 30)),
+    (("-20", "-30"), Pt(20, 30)),
 ])
 def test_set_size(region, mock_from_angular, call_action, region_type, value, expected_value):
     reg = region(region_type)
@@ -390,6 +407,25 @@ def test_set_size(region, mock_from_angular, call_action, region_type, value, ex
         mock_call.assert_called_with("setSize", Pt(expected_value.y / 2, expected_value.x / 2))
     else:
         mock_call.assert_called_with("setSize", expected_value)
+
+
+@pytest.mark.parametrize("region_type", {RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
+@pytest.mark.parametrize("value,expected_value", [
+    ((20, 30), [(10.0, 5.0), (20.0, 35.0), (30.0, 20.0)]),
+    ((-20, -30), [(10.0, 5.0), (20.0, 35.0), (30.0, 20.0)]),
+    (("20", "30"), [(10.0, 5.0), (20.0, 35.0), (30.0, 20.0)]),
+    (("-20", "-30"), [(10.0, 5.0), (20.0, 35.0), (30.0, 20.0)]),
+])
+def test_set_size_poly(region, mock_from_angular, method, property_, region_type, value, expected_value):
+    reg = region(region_type)
+    property_(reg)("vertices", [(10, 10), (20, 30), (30, 20)])
+    property_(reg)("size", (20, 20))
+    property_(reg)("center", (20, 20))
+    mock_set_vertices = method(reg)("set_vertices", None)
+
+    reg.set_size(value)
+
+    mock_set_vertices.assert_called_with(expected_value)
 
 
 def test_set_control_point(region, call_action):

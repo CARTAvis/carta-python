@@ -834,13 +834,15 @@ class Region(BasePathMixin):
 
         Both pixel and angular sizes are accepted, but both values must match.
 
+        Signs will be ignored; only the magnitudes of the values will be used.
+
         Parameters
         ----------
         size : {0}
             The new size.
         """
-        [size] = self.region_set._from_angular_sizes([size])
-        self.call_action("setSize", Pt(*size))
+        [(w, h)] = self.region_set._from_angular_sizes([size])
+        self.call_action("setSize", Pt(abs(w), abs(h)))
 
     @validate(Number(), Point.NumericPoint())
     def set_control_point(self, index, point):
@@ -1024,6 +1026,50 @@ class HasVerticesMixin:
         points = self.region_set._from_world_coordinates(points)
         self.set_control_points(points)
 
+    @validate(Point.SizePoint())
+    def set_size(self, size):
+        """Set the size.
+
+        The region will be scaled to the size provided, with the center point location preserved.
+
+        Both pixel and angular sizes are accepted, but both values must match.
+
+        Signs will be ignored; only the magnitudes of the values will be used.
+
+        This function will have no effect if any component of either the existing size or the provided size is zero.
+
+        Parameters
+        ----------
+        size : {0}
+            The new width and height, in that order.
+        """
+        [new] = self.region_set._from_angular_sizes([size])
+        new = Pt(*new)
+        old = Pt(*self.size)
+        # No-op
+        if all((new.x, new.y, old.x, old.y)):
+            f = Pt(abs(new.x / old.x), abs(new.y / old.y))
+            c = Pt(*self.center)
+            new_vertices = [((Pt(*v).x - c.x) * f.x + c.x, (Pt(*v).y - c.y) * f.y + c.y) for v in self.vertices]
+            self.set_vertices(new_vertices)
+
+    @validate(Point.CoordinatePoint())
+    def set_center(self, center):
+        """Set the center position.
+
+        Both image and world coordinates are accepted, but both values must match.
+
+        Parameters
+        ----------
+        center : {0}
+            The new center position.
+        """
+        [new] = self.region_set._from_world_coordinates([center])
+        new = Pt(*new)
+        old = Pt(*self.center)
+        new_vertices = [(Pt(*v).x + new.x - old.x, Pt(*v).y + new.y - old.y) for v in self.vertices]
+        self.set_vertices(new_vertices)
+
 
 class HasEndpointsMixin:
     """This is a mixin class for regions which are defined by two endpoints. It assumes that the region has two control points and both should be interpreted as coordinates."""
@@ -1115,7 +1161,7 @@ class HasEndpointsMixin:
 
         rad = math.radians(self.rotation)
 
-        super().set_size((length * math.sin(rad), -1 * length * math.cos(rad)))
+        self.set_size((length * math.sin(rad), -1 * length * math.cos(rad)))
 
 
 class HasFontMixin:
@@ -1611,8 +1657,8 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
         size : {0}
             The new size.
         """
-        [size] = self.region_set._from_angular_sizes([size])
-        self.call_action("setLength", min(*size))
+        [(w, h)] = self.region_set._from_angular_sizes([size])
+        self.call_action("setLength", min(abs(w), abs(h)))
 
     @validate(*all_optional(String(), String()))
     def set_label(self, north_label=None, east_label=None):
