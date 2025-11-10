@@ -428,6 +428,16 @@ def test_set_size_poly(region, mock_from_angular, method, property_, region_type
     mock_set_vertices.assert_called_with(expected_value)
 
 
+def test_scale(region, method, property_):
+    reg = region()
+    property_(reg)("size", (20, 30))
+    mock_set_size = method(reg)("set_size", None)
+
+    reg.scale(2)
+
+    mock_set_size.assert_called_with((40, 60))
+
+
 def test_set_control_point(region, call_action):
     reg = region()
     mock_call = call_action(reg)

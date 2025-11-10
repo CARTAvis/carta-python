@@ -844,6 +844,20 @@ class Region(BasePathMixin):
         [(w, h)] = self.region_set._from_angular_sizes([size])
         self.call_action("setSize", Pt(abs(w), abs(h)))
 
+    @validate(Number())
+    def scale(self, factor):
+        """Scale by the factor provided.
+
+        The sign will be ignored; only the magnitude of the value will be used.
+
+        Parameters
+        ----------
+        factor : {0}
+            The scaling factor to apply to the region.
+        """
+        w, h = self.size
+        self.set_size((factor * w, factor * h))
+
     @validate(Number(), Point.NumericPoint())
     def set_control_point(self, index, point):
         """Update the value of a single control point.
