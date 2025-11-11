@@ -239,7 +239,7 @@ class RegionType(IntEnum):
     POLYLINE = 2
     RECTANGLE = 3
     ELLIPSE = 4
-    ANNULUS = 5
+    # ANNULUS = 5 is not actually implemented
     POLYGON = 6
     ANNPOINT = 7
     ANNLINE = 8

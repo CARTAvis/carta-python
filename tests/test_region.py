@@ -1,7 +1,7 @@
 import pytest
 import math
 
-from carta.region import Region
+from carta.region import Region, HasSizeMixin
 from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF, PointShape as PS, TextPosition as TP, SpatialAxis as SA
 from carta.util import Point as Pt, Macro
 
@@ -294,36 +294,27 @@ def test_wcs_center(region, property_, mock_to_world, region_type):
     assert wcs_center == ("20", "30")
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
 def test_size(region, get_value, region_type):
     reg = region(region_type)
-
-    if region_type in {RT.POINT, RT.ANNPOINT}:
-        reg_get_value = get_value(reg, None)
-    else:
-        reg_get_value = get_value(reg, {"x": 20, "y": 30})
+    reg_get_value = get_value(reg, {"x": 20, "y": 30})
 
     size = reg.size
 
     reg_get_value.assert_called_with("size")
     if region_type in {RT.ELLIPSE, RT.ANNELLIPSE}:
         assert size == (60, 40)  # The frontend size returned for an ellipse is the semi-axes, which we double and swap
-    elif region_type in {RT.POINT, RT.ANNPOINT}:
-        assert size is None  # Test that returned null/undefined size for a point is converted to None as expected
     else:
         assert size == (20, 30)
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
 def test_wcs_size(region, get_value, property_, mock_to_angular, region_type):
     reg = region(region_type)
 
     if region_type in {RT.ELLIPSE, RT.ANNELLIPSE}:
         # Bypasses wcsSize to call own (overridden) size and converts to angular units
         property_(reg)("size", (20, 30))
-    elif region_type in {RT.POINT, RT.ANNPOINT}:
-        # Simulate undefined size
-        reg_get_value = get_value(reg, {"x": None, "y": None})
     else:
         reg_get_value = get_value(reg, {"x": "20", "y": "30"})
 
@@ -332,9 +323,6 @@ def test_wcs_size(region, get_value, property_, mock_to_angular, region_type):
     if region_type in {RT.ELLIPSE, RT.ANNELLIPSE}:
         mock_to_angular.assert_called_with([(20, 30)])
         assert size == ("20", "30")
-    elif region_type in {RT.POINT, RT.ANNPOINT}:
-        reg_get_value.assert_called_with("wcsSize")
-        assert size is None
     else:
         reg_get_value.assert_called_with("wcsSize")
         assert size == ("20\"", "30\"")
@@ -350,11 +338,22 @@ def test_control_points(region, get_value):
 @pytest.mark.parametrize("method_name,value_name", [
     ("name", "name"),
     ("color", "color"),
+])
+def test_common_properties(region, get_value, method_name, value_name):
+    reg = region()
+    mock_value_getter = get_value(reg, "dummy")
+    value = getattr(reg, method_name)
+    mock_value_getter.assert_called_with(value_name)
+    assert value == "dummy"
+
+
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
+@pytest.mark.parametrize("method_name,value_name", [
     ("line_width", "lineWidth"),
     ("dash_length", "dashLength"),
 ])
-def test_simple_properties(region, get_value, method_name, value_name):
-    reg = region()
+def test_line_style_properties(region, get_value, region_type, method_name, value_name):
+    reg = region(region_type)
     mock_value_getter = get_value(reg, "dummy")
     value = getattr(reg, method_name)
     mock_value_getter.assert_called_with(value_name)
@@ -389,7 +388,7 @@ def test_set_center_poly(region, mock_from_world, method, property_, region_type
     mock_set_vertices.assert_called_with(expected_value)
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
 @pytest.mark.parametrize("value,expected_value", [
     ((20, 30), Pt(20, 30)),
     ((-20, -30), Pt(20, 30)),
@@ -428,8 +427,9 @@ def test_set_size_poly(region, mock_from_angular, method, property_, region_type
     mock_set_vertices.assert_called_with(expected_value)
 
 
-def test_scale(region, method, property_):
-    reg = region()
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
+def test_scale(region, method, property_, region_type):
+    reg = region(region_type)
     property_(reg)("size", (20, 30))
     mock_set_size = method(reg)("set_size", None)
 
@@ -459,14 +459,22 @@ def test_set_name(region, call_action):
     mock_call.assert_called_with("setName", "My region name")
 
 
+def test_set_color(region, call_action):
+    reg = region()
+    mock_call = call_action(reg)
+    reg.set_color("blue")
+    mock_call.assert_called_with("setColor", "blue")
+
+
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
 @pytest.mark.parametrize("args,kwargs,expected_calls", [
     ([], {}, []),
-    (["blue", 2, 3], {}, [("setColor", "blue"), ("setLineWidth", 2), ("setDashLength", 3)]),
-    (["blue"], {"dash_length": 3}, [("setColor", "blue"), ("setDashLength", 3)]),
+    ([2, 3], {}, [("setLineWidth", 2), ("setDashLength", 3)]),
+    ([2], {"dash_length": 3}, [("setLineWidth", 2), ("setDashLength", 3)]),
     ([], {"line_width": 2}, [("setLineWidth", 2)]),
 ])
-def test_set_line_style(mocker, region, call_action, args, kwargs, expected_calls):
-    reg = region()
+def test_set_line_style(mocker, region, call_action, region_type, args, kwargs, expected_calls):
+    reg = region(region_type)
     mock_call = call_action(reg)
     reg.set_line_style(*args, **kwargs)
     mock_call.assert_has_calls([mocker.call(*c) for c in expected_calls])
@@ -624,7 +632,7 @@ def test_set_length(mocker, region, property_, region_type, length):
     property_(reg)("length", 100)
     property_(reg)("wcs_length", "100")
     property_(reg)("rotation", 45)
-    mock_region_set_size = mocker.patch.object(Region, "set_size")
+    mock_region_set_size = mocker.patch.object(HasSizeMixin, "set_size")
 
     reg.set_length(length)
 
@@ -735,7 +743,7 @@ def test_set_corners(region, method, property_, mock_from_world, region_type, ar
 @pytest.mark.parametrize("region_type", {RT.ELLIPSE, RT.ANNELLIPSE})
 def test_semi_axes(mocker, region, region_type):
     reg = region(region_type)
-    mocker.patch("carta.region.Region.size", new_callable=mocker.PropertyMock, return_value=(20, 30))
+    mocker.patch("carta.region.HasSizeMixin.size", new_callable=mocker.PropertyMock, return_value=(20, 30))
 
     semi_axes = reg.semi_axes
 
@@ -745,7 +753,7 @@ def test_semi_axes(mocker, region, region_type):
 @pytest.mark.parametrize("region_type", {RT.ELLIPSE, RT.ANNELLIPSE})
 def test_wcs_semi_axes(mocker, region, region_type):
     reg = region(region_type)
-    mocker.patch("carta.region.Region.wcs_size", new_callable=mocker.PropertyMock, return_value=("20", "30"))
+    mocker.patch("carta.region.HasSizeMixin.wcs_size", new_callable=mocker.PropertyMock, return_value=("20", "30"))
 
     semi_axes = reg.wcs_semi_axes
 
@@ -756,7 +764,7 @@ def test_wcs_semi_axes(mocker, region, region_type):
 @pytest.mark.parametrize("semi_axes", [(20, 30), ("20", "30")])
 def test_set_semi_axes(mocker, region, mock_from_angular, region_type, semi_axes):
     reg = region(region_type)
-    mock_region_set_size = mocker.patch.object(Region, "set_size")
+    mock_region_set_size = mocker.patch.object(HasSizeMixin, "set_size")
 
     reg.set_semi_axes(semi_axes)
 

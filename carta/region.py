@@ -726,38 +726,6 @@ class Region(BasePathMixin):
         return center
 
     @property
-    def size(self):
-        """The size, in pixels.
-
-        Returns
-        -------
-        number
-            The width.
-        number
-            The height.
-        """
-        size = self.get_value("size")
-        if not size:
-            return None
-        return Pt(**size).as_tuple()
-
-    @property
-    def wcs_size(self):
-        """The size, in angular size units.
-
-        Returns
-        -------
-        string
-            The width.
-        string
-            The height.
-        """
-        size = self.get_value("wcsSize")
-        if size['x'] is None or size['y'] is None:
-            return None
-        return (f"{size['x']}\"", f"{size['y']}\"")
-
-    @property
     def control_points(self):
         """The control points.
 
@@ -790,28 +758,6 @@ class Region(BasePathMixin):
         """
         return self.get_value("color")
 
-    @property
-    def line_width(self):
-        """The line width.
-
-        Returns
-        -------
-        number
-            The line width, in pixels.
-        """
-        return self.get_value("lineWidth")
-
-    @property
-    def dash_length(self):
-        """The dash length.
-
-        Returns
-        -------
-        number
-            The dash length, in pixels.
-        """
-        return self.get_value("dashLength")
-
     # SET PROPERTIES
 
     @validate(Point.CoordinatePoint())
@@ -827,36 +773,6 @@ class Region(BasePathMixin):
         """
         [center] = self.region_set._from_world_coordinates([center])
         self.call_action("setCenter", Pt(*center))
-
-    @validate(Point.SizePoint())
-    def set_size(self, size):
-        """Set the size.
-
-        Both pixel and angular sizes are accepted, but both values must match.
-
-        Signs will be ignored; only the magnitudes of the values will be used.
-
-        Parameters
-        ----------
-        size : {0}
-            The new size.
-        """
-        [(w, h)] = self.region_set._from_angular_sizes([size])
-        self.call_action("setSize", Pt(abs(w), abs(h)))
-
-    @validate(Number())
-    def scale(self, factor):
-        """Scale by the factor provided.
-
-        The sign will be ignored; only the magnitude of the value will be used.
-
-        Parameters
-        ----------
-        factor : {0}
-            The scaling factor to apply to the region.
-        """
-        w, h = self.size
-        self.set_size((factor * w, factor * h))
 
     @validate(Number(), Point.NumericPoint())
     def set_control_point(self, index, point):
@@ -893,27 +809,16 @@ class Region(BasePathMixin):
         """
         self.call_action("setName", name)
 
-    @validate(*all_optional(Color(), Number(), Number()))
-    def set_line_style(self, color=None, line_width=None, dash_length=None):
-        """Set the line style.
-
-        All parameters are optional. Omitted properties will be left unmodified.
+    @validate(Color())
+    def set_color(self, color):
+        """Set the color.
 
         Parameters
         ----------
         color : {0}
             The new color.
-        line_width : {1}
-            The new line width, in pixels.
-        dash_length : {2}
-            The new dash length, in pixels.
         """
-        if color is not None:
-            self.call_action("setColor", color)
-        if line_width is not None:
-            self.call_action("setLineWidth", line_width)
-        if dash_length is not None:
-            self.call_action("setDashLength", dash_length)
+        self.call_action("setColor", color)
 
     def lock(self):
         """Lock this region."""
@@ -948,7 +853,118 @@ class Region(BasePathMixin):
         """Delete this region."""
         self.region_set.call_action("deleteRegion", self._region)
 
-# TODO also factor out size, and exclude it from the point region?
+# TODO conversion methods: as_polygon(num_points), as_polyline(num_points) -- only for: rectangle, ellipse, line (vector or not? check if polyline has end styles)
+
+
+class HasSizeMixin:
+    """This is a mixin class for regions which have a size (all of them except for point regions and annotations). These regions also have a line style.
+
+    Subclasses which have size functions partially implemented natively should use this mixin and override unimplemented functions as appropriate.
+    """
+
+    # GET PROPERTIES
+
+    @property
+    def size(self):
+        """The size, in pixels.
+
+        Returns
+        -------
+        number
+            The width.
+        number
+            The height.
+        """
+        size = self.get_value("size")
+        return Pt(**size).as_tuple()
+
+    @property
+    def wcs_size(self):
+        """The size, in angular size units.
+
+        Returns
+        -------
+        string
+            The width.
+        string
+            The height.
+        """
+        size = self.get_value("wcsSize")
+        return (f"{size['x']}\"", f"{size['y']}\"")
+
+    @property
+    def line_width(self):
+        """The line width.
+
+        Returns
+        -------
+        number
+            The line width, in pixels.
+        """
+        return self.get_value("lineWidth")
+
+    @property
+    def dash_length(self):
+        """The dash length.
+
+        Returns
+        -------
+        number
+            The dash length, in pixels.
+        """
+        return self.get_value("dashLength")
+
+    # SET PROPERTIES
+
+    @validate(Point.SizePoint())
+    def set_size(self, size):
+        """Set the size.
+
+        Both pixel and angular sizes are accepted, but both values must match.
+
+        Signs will be ignored; only the magnitudes of the values will be used.
+
+        Parameters
+        ----------
+        size : {0}
+            The new size.
+        """
+        [(w, h)] = self.region_set._from_angular_sizes([size])
+        self.call_action("setSize", Pt(abs(w), abs(h)))
+
+    @validate(Number())
+    def scale(self, factor):
+        """Scale by the factor provided.
+
+        The sign will be ignored; only the magnitude of the value will be used.
+
+        Parameters
+        ----------
+        factor : {0}
+            The scaling factor to apply to the region.
+        """
+        w, h = self.size
+        self.set_size((factor * w, factor * h))
+
+    @validate(*all_optional(Number(), Number()))
+    def set_line_style(self, line_width=None, dash_length=None):
+        """Set the line style.
+
+        All parameters are optional. Omitted properties will be left unmodified.
+
+        To set the line color, see :obj:`carta.region.Region.set_color`.
+
+        Parameters
+        ----------
+        line_width : {0}
+            The new line width, in pixels.
+        dash_length : {1}
+            The new dash length, in pixels.
+        """
+        if line_width is not None:
+            self.call_action("setLineWidth", line_width)
+        if dash_length is not None:
+            self.call_action("setDashLength", dash_length)
 
 
 class HasRotationMixin:
@@ -1290,25 +1306,25 @@ class HasPointerMixin:
             self.call_action("setPointerLength", pointer_length)
 
 
-class LineRegion(HasEndpointsMixin, HasRotationMixin, Region):
+class LineRegion(HasEndpointsMixin, HasRotationMixin, HasSizeMixin, Region):
     """A line region or annotation."""
     REGION_TYPES = (RegionType.LINE, RegionType.ANNLINE)
     """The region types corresponding to this class."""
 
 
-class PolylineRegion(HasVerticesMixin, Region):
+class PolylineRegion(HasVerticesMixin, HasSizeMixin, Region):
     """A polyline region or annotation."""
     REGION_TYPES = (RegionType.POLYLINE, RegionType.ANNPOLYLINE)
     """The region types corresponding to this class."""
 
 
-class PolygonRegion(HasVerticesMixin, Region):
+class PolygonRegion(HasVerticesMixin, HasSizeMixin, Region):
     """A polygonal region or annotation."""
     REGION_TYPES = (RegionType.POLYGON, RegionType.ANNPOLYGON)
     """The region types corresponding to this class."""
 
 
-class RectangularRegion(HasRotationMixin, Region):
+class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
     """A rectangular region or annotation."""
     REGION_TYPES = (RegionType.RECTANGLE, RegionType.ANNRECTANGLE)
     """The region types corresponding to this class."""
@@ -1384,7 +1400,7 @@ class RectangularRegion(HasRotationMixin, Region):
         self.set_control_points([center, size.as_tuple()])
 
 
-class EllipticalRegion(HasRotationMixin, Region):
+class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
     """An elliptical region or annotation."""
     REGION_TYPES = (RegionType.ELLIPSE, RegionType.ANNELLIPSE)
     """The region types corresponding to this class."""
@@ -1537,7 +1553,7 @@ class PointAnnotation(Region):
             self.call_action("setPointWidth", point_width)
 
 
-class TextAnnotation(HasFontMixin, HasRotationMixin, Region):
+class TextAnnotation(HasFontMixin, HasRotationMixin, HasSizeMixin, Region):
     """A text annotation."""
     REGION_TYPES = (RegionType.ANNTEXT,)
     """The region types corresponding to this class."""
@@ -1591,13 +1607,15 @@ class TextAnnotation(HasFontMixin, HasRotationMixin, Region):
         self.call_action("setPosition", text_position)
 
 
-class VectorAnnotation(HasPointerMixin, HasEndpointsMixin, HasRotationMixin, Region):
+class VectorAnnotation(HasPointerMixin, HasEndpointsMixin, HasRotationMixin, HasSizeMixin, Region):
     """A vector annotation."""
     REGION_TYPES = (RegionType.ANNVECTOR,)
     """The region types corresponding to this class."""
 
+# TODO TODO TODO should we give this a length and scale only?? Does this have a line style?
 
-class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
+
+class CompassAnnotation(HasFontMixin, HasPointerMixin, HasSizeMixin, Region):
     """A compass annotation."""
     REGION_TYPES = (RegionType.ANNCOMPASS,)
     """The region types corresponding to this class."""
@@ -1757,7 +1775,7 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, Region):
             self.call_action("setEastArrowhead", east)
 
 
-class RulerAnnotation(HasFontMixin, HasEndpointsMixin, HasRotationMixin, Region):
+class RulerAnnotation(HasFontMixin, HasEndpointsMixin, HasRotationMixin, HasSizeMixin, Region):
     """A ruler annotation."""
     REGION_TYPES = (RegionType.ANNRULER,)
     """The region types corresponding to this class."""
