@@ -259,7 +259,7 @@ class RegionSet(BasePathMixin):
 
         Returns
         -------
-        :obj:`carta.region.Region` object
+        :obj:`carta.region.RectangularRegion` object
             A new region object.
         """
         [center] = self._from_world_coordinates([center])
@@ -286,7 +286,7 @@ class RegionSet(BasePathMixin):
 
         Returns
         -------
-        :obj:`carta.region.Region` object
+        :obj:`carta.region.RectangularRegion` object
             A new region object.
         """
         [bottom_left] = self._from_world_coordinates([bottom_left])
@@ -313,7 +313,7 @@ class RegionSet(BasePathMixin):
 
         Returns
         -------
-        :obj:`carta.region.Region` object
+        :obj:`carta.region.EllipticalRegion` object
             A new region object.
         """
         [center] = self._from_world_coordinates([center])
@@ -343,7 +343,7 @@ class RegionSet(BasePathMixin):
 
         Returns
         -------
-        :obj:`carta.region.Region` object
+        :obj:`carta.region.EllipticalRegion` object
             A new region object.
         """
         [size] = self._from_angular_sizes([size])
@@ -370,7 +370,7 @@ class RegionSet(BasePathMixin):
 
         Returns
         -------
-        :obj:`carta.region.Region` object
+        :obj:`carta.region.EllipticalRegion` object
             A new region object.
         """
         [bottom_left] = self._from_world_coordinates([bottom_left])
@@ -393,7 +393,7 @@ class RegionSet(BasePathMixin):
 
         Returns
         -------
-        :obj:`carta.region.PolygonRegion` or :obj:`carta.region.PolygonAnnotation` object
+        :obj:`carta.region.PolygonRegion` object
             A new region object.
         """
         points = self._from_world_coordinates(points)
@@ -417,7 +417,7 @@ class RegionSet(BasePathMixin):
 
         Returns
         -------
-        :obj:`carta.region.LineRegion` or :obj:`carta.region.LineAnnotation` object
+        :obj:`carta.region.LineRegion` object
             A new region object.
         """
         [start, end] = self._from_world_coordinates([start, end])
@@ -439,7 +439,7 @@ class RegionSet(BasePathMixin):
 
         Returns
         -------
-        :obj:`carta.region.PolylineRegion` or :obj:`carta.region.PolylineAnnotation` object
+        :obj:`carta.region.PolylineRegion` object
             A new region object.
         """
         points = self._from_world_coordinates(points)
@@ -853,8 +853,6 @@ class Region(BasePathMixin):
         """Delete this region."""
         self.region_set.call_action("deleteRegion", self._region)
 
-# TODO conversion methods: as_polygon(num_points), as_polyline(num_points) -- only for: rectangle, ellipse, line (vector or not? check if polyline has end styles)
-
 
 class HasSizeMixin:
     """This is a mixin class for regions which have a size (all of them except for point regions and annotations). These regions also have a line style.
@@ -983,6 +981,17 @@ class HasRotationMixin:
         """
         return self.get_value("rotation")
 
+    @property
+    def rad_rotation(self):
+        """The rotation, in radians.
+
+        Returns
+        -------
+        number
+            The rotation.
+        """
+        return math.radians(self.rotation)
+
     # SET PROPERTIES
 
     @validate(Number())
@@ -995,6 +1004,17 @@ class HasRotationMixin:
             The new rotation, in degrees.
         """
         self.call_action("setRotation", angle)
+
+    @validate(Number())
+    def set_rad_rotation(self, angle):
+        """Set the rotation.
+
+        Parameters
+        ----------
+        angle : {0}
+            The new rotation, in radians.
+        """
+        self.set_rotation(math.degrees(angle))
 
 
 class HasVerticesMixin:
@@ -1189,7 +1209,7 @@ class HasEndpointsMixin:
         if isinstance(length, str):
             length = self.length * AngularSize.from_string(length).arcsec / AngularSize.from_string(self.wcs_length).arcsec
 
-        rad = math.radians(self.rotation)
+        rad = self.rad_rotation
 
         self.set_size((length * math.sin(rad), -1 * length * math.cos(rad)))
 
@@ -1502,6 +1522,49 @@ class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
         width, height = size
         super().set_size([height / 2, width / 2])
 
+    # CONVERSION
+
+    @validate(*all_optional(Number(min=12, step=4), Boolean()))
+    def as_polygon(self, num_points=12, delete=False):
+        """Return a polygon approximation of this region or annotation.
+
+        Parameters
+        ----------
+        num_points : {0}
+            The number of vertices to use for the approximation.
+        delete : {1}
+            Whether to delete the original region.
+
+        Returns
+        -------
+        :obj:`carta.region.PolygonRegion` object
+            A new region object.
+        """
+        center = Pt(*self.center)
+        b, a = self.semi_axes
+        rot = self.rad_rotation
+
+        angles = [i * 2 * math.pi / num_points for i in range(num_points)]
+        # TODO biased vertex distributions based on eccentricity: quadrant functions
+
+        points = []
+        sin_rot, cos_rot = math.sin(rot), math.cos(rot)
+
+        for theta in angles:
+            rot_a = a * math.cos(theta)
+            rot_b = b * math.sin(theta)
+            x = center.x + cos_rot * rot_a - sin_rot * rot_b
+            y = center.y + sin_rot * rot_a + cos_rot * rot_b
+            points.append((x, y))
+
+        polygon = self.region_set.add_polygon(points, annotation=(self.region_type == RegionType.ANNELLIPSE), name=self.name)
+        polygon.set_color(self.color)
+
+        if delete:
+            self.delete()
+
+        return polygon
+
 
 class PointAnnotation(Region):
     """A point annotation."""
@@ -1611,8 +1674,6 @@ class VectorAnnotation(HasPointerMixin, HasEndpointsMixin, HasRotationMixin, Has
     """A vector annotation."""
     REGION_TYPES = (RegionType.ANNVECTOR,)
     """The region types corresponding to this class."""
-
-# TODO TODO TODO should we give this a length and scale only?? Does this have a line style?
 
 
 class CompassAnnotation(HasFontMixin, HasPointerMixin, HasSizeMixin, Region):
