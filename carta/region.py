@@ -1331,6 +1331,36 @@ class LineRegion(HasEndpointsMixin, HasRotationMixin, HasSizeMixin, Region):
     REGION_TYPES = (RegionType.LINE, RegionType.ANNLINE)
     """The region types corresponding to this class."""
 
+    # CONVERSION
+
+    @validate(NoneOr(Boolean()))
+    def as_polyline(self, delete=False):
+        """Return this region or annotation as a polyline.
+
+        Parameters
+        ----------
+        delete : {0}
+            Whether to delete the original region.
+
+        Returns
+        -------
+        :obj:`carta.region.PolylineRegion` object
+            A new region object.
+        """
+
+        # The endpoints of a line have the rotation already applied, so we can use them as-is
+        start, end = self.endpoints
+        # We MUST include a third point (for now) because the frontend requires polylines to have at least 3 points
+        points = [start, self.center, end]
+
+        polygon = self.region_set.add_polyline(points, annotation=(self.region_type == RegionType.ANNLINE), name=self.name)
+        polygon.set_color(self.color)
+
+        if delete:
+            self.delete()
+
+        return polygon
+
 
 class PolylineRegion(HasVerticesMixin, HasSizeMixin, Region):
     """A polyline region or annotation."""
@@ -1418,6 +1448,51 @@ class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
         center = (bl.x + (size.x / 2), bl.y + (size.y / 2))
 
         self.set_control_points([center, size.as_tuple()])
+
+    # CONVERSION
+
+    @validate(NoneOr(Boolean()))
+    def as_polygon(self, delete=False):
+        """Return this region or annotation as a polygon.
+
+        Parameters
+        ----------
+        delete : {0}
+            Whether to delete the original region.
+
+        Returns
+        -------
+        :obj:`carta.region.PolygonRegion` object
+            A new region object.
+        """
+
+        center = Pt(*self.center)
+        w, h = self.size
+        rot = self.rad_rotation
+
+        deltas = (
+            (-w / 2, -h / 2),
+            (-w / 2, h / 2),
+            (w / 2, h / 2),
+            (w / 2, -h / 2),
+        )
+
+        points = []
+
+        sin_rot, cos_rot = math.sin(rot), math.cos(rot)
+
+        for (dx, dy) in deltas:
+            x = center.x + dx * cos_rot - dy * sin_rot
+            y = center.y + dy * cos_rot + dx * sin_rot
+            points.append((x, y))
+
+        polygon = self.region_set.add_polygon(points, annotation=(self.region_type == RegionType.ANNRECTANGLE), name=self.name)
+        polygon.set_color(self.color)
+
+        if delete:
+            self.delete()
+
+        return polygon
 
 
 class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
@@ -1524,15 +1599,19 @@ class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
 
     # CONVERSION
 
-    @validate(*all_optional(Number(min=12, step=4), Boolean()))
-    def as_polygon(self, num_points=12, delete=False):
+    @validate(*all_optional(Number(min=4), Number(min=0, interval=Number.EXCLUDE), Boolean()))
+    def as_polygon(self, num_vertices=None, vertices_per_degree=10, delete=False):
         """Return a polygon approximation of this region or annotation.
+
+        By default, the number of vertices to use for the approximation is derived from the angular size of the ellipse circumference and the configured number of vertices per degree, with a minimum of 12. Vertices will be distributed more densely near the major axis and more sparsely near the minor axis.
 
         Parameters
         ----------
-        num_points : {0}
-            The number of vertices to use for the approximation.
-        delete : {1}
+        num_vertices : {0}
+            The number of vertices to use. If this parameter is not provided, the number is generated dynamically.
+        vertices_per_degree : {1}
+            The approximate number of vertices to add per degree of the ellipse circumference (the default is 10). This parameter is ignored if an exact number of vertices is provided.
+        delete : {2}
             Whether to delete the original region.
 
         Returns
@@ -1544,8 +1623,14 @@ class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
         b, a = self.semi_axes
         rot = self.rad_rotation
 
-        angles = [i * 2 * math.pi / num_points for i in range(num_points)]
-        # TODO biased vertex distributions based on eccentricity: quadrant functions
+        if num_vertices is None:
+            # Semi-axes in arcseconds
+            wcs_b, wcs_a = (AngularSize.from_string(ax).arcsec for ax in self.wcs_semi_axes)
+            perimeter = math.pi * (3 * (wcs_a + wcs_b) - math.sqrt((3 * wcs_a + wcs_b) * (3 * wcs_b + wcs_a)))
+            # Approximately 10 vertices per degree (minimum: 12)
+            num_vertices = max(round(vertices_per_degree * perimeter / 3600), 12)
+
+        angles = [i * 2 * math.pi / num_vertices for i in range(num_vertices)]
 
         points = []
         sin_rot, cos_rot = math.sin(rot), math.cos(rot)

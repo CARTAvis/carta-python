@@ -103,8 +103,6 @@ class AngularSize:
 
         If this method is called on the parent :obj:`carta.units.AngularSize` class, it will automatically guess the most appropriate unit subclass. If it is called on a unit subclass, it will return an instance of that subclass.
 
-        If this method is called on the This method automatically guesses the most appropriate unit.
-
         Parameters
         ----------
         arcsec : float
