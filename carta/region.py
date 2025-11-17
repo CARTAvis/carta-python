@@ -193,31 +193,6 @@ class RegionSet(BasePathMixin):
             pass
         return points
 
-    def _center_size_from_corners(self, bottom_left, top_right):
-        """Internal utility function for calculating a center point and a size from a bottom-left and top-right corner.
-
-        The corner points provided must be in image coordinates, and the returned center and size values are in image coordinates and pixel sizes, respectively.
-
-        Parameters
-        ----------
-        bottom_left : point in image coordinates
-            The bottom-left corner.
-        top_right : point in image coordinates
-            The top-right corner.
-
-        Returns
-        -------
-        point in image coordinates
-            The center point.
-        pair of pixel sizes
-            The size.
-        """
-        bottom_left = Pt(*bottom_left)
-        top_right = Pt(*top_right)
-        size = Pt(top_right.x - bottom_left.x, top_right.y - bottom_left.y)
-        center = size.x / 2 + bottom_left.x, size.y / 2 + bottom_left.y
-        return center, size.as_tuple()
-
     @validate(Point.CoordinatePoint(), Boolean(), String())
     def add_point(self, center, annotation=False, name=""):
         """Add a new point region or point annotation to this image.
@@ -291,7 +266,7 @@ class RegionSet(BasePathMixin):
         """
         [bottom_left] = self._from_world_coordinates([bottom_left])
         [top_right] = self._from_world_coordinates([top_right])
-        center, size = self._center_size_from_corners(bottom_left, top_right)
+        center, size = RectangularRegion._center_size_from_corners(bottom_left, top_right)
         return self.add_rectangle(center, size, rotation, annotation, name)
 
     @validate(Point.CoordinatePoint(), Point.SizePoint(), Number(), Boolean(), String())
@@ -375,10 +350,10 @@ class RegionSet(BasePathMixin):
         """
         [bottom_left] = self._from_world_coordinates([bottom_left])
         [top_right] = self._from_world_coordinates([top_right])
-        center, size = self._center_size_from_corners(bottom_left, top_right)
+        center, size = RectangularRegion._center_size_from_corners(bottom_left, top_right)
         return self.add_ellipse_from_size(center, size, rotation, annotation, name)
 
-    @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())), Boolean(), String())
+    @validate(Union(IterableOf(Point.NumericPoint(), 3), IterableOf(Point.WorldCoordinatePoint(), 3)), Boolean(), String())
     def add_polygon(self, points, annotation=False, name=""):
         """Add a new polygonal region or polygonal annotation to this image.
 
@@ -424,7 +399,7 @@ class RegionSet(BasePathMixin):
         region_type = RegionType.ANNLINE if annotation else RegionType.LINE
         return self.add_region(region_type, [start, end], name=name)
 
-    @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())), Boolean(), String())
+    @validate(Union(IterableOf(Point.NumericPoint(), 3), IterableOf(Point.WorldCoordinatePoint(), 3)), Boolean(), String())
     def add_polyline(self, points, annotation=False, name=""):
         """Add a new polyline region or polyline annotation to this image.
 
@@ -774,6 +749,21 @@ class Region(BasePathMixin):
         [center] = self.region_set._from_world_coordinates([center])
         self.call_action("setCenter", Pt(*center))
 
+    @validate(Point.SizePoint())
+    def translate(self, delta):
+        """Translate the region by the measurement provided.
+
+        Both pixel and angular measurements are accepted, but both values must match.
+
+        Parameters
+        ----------
+        delta : {0}
+            The translation distance.
+        """
+        [(cx, cy)] = self.region_set._from_world_coordinates([self.center])
+        [(dx, dy)] = self.region_set._from_angular_sizes([delta])
+        self.set_center((cx + dx, cy + dy))
+
     @validate(Number(), Point.NumericPoint())
     def set_control_point(self, index, point):
         """Update the value of a single control point.
@@ -981,17 +971,6 @@ class HasRotationMixin:
         """
         return self.get_value("rotation")
 
-    @property
-    def rad_rotation(self):
-        """The rotation, in radians.
-
-        Returns
-        -------
-        number
-            The rotation.
-        """
-        return math.radians(self.rotation)
-
     # SET PROPERTIES
 
     @validate(Number())
@@ -1006,21 +985,39 @@ class HasRotationMixin:
         self.call_action("setRotation", angle)
 
     @validate(Number())
-    def set_rad_rotation(self, angle):
-        """Set the rotation.
+    def rotate(self, rotation):
+        """Rotate this region.
+
+        The rotation provided will be added to the current rotation of the region.
 
         Parameters
         ----------
-        angle : {0}
-            The new rotation, in radians.
+        rotation : {0}
+            The rotation to apply, in degrees.
         """
-        self.set_rotation(math.degrees(angle))
+        self.set_rotation(self.rotation + rotation)
 
 
 class HasVerticesMixin:
-    """This is a mixin class for regions which are defined by an arbitrary number of vertices. It assumes that all control points of the region should be interpreted as coordinates."""
+    """This is a mixin class for regions which are defined by an arbitrary number of vertices (polygons and polylines). It assumes that all control points of the region should be interpreted as coordinates."""
 
     # GET PROPERTIES
+
+    @property
+    def center(self):
+        """The geometric center, in image coordinates.
+
+        This overrides the native behaviour of the frontend (which returns the center point of the region bounding box).
+
+        Returns
+        -------
+        number
+            The X coordinate of the geometric center.
+        number
+            The Y coordinate of the geometric center.
+        """
+        all_vx, all_vy = zip(*self.vertices)
+        return (sum(all_vx) / len(all_vx), sum(all_vy) / len(all_vy))
 
     @property
     def vertices(self):
@@ -1062,7 +1059,7 @@ class HasVerticesMixin:
         [point] = self.region_set._from_world_coordinates([point])
         self.set_control_point(index, point)
 
-    @validate(Union(IterableOf(Point.NumericPoint()), IterableOf(Point.WorldCoordinatePoint())))
+    @validate(Union(IterableOf(Point.NumericPoint(), 3), IterableOf(Point.WorldCoordinatePoint(), 3)))
     def set_vertices(self, points):
         """Update all the vertices.
 
@@ -1080,7 +1077,9 @@ class HasVerticesMixin:
     def set_size(self, size):
         """Set the size.
 
-        The region will be scaled to the size provided, with the center point location preserved.
+        The size of a polygon or polyline region is computed as the size of its bounding box.
+
+        The region will be scaled to the size provided, with the geometric center preserved.
 
         Both pixel and angular sizes are accepted, but both values must match.
 
@@ -1093,19 +1092,20 @@ class HasVerticesMixin:
         size : {0}
             The new width and height, in that order.
         """
-        [new] = self.region_set._from_angular_sizes([size])
-        new = Pt(*new)
-        old = Pt(*self.size)
+        [(nw, nh)] = self.region_set._from_angular_sizes([size])
+        w, h = self.size
         # No-op
-        if all((new.x, new.y, old.x, old.y)):
-            f = Pt(abs(new.x / old.x), abs(new.y / old.y))
-            c = Pt(*self.center)
-            new_vertices = [((Pt(*v).x - c.x) * f.x + c.x, (Pt(*v).y - c.y) * f.y + c.y) for v in self.vertices]
+        if all((nw, nh, w, h)):
+            fx, fy = abs(nw / w), abs(nh / h)
+            cx, cy = self.center
+            new_vertices = [((vx - cx) * fx + cx, (vy - cy) * fy + cy) for (vx, vy) in self.vertices]
             self.set_vertices(new_vertices)
 
     @validate(Point.CoordinatePoint())
     def set_center(self, center):
-        """Set the center position.
+        """Set the geometric center.
+
+        Each vertex in the region will be translated by the difference between the current geometric center and the position provided, so that the relative positions of the vertices are preserved.
 
         Both image and world coordinates are accepted, but both values must match.
 
@@ -1114,10 +1114,35 @@ class HasVerticesMixin:
         center : {0}
             The new center position.
         """
-        [new] = self.region_set._from_world_coordinates([center])
-        new = Pt(*new)
-        old = Pt(*self.center)
-        new_vertices = [(Pt(*v).x + new.x - old.x, Pt(*v).y + new.y - old.y) for v in self.vertices]
+        [(nx, ny)] = self.region_set._from_world_coordinates([center])
+        cx, cy = self.center
+        new_vertices = [(vx + nx - cx, vy + ny - cy) for (vx, vy) in self.vertices]
+        self.set_vertices(new_vertices)
+
+    @validate(Number())
+    def rotate(self, rotation):
+        """Rotate this region.
+
+        Polygonal and polyline regions do not store a separate rotation property, and cannot be rotated natively. The rotation provided will be applied to each vertex relative to the geometric center of the region.
+
+        Parameters
+        ----------
+        rotation : {0}
+            The rotation to apply, in degrees.
+        """
+        cx, cy = self.center
+        deltas = [(x - cx, y - cy) for (x, y) in self.vertices]
+
+        rot = math.radians(rotation)
+        sin_rot, cos_rot = math.sin(rot), math.cos(rot)
+
+        new_vertices = []
+
+        for (dx, dy) in deltas:
+            x = cx + dx * cos_rot - dy * sin_rot
+            y = cy + dy * cos_rot + dx * sin_rot
+            new_vertices.append((x, y))
+
         self.set_vertices(new_vertices)
 
 
@@ -1209,7 +1234,7 @@ class HasEndpointsMixin:
         if isinstance(length, str):
             length = self.length * AngularSize.from_string(length).arcsec / AngularSize.from_string(self.wcs_length).arcsec
 
-        rad = self.rad_rotation
+        rad = math.radians(self.rotation)
 
         self.set_size((length * math.sin(rad), -1 * length * math.cos(rad)))
 
@@ -1333,13 +1358,17 @@ class LineRegion(HasEndpointsMixin, HasRotationMixin, HasSizeMixin, Region):
 
     # CONVERSION
 
-    @validate(NoneOr(Boolean()))
-    def as_polyline(self, delete=False):
-        """Return this region or annotation as a polyline.
+    @validate(*all_optional(Boolean(), Number(min=0, interval=Number.EXCLUDE), Boolean()))
+    def as_polyline(self, oversampling=False, density=10, delete=False):
+        """Return this line region or annotation as a polyline.
 
         Parameters
         ----------
-        delete : {0}
+        oversampling : {0}
+            Whether to add more vertices to the polyline, using the configured per-degree density. By default the polyline will only have three vertices: the endpoints and the center.
+        density : {1}
+            The approximate number of vertices to add per degree of the line length (the default is 10). Vertices will divide the line into equal segments. This parameter is ignored if oversampling is disabled.
+        delete : {2}
             Whether to delete the original region.
 
         Returns
@@ -1349,9 +1378,23 @@ class LineRegion(HasEndpointsMixin, HasRotationMixin, HasSizeMixin, Region):
         """
 
         # The endpoints of a line have the rotation already applied, so we can use them as-is
-        start, end = self.endpoints
-        # We MUST include a third point (for now) because the frontend requires polylines to have at least 3 points
-        points = [start, self.center, end]
+        (sx, sy), (ex, ey) = self.endpoints
+
+        # Number of points excluding the end point
+        # The frontend requires polylines to have at least 3 points, so we *must* include the center (for now)
+        num_points = 2
+
+        if oversampling:
+            # Adjust to approximate points per degree
+            arcsec_l = AngularSize.from_string(self.wcs_length).arcsec
+            num_points = max(round(arcsec_l * density / 3600), 2)
+
+        # Plot points on line
+        points = []
+        dx, dy = (ex - sx) / num_points, (ey - sy) / num_points
+
+        for i in range(num_points + 1):
+            points.append((sx + i * dx, sy + i * dy))
 
         polygon = self.region_set.add_polyline(points, annotation=(self.region_type == RegionType.ANNLINE), name=self.name)
         polygon.set_color(self.color)
@@ -1379,6 +1422,32 @@ class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
     REGION_TYPES = (RegionType.RECTANGLE, RegionType.ANNRECTANGLE)
     """The region types corresponding to this class."""
 
+    @staticmethod
+    def _center_size_from_corners(bottom_left, top_right):
+        """Internal utility function for calculating a center point and a size from a bottom-left and top-right corner.
+
+        The corner points provided must be in image coordinates, and the returned center and size values are in image coordinates and pixel sizes, respectively.
+
+        Parameters
+        ----------
+        bottom_left : pair of numbers
+            The bottom-left corner in image coordinates.
+        top_right : pair of numbers
+            The top-right corner in image coordinates.
+
+        Returns
+        -------
+        pair of numbers
+            The center point in image coordinates.
+        pair of numbers
+            The size in pixels.
+        """
+        bl_x, bl_y = bottom_left
+        tr_x, tr_y = top_right
+        w, h = tr_x - bl_x, tr_y - bl_y
+        center = w / 2 + bl_x, h / 2 + bl_y
+        return center, (w, h)
+
     # GET PROPERTIES
 
     @property
@@ -1390,10 +1459,10 @@ class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
         iterable containing two tuples of two numbers
             The bottom-left and top-right corner positions, in image coordinates.
         """
-        center = Pt(*self.center)
-        size = Pt(*self.size)
-        dx, dy = size.x / 2, size.y / 2
-        return ((center.x - dx, center.y - dy), (center.x + dx, center.y + dy))
+        cx, cy = self.center
+        w, h = self.size
+        dx, dy = w / 2, h / 2
+        return ((cx - dx, cy - dy), (cx + dx, cy + dy))
 
     @property
     def wcs_corners(self):
@@ -1441,23 +1510,22 @@ class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
         else:
             top_right = current_top_right
 
-        bl = Pt(*bottom_left)
-        tr = Pt(*top_right)
-
-        size = Pt(tr.x - bl.x, tr.y - bl.y)
-        center = (bl.x + (size.x / 2), bl.y + (size.y / 2))
-
-        self.set_control_points([center, size.as_tuple()])
+        center, size = self._center_size_from_corners(bottom_left, top_right)
+        self.set_control_points([center, size])
 
     # CONVERSION
 
-    @validate(NoneOr(Boolean()))
-    def as_polygon(self, delete=False):
-        """Return this region or annotation as a polygon.
+    @validate(*all_optional(Boolean(), Number(min=0, interval=Number.EXCLUDE), Boolean()))
+    def as_polygon(self, oversampling=False, density=10, delete=False):
+        """Return this rectangle region or annotation as a polygon.
 
         Parameters
         ----------
-        delete : {0}
+        oversampling : {0}
+            Whether to add vertices to the sides of the rectangle, using the configured per-degree density. By default the polygon will only have four vertices at the corners.
+        density : {1}
+            The approximate number of vertices to add per degree of the rectangle perimeter (the default is 10). Vertices will divide each face into equal segments. This parameter is ignored if oversampling is disabled.
+        delete : {2}
             Whether to delete the original region.
 
         Returns
@@ -1466,24 +1534,48 @@ class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
             A new region object.
         """
 
-        center = Pt(*self.center)
+        cx, cy = self.center
         w, h = self.size
-        rot = self.rad_rotation
+        rot = math.radians(self.rotation)
 
-        deltas = (
+        # Number of points per face (just starting corner by default)
+        num_points_x = 1
+        num_points_y = 1
+
+        if oversampling:
+            # Adjust to approximate points per degree
+            arcsec_w, arcsec_h = (AngularSize.from_string(s).arcsec for s in self.wcs_size)
+            num_points_x = max(round(arcsec_w * density / 3600), 1)
+            num_points_y = max(round(arcsec_h * density / 3600), 1)
+
+        # The four corners relative to the center, before rotation
+        corners = (
             (-w / 2, -h / 2),
             (-w / 2, h / 2),
             (w / 2, h / 2),
             (w / 2, -h / 2),
         )
 
+        # Number of points per face, clockwise from bottom left corner
+        face_points = (num_points_y, num_points_x, num_points_y, num_points_x)
+
+        # All points relative to the center
+        deltas = []
+
+        # Plot points on faces (each face includes the start corner and excludes the end corner)
+        for (sx, sy), (ex, ey), num in zip(corners, corners[1:] + corners[:1], face_points):
+            dx, dy = (ex - sx) / num, (ey - sy) / num
+            for i in range(num):
+                deltas.append((sx + i * dx, sy + i * dy))
+
+        # The final points, after rotation and translation
         points = []
 
         sin_rot, cos_rot = math.sin(rot), math.cos(rot)
 
         for (dx, dy) in deltas:
-            x = center.x + dx * cos_rot - dy * sin_rot
-            y = center.y + dy * cos_rot + dx * sin_rot
+            x = cx + dx * cos_rot - dy * sin_rot
+            y = cy + dy * cos_rot + dx * sin_rot
             points.append((x, y))
 
         polygon = self.region_set.add_polygon(points, annotation=(self.region_type == RegionType.ANNRECTANGLE), name=self.name)
@@ -1600,16 +1692,16 @@ class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
     # CONVERSION
 
     @validate(*all_optional(Number(min=4), Number(min=0, interval=Number.EXCLUDE), Boolean()))
-    def as_polygon(self, num_vertices=None, vertices_per_degree=10, delete=False):
-        """Return a polygon approximation of this region or annotation.
+    def as_polygon(self, num_vertices=None, density=10, delete=False):
+        """Return a polygon approximation of this ellipse region or annotation.
 
         By default, the number of vertices to use for the approximation is derived from the angular size of the ellipse circumference and the configured number of vertices per degree, with a minimum of 12. Vertices will be distributed more densely near the major axis and more sparsely near the minor axis.
 
         Parameters
         ----------
         num_vertices : {0}
-            The number of vertices to use. If this parameter is not provided, the number is generated dynamically.
-        vertices_per_degree : {1}
+            The number of vertices to use. If this parameter is not provided, the number is calculated dynamically from the configured density and the region size.
+        density : {1}
             The approximate number of vertices to add per degree of the ellipse circumference (the default is 10). This parameter is ignored if an exact number of vertices is provided.
         delete : {2}
             Whether to delete the original region.
@@ -1619,16 +1711,16 @@ class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
         :obj:`carta.region.PolygonRegion` object
             A new region object.
         """
-        center = Pt(*self.center)
+        cx, cy = self.center
         b, a = self.semi_axes
-        rot = self.rad_rotation
+        rot = math.radians(self.rotation)
 
         if num_vertices is None:
             # Semi-axes in arcseconds
             wcs_b, wcs_a = (AngularSize.from_string(ax).arcsec for ax in self.wcs_semi_axes)
             perimeter = math.pi * (3 * (wcs_a + wcs_b) - math.sqrt((3 * wcs_a + wcs_b) * (3 * wcs_b + wcs_a)))
             # Approximately 10 vertices per degree (minimum: 12)
-            num_vertices = max(round(vertices_per_degree * perimeter / 3600), 12)
+            num_vertices = max(round(density * perimeter / 3600), 12)
 
         angles = [i * 2 * math.pi / num_vertices for i in range(num_vertices)]
 
@@ -1638,8 +1730,8 @@ class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
         for theta in angles:
             rot_a = a * math.cos(theta)
             rot_b = b * math.sin(theta)
-            x = center.x + cos_rot * rot_a - sin_rot * rot_b
-            y = center.y + sin_rot * rot_a + cos_rot * rot_b
+            x = cx + cos_rot * rot_a - sin_rot * rot_b
+            y = cy + sin_rot * rot_a + cos_rot * rot_b
             points.append((x, y))
 
         polygon = self.region_set.add_polygon(points, annotation=(self.region_type == RegionType.ANNELLIPSE), name=self.name)

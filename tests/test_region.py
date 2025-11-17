@@ -272,7 +272,7 @@ def test_region_type(image, get_value):
     assert region_type == RT.RECTANGLE
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
 def test_center(region, get_value, region_type):
     reg = region(region_type)
     reg_get_value = get_value(reg, {"x": 20, "y": 30})
@@ -280,6 +280,16 @@ def test_center(region, get_value, region_type):
     center = reg.center
 
     reg_get_value.assert_called_with("center")
+    assert center == (20, 30)
+
+
+@pytest.mark.parametrize("region_type", {RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
+def test_center_poly(region, method, property_, region_type):
+    reg = region(region_type)
+    property_(reg)("vertices", [(10, 20), (20, 40), (30, 30)])
+
+    center = reg.center
+
     assert center == (20, 30)
 
 
