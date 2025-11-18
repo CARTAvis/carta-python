@@ -1360,7 +1360,9 @@ class LineRegion(HasEndpointsMixin, HasRotationMixin, HasSizeMixin, Region):
 
     @validate(*all_optional(Boolean(), Number(min=0, interval=Number.EXCLUDE), Boolean()))
     def as_polyline(self, oversampling=False, density=10, delete=False):
-        """Return this line region or annotation as a polyline.
+        """Create a new polyline region with the same dimensions and style as this line region or annotation.
+
+        This function does not delete the original region by default. Also see :obj:`carta.region.LineRegion.to_polyline`.
 
         Parameters
         ----------
@@ -1396,13 +1398,37 @@ class LineRegion(HasEndpointsMixin, HasRotationMixin, HasSizeMixin, Region):
         for i in range(num_points + 1):
             points.append((sx + i * dx, sy + i * dy))
 
-        polygon = self.region_set.add_polyline(points, annotation=(self.region_type == RegionType.ANNLINE), name=self.name)
-        polygon.set_color(self.color)
+        polyline = self.region_set.add_polyline(points, annotation=(self.region_type == RegionType.ANNLINE), name=self.name)
+
+        polyline.set_color(self.color)
+        polyline.set_line_style(self.line_width, self.dash_length)
 
         if delete:
             self.delete()
 
-        return polygon
+        return polyline
+
+    @validate(*all_optional(Boolean(), Number(min=0, interval=Number.EXCLUDE), Boolean()))
+    def to_polyline(self, oversampling=False, density=10, delete=True):
+        """Create a new polyline region with the same dimensions and style as this line region or annotation.
+
+        This function is a convenience wrapper around :obj:`carta.region.LineRegion.as_polyline` that deletes the original region by default.
+
+        Parameters
+        ----------
+        oversampling : {0}
+            Whether to add more vertices to the polyline, using the configured per-degree density. By default the polyline will only have three vertices: the endpoints and the center.
+        density : {1}
+            The approximate number of vertices to add per degree of the line length (the default is 10). Vertices will divide the line into equal segments. This parameter is ignored if oversampling is disabled.
+        delete : {2}
+            Whether to delete the original region.
+
+        Returns
+        -------
+        :obj:`carta.region.PolylineRegion` object
+            A new region object.
+        """
+        return self.as_polyline(oversampling, density, delete)
 
 
 class PolylineRegion(HasVerticesMixin, HasSizeMixin, Region):
@@ -1517,7 +1543,9 @@ class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
 
     @validate(*all_optional(Boolean(), Number(min=0, interval=Number.EXCLUDE), Boolean()))
     def as_polygon(self, oversampling=False, density=10, delete=False):
-        """Return this rectangle region or annotation as a polygon.
+        """Create a new polygonal region with the same dimensions and style as this rectangular region or annotation.
+
+        This function does not delete the original region by default. Also see :obj:`carta.region.RectangularRegion.to_polygon`.
 
         Parameters
         ----------
@@ -1533,7 +1561,6 @@ class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
         :obj:`carta.region.PolygonRegion` object
             A new region object.
         """
-
         cx, cy = self.center
         w, h = self.size
         rot = math.radians(self.rotation)
@@ -1579,12 +1606,36 @@ class RectangularRegion(HasRotationMixin, HasSizeMixin, Region):
             points.append((x, y))
 
         polygon = self.region_set.add_polygon(points, annotation=(self.region_type == RegionType.ANNRECTANGLE), name=self.name)
+
         polygon.set_color(self.color)
+        polygon.set_line_style(self.line_width, self.dash_length)
 
         if delete:
             self.delete()
 
         return polygon
+
+    @validate(*all_optional(Boolean(), Number(min=0, interval=Number.EXCLUDE), Boolean()))
+    def to_polygon(self, oversampling=False, density=10, delete=True):
+        """Create a new polygonal region with the same dimensions and style as this rectangular region or annotation.
+
+        This function is a convenience wrapper around :obj:`carta.region.RectangularRegion.as_polygon` that deletes the original region by default.
+
+        Parameters
+        ----------
+        oversampling : {0}
+            Whether to add vertices to the sides of the rectangle, using the configured per-degree density. By default the polygon will only have four vertices at the corners.
+        density : {1}
+            The approximate number of vertices to add per degree of the rectangle perimeter (the default is 10). Vertices will divide each face into equal segments. This parameter is ignored if oversampling is disabled.
+        delete : {2}
+            Whether to delete the original region.
+
+        Returns
+        -------
+        :obj:`carta.region.PolygonRegion` object
+            A new region object.
+        """
+        return self.as_polygon(oversampling, density, delete)
 
 
 class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
@@ -1693,7 +1744,9 @@ class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
 
     @validate(*all_optional(Number(min=4), Number(min=0, interval=Number.EXCLUDE), Boolean()))
     def as_polygon(self, num_vertices=None, density=10, delete=False):
-        """Return a polygon approximation of this ellipse region or annotation.
+        """Create a new polygonal region with the same dimensions and style as this elliptical region or annotation, approximating the shape of the ellipse.
+
+        This function does not delete the original region by default. Also see :obj:`carta.region.EllipticalRegion.to_polygon`.
 
         By default, the number of vertices to use for the approximation is derived from the angular size of the ellipse circumference and the configured number of vertices per degree, with a minimum of 12. Vertices will be distributed more densely near the major axis and more sparsely near the minor axis.
 
@@ -1735,12 +1788,38 @@ class EllipticalRegion(HasRotationMixin, HasSizeMixin, Region):
             points.append((x, y))
 
         polygon = self.region_set.add_polygon(points, annotation=(self.region_type == RegionType.ANNELLIPSE), name=self.name)
+
         polygon.set_color(self.color)
+        polygon.set_line_style(self.line_width, self.dash_length)
 
         if delete:
             self.delete()
 
         return polygon
+
+    @validate(*all_optional(Number(min=4), Number(min=0, interval=Number.EXCLUDE), Boolean()))
+    def to_polygon(self, num_vertices=None, density=10, delete=True):
+        """Create a new polygonal region with the same dimensions and style as this elliptical region or annotation, approximating the shape of the ellipse.
+
+        This function is a convenience wrapper around :obj:`carta.region.EllipticalRegion.as_polygon` that deletes the original region by default.
+
+        By default, the number of vertices to use for the approximation is derived from the angular size of the ellipse circumference and the configured number of vertices per degree, with a minimum of 12. Vertices will be distributed more densely near the major axis and more sparsely near the minor axis.
+
+        Parameters
+        ----------
+        num_vertices : {0}
+            The number of vertices to use. If this parameter is not provided, the number is calculated dynamically from the configured density and the region size.
+        density : {1}
+            The approximate number of vertices to add per degree of the ellipse circumference (the default is 10). This parameter is ignored if an exact number of vertices is provided.
+        delete : {2}
+            Whether to delete the original region.
+
+        Returns
+        -------
+        :obj:`carta.region.PolygonRegion` object
+            A new region object.
+        """
+        return self.as_polygon(num_vertices, density, delete)
 
 
 class PointAnnotation(Region):
