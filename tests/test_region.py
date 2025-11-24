@@ -398,6 +398,21 @@ def test_set_center_poly(region, mock_from_world, method, property_, region_type
     mock_set_vertices.assert_called_with(expected_value)
 
 
+@pytest.mark.parametrize("region_type", {t for t in RT})
+@pytest.mark.parametrize("value,expected_value", [
+    ((20, 30), (40, 50)),
+    (("20", "30"), (40, 50)),
+])
+def test_translate(region, mock_from_world, mock_from_angular, method, property_, region_type, value, expected_value):
+    reg = region(region_type)
+    property_(reg)("center", (20, 20))
+    mock_set_center = method(reg)("set_center", None)
+
+    reg.translate(value)
+
+    mock_set_center.assert_called_with(expected_value)
+
+
 @pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
 @pytest.mark.parametrize("value,expected_value", [
     ((20, 30), Pt(20, 30)),
@@ -547,6 +562,30 @@ def test_set_rotation(region, call_action, region_type):
     mock_call = call_action(reg)
     reg.set_rotation(45)
     mock_call.assert_called_with("setRotation", 45)
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE, RT.RECTANGLE, RT.ANNRECTANGLE, RT.ELLIPSE, RT.ANNELLIPSE, RT.ANNTEXT, RT.ANNVECTOR, RT.ANNRULER})
+def test_rotate(region, method, property_, region_type):
+    reg = region(region_type)
+    property_(reg)("rotation", 45)
+    mock_set_rotation = method(reg)("set_rotation", None)
+
+    reg.rotate(10)
+
+    mock_set_rotation.assert_called_with(55)
+
+
+@pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})
+def test_rotate_poly(region, method, property_, region_type):
+    reg = region(region_type)
+    property_(reg)("vertices", [(10, 20), (20, 40), (30, 30)])
+    property_(reg)("center", (20, 30))
+    mock_set_vertices = method(reg)("set_vertices", None)
+
+    reg.rotate(90)
+
+    # Rotation is applied anti-clockwise.
+    mock_set_vertices.assert_called_with([(30.0, 20.0), (10.0, 30.0), (20.0, 40.0)])
 
 
 @pytest.mark.parametrize("region_type", {RT.POLYLINE, RT.POLYGON, RT.ANNPOLYLINE, RT.ANNPOLYGON})

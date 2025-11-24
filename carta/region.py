@@ -986,7 +986,7 @@ class HasRotationMixin:
 
     @validate(Number())
     def rotate(self, rotation):
-        """Rotate this region.
+        """Rotate this region anticlockwise by the angle provided.
 
         The rotation provided will be added to the current rotation of the region.
 
@@ -1121,7 +1121,7 @@ class HasVerticesMixin:
 
     @validate(Number())
     def rotate(self, rotation):
-        """Rotate this region.
+        """Rotate this region anticlockwise by the angle provided.
 
         Polygonal and polyline regions do not store a separate rotation property, and cannot be rotated natively. The rotation provided will be applied to each vertex relative to the geometric center of the region.
 
