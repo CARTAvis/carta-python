@@ -272,6 +272,145 @@ def test_region_type(image, get_value):
     assert region_type == RT.RECTANGLE
 
 
+@pytest.mark.parametrize("region_type", {RT.RECTANGLE, RT.ANNRECTANGLE})
+@pytest.mark.parametrize("func,args,kwargs,expected_vertices,expected_delete", (
+    # Corners only
+    # (Note: apparent brc is actual blc because rectangle is rotated)
+    ("as_polygon", [], {}, [(45.0, 10.0), (-5.0, 10.0), (-5.0, 50.0), (45.0, 50.0)], False),
+    # Corners only + delete
+    ("as_polygon", [], {"delete": True}, [(45.0, 10.0), (-5.0, 10.0), (-5.0, 50.0), (45.0, 50.0)], True),
+    # Corners only + alias that deletes
+    ("to_polygon", [], {}, [(45.0, 10.0), (-5.0, 10.0), (-5.0, 50.0), (45.0, 50.0)], True),
+    # Oversampling; default density of 10 vertices per degree; just enough for 1 extra vertex per long side
+    ("as_polygon", [], {"oversampling": True}, [(45.0, 10.0), (20.0, 10.0), (-5.0, 10.0), (-5.0, 50.0), (20.0, 50.0), (45.0, 50.0)], False),
+    # Oversampling; density of 20 vertices per degree; 3 extra per long side + 1 extra per short side
+    ("as_polygon", [], {"oversampling": True, "density": 20}, [(45.0, 10.0), (32.5, 10.0), (20.0, 10.0), (7.5, 10.0), (-5.0, 10.0), (-5.0, 30.0), (-5.0, 50.0), (7.5, 50.0), (20.0, 50.0), (32.5, 50.0), (45.0, 50.0), (45.0, 30.0)], False),
+    # Oversampling; very low density; won't drop below 4 corners
+    ("as_polygon", [], {"oversampling": True, "density": 1}, [(45.0, 10.0), (-5.0, 10.0), (-5.0, 50.0), (45.0, 50.0)], False),
+))
+def test_rectangle_to_polygon(mocker, regionset_method, region, property_, method, region_type, func, args, kwargs, expected_vertices, expected_delete):
+    mock_add_polygon = regionset_method("add_polygon", None)
+
+    reg = region(region_type)
+    property_(reg)("center", (20, 30))
+    property_(reg)("size", (40, 50))
+    property_(reg)("wcs_size", ("0.1deg", "0.2deg"))
+    property_(reg)("rotation", 90)
+    property_(reg)("name", "something")
+    property_(reg)("color", "green")
+    property_(reg)("line_width", 1)
+    property_(reg)("dash_length", 2)
+    mock_delete = method(reg)("delete", None)
+
+    polygon = region(region_type=RT.POLYGON)
+    mock_add_polygon.return_value = polygon
+    mock_set_color = mocker.patch.object(polygon, "set_color")
+    mock_set_line_style = mocker.patch.object(polygon, "set_line_style")
+
+    getattr(reg, func)(*args, **kwargs)
+
+    mock_add_polygon.assert_called_with(expected_vertices, annotation=(region_type == RT.ANNRECTANGLE), name="something")
+    mock_set_color.assert_called_with("green")
+    mock_set_line_style.assert_called_with(1, 2)
+
+    if expected_delete:
+        mock_delete.assert_called()
+    else:
+        mock_delete.assert_not_called()
+
+
+@pytest.mark.parametrize("region_type", {RT.LINE, RT.ANNLINE})
+@pytest.mark.parametrize("func,args,kwargs,expected_vertices,expected_delete", (
+    # Endpoints and midpoint only
+    ("as_polyline", [], {}, [(10, 10), (20, 20), (30, 30)], False),
+    # Endpoints and midpoint only + delete
+    ("as_polyline", [], {"delete": True}, [(10, 10), (20, 20), (30, 30)], True),
+    # Endpoints and midpoint only + alias that deletes
+    ("to_polyline", [], {}, [(10, 10), (20, 20), (30, 30)], True),
+    # Oversampling; default density of 10 vertices per degree - 5 segments
+    ("as_polyline", [], {"oversampling": True}, [(10.0, 10.0), (14.0, 14.0), (18.0, 18.0), (22.0, 22.0), (26.0, 26.0), (30.0, 30.0)], False),
+    # Oversampling; density of 20 vertices per degree - 10 segments
+    ("as_polyline", [], {"oversampling": True, "density": 20}, [(10.0, 10.0), (12.0, 12.0), (14.0, 14.0), (16.0, 16.0), (18.0, 18.0), (20.0, 20.0), (22.0, 22.0), (24.0, 24.0), (26.0, 26.0), (28.0, 28.0), (30.0, 30.0)], False),
+    # Oversampling; very low density; won't fall below 3 vertices
+    ("as_polyline", [], {"oversampling": True, "density": 1}, [(10, 10), (20, 20), (30, 30)], False),
+))
+def test_line_to_polyline(mocker, regionset_method, region, property_, method, region_type, func, args, kwargs, expected_vertices, expected_delete):
+    mock_add_polyline = regionset_method("add_polyline", None)
+
+    reg = region(region_type)
+
+    property_(reg)("endpoints", [(10, 10), (30, 30)])
+    property_(reg)("wcs_length", "0.5deg")
+    property_(reg)("name", "something")
+    property_(reg)("color", "green")
+    property_(reg)("line_width", 1)
+    property_(reg)("dash_length", 2)
+    mock_delete = method(reg)("delete", None)
+
+    polyline = region(region_type=RT.POLYLINE)
+    mock_add_polyline.return_value = polyline
+    mock_set_color = mocker.patch.object(polyline, "set_color")
+    mock_set_line_style = mocker.patch.object(polyline, "set_line_style")
+
+    getattr(reg, func)(*args, **kwargs)
+
+    mock_add_polyline.assert_called_with(expected_vertices, annotation=(region_type == RT.ANNLINE), name="something")
+    mock_set_color.assert_called_with("green")
+    mock_set_line_style.assert_called_with(1, 2)
+
+    if expected_delete:
+        mock_delete.assert_called()
+    else:
+        mock_delete.assert_not_called()
+
+
+@pytest.mark.parametrize("region_type", {RT.ELLIPSE, RT.ANNELLIPSE})
+@pytest.mark.parametrize("func,args,kwargs,expected_num_vertices,expected_delete", (
+    # Specific number of vertices
+    ("as_polygon", [], {"num_vertices": 8}, 8, False),
+    # Specific number of vertices + delete
+    ("as_polygon", [], {"num_vertices": 8, "delete": True}, 8, True),
+    # Specific number of vertices + alias that deletes
+    ("to_polygon", [], {"num_vertices": 8}, 8, True),
+    # Default density of 10 vertices per degree; perimeter approx. 2 deg -> 20 vertices
+    ("as_polygon", [], {}, 20, False),
+    # Density of 20 vertices per degree -> 40 vertices
+    ("as_polygon", [], {"density": 20}, 40, False),
+    # Density of 5 vertices per degree -> would be 10, but minimum is 12
+    ("as_polygon", [], {"density": 5}, 12, False),
+))
+def test_ellipse_to_polygon(mocker, regionset_method, region, property_, method, region_type, func, args, kwargs, expected_num_vertices, expected_delete):
+    mock_add_polygon = regionset_method("add_polygon", None)
+
+    reg = region(region_type)
+    property_(reg)("center", (20, 30))
+    property_(reg)("semi_axes", (20, 25))
+    property_(reg)("wcs_semi_axes", ("0.2deg", "0.42deg"))
+    property_(reg)("rotation", 45)
+    property_(reg)("name", "something")
+    property_(reg)("color", "green")
+    property_(reg)("line_width", 1)
+    property_(reg)("dash_length", 2)
+    mock_delete = method(reg)("delete", None)
+
+    polygon = region(region_type=RT.POLYGON)
+    mock_add_polygon.return_value = polygon
+    mock_set_color = mocker.patch.object(polygon, "set_color")
+    mock_set_line_style = mocker.patch.object(polygon, "set_line_style")
+
+    getattr(reg, func)(*args, **kwargs)
+
+    mock_add_polygon.assert_called_with(mocker.ANY, annotation=(region_type == RT.ANNELLIPSE), name="something")
+    assert len(mock_add_polygon.call_args.args[0]) == expected_num_vertices
+    mock_set_color.assert_called_with("green")
+    mock_set_line_style.assert_called_with(1, 2)
+
+    if expected_delete:
+        mock_delete.assert_called()
+    else:
+        mock_delete.assert_not_called()
+
+
 @pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
 def test_center(region, get_value, region_type):
     reg = region(region_type)
