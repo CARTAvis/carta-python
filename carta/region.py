@@ -395,7 +395,8 @@ class RegionSet(BasePathMixin):
         :obj:`carta.region.LineRegion` object
             A new region object.
         """
-        [start, end] = self._from_world_coordinates([start, end])
+        [start] = self._from_world_coordinates([start])  # Parsed separately in case they are mismatched
+        [end] = self._from_world_coordinates([end])  # Parsed separately in case they are mismatched
         region_type = RegionType.ANNLINE if annotation else RegionType.LINE
         return self.add_region(region_type, [start, end], name=name)
 
