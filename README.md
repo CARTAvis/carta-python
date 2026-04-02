@@ -3,7 +3,7 @@ carta-python
 
 This is a prototype of a scripting interface which uses a generic HTTP interface in the CARTA backend as a proxy to call actions on the CARTA frontend.
 
-This package is not yet published on PyPi, but can be installed from the local repository directory with `pip`. Ensure that you're using a Python 3 installation and its corresponding `pip`, either using a `virtualenv` or the appropriate system executable, which may be called `pip3`. Required dependencies (the `requests` library) should be installed automatically:
+This package is not yet published on PyPi, but can be installed from the local repository directory with `pip`. Requires Python 3.10 or later. Required dependencies should be installed automatically:
 
     pip install .
 

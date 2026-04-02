@@ -6,7 +6,7 @@ Installation
 
 This package is not yet published on PyPi, but can be installed from a local checkout of the repository.
 
-Ensure that you're using a Python 3 installation and its corresponding ``pip``, either using a ``virtualenv`` or the appropriate system executable, which may be called ``pip3``.
+Requires **Python 3.10** or later. Install with ``pip``:
 
 .. code-block:: shell
 
