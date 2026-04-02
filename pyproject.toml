@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carta"
+dynamic = ["version"]
+description = "CARTA scripting wrapper written in Python"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.6"
+authors = [
+    { name = "CARTA Python developers" },
+]
+license = "GPL-3.0-or-later"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX",
+    "Development Status :: 4 - Beta",
+]
+dependencies = [
+    "requests",
+    "simplejson",
+]
+
+[project.urls]
+Source = "https://github.com/CARTAvis/carta-python"
+Documentation = "https://carta-python.readthedocs.io"
+
+[project.optional-dependencies]
+browser = [
+    "selenium",
+]
+
+[dependency-groups]
+lint = [
+    "ruff",
+]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+]
+docs = [
+    "Sphinx==7.3.7",
+    "sphinx-rtd-theme==2.0.0",
+    "sphinx-tabs==3.4.5",
+    "sphinxcontrib-napoleon==0.7",
+]
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+    { include-group = "docs" },
+]
+
+[tool.setuptools]
+packages = ["carta"]
+
+[tool.setuptools.dynamic]
+version = { file = ["VERSION.txt"] }
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.ruff]
+target-version = "py310"
+extend-exclude = ["docs/source/conf.py", "scripts/update_palette_colours.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "D100", "D101", "D102", "D103", "D104", "D105", "D106"]
+ignore = ["E501", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["D"]
