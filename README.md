@@ -3,11 +3,15 @@ carta-python
 
 This is a prototype of a scripting interface which uses a generic HTTP interface in the CARTA backend as a proxy to call actions on the CARTA frontend.
 
-This package is not yet published on PyPi, but can be installed from the local repository directory with `pip`. Requires Python 3.10 or later. Required dependencies should be installed automatically:
+This package is not yet published on PyPi, but can be installed from the local repository directory with `pip`. Requires Python 3.10 or later. Ensure that you're using the corresponding `pip`, either using a `virtualenv` or the appropriate system executable, which may be called `pip3`. Required dependencies should be installed automatically:
 
     pip install .
 
-To create a new frontend session which is controlled by the wrapper instead of connecting to an existing frontend session, you also need to install the optional browser dependencies:
+To create a new frontend session which is controlled by the wrapper instead of connecting to an existing frontend session, you also need to install the `selenium` Python library:
+
+    pip install selenium
+
+If you prefer installing the optional browser dependencies via package extras, the equivalent command is:
 
     pip install ".[browser]"
 
@@ -20,7 +24,33 @@ The client is under rapid development and this API should be considered experime
 Unit tests
 ----------
 
-Contributor setup is managed with `uv`:
+Running the unit tests requires the installation of additional dependencies:
+
+```
+pip install pytest
+pip install pytest-mock
+pip install pytest-cov
+```
+
+To run all the unit tests (from the root directory of the repository):
+
+```
+pytest tests/     # concise
+pytest -v tests/  # more verbose
+```
+
+To view the code coverage:
+
+```
+pytest --cov=carta tests/
+```
+
+See the [`pytest` documentation](https://docs.pytest.org/) for more usage options.
+
+Alternative contributor setup with uv
+-------------------------------------
+
+If you prefer a synced local development environment, `uv` is also supported:
 
 ```
 uv sync
@@ -28,7 +58,7 @@ uv sync
 
 This creates a local virtual environment, installs the package in editable mode, and syncs the default development groups.
 
-Common development commands:
+Equivalent development commands:
 
 ```
 uv run pytest tests/                 # unit tests
@@ -38,7 +68,7 @@ uv run ruff check                    # lint
 uv run ruff format --check           # formatting check
 ```
 
-To auto-fix lint and formatting issues:
+To auto-fix lint and formatting issues in the `uv` environment:
 
 ```
 uv run ruff check --fix
@@ -48,7 +78,7 @@ uv run ruff format
 Documentation
 -------------
 
-Build the docs locally with Sphinx:
+If you are using the `uv` environment, build the docs locally with Sphinx:
 
 ```
 uv run sphinx-build -W -b html docs/source docs/build/html
