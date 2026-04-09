@@ -73,6 +73,14 @@ carta.raster module
    :undoc-members:
    :show-inheritance:
 
+carta.region module
+-------------------
+
+.. automodule:: carta.region
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.session module
 --------------------
 
