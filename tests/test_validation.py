@@ -1,6 +1,6 @@
 import pytest
 
-from carta.validation import Size, Coordinate
+from carta.validation import Size, Coordinate, Point
 
 
 @pytest.mark.parametrize('val', [123, "123arcmin", "123arcsec", "123deg", "123degree", "123degrees", "123 arcmin", "123 arcsec", "123 deg", "123 degree", "123 degrees", "123", "123\"", "123'"])
@@ -29,3 +29,35 @@ def test_coordinate_invalid(val):
     with pytest.raises(ValueError) as e:
         v.validate(val, None)
     assert "not a number, a string in H:M:S or D:M:S format, or a numeric string with degree units" in str(e.value)
+
+
+@pytest.mark.parametrize('clazz,val', [
+    (Point.NumericPoint, (123, 123)),
+    (Point.WorldCoordinatePoint, ("123deg", "123deg")),
+    (Point.AngularSizePoint, ("123'", "123'")),
+    (Point.CoordinatePoint, (123, 123)),
+    (Point.CoordinatePoint, ("123deg", "123deg")),
+    (Point.SizePoint, (123, 123)),
+    (Point.SizePoint, ("123'", "123'")),
+    (Point, (123, 123)),
+    (Point, ("123'", "123'")),
+    (Point, ("123deg", "123deg")),
+])
+def test_point_valid(clazz, val):
+    clazz().validate(val, None)
+
+
+@pytest.mark.parametrize('clazz,val,error_contains', [
+    (Point, (123, "123"), "not a pair of numbers, coordinate strings, or size strings"),
+    (Point.CoordinatePoint, (123, "123"), "not a pair of numbers or coordinate strings"),
+    (Point.SizePoint, (123, "123"), "a pair of numbers or size strings"),
+    (Point.NumericPoint, ("123", "123"), "not a pair of numbers"),
+    (Point.WorldCoordinatePoint, ("123'", "123'"), "not a pair of coordinate strings"),
+    (Point.WorldCoordinatePoint, (123, 123), "not a pair of coordinate strings"),
+    (Point.AngularSizePoint, ("12:34", "12:34"), "not a pair of size strings"),
+    (Point.AngularSizePoint, (123, 123), "not a pair of size strings"),
+])
+def test_point_invalid(clazz, val, error_contains):
+    with pytest.raises(ValueError) as e:
+        clazz().validate(val, None)
+    assert error_contains in str(e.value)
