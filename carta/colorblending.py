@@ -15,21 +15,21 @@ from .validation import (
 class Layer(BasePathMixin):
     """This object represents a single layer in a color blending object.
 
-        Parameters
-        ----------
-        colorblending : :obj:`carta.colorblending.ColorBlending`
-            The color blending object.
-        layer_id : int
-            The layer ID.
+    Parameters
+    ----------
+    colorblending : :obj:`carta.colorblending.ColorBlending`
+        The color blending object.
+    layer_id : int
+        The layer ID.
 
-        Attributes
-        ----------
-        colorblending : :obj:`carta.colorblending.ColorBlending`
-            The color blending object.
-        layer_id : int
-            The layer ID.
-        session : :obj:`carta.session.Session`
-            The session object associated with this layer.
+    Attributes
+    ----------
+    colorblending : :obj:`carta.colorblending.ColorBlending`
+        The color blending object.
+    layer_id : int
+        The layer ID.
+    session : :obj:`carta.session.Session`
+        The session object associated with this layer.
     """
 
     def __init__(self, colorblending, layer_id):
