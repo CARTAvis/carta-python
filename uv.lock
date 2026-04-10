@@ -82,13 +82,13 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "ruff" },
-    { name = "sphinx", specifier = "==7.3.7" },
+    { name = "sphinx", specifier = ">=7" },
     { name = "sphinx-rtd-theme", specifier = "==2.0.0" },
     { name = "sphinx-tabs", specifier = "==3.4.5" },
     { name = "sphinxcontrib-napoleon", specifier = "==0.7" },
 ]
 docs = [
-    { name = "sphinx", specifier = "==7.3.7" },
+    { name = "sphinx", specifier = ">=7" },
     { name = "sphinx-rtd-theme", specifier = "==2.0.0" },
     { name = "sphinx-tabs", specifier = "==3.4.5" },
     { name = "sphinxcontrib-napoleon", specifier = "==0.7" },
