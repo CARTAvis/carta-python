@@ -1,5 +1,5 @@
-Sphinx==7.3.7
+Sphinx>=7
 sphinx-rtd-theme==2.0.0
 sphinxcontrib-napoleon==0.7
-simplejson==3.17.6
+simplejson>=3.17.6
 sphinx-tabs==3.4.5
