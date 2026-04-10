@@ -14,7 +14,7 @@ from .validation import (
 
 class Layer(BasePathMixin):
     """This object represents a single layer in a color blending object.
-    `
+
         Parameters
         ----------
         colorblending : :obj:`carta.colorblending.ColorBlending`

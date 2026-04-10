@@ -5,15 +5,12 @@ Image objects should not be instantiated directly, and should only be created th
 
 
 from .constants import Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
-from .util import Macro, cached, BasePathMixin, Point as Pt
+from .util import Macro, cached, BasePathMixin, CartaActionFailed, Point as Pt
 from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr, IterableOf, Point
 from .metadata import parse_header
 from .raster import Raster
-from .units import AngularSize, WorldCoordinate
-from .util import BasePathMixin, CartaActionFailed, Macro, cached
-from .validation import (Attr, Attrs, Boolean, Constant, Coordinate, Evaluate,
-                         NoneOr, Number, OneOf, Size, validate)
+from .contours import Contours
 from .vector_overlay import VectorOverlay
 from .wcs_overlay import ImageWCSOverlay
 from .region import RegionSet
