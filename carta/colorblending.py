@@ -272,7 +272,7 @@ class ColorBlending(BasePathMixin):
                     break
             return idx
 
-        return [Layer(self, i) for i in range(count_layers())]
+        return Layer.from_list(self, list(range(count_layers())))
 
     def add_layer(self, image):
         """Add a new layer to the color blending.
