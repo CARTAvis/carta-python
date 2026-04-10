@@ -17,6 +17,14 @@ carta.browser module
    :undoc-members:
    :show-inheritance:
 
+carta.colorblending module
+--------------------------
+
+.. automodule:: carta.colorblending
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.constants module
 ----------------------
 
