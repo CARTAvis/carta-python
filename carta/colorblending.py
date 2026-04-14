@@ -310,26 +310,63 @@ class ColorBlending(BasePathMixin):
         """
         self.call_action("setSelectedFrame", layer_index - 1, image._frame)
 
-    @validate(IterableOf(Number(1, None), min_size=2))
-    def reorder_layers(self, order_list):
-        """Reorder the layers in the color blending.
+    @validate(IterableOf(Number(0, None), min_size=1))
+    def set_layer_sequence(self, layer_indices):
+        """Set which layers are included in the color blending and in what
+        order.
 
         Parameters
         ----------
-        order_list : list of int
-            The list of layer indices in the desired order. The list must not
-            contain the base layer (index = 0).
+        layer_indices : list of int
+            The layer indices to keep, in the desired order. The first index
+            must be the base layer (index = 0). Existing alpha values are
+            preserved.
         """
-        layers = self.layer_list()
-        image_ids = [layer.image_id for layer in layers]
+        current_layers = self.layer_list()
+        max_current_layer_index = len(current_layers) - 1
+        if any(
+            layer_index > max_current_layer_index
+            for layer_index in layer_indices
+        ):
+            raise ValueError(
+                "layer_indices contains a layer index which does not exist."
+            )
+
+        if layer_indices[0] != 0:
+            raise ValueError(
+                "layer_indices must start with the base layer index 0."
+            )
+
+        if 0 in layer_indices[1:]:
+            raise ValueError(
+                "layer_indices must contain the base layer index 0 only once, "
+                "as the first index."
+            )
+
+        current_layer_indices = list(range(len(current_layers)))
+        if layer_indices == current_layer_indices:
+            return
+
+        current_alpha_values = self.alpha
+        target_layer_states = [
+            (
+                Image(self.session, current_layers[layer_index].image_id),
+                current_alpha_values[layer_index],
+            )
+            for layer_index in layer_indices[1:]
+        ]
+
         # Delete all layers except the base layer
-        for _ in layers[1:]:
-            # Delete the first layer
-            # The previous second layer becomes the first layer
+        for _ in current_layers[1:]:
+            # Delete layer at index 1 (the first non-base layer);
+            # after deletion, the previous layer at index 2 shifts to index 1
             self.delete_layer(1)
-        for idx in order_list:
-            image = Image(self.session, image_ids[idx])
+
+        for target_layer_index, (image, alpha) in enumerate(
+            target_layer_states, start=1
+        ):
             self.add_layer(image)
+            Layer(self, target_layer_index).set_alpha(alpha)
 
     @validate(Coordinate(), Coordinate())
     def set_center(self, x, y):

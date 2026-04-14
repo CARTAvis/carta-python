@@ -191,7 +191,7 @@ def test_colorblending_set_layer(
     )
 
 
-def test_colorblending_reorder_layers(session, colorblending, mocker):
+def test_colorblending_set_layer_sequence(session, colorblending, mocker):
     # Prepare three existing layers with image_ids 10, 20, 30
     class _L:
         def __init__(self, lid, iid):
@@ -203,15 +203,117 @@ def test_colorblending_reorder_layers(session, colorblending, mocker):
         "layer_list",
         return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
     )
+    mocker.patch(
+        "carta.colorblending.ColorBlending.alpha",
+        new_callable=mocker.PropertyMock,
+        return_value=[1.0, 0.2, 0.8],
+    )
     del_layer = mocker.patch.object(colorblending, "delete_layer")
     add_layer = mocker.patch.object(colorblending, "add_layer")
+    set_alpha = mocker.patch.object(Layer, "set_alpha", autospec=True)
 
-    colorblending.reorder_layers([2, 1])
+    colorblending.set_layer_sequence([0, 2, 1])
 
     # Deletes all non-base layers (twice) then adds layers in specified order
     assert del_layer.call_count == 2
     add_args = [call.args[0] for call in add_layer.call_args_list]
     assert [img.image_id for img in add_args] == [30, 20]
+    assert [call.args[1] for call in set_alpha.call_args_list] == [0.8, 0.2]
+
+
+def test_colorblending_set_layer_sequence_supports_user_specified_subset_order(
+    session, colorblending, mocker
+):
+    class _L:
+        def __init__(self, lid, iid):
+            self.layer_id = lid
+            self.image_id = iid
+
+    mocker.patch.object(
+        ColorBlending,
+        "layer_list",
+        return_value=[_L(0, 10), _L(1, 20), _L(2, 30), _L(3, 40)],
+    )
+    mocker.patch(
+        "carta.colorblending.ColorBlending.alpha",
+        new_callable=mocker.PropertyMock,
+        return_value=[1.0, 0.2, 0.8, 0.4],
+    )
+    del_layer = mocker.patch.object(colorblending, "delete_layer")
+    add_layer = mocker.patch.object(colorblending, "add_layer")
+    set_alpha = mocker.patch.object(Layer, "set_alpha", autospec=True)
+
+    colorblending.set_layer_sequence([0, 3, 1])
+
+    assert del_layer.call_count == 3
+    assert [call.args[0].image_id for call in add_layer.call_args_list] == [40, 20]
+    assert [call.args[1] for call in set_alpha.call_args_list] == [0.4, 0.2]
+
+
+def test_colorblending_set_layer_sequence_rejects_missing_layer_index(
+    session, colorblending, mocker
+):
+    class _L:
+        def __init__(self, lid, iid):
+            self.layer_id = lid
+            self.image_id = iid
+
+    mocker.patch.object(
+        ColorBlending,
+        "layer_list",
+        return_value=[_L(0, 10), _L(1, 20), _L(2, 30), _L(3, 40)],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="layer_indices contains a layer index which does not exist.",
+    ):
+        colorblending.set_layer_sequence([0, 4, 1])
+
+
+def test_colorblending_set_layer_sequence_requires_base_layer_first(
+    session, colorblending, mocker
+):
+    class _L:
+        def __init__(self, lid, iid):
+            self.layer_id = lid
+            self.image_id = iid
+
+    mocker.patch.object(
+        ColorBlending,
+        "layer_list",
+        return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="layer_indices must start with the base layer index 0.",
+    ):
+        colorblending.set_layer_sequence([2, 1])
+
+
+def test_colorblending_set_layer_sequence_rejects_duplicate_base_layer(
+    session, colorblending, mocker
+):
+    class _L:
+        def __init__(self, lid, iid):
+            self.layer_id = lid
+            self.image_id = iid
+
+    mocker.patch.object(
+        ColorBlending,
+        "layer_list",
+        return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "layer_indices must contain the base layer index 0 only once, "
+            "as the first index."
+        ),
+    ):
+        colorblending.set_layer_sequence([0, 2, 0])
 
 
 def test_colorblending_set_center(colorblending, mocker):

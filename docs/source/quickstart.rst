@@ -286,10 +286,11 @@ Manipulate properties of the color blending object and the underlying images.
     # Or set alpha for all layers at once
     cb.set_alpha([0.7, 0.8, 0.9])
 
-    # Reorder layers (except the base layer)
-    # Since the base layer (id = 0) cannot be reordered,
+    # Set which layers to keep, and in what order
+    # The first layer index must be the base layer (id = 0)
+    # Since the base layer cannot be reordered,
     # the layers will be reordered as [img0, img2, img1]
-    cb.reorder_layers([2, 1])
+    cb.set_layer_sequence([0, 2, 1])
 
     # Remove the last layer (id = 2)
     cb.delete_layer(2)
