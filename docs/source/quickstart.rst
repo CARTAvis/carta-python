@@ -239,7 +239,7 @@ Create a color blending object from a list of files.
 
     # Make a color blending object
     # Warning: setting `append=False` will close any existing images
-    # Note: The base layer (id = 0) cannot be deleted or reordered.
+    # Note: The base layer (index = 0) cannot be deleted or moved.
     files = [
         "data/hdf5/first_file.hdf5",
         "data/fits/second_file.fits",
@@ -257,8 +257,26 @@ Create a color blending object from a list of images.
     # Make a color blending object
     # Warning: This will break the current spatial matching and
     #          use the first image as the spatial reference
-    # Note: The base layer (id = 0) cannot be deleted or reordered.
+    # Note: The base layer (index = 0) cannot be deleted or moved.
     cb = ColorBlending.from_images(session, [img0, img1, img2])
+
+To work with color blending images that are already open in a session, use
+the session helper.
+
+.. code-block:: python
+
+    # Get all open color blending objects in this session
+    color_blendings = session.color_blending_list()
+    cb = color_blendings[0]
+
+    # Or get a color blending object by its image view index
+    cb = ColorBlending.from_imageview_id(session, 3)
+
+.. note::
+    The ``ColorBlending`` constructor takes the internal color blending store ID,
+    not the image view index. Use ``ColorBlending.from_files``,
+    ``ColorBlending.from_images``, ``ColorBlending.from_imageview_id`` or
+    ``session.color_blending_list`` in scripts.
 
 Manipulate properties of the color blending object and the underlying images.
 
@@ -287,12 +305,12 @@ Manipulate properties of the color blending object and the underlying images.
     cb.set_alpha([0.7, 0.8, 0.9])
 
     # Set which layers to keep, and in what order
-    # The first layer index must be the base layer (id = 0)
-    # Since the base layer cannot be reordered,
+    # The first layer index must be the base layer (index = 0)
+    # Since the base layer cannot be moved,
     # the layers will be reordered as [img0, img2, img1]
     cb.set_layer_sequence([0, 2, 1])
 
-    # Remove the last layer (id = 2)
+    # Remove the last layer (index = 2)
     cb.delete_layer(2)
 
     # Add a new layer
@@ -316,7 +334,8 @@ Manipulate properties of the color blending object and the underlying images.
     cb.close()
 
 .. note::
-    When you would like to reorder the layers, especially when the base layer (id = 0) is involved, it is more recommended to close the current color blending object and create a new one.
+    If you need to change the layer order involving the base layer (index = 0),
+    close the current color blending object and create a new one.
 
 Saving or displaying an image
 -----------------------------
