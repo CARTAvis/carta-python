@@ -230,7 +230,7 @@ Properties which affect the whole session can be set through the session object:
 Making color blended image
 --------------------------
 
-Create a color blending object from a list of files.
+Create a color blending object from a list of files:
 
 .. code-block:: python
 
@@ -247,7 +247,7 @@ Create a color blending object from a list of files.
     ]
     cb = ColorBlending.from_files(session, files, append=False)
 
-Create a color blending object from a list of images.
+Create a color blending object from a list of images:
 
 .. code-block:: python
 
@@ -261,7 +261,7 @@ Create a color blending object from a list of images.
     cb = ColorBlending.from_images(session, [img0, img1, img2])
 
 To work with color blending images that are already open in a session, use
-the session helper.
+the session helper:
 
 .. code-block:: python
 
@@ -278,7 +278,7 @@ the session helper.
     ``ColorBlending.from_images``, ``ColorBlending.from_imageview_id`` or
     ``session.color_blending_list`` in scripts.
 
-Manipulate properties of the color blending object and the underlying images.
+Manipulate properties of the color blending object and the underlying images:
 
 .. code-block:: python
 
