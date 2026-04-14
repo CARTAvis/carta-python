@@ -274,7 +274,7 @@ class ColorBlending(BasePathMixin):
         """
         self.call_action("addSelectedFrame", image._frame)
 
-    @validate(Number(1, None))
+    @validate(Number(0, None))
     def delete_layer(self, layer_index):
         """Delete a layer from the color blending.
 
@@ -284,6 +284,8 @@ class ColorBlending(BasePathMixin):
             The layer index. The base layer (layer_index = 0) cannot
             be deleted.
         """
+        if layer_index == 0:
+            raise ValueError("The base layer cannot be deleted.")
         self.call_action("deleteSelectedFrame", layer_index - 1)
 
     @validate(InstanceOf(Image), Number(1, None))

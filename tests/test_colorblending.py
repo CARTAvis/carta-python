@@ -178,6 +178,15 @@ def test_colorblending_delete_layer(
     cb_call_action.assert_called_with("deleteSelectedFrame", expected_param)
 
 
+def test_colorblending_delete_layer_rejects_base_layer(
+    colorblending, cb_call_action
+):
+    with pytest.raises(ValueError, match="The base layer cannot be deleted."):
+        colorblending.delete_layer(0)
+
+    cb_call_action.assert_not_called()
+
+
 @pytest.mark.parametrize("idx,expected_param", [(1, 0), (5, 4)])
 def test_colorblending_set_layer(
     colorblending, cb_call_action, image, idx, expected_param
