@@ -10,6 +10,7 @@ import base64
 import posixpath
 
 from .image import Image
+from .colorblending import ColorBlending
 from .constants import PanelMode, GridMode, ComplexComponent, Polarization
 from .backend import Backend
 from .protocol import Protocol
@@ -519,6 +520,19 @@ class Session:
             The list of images open in this session.
         """
         return Image.from_list(self, self.get_value("frameNames"))
+
+    def color_blending_list(self):
+        """Return the list of currently open color blending objects.
+
+        Returns
+        -------
+        list of :obj:`carta.colorblending.ColorBlending` objects
+            The list of color blending objects open in this session.
+        """
+        path = "imageViewConfigStore.colorBlendingImages"
+        length = self.get_value(f"{path}.length")
+        store_ids = [self.get_value(f"{path}[{idx}].id") for idx in range(length)]
+        return [ColorBlending(self, store_id) for store_id in store_ids]
 
     def active_frame(self):
         """Return the currently active image.

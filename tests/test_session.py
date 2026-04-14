@@ -1,6 +1,7 @@
 import pytest
 
 from carta.image import Image
+from carta.colorblending import ColorBlending
 from carta.util import Macro
 from carta.constants import ComplexComponent as CC, Polarization as Pol
 
@@ -68,6 +69,29 @@ def test_cd(session, method, call_action):
     method("resolve_file_path", ["/resolved/file/path"])
     session.cd("original/path")
     call_action.assert_called_with("fileBrowserStore.saveStartingDirectory", "/resolved/file/path")
+
+
+def test_color_blending_list(session, get_value):
+    get_value.side_effect = [2, 3, 8]
+
+    color_blendings = session.color_blending_list()
+
+    assert len(color_blendings) == 2
+    assert all(isinstance(cb, ColorBlending) for cb in color_blendings)
+    get_value.assert_any_call("imageViewConfigStore.colorBlendingImages.length")
+    get_value.assert_any_call("imageViewConfigStore.colorBlendingImages[0].id")
+    get_value.assert_any_call("imageViewConfigStore.colorBlendingImages[1].id")
+    assert [cb.session for cb in color_blendings] == [session, session]
+    assert [cb.store_id for cb in color_blendings] == [3, 8]
+
+
+def test_color_blending_list_empty(session, get_value):
+    get_value.return_value = 0
+
+    assert session.color_blending_list() == []
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.colorBlendingImages.length"
+    )
 
 # OPENING IMAGES
 
