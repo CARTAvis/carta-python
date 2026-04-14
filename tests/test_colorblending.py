@@ -416,7 +416,7 @@ def test_colorblending_set_alpha_length_mismatch(colorblending, mocker, vals):
         ),
         (
             "vectorOverlayVisible",
-            "set_vectoroverlay_visible",
+            "set_vector_overlay_visible",
             "toggleVectorOverlayVisible",
             False,
         ),
@@ -443,7 +443,7 @@ def test_colorblending_toggle_visibility_when_needed(
         ),
         (
             "vectorOverlayVisible",
-            "set_vectoroverlay_visible",
+            "set_vector_overlay_visible",
             "toggleVectorOverlayVisible",
             True,
         ),

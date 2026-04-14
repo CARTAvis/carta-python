@@ -511,7 +511,7 @@ class ColorBlending(BasePathMixin):
             self.call_action("toggleContourVisible")
 
     @validate(Boolean())
-    def set_vectoroverlay_visible(self, state):
+    def set_vector_overlay_visible(self, state):
         """Set the vector overlay visibility.
 
         Parameters
