@@ -55,7 +55,7 @@ class Layer(BasePathMixin):
         Returns
         -------
         list of :obj:`carta.colorblending.Layer`
-                A list of new Layer objects.
+            A list of new Layer objects.
         """
         return [cls(colorblending, layer_id) for layer_id in layer_ids]
 
