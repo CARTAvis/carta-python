@@ -255,12 +255,7 @@ class Image(BasePathMixin):
 
     def make_active(self):
         """Make this the active image."""
-        try:
-            # Before CARTA 5.0.0
-            self.session.call_action("setActiveFrameById", self.image_id)
-        except CartaActionFailed:
-            # After CARTA 5.0.0 (inclusive)
-            self.session.call_action("setActiveImageByFileId", self.image_id)
+        self.session.call_action("setActiveImageByFileId", self.image_id)
 
     def make_spatial_reference(self):
         """Make this image the spatial reference."""
