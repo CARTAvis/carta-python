@@ -136,6 +136,9 @@ class ColorBlending(BasePathMixin):
         The color blending store ID of the color blending image.
     """
 
+    # Mirrors ColorBlendingStore.DEFAULT_LAYER_LIMIT in carta-frontend.
+    MAX_INITIAL_LAYERS = 10
+
     def __init__(self, session, store_id):
         self.session = session
         self.store_id = store_id
@@ -143,6 +146,15 @@ class ColorBlending(BasePathMixin):
         path = "imageViewConfigStore.colorBlendingImages"
         self._base_path = f"{path}[{self.store_id}]"
         self._frame = Macro("", self._base_path)
+
+    @classmethod
+    def _validate_initial_layer_count(cls, layer_count):
+        if layer_count > cls.MAX_INITIAL_LAYERS:
+            raise ValueError(
+                "Color blending initialization supports at most "
+                f"{cls.MAX_INITIAL_LAYERS} images (the base layer plus "
+                f"{cls.MAX_INITIAL_LAYERS - 1} matched images)."
+            )
 
     @classmethod
     def from_imageview_id(cls, session, imageview_id):
@@ -186,7 +198,15 @@ class ColorBlending(BasePathMixin):
         -------
         :obj:`carta.colorblending.ColorBlending`
             A new color blending object.
+
+        Raises
+        ------
+        ValueError
+            If more images are provided than the frontend can include when
+            initializing the color blending layers.
         """
+        cls._validate_initial_layer_count(len(images))
+
         # Set the first image as the spatial reference
         session.call_action("setSpatialReference", images[0]._frame, False)
         # Align the other images to the spatial reference
@@ -224,6 +244,7 @@ class ColorBlending(BasePathMixin):
         :obj:`carta.colorblending.ColorBlending`
             A new color blending object.
         """
+        cls._validate_initial_layer_count(len(files))
         images = session.open_images(files, append=append)
         return cls.from_images(session, images)
 

@@ -543,6 +543,27 @@ def test_colorblending_from_images_alignment_failure(
     )
 
 
+def test_colorblending_from_images_rejects_more_than_initial_layer_limit(
+    session, mocker
+):
+    images = [
+        Image(session, image_id)
+        for image_id in range(ColorBlending.MAX_INITIAL_LAYERS + 1)
+    ]
+    session_call_action = mocker.patch.object(session, "call_action")
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Color blending initialization supports at most 10 images "
+            r"\(the base layer plus 9 matched images\)."
+        ),
+    ):
+        ColorBlending.from_images(session, images)
+
+    session_call_action.assert_not_called()
+
+
 def test_colorblending_from_files(session, mocker):
     mock_open_images = mocker.patch.object(
         session,
@@ -556,3 +577,24 @@ def test_colorblending_from_files(session, mocker):
     mock_open_images.assert_called_with(["a.fits", "b.fits"], append=True)
     mock_from_images.assert_called()
     assert out == "CB"
+
+
+def test_colorblending_from_files_rejects_more_than_initial_layer_limit(
+    session, mocker
+):
+    files = [
+        f"image-{file_id}.fits"
+        for file_id in range(ColorBlending.MAX_INITIAL_LAYERS + 1)
+    ]
+    mock_open_images = mocker.patch.object(session, "open_images")
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "Color blending initialization supports at most 10 images "
+            r"\(the base layer plus 9 matched images\)."
+        ),
+    ):
+        ColorBlending.from_files(session, files)
+
+    mock_open_images.assert_not_called()
