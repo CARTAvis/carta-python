@@ -100,7 +100,7 @@ class Layer(BasePathMixin):
 
         Parameters
         ----------
-        alpha : float
+        alpha : {0}
             The alpha value.
         """
         self.colorblending.call_action("setAlpha", self.layer_id, alpha)
@@ -111,9 +111,9 @@ class Layer(BasePathMixin):
 
         Parameters
         ----------
-        colormap : :obj:`carta.constants.Colormap`
+        colormap : {0}
             The colormap.
-        invert : bool
+        invert : {1}
             Whether the colormap should be inverted. This is false by default.
         """
         self.call_action("renderConfig.setColorMap", colormap)
@@ -328,7 +328,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        layer_index : integer
+        layer_index : {0}
             The layer index. The base layer (layer_index = 0) cannot
             be deleted.
         """
@@ -342,9 +342,9 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        image : :obj:`carta.image.Image`
+        image : {0}
             The image to set.
-        layer_index : integer
+        layer_index : {1}
             The layer index. The base layer (layer_index = 0) cannot
             be set.
         """
@@ -357,7 +357,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        layer_indices : list of integer
+        layer_indices : {0}
             The layer indices to keep, in the desired order. The first index
             must be the base layer (index = 0). Existing alpha values are
             preserved.
@@ -461,7 +461,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        colormap_set : :obj:`carta.constants.ColormapSet`
+        colormap_set : {0}
             The colormap set.
         """
         self.call_action("applyColormapSet", colormap_set)
@@ -474,7 +474,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        alpha_list : list of float
+        alpha_list : {0}
             The alpha values.
         """
         layer_list = self.layer_list()
@@ -492,7 +492,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        state : bool
+        state : {0}
             The desired visibility state.
         """
         is_visible = self.get_value("rasterVisible")
@@ -505,7 +505,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        state : bool
+        state : {0}
             The desired visibility state.
         """
         is_visible = self.get_value("contourVisible")
@@ -518,7 +518,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        state : bool
+        state : {0}
             The desired visibility state.
         """
         is_visible = self.get_value("vectorOverlayVisible")
