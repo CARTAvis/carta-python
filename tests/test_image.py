@@ -110,7 +110,7 @@ def test_simple_properties(image, property_name, expected_path, get_value):
 
 def test_make_active(image, session_call_action):
     image.make_active()
-    session_call_action.assert_called_with("setActiveFrameById", 0)
+    session_call_action.assert_called_with("setActiveImageByFileId", 0)
 
 
 @pytest.mark.parametrize("channel", [0, 10, 19])

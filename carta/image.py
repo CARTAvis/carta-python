@@ -5,7 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 
 
 from .constants import Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
-from .util import Macro, cached, BasePathMixin, CartaActionFailed, Point as Pt
+from .util import Macro, cached, BasePathMixin, Point as Pt
 from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr, IterableOf, Point
 from .metadata import parse_header
