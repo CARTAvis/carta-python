@@ -1,3 +1,5 @@
+"""This module contains functionality for interacting with color blending images and their layers."""
+
 from .constants import Colormap, ColormapSet, ImageType
 from .image import Image
 from .util import BasePathMixin, CartaActionFailed, Macro
