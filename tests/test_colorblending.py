@@ -372,8 +372,8 @@ def test_colorblending_set_colormap_set(colorblending, cb_call_action, mocker):
     ly2 = mocker.create_autospec(Layer(colorblending, 2), instance=True)
     mocker.patch.object(ColorBlending, "layer_list", return_value=[ly1, ly2])
 
-    colorblending.set_colormap_set(CMS.Rainbow)
-    cb_call_action.assert_called_with("applyColormapSet", CMS.Rainbow)
+    colorblending.set_colormap_set(CMS.RAINBOW)
+    cb_call_action.assert_called_with("applyColormapSet", CMS.RAINBOW)
     ly1.call_action.assert_called_with("renderConfig.setInverted", False)
     ly2.call_action.assert_called_with("renderConfig.setInverted", False)
 

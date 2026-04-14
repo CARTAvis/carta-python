@@ -27,7 +27,7 @@ class ColormapSet(StrEnum):
     """Colormap sets for color blending."""
     RGB = "RGB"
     CMY = "CMY"
-    Rainbow = "Rainbow"
+    RAINBOW = "Rainbow"
 
 
 class ImageType(IntEnum):
