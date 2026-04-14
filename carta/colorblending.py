@@ -261,18 +261,8 @@ class ColorBlending(BasePathMixin):
         list of :obj:`carta.colorblending.Layer`
             A list of Layer objects.
         """
-
-        def count_layers():
-            idx = 0
-            while True:
-                try:
-                    self.get_value(f"frames[{idx}].frameInfo.fileId")
-                    idx += 1
-                except CartaActionFailed:
-                    break
-            return idx
-
-        return Layer.from_list(self, list(range(count_layers())))
+        layer_count = self.get_value("frames.length")
+        return Layer.from_list(self, list(range(layer_count)))
 
     def add_layer(self, image):
         """Add a new layer to the color blending.

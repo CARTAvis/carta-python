@@ -156,16 +156,13 @@ def test_colorblending_layer_list_derived(session, mocker):
     cb._base_path = f"imageViewConfigStore.colorBlendingImages[{cb.image_id}]"
     cb._frame = Macro("", cb._base_path)
 
-    # Simulate two layers and then failure for third
+    # Simulate two layers from the frontend's computed frames array length.
     gv = mocker.patch.object(cb, "get_value")
-    gv.side_effect = [
-        1,
-        2,
-        CartaActionFailed("stop"),
-    ]  # fileIds for idx 0,1 then fail
+    gv.return_value = 2
 
     layers = cb.layer_list()
     assert [ly.layer_id for ly in layers] == [0, 1]
+    gv.assert_called_once_with("frames.length")
 
 
 def test_colorblending_add_layer(colorblending, cb_call_action, image):
