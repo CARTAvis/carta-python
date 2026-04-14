@@ -429,6 +429,11 @@ class ColorBlending(BasePathMixin):
             The alpha values.
         """
         layer_list = self.layer_list()
+        if len(alpha_list) != len(layer_list):
+            raise ValueError(
+                f"alpha_list length ({len(alpha_list)}) does not match "
+                f"the number of layers ({len(layer_list)})."
+            )
         for alpha, layer in zip(alpha_list, layer_list):
             layer.set_alpha(alpha)
 

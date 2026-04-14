@@ -363,6 +363,16 @@ def test_colorblending_set_alpha_invalid(colorblending, vals):
         colorblending.set_alpha(vals)
 
 
+@pytest.mark.parametrize("vals", [[0.5], [0.1, 0.2, 0.3]])
+def test_colorblending_set_alpha_length_mismatch(colorblending, mocker, vals):
+    ly1 = mocker.create_autospec(Layer(colorblending, 1), instance=True)
+    ly2 = mocker.create_autospec(Layer(colorblending, 2), instance=True)
+    mocker.patch.object(ColorBlending, "layer_list", return_value=[ly1, ly2])
+
+    with pytest.raises(ValueError, match="does not match"):
+        colorblending.set_alpha(vals)
+
+
 @pytest.mark.parametrize(
     "getter,method,action,state",
     [
