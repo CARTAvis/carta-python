@@ -1,6 +1,6 @@
-from .constants import Colormap, ColormapSet
+from .constants import Colormap, ColormapSet, ImageType
 from .image import Image
-from .util import BasePathMixin, CartaActionFailed, Macro, cached
+from .util import BasePathMixin, CartaActionFailed, Macro
 from .validation import (
     Boolean,
     Constant,
@@ -19,14 +19,14 @@ class Layer(BasePathMixin):
     ----------
     colorblending : :obj:`carta.colorblending.ColorBlending`
         The color blending object.
-    layer_id : int
+    layer_id : integer
         The layer ID.
 
     Attributes
     ----------
     colorblending : :obj:`carta.colorblending.ColorBlending`
         The color blending object.
-    layer_id : int
+    layer_id : integer
         The layer ID.
     session : :obj:`carta.session.Session`
         The session object associated with this layer.
@@ -49,7 +49,7 @@ class Layer(BasePathMixin):
         ----------
         colorblending : :obj:`carta.colorblending.ColorBlending`
             The color blending object.
-        layer_ids : list of int
+        layer_ids : list of integer
             The layer IDs.
 
         Returns
@@ -62,16 +62,15 @@ class Layer(BasePathMixin):
     def __repr__(self):
         """A human-readable representation of this object."""
         session_id = self.session.session_id
-        cb_id = self.colorblending.imageview_id
+        cb_imageview_id = self.colorblending.imageview_id
         cb_name = self.colorblending.file_name
         repr_content = [
-            f"{session_id}:{cb_id}:{cb_name}",
+            f"{session_id}:{cb_imageview_id}:{cb_name}",
             f"{self.layer_id}:{self.file_name}",
         ]
         return ":".join(repr_content)
 
     @property
-    @cached
     def file_name(self):
         """The name of the image.
 
@@ -83,13 +82,12 @@ class Layer(BasePathMixin):
         return self.get_value("frameInfo.fileInfo.name")
 
     @property
-    @cached
     def image_id(self):
         """The ID of the image.
 
         Returns
         -------
-        int
+        integer
             The image ID.
         """
         return self.get_value("frameInfo.fileId")
@@ -127,26 +125,51 @@ class ColorBlending(BasePathMixin):
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this color blending.
-    image_id : int
-        The image ID.
+    store_id : integer
+        The color blending store ID of the color blending image.
 
     Attributes
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this color blending.
-    image_id : int
-        The image ID.
+    store_id : integer
+        The color blending store ID of the color blending image.
     """
 
-    def __init__(self, session, image_id):
+    def __init__(self, session, store_id):
         self.session = session
-        self.image_id = image_id
+        self.store_id = store_id
 
         path = "imageViewConfigStore.colorBlendingImages"
-        self._base_path = f"{path}[{self.image_id}]"
+        self._base_path = f"{path}[{self.store_id}]"
         self._frame = Macro("", self._base_path)
 
-        self.base_frame = Image(self.session, self.layer_list()[0].image_id)
+    @classmethod
+    def from_imageview_id(cls, session, imageview_id):
+        """Create a color blending object from an image view ID.
+
+        Parameters
+        ----------
+        session : :obj:`carta.session.Session`
+            The session object.
+        imageview_id : integer
+            The image view ID, the index of the image within the list of
+            currently open images, of the color blending image.
+
+        Returns
+        -------
+        :obj:`carta.colorblending.ColorBlending`
+            A new color blending object.
+        """
+        # Find the store ID for the given image view ID
+        path = f"imageViewConfigStore.imageList[{imageview_id}]"
+        image_type = session.get_value(f"{path}.type")
+        if image_type != ImageType.COLOR_BLENDING:
+            raise ValueError(
+                "imageview_id does not refer to a color blending image."
+            )
+        store_id = session.get_value(f"{path}.store.id")
+        return cls(session, store_id)
 
     @classmethod
     def from_images(cls, session, images):
@@ -178,8 +201,8 @@ class ColorBlending(BasePathMixin):
                 )
 
         command = "imageViewConfigStore.createColorBlending"
-        image_id = session.call_action(command, return_path="id")
-        return cls(session, image_id)
+        store_id = session.call_action(command, return_path="id")
+        return cls(session, store_id)
 
     @classmethod
     def from_files(cls, session, files, append=False):
@@ -210,7 +233,10 @@ class ColorBlending(BasePathMixin):
         return f"{session_id}:{self.imageview_id}:{self.file_name}"
 
     @property
-    @cached
+    def _base_frame(self):
+        return Image(self.session, self.get_value("frames[0].id"))
+
+    @property
     def file_name(self):
         """The name of the image.
 
@@ -222,14 +248,13 @@ class ColorBlending(BasePathMixin):
         return self.get_value("filename")
 
     @property
-    @cached
     def imageview_id(self):
-        """The ID of the image in imageView.
+        """The image view ID of the color blending image.
 
         Returns
         -------
         integer
-            The image ID.
+            The image view ID.
         """
         imageview_names = self.session.get_value(
             "imageViewConfigStore.imageNames"
@@ -280,7 +305,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        layer_index : int
+        layer_index : integer
             The layer index. The base layer (layer_index = 0) cannot
             be deleted.
         """
@@ -296,7 +321,7 @@ class ColorBlending(BasePathMixin):
         ----------
         image : :obj:`carta.image.Image`
             The image to set.
-        layer_index : int
+        layer_index : integer
             The layer index. The base layer (layer_index = 0) cannot
             be set.
         """
@@ -309,7 +334,7 @@ class ColorBlending(BasePathMixin):
 
         Parameters
         ----------
-        layer_indices : list of int
+        layer_indices : list of integer
             The layer indices to keep, in the desired order. The first index
             must be the base layer (index = 0). Existing alpha values are
             preserved.
@@ -388,7 +413,7 @@ class ColorBlending(BasePathMixin):
             information, or if world coordinates do not match the session-wide
             number formats.
         """
-        self.base_frame.set_center(x, y)
+        self._base_frame.set_center(x, y)
 
     @validate(Number(), Boolean())
     def set_zoom_level(self, zoom, absolute=True):
@@ -404,7 +429,7 @@ class ColorBlending(BasePathMixin):
             Whether the zoom level should be treated as absolute. By default
             it is adjusted by a scaling factor.
         """
-        self.base_frame.set_zoom_level(zoom, absolute)
+        self._base_frame.set_zoom_level(zoom, absolute)
 
     @validate(Constant(ColormapSet))
     def set_colormap_set(self, colormap_set):

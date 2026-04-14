@@ -3,6 +3,7 @@ import pytest
 from carta.colorblending import ColorBlending, Layer
 from carta.constants import Colormap as CM
 from carta.constants import ColormapSet as CMS
+from carta.constants import ImageType
 from carta.image import Image
 from carta.util import CartaActionFailed, CartaValidationFailed, Macro
 
@@ -10,13 +11,7 @@ from carta.util import CartaActionFailed, CartaValidationFailed, Macro
 
 
 @pytest.fixture
-def colorblending(session, mocker):
-    # Avoid hitting real layer_list logic during __init__
-    class _Dummy:
-        def __init__(self, image_id):
-            self.image_id = image_id
-
-    mocker.patch.object(ColorBlending, "layer_list", return_value=[_Dummy(42)])
+def colorblending(session):
     return ColorBlending(session, 0)
 
 
@@ -115,6 +110,18 @@ def test_layer_set_colormap(layer, layer_call_action, invert):
 # TESTS — ColorBlending basics
 
 
+def test_colorblending_init(session):
+    colorblending = ColorBlending(session, 3)
+    assert colorblending.store_id == 3
+    assert (
+        colorblending._base_path
+        == "imageViewConfigStore.colorBlendingImages[3]"
+    )
+    assert colorblending._frame == Macro(
+        "", "imageViewConfigStore.colorBlendingImages[3]"
+    )
+
+
 def test_colorblending_repr(session, colorblending, cb_property):
     cb_property("imageview_id", 3)
     cb_property("file_name", "blend.fits")
@@ -140,6 +147,16 @@ def test_colorblending_alpha(colorblending, cb_get_value):
     cb_get_value.assert_called_with("alpha")
 
 
+def test_colorblending_base_frame(colorblending, cb_get_value):
+    cb_get_value.return_value = 42
+    base_frame = colorblending._base_frame
+
+    cb_get_value.assert_called_once_with("frames[0].id")
+    assert isinstance(base_frame, Image)
+    assert base_frame.session is colorblending.session
+    assert base_frame.image_id == 42
+
+
 def test_colorblending_make_active(
     session, colorblending, cb_property, session_call_action
 ):
@@ -149,12 +166,7 @@ def test_colorblending_make_active(
 
 
 def test_colorblending_layer_list_derived(session, mocker):
-    # Construct without running __init__ to avoid base_frame wiring
-    cb = object.__new__(ColorBlending)
-    cb.session = session
-    cb.image_id = 0
-    cb._base_path = f"imageViewConfigStore.colorBlendingImages[{cb.image_id}]"
-    cb._frame = Macro("", cb._base_path)
+    cb = ColorBlending(session, 3)
 
     # Simulate two layers from the frontend's computed frames array length.
     gv = mocker.patch.object(cb, "get_value")
@@ -323,16 +335,28 @@ def test_colorblending_set_layer_sequence_rejects_duplicate_base_layer(
 
 
 def test_colorblending_set_center(colorblending, mocker):
-    set_center = mocker.patch.object(colorblending.base_frame, "set_center")
+    base_frame = mocker.create_autospec(Image, instance=True)
+    mocker.patch(
+        "carta.colorblending.ColorBlending._base_frame",
+        new_callable=mocker.PropertyMock,
+        return_value=base_frame,
+    )
+
     colorblending.set_center(1, 2)
-    set_center.assert_called_with(1, 2)
+    base_frame.set_center.assert_called_once_with(1, 2)
 
 
 @pytest.mark.parametrize("zoom,absolute", [(2, True), (3.5, False)])
 def test_colorblending_set_zoom_level(colorblending, mocker, zoom, absolute):
-    set_zoom = mocker.patch.object(colorblending.base_frame, "set_zoom_level")
+    base_frame = mocker.create_autospec(Image, instance=True)
+    mocker.patch(
+        "carta.colorblending.ColorBlending._base_frame",
+        new_callable=mocker.PropertyMock,
+        return_value=base_frame,
+    )
+
     colorblending.set_zoom_level(zoom, absolute)
-    set_zoom.assert_called_with(zoom, absolute)
+    base_frame.set_zoom_level.assert_called_once_with(zoom, absolute)
 
 
 def test_colorblending_set_colormap_set(colorblending, cb_call_action, mocker):
@@ -437,6 +461,38 @@ def test_colorblending_close(session, colorblending, session_call_action):
 # CREATION HELPERS
 
 
+def test_colorblending_from_imageview_id(session, session_get_value, mocker):
+    session_get_value.side_effect = [ImageType.COLOR_BLENDING, 17]
+    init = mocker.patch.object(ColorBlending, "__init__", return_value=None)
+
+    cb = ColorBlending.from_imageview_id(session, 5)
+
+    assert isinstance(cb, ColorBlending)
+    assert [call.args for call in session_get_value.call_args_list] == [
+        ("imageViewConfigStore.imageList[5].type",),
+        ("imageViewConfigStore.imageList[5].store.id",),
+    ]
+    init.assert_called_once_with(session, 17)
+
+
+def test_colorblending_from_imageview_id_rejects_non_color_blending(
+    session, session_get_value, mocker
+):
+    session_get_value.return_value = ImageType.FRAME
+    init = mocker.patch.object(ColorBlending, "__init__", return_value=None)
+
+    with pytest.raises(
+        ValueError,
+        match="imageview_id does not refer to a color blending image.",
+    ):
+        ColorBlending.from_imageview_id(session, 5)
+
+    session_get_value.assert_called_once_with(
+        "imageViewConfigStore.imageList[5].type"
+    )
+    init.assert_not_called()
+
+
 def test_colorblending_from_images_success(session, mocker):
     # Prepare two images to blend
     img0 = Image(session, 100)
@@ -450,7 +506,7 @@ def test_colorblending_from_images_success(session, mocker):
     session.call_action.side_effect = [None, 123]
 
     # Avoid __init__ side effects; just ensure returned instance
-    mocker.patch.object(ColorBlending, "__init__", return_value=None)
+    init = mocker.patch.object(ColorBlending, "__init__", return_value=None)
     cb = ColorBlending.from_images(session, [img0, img1])
     assert isinstance(cb, ColorBlending)
     session.call_action.assert_any_call(
@@ -460,6 +516,7 @@ def test_colorblending_from_images_success(session, mocker):
     session.call_action.assert_called_with(
         "imageViewConfigStore.createColorBlending", return_path="id"
     )
+    init.assert_called_once_with(session, 123)
 
 
 def test_colorblending_from_images_alignment_failure(
