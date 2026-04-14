@@ -107,6 +107,13 @@ def test_layer_set_colormap(layer, layer_call_action, invert):
     layer_call_action.assert_any_call("renderConfig.setInverted", invert)
 
 
+def test_layer_set_colormap_invalid_colormap(layer, layer_call_action):
+    with pytest.raises(CartaValidationFailed):
+        layer.set_colormap("not-a-colormap")
+
+    layer_call_action.assert_not_called()
+
+
 # TESTS — ColorBlending basics
 
 
