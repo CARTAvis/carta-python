@@ -361,7 +361,7 @@ class Image(BasePathMixin):
     def set_center(self, x, y):
         """Set the center position, in image or world coordinates.
 
-        World coordinates are interpreted according to the session's globally set coordinate system and any custom number formats. These can be changed using :obj:`carta.session.set_coordinate_system` and :obj:`set_custom_number_format`.
+        World coordinates are interpreted according to the session's globally set coordinate system and any custom number formats. These can be changed using :obj:`carta.wcs_overlay.Global.set_coordinate_system` and :obj:`carta.wcs_overlay.Numbers.set_format`.
 
         Coordinates must either both be image coordinates or match the current number formats. Numbers are interpreted as image coordinates, and numeric strings with no units are interpreted as degrees.
 
