@@ -482,8 +482,6 @@ class ColorBlending(BasePathMixin):
             The colormap set.
         """
         self.call_action("applyColormapSet", colormap_set)
-        for layer in self.layer_list():
-            layer.call_action("renderConfig.setInverted", False)
 
     @validate(IterableOf(Number(0, 1)))
     def set_alpha(self, alpha_list):

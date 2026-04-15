@@ -387,16 +387,9 @@ def test_colorblending_set_zoom_level(colorblending, mocker, zoom, absolute):
     base_frame.set_zoom_level.assert_called_once_with(zoom, absolute)
 
 
-def test_colorblending_set_colormap_set(colorblending, cb_call_action, mocker):
-    # Two layers; verify setInverted(False) called on each
-    ly1 = mocker.create_autospec(Layer(colorblending, 1), instance=True)
-    ly2 = mocker.create_autospec(Layer(colorblending, 2), instance=True)
-    mocker.patch.object(ColorBlending, "layer_list", return_value=[ly1, ly2])
-
+def test_colorblending_set_colormap_set(colorblending, cb_call_action):
     colorblending.set_colormap_set(CMS.RAINBOW)
     cb_call_action.assert_called_with("applyColormapSet", CMS.RAINBOW)
-    ly1.call_action.assert_called_with("renderConfig.setInverted", False)
-    ly2.call_action.assert_called_with("renderConfig.setInverted", False)
 
 
 def test_colorblending_set_alpha_valid(colorblending, mocker):
