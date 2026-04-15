@@ -83,6 +83,10 @@ def test_color_blending_list(session, get_value):
     get_value.assert_any_call("imageViewConfigStore.colorBlendingImages[1].id")
     assert [cb.session for cb in color_blendings] == [session, session]
     assert [cb.store_id for cb in color_blendings] == [3, 8]
+    assert [cb._base_path for cb in color_blendings] == [
+        "imageViewConfigStore.colorBlendingImageMap[3]",
+        "imageViewConfigStore.colorBlendingImageMap[8]",
+    ]
 
 
 def test_color_blending_list_empty(session, get_value):

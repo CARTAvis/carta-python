@@ -122,10 +122,10 @@ def test_colorblending_init(session):
     assert colorblending.store_id == 3
     assert (
         colorblending._base_path
-        == "imageViewConfigStore.colorBlendingImages[3]"
+        == "imageViewConfigStore.colorBlendingImageMap[3]"
     )
     assert colorblending._frame == Macro(
-        "", "imageViewConfigStore.colorBlendingImages[3]"
+        "", "imageViewConfigStore.colorBlendingImageMap[3]"
     )
 
 
@@ -468,18 +468,21 @@ def test_colorblending_close(session, colorblending, session_call_action):
 # CREATION HELPERS
 
 
-def test_colorblending_from_imageview_id(session, session_get_value, mocker):
+def test_colorblending_from_imageview_id(session, session_get_value):
     session_get_value.side_effect = [ImageType.COLOR_BLENDING, 17]
-    init = mocker.patch.object(ColorBlending, "__init__", return_value=None)
 
     cb = ColorBlending.from_imageview_id(session, 5)
 
     assert isinstance(cb, ColorBlending)
+    assert cb.store_id == 17
+    assert (
+        cb._base_path
+        == "imageViewConfigStore.colorBlendingImageMap[17]"
+    )
     assert [call.args for call in session_get_value.call_args_list] == [
         ("imageViewConfigStore.imageList[5].type",),
         ("imageViewConfigStore.imageList[5].store.id",),
     ]
-    init.assert_called_once_with(session, 17)
 
 
 def test_colorblending_from_imageview_id_rejects_non_color_blending(
@@ -501,29 +504,44 @@ def test_colorblending_from_imageview_id_rejects_non_color_blending(
 
 
 def test_colorblending_from_images_success(session, mocker):
-    # Prepare two images to blend
     img0 = Image(session, 100)
     img1 = Image(session, 200)
+    img2 = Image(session, 300)
 
-    # setSpatialReference alignment returns True for img1
     mocker.patch.object(session, "call_action")
     mocker.patch.object(img1, "call_action", return_value=True)
+    mocker.patch.object(img2, "call_action", return_value=True)
+    layer_list = mocker.patch.object(
+        ColorBlending,
+        "layer_list",
+        autospec=True,
+        return_value=[object(), object(), object(), object()],
+    )
+    delete_layer = mocker.patch.object(
+        ColorBlending, "delete_layer", autospec=True
+    )
+    add_layer = mocker.patch.object(ColorBlending, "add_layer", autospec=True)
 
-    # Create ID for new color blending
     session.call_action.side_effect = [None, 123]
 
-    # Avoid __init__ side effects; just ensure returned instance
-    init = mocker.patch.object(ColorBlending, "__init__", return_value=None)
-    cb = ColorBlending.from_images(session, [img0, img1])
+    cb = ColorBlending.from_images(session, [img0, img1, img2])
+
     assert isinstance(cb, ColorBlending)
+    assert cb.store_id == 123
+    assert cb._base_path == "imageViewConfigStore.colorBlendingImageMap[123]"
     session.call_action.assert_any_call(
         "setSpatialReference", img0._frame, False
     )
     img1.call_action.assert_called_with("setSpatialReference", img0._frame)
+    img2.call_action.assert_called_with("setSpatialReference", img0._frame)
     session.call_action.assert_called_with(
         "imageViewConfigStore.createColorBlending", return_path="id"
     )
-    init.assert_called_once_with(session, 123)
+    layer_list.assert_called_once_with(cb)
+    delete_layer.assert_has_calls(
+        [mocker.call(cb, 1), mocker.call(cb, 1), mocker.call(cb, 1)]
+    )
+    add_layer.assert_has_calls([mocker.call(cb, img1), mocker.call(cb, img2)])
 
 
 def test_colorblending_from_images_alignment_failure(

@@ -145,7 +145,7 @@ class ColorBlending(BasePathMixin):
         self.session = session
         self.store_id = store_id
 
-        path = "imageViewConfigStore.colorBlendingImages"
+        path = "imageViewConfigStore.colorBlendingImageMap"
         self._base_path = f"{path}[{self.store_id}]"
         self._frame = Macro("", self._base_path)
 
@@ -224,7 +224,19 @@ class ColorBlending(BasePathMixin):
 
         command = "imageViewConfigStore.createColorBlending"
         store_id = session.call_action(command, return_path="id")
-        return cls(session, store_id)
+        colorblending = cls(session, store_id)
+
+        # The frontend initializes color blending from the current spatial
+        # reference's secondarySpatialImages, which can include frames matched
+        # before this helper was called. Rebuild the non-base layers so the
+        # blend contains exactly the images requested here without clearing the
+        # session-wide spatial matching state.
+        for _ in colorblending.layer_list()[1:]:
+            colorblending.delete_layer(1)
+        for image in images[1:]:
+            colorblending.add_layer(image)
+
+        return colorblending
 
     @classmethod
     def from_files(cls, session, files, append=False):
