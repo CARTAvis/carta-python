@@ -295,12 +295,11 @@ class ColorBlending(BasePathMixin):
         length = self.session.get_value(f"{path}.length")
         for idx in range(length):
             entry = f"{path}[{idx}]"
-            if (
-                self.session.get_value(f"{entry}.type")
-                == ImageType.COLOR_BLENDING
-                and self.session.get_value(f"{entry}.store.id")
-                == self.store_id
-            ):
+            entry_type = self.session.get_value(f"{entry}.type")
+            if entry_type != ImageType.COLOR_BLENDING:
+                continue
+            entry_id = self.session.get_value(f"{entry}.store.id")
+            if entry_id == self.store_id:
                 return idx
         raise RuntimeError(
             "Could not find this color blending image in the image list."

@@ -120,10 +120,8 @@ def test_layer_set_colormap_invalid_colormap(layer, layer_call_action):
 def test_colorblending_init(session):
     colorblending = ColorBlending(session, 3)
     assert colorblending.store_id == 3
-    assert (
-        colorblending._base_path
-        == "imageViewConfigStore.colorBlendingImageMap[3]"
-    )
+    expected = "imageViewConfigStore.colorBlendingImageMap[3]"
+    assert colorblending._base_path == expected
     assert colorblending._frame == Macro(
         "", "imageViewConfigStore.colorBlendingImageMap[3]"
     )
@@ -493,10 +491,8 @@ def test_colorblending_from_imageview_id(session, session_get_value):
 
     assert isinstance(cb, ColorBlending)
     assert cb.store_id == 17
-    assert (
-        cb._base_path
-        == "imageViewConfigStore.colorBlendingImageMap[17]"
-    )
+    expected = "imageViewConfigStore.colorBlendingImageMap[17]"
+    assert cb._base_path == expected
     assert [call.args for call in session_get_value.call_args_list] == [
         ("imageViewConfigStore.imageList[5].type",),
         ("imageViewConfigStore.imageList[5].store.id",),
