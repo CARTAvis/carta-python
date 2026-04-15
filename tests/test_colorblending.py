@@ -341,6 +341,27 @@ def test_colorblending_set_layer_sequence_rejects_duplicate_base_layer(
         colorblending.set_layer_sequence([0, 2, 0])
 
 
+def test_colorblending_set_layer_sequence_rejects_duplicate_non_base_layer(
+    session, colorblending, mocker
+):
+    class _L:
+        def __init__(self, lid, iid):
+            self.layer_id = lid
+            self.image_id = iid
+
+    mocker.patch.object(
+        ColorBlending,
+        "layer_list",
+        return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="layer_indices must not contain duplicate layer indices.",
+    ):
+        colorblending.set_layer_sequence([0, 1, 1])
+
+
 def test_colorblending_set_center(colorblending, mocker):
     base_frame = mocker.create_autospec(Image, instance=True)
     mocker.patch(

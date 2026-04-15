@@ -395,6 +395,11 @@ class ColorBlending(BasePathMixin):
                 "as the first index."
             )
 
+        if len(layer_indices) != len(set(layer_indices)):
+            raise ValueError(
+                "layer_indices must not contain duplicate layer indices."
+            )
+
         current_layer_indices = list(range(len(current_layers)))
         if layer_indices == current_layer_indices:
             return
