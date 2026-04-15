@@ -104,7 +104,7 @@ class SessionWCSOverlay(BasePathMixin):
         height : {1}
             The new height, in pixels, divided by the device pixel ratio.
         """
-        self.call_action("setViewDimension", width, height)
+        self.session.call_action("setImageViewDimensions", width, height)
 
 
 class OverlayComponent(BasePathMixin):
