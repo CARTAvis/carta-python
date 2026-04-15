@@ -411,7 +411,7 @@ class ColorBlending(BasePathMixin):
             )
 
         current_layer_indices = list(range(len(current_layers)))
-        if layer_indices == current_layer_indices:
+        if list(layer_indices) == current_layer_indices:
             return
 
         current_alpha_values = self.alpha
