@@ -44,7 +44,7 @@ class SessionWCSOverlay(BasePathMixin):
 
     def __init__(self, session):
         self.session = session
-        self._base_path = "overlayStore"
+        self._base_path = "overlaySettings"
 
         self._components = {}
         for component in Overlay:
@@ -126,7 +126,7 @@ class OverlayComponent(BasePathMixin):
         OverlayComponent.CLASS[cls.COMPONENT] = cls
 
     def __init__(self, overlay):
-        self._base_path = f"overlayStore.{self.COMPONENT}"
+        self._base_path = f"overlaySettings.{self.COMPONENT}"
         self.session = overlay.session
 
 
