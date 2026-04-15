@@ -140,13 +140,17 @@ def test_colorblending_file_name(colorblending, cb_get_value):
     cb_get_value.assert_called_with("filename")
 
 
-def test_colorblending_imageview_id(
-    session, colorblending, session_get_value, cb_property
-):
-    cb_property("file_name", "imgC")
-    session_get_value.side_effect = [["imgA", "imgB", "imgC", "imgD"]]
+def test_colorblending_imageview_id(session, colorblending, session_get_value):
+    # imageList has 3 entries; the color blending with store_id=0 is at index 2
+    session_get_value.side_effect = [
+        3,                          # imageList.length
+        ImageType.FRAME,            # [0].type  — skip
+        ImageType.COLOR_BLENDING,   # [1].type  — match type…
+        99,                         # [1].store.id — wrong store_id
+        ImageType.COLOR_BLENDING,   # [2].type  — match type…
+        0,                          # [2].store.id — matches store_id=0
+    ]
     assert colorblending.imageview_id == 2
-    session_get_value.assert_called_with("imageViewConfigStore.imageNames")
 
 
 def test_colorblending_alpha(colorblending, cb_get_value):

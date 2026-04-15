@@ -291,10 +291,20 @@ class ColorBlending(BasePathMixin):
         integer
             The image view ID.
         """
-        imageview_names = self.session.get_value(
-            "imageViewConfigStore.imageNames"
+        path = "imageViewConfigStore.imageList"
+        length = self.session.get_value(f"{path}.length")
+        for idx in range(length):
+            entry = f"{path}[{idx}]"
+            if (
+                self.session.get_value(f"{entry}.type")
+                == ImageType.COLOR_BLENDING
+                and self.session.get_value(f"{entry}.store.id")
+                == self.store_id
+            ):
+                return idx
+        raise RuntimeError(
+            "Could not find this color blending image in the image list."
         )
-        return imageview_names.index(self.file_name)
 
     @property
     def alpha(self):
