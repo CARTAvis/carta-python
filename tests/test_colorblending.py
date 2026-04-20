@@ -70,16 +70,21 @@ def test_layer_from_list(colorblending):
 
 
 def test_layer_repr_healthy(session, colorblending, layer_property, mocker):
-    mocker.patch.object(session, "_find_image_view_order", return_value=2)
+    find = mocker.patch.object(session, "_find_image_view_order", return_value=2)
+    layer_property("file_id", 42)
     layer_property("file_name", "layer1.fits")
     r = repr(Layer(colorblending, 3))
     assert r == (
         "Layer(image_view_order=2, color_blending_id=0, layer_id=3, "
         "file_name='layer1.fits')"
     )
+    find.assert_called_once_with(ImageType.FRAME, 42)
 
 
-def test_layer_repr_closed_when_parent_missing(session, colorblending, mocker):
+def test_layer_repr_closed_when_frame_not_in_image_list(
+    session, colorblending, layer_property, mocker
+):
+    layer_property("file_id", 42)
     mocker.patch.object(
         session,
         "_find_image_view_order",
@@ -93,11 +98,27 @@ def test_layer_repr_closed_when_parent_missing(session, colorblending, mocker):
 
 
 def test_layer_repr_closed_when_frame_is_gone(session, colorblending, mocker):
+    mocker.patch(
+        "carta.colorblending.Layer.file_id",
+        new_callable=mocker.PropertyMock,
+        side_effect=CartaActionFailed("frame is gone"),
+    )
+    r = repr(Layer(colorblending, 3))
+    assert r == (
+        "[Closed] Layer(image_view_order=None, color_blending_id=0, "
+        "layer_id=3)"
+    )
+
+
+def test_layer_repr_closed_when_file_name_read_fails(
+    session, colorblending, layer_property, mocker
+):
     mocker.patch.object(session, "_find_image_view_order", return_value=2)
+    layer_property("file_id", 42)
     mocker.patch(
         "carta.colorblending.Layer.file_name",
         new_callable=mocker.PropertyMock,
-        side_effect=CartaActionFailed("frame is gone"),
+        side_effect=CartaActionFailed("file_name read failed"),
     )
     r = repr(Layer(colorblending, 3))
     assert r == (
@@ -114,6 +135,26 @@ def test_layer_file_name_property(layer, layer_get_value):
 def test_layer_file_id_property(layer, layer_get_value):
     layer.file_id
     layer_get_value.assert_called_with("frameInfo.fileId")
+
+
+def test_layer_image_view_order(session, colorblending, layer_property, mocker):
+    find = mocker.patch.object(session, "_find_image_view_order", return_value=7)
+    layer_property("file_id", 42)
+    assert Layer(colorblending, 3).image_view_order == 7
+    find.assert_called_once_with(ImageType.FRAME, 42)
+
+
+def test_layer_image_view_order_raises_when_frame_not_in_image_list(
+    session, colorblending, layer_property, mocker
+):
+    layer_property("file_id", 42)
+    mocker.patch.object(
+        session,
+        "_find_image_view_order",
+        side_effect=RuntimeError("not in image list"),
+    )
+    with pytest.raises(RuntimeError):
+        Layer(colorblending, 3).image_view_order
 
 
 @pytest.mark.parametrize("alpha", [0.0, 0.5, 1.0])

@@ -63,13 +63,36 @@ class Layer(BasePathMixin):
         """
         return [cls(colorblending, layer_id) for layer_id in layer_ids]
 
+    @property
+    def image_view_order(self):
+        """The image-view order of this layer's underlying frame.
+
+        This is the position of the underlying frame in the session's image
+        list. A layer does not occupy its own position in the image list;
+        its parent color blending does (see
+        :obj:`carta.colorblending.ColorBlending.image_view_order`).
+
+        Returns
+        -------
+        integer
+            The image-view order of the underlying frame.
+
+        Raises
+        ------
+        RuntimeError
+            If no matching frame entry exists in the image list.
+        """
+        return self.session._find_image_view_order(
+            ImageType.FRAME, self.file_id
+        )
+
     def __repr__(self):
         """A human-readable representation of this layer."""
         cls = type(self).__name__
         cb_id = self.colorblending.color_blending_id
 
         try:
-            order = self.colorblending.image_view_order
+            order = self.image_view_order
         except (CartaScriptingException, RuntimeError):
             return (
                 f"[Closed] {cls}(image_view_order=None, "
