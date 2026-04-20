@@ -1,11 +1,11 @@
-"""This module contains an image class which represents a single image open in the session.
+"""This module contains the image classes representing image-view items open in the session.
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 
 
-from .constants import Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
-from .util import Macro, cached, BasePathMixin, Point as Pt
+from .constants import ImageType, Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
+from .util import Macro, cached, BasePathMixin, CartaScriptingException, Point as Pt
 from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr, IterableOf, Point
 from .metadata import parse_header
@@ -16,8 +16,41 @@ from .wcs_overlay import ImageWCSOverlay
 from .region import RegionSet
 
 
-class Image(BasePathMixin):
-    """This object corresponds to an image open in a CARTA frontend session.
+class ImageBase:
+    """Base class for image-view items (file-based images and color blendings).
+
+    This class is not intended to be instantiated directly.
+
+    Attributes
+    ----------
+    session : :obj:`carta.session.Session`
+        The session object associated with this image-view item.
+    """
+
+    _image_type: ImageType = None
+
+    def __init__(self, session):
+        self.session = session
+
+    @property
+    def _stable_id(self):
+        """The stable identifier of this image-view item."""
+        raise NotImplementedError
+
+    @property
+    def image_view_order(self):
+        """The index of this item in image list."""
+        raise NotImplementedError
+
+    def make_active(self):
+        """Make this the active image-view item."""
+        self.session.call_action(
+            "setActiveImageById", self._image_type, self._stable_id
+        )
+
+
+class Image(ImageBase, BasePathMixin):
+    """This object corresponds to a file-based image open in a CARTA frontend session.
 
     This class should not be instantiated directly. Instead, use the session object's methods for opening new images or retrieving existing images.
 
@@ -25,15 +58,15 @@ class Image(BasePathMixin):
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this image.
-    image_id : integer
-        The ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
+    file_id : integer
+        The frontend file id identifying this image. This is a unique number which is not reused, not the index of the image within the list of currently open images.
 
     Attributes
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this image.
-    image_id : integer
-        The ID identifying this image within the session.
+    file_id : integer
+        The frontend file id identifying this image.
     raster : :obj:`carta.raster.Raster`
         Sub-object with functions related to the raster image.
     contours : :obj:`carta.contours.Contours`
@@ -46,11 +79,13 @@ class Image(BasePathMixin):
         Functions for manipulating regions associated with this image.
     """
 
-    def __init__(self, session, image_id):
-        self.session = session
-        self.image_id = image_id
+    _image_type = ImageType.FRAME
 
-        self._base_path = f"frameMap[{image_id}]"
+    def __init__(self, session, file_id):
+        self.session = session
+        self.file_id = file_id
+
+        self._base_path = f"frameMap[{file_id}]"
         self._frame = Macro("", self._base_path)
 
         # Sub-objects grouping related functions
@@ -59,6 +94,10 @@ class Image(BasePathMixin):
         self.vectors = VectorOverlay(self)
         self.wcs = ImageWCSOverlay(self)
         self.regions = RegionSet(self)
+
+    @property
+    def _stable_id(self):
+        return self.file_id
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
@@ -98,32 +137,42 @@ class Image(BasePathMixin):
             params.append(make_active)
         params.append(update_directory)
 
-        image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
-        return cls(session, image_id)
+        file_id = session.call_action(command, *params, return_path="frameInfo.fileId")
+        return cls(session, file_id)
 
-    @classmethod
-    def from_list(cls, session, image_list):
-        """Create a list of image objects from a list of open images retrieved from the frontend.
-
-        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.image_list`.
-
-        Parameters
-        ----------
-        session : :obj:`carta.session.Session`
-            The session object.
-        image_list : list of dicts
-            The JSON object representing frame names retrieved from the frontend.
+    @property
+    def image_view_order(self):
+        """The current index of this image in image list.
 
         Returns
         -------
-        list of :obj:`carta.image.Image`
-            A list of new image objects.
+        integer
+            The image view order.
+
+        Raises
+        ------
+        RuntimeError
+            If no matching frame entry exists in the image list.
         """
-        return [cls(session, f["value"]) for f in image_list]
+        return self.session._find_image_view_order(ImageType.FRAME, self.file_id)
 
     def __repr__(self):
         """A human-readable representation of this image object."""
-        return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
+        cls = type(self).__name__
+        cached_name = getattr(self, "_cache", {}).get("file_name")
+        name_part = f", file_name={cached_name!r}" if cached_name is not None else ""
+
+        try:
+            order = self.image_view_order
+        except (CartaScriptingException, RuntimeError):
+            return f"[Invalid] {cls}(image_view_order=None{name_part}, file_id={self.file_id})"
+
+        try:
+            name = self.file_name
+        except CartaScriptingException:
+            return f"[Invalid] {cls}(image_view_order={order}{name_part}, file_id={self.file_id})"
+
+        return f"{cls}(image_view_order={order}, file_name={name!r}, file_id={self.file_id})"
 
     # METADATA
 
@@ -252,10 +301,6 @@ class Image(BasePathMixin):
         return [Polarization(p) for p in self.get_value("polarizations")]
 
     # SELECTION
-
-    def make_active(self):
-        """Make this the active image."""
-        self.session.call_action("setActiveImageByFileId", self.image_id)
 
     def make_spatial_reference(self):
         """Make this image the spatial reference."""
