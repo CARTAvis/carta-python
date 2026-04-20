@@ -69,13 +69,41 @@ def test_layer_from_list(colorblending):
     assert all(ly.colorblending is colorblending for ly in layers)
 
 
-def test_layer_repr(session, colorblending, cb_property, layer_property):
-    cb_property("imageview_id", 11)
-    cb_property("file_name", "blend.fits")
+def test_layer_repr_healthy(session, colorblending, layer_property, mocker):
+    mocker.patch.object(session, "_find_image_view_order", return_value=2)
     layer_property("file_name", "layer1.fits")
     r = repr(Layer(colorblending, 3))
-    # session id is 0 (from conftest)
-    assert r == "0:11:blend.fits:3:layer1.fits"
+    assert r == (
+        "Layer(image_view_order=2, color_blending_id=0, layer_id=3, "
+        "file_name='layer1.fits')"
+    )
+
+
+def test_layer_repr_closed_when_parent_missing(session, colorblending, mocker):
+    mocker.patch.object(
+        session,
+        "_find_image_view_order",
+        side_effect=RuntimeError("not in image list"),
+    )
+    r = repr(Layer(colorblending, 3))
+    assert r == (
+        "[Closed] Layer(image_view_order=None, color_blending_id=0, "
+        "layer_id=3)"
+    )
+
+
+def test_layer_repr_closed_when_frame_is_gone(session, colorblending, mocker):
+    mocker.patch.object(session, "_find_image_view_order", return_value=2)
+    mocker.patch(
+        "carta.colorblending.Layer.file_name",
+        new_callable=mocker.PropertyMock,
+        side_effect=CartaActionFailed("frame is gone"),
+    )
+    r = repr(Layer(colorblending, 3))
+    assert r == (
+        "[Closed] Layer(image_view_order=2, color_blending_id=0, "
+        "layer_id=3)"
+    )
 
 
 def test_layer_file_name_property(layer, layer_get_value):
@@ -83,8 +111,8 @@ def test_layer_file_name_property(layer, layer_get_value):
     layer_get_value.assert_called_with("frameInfo.fileInfo.name")
 
 
-def test_layer_image_id_property(layer, layer_get_value):
-    layer.image_id
+def test_layer_file_id_property(layer, layer_get_value):
+    layer.file_id
     layer_get_value.assert_called_with("frameInfo.fileId")
 
 
@@ -119,7 +147,7 @@ def test_layer_set_colormap_invalid_colormap(layer, layer_call_action):
 
 def test_colorblending_init(session):
     colorblending = ColorBlending(session, 3)
-    assert colorblending.store_id == 3
+    assert colorblending.color_blending_id == 3
     expected = "imageViewConfigStore.colorBlendingImageMap[3]"
     assert colorblending._base_path == expected
     assert colorblending._frame == Macro(
@@ -127,10 +155,43 @@ def test_colorblending_init(session):
     )
 
 
-def test_colorblending_repr(session, colorblending, cb_property):
-    cb_property("imageview_id", 3)
-    cb_property("file_name", "blend.fits")
-    assert repr(colorblending) == "0:3:blend.fits"
+def test_colorblending_repr_healthy(session, colorblending, cb_property, mocker):
+    mocker.patch.object(session, "_find_image_view_order", return_value=2)
+    cb_property("file_name", "Color Blending 1")
+    r = repr(colorblending)
+    assert r == (
+        "ColorBlending(image_view_order=2, color_blending_id=0, "
+        "file_name='Color Blending 1')"
+    )
+
+
+def test_colorblending_repr_closed_when_not_in_image_list(
+    session, colorblending, mocker
+):
+    mocker.patch.object(
+        session,
+        "_find_image_view_order",
+        side_effect=RuntimeError("not in image list"),
+    )
+    r = repr(colorblending)
+    assert r == (
+        "[Closed] ColorBlending(image_view_order=None, color_blending_id=0)"
+    )
+
+
+def test_colorblending_repr_closed_when_backing_entry_is_gone(
+    session, colorblending, mocker
+):
+    mocker.patch.object(session, "_find_image_view_order", return_value=2)
+    mocker.patch(
+        "carta.colorblending.ColorBlending.file_name",
+        new_callable=mocker.PropertyMock,
+        side_effect=CartaActionFailed("color blending is gone"),
+    )
+    r = repr(colorblending)
+    assert r == (
+        "[Closed] ColorBlending(image_view_order=2, color_blending_id=0)"
+    )
 
 
 def test_colorblending_file_name(colorblending, cb_get_value):
@@ -138,17 +199,38 @@ def test_colorblending_file_name(colorblending, cb_get_value):
     cb_get_value.assert_called_with("filename")
 
 
-def test_colorblending_imageview_id(session, colorblending, session_get_value):
-    # imageList has 3 entries; the color blending with store_id=0 is at index 2
-    session_get_value.side_effect = [
-        3,                          # imageList.length
-        ImageType.FRAME,            # [0].type  — skip
-        ImageType.COLOR_BLENDING,   # [1].type  — match type…
-        99,                         # [1].store.id — wrong store_id
-        ImageType.COLOR_BLENDING,   # [2].type  — match type…
-        0,                          # [2].store.id — matches store_id=0
+def test_colorblending_image_view_order(
+    session, colorblending, session_get_value
+):
+    session_get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.COLOR_BLENDING, "id": 99},
+        {"type": ImageType.COLOR_BLENDING, "id": 0},
     ]
-    assert colorblending.imageview_id == 2
+    assert colorblending.image_view_order == 2
+    session_get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
+
+
+def test_colorblending_image_view_order_ignores_non_color_blending(
+    session, colorblending, session_get_value
+):
+    session_get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 0},
+        {"type": ImageType.COLOR_BLENDING, "id": 0},
+    ]
+    assert colorblending.image_view_order == 1
+
+
+def test_colorblending_image_view_order_raises_when_missing(
+    session, colorblending, session_get_value
+):
+    session_get_value.return_value = [
+        {"type": ImageType.COLOR_BLENDING, "id": 99},
+    ]
+    with pytest.raises(RuntimeError):
+        colorblending.image_view_order
 
 
 def test_colorblending_alpha(colorblending, cb_get_value):
@@ -163,15 +245,24 @@ def test_colorblending_base_frame(colorblending, cb_get_value):
     cb_get_value.assert_called_once_with("frames[0].id")
     assert isinstance(base_frame, Image)
     assert base_frame.session is colorblending.session
-    assert base_frame.image_id == 42
+    assert base_frame.file_id == 42
 
 
-def test_colorblending_make_active(
-    session, colorblending, cb_property, session_call_action
-):
-    cb_property("imageview_id", 9)
+def test_colorblending_make_active(session, colorblending, session_call_action):
+    # make_active must be driven by color_blending_id via setActiveImageById.
+    # It must not depend on image_view_order (which is volatile).
     colorblending.make_active()
-    session_call_action.assert_called_with("setActiveImageByIndex", 9)
+    session_call_action.assert_called_with(
+        "setActiveImageById", ImageType.COLOR_BLENDING, 0
+    )
+
+
+def test_colorblending_make_active_does_not_read_image_view_order(
+    session, colorblending, session_call_action, session_get_value
+):
+    colorblending.make_active()
+    for call in session_get_value.call_args_list:
+        assert call.args != ("imageViewConfigStore.imageListSummary",)
 
 
 def test_colorblending_layer_list_derived(session, mocker):
@@ -218,13 +309,14 @@ def test_colorblending_set_layer(
     )
 
 
-def test_colorblending_set_layer_sequence(session, colorblending, mocker):
-    # Prepare three existing layers with image_ids 10, 20, 30
-    class _L:
-        def __init__(self, lid, iid):
-            self.layer_id = lid
-            self.image_id = iid
+class _L:
+    def __init__(self, lid, fid):
+        self.layer_id = lid
+        self.file_id = fid
 
+
+def test_colorblending_set_layer_sequence(session, colorblending, mocker):
+    # Prepare three existing layers with file_ids 10, 20, 30
     mocker.patch.object(
         ColorBlending,
         "layer_list",
@@ -244,18 +336,13 @@ def test_colorblending_set_layer_sequence(session, colorblending, mocker):
     # Deletes all non-base layers (twice) then adds layers in specified order
     assert del_layer.call_count == 2
     add_args = [call.args[0] for call in add_layer.call_args_list]
-    assert [img.image_id for img in add_args] == [30, 20]
+    assert [img.file_id for img in add_args] == [30, 20]
     assert [call.args[1] for call in set_alpha.call_args_list] == [0.8, 0.2]
 
 
 def test_colorblending_set_layer_sequence_supports_user_specified_subset_order(
     session, colorblending, mocker
 ):
-    class _L:
-        def __init__(self, lid, iid):
-            self.layer_id = lid
-            self.image_id = iid
-
     mocker.patch.object(
         ColorBlending,
         "layer_list",
@@ -273,18 +360,13 @@ def test_colorblending_set_layer_sequence_supports_user_specified_subset_order(
     colorblending.set_layer_sequence([0, 3, 1])
 
     assert del_layer.call_count == 3
-    assert [call.args[0].image_id for call in add_layer.call_args_list] == [40, 20]
+    assert [call.args[0].file_id for call in add_layer.call_args_list] == [40, 20]
     assert [call.args[1] for call in set_alpha.call_args_list] == [0.4, 0.2]
 
 
 def test_colorblending_set_layer_sequence_rejects_missing_layer_index(
     session, colorblending, mocker
 ):
-    class _L:
-        def __init__(self, lid, iid):
-            self.layer_id = lid
-            self.image_id = iid
-
     mocker.patch.object(
         ColorBlending,
         "layer_list",
@@ -301,11 +383,6 @@ def test_colorblending_set_layer_sequence_rejects_missing_layer_index(
 def test_colorblending_set_layer_sequence_requires_base_layer_first(
     session, colorblending, mocker
 ):
-    class _L:
-        def __init__(self, lid, iid):
-            self.layer_id = lid
-            self.image_id = iid
-
     mocker.patch.object(
         ColorBlending,
         "layer_list",
@@ -322,11 +399,6 @@ def test_colorblending_set_layer_sequence_requires_base_layer_first(
 def test_colorblending_set_layer_sequence_rejects_duplicate_base_layer(
     session, colorblending, mocker
 ):
-    class _L:
-        def __init__(self, lid, iid):
-            self.layer_id = lid
-            self.image_id = iid
-
     mocker.patch.object(
         ColorBlending,
         "layer_list",
@@ -346,11 +418,6 @@ def test_colorblending_set_layer_sequence_rejects_duplicate_base_layer(
 def test_colorblending_set_layer_sequence_rejects_duplicate_non_base_layer(
     session, colorblending, mocker
 ):
-    class _L:
-        def __init__(self, lid, iid):
-            self.layer_id = lid
-            self.image_id = iid
-
     mocker.patch.object(
         ColorBlending,
         "layer_list",
@@ -484,37 +551,44 @@ def test_colorblending_close(session, colorblending, session_call_action):
 # CREATION HELPERS
 
 
-def test_colorblending_from_imageview_id(session, session_get_value):
-    session_get_value.side_effect = [ImageType.COLOR_BLENDING, 17]
-
-    cb = ColorBlending.from_imageview_id(session, 5)
-
-    assert isinstance(cb, ColorBlending)
-    assert cb.store_id == 17
-    expected = "imageViewConfigStore.colorBlendingImageMap[17]"
-    assert cb._base_path == expected
-    assert [call.args for call in session_get_value.call_args_list] == [
-        ("imageViewConfigStore.imageList[5].type",),
-        ("imageViewConfigStore.imageList[5].store.id",),
+def test_colorblending_from_image_view_order(session, session_get_value):
+    session_get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.FRAME, "id": 20},
+        {"type": ImageType.COLOR_BLENDING, "id": 17},
     ]
 
+    cb = ColorBlending.from_image_view_order(session, 2)
 
-def test_colorblending_from_imageview_id_rejects_non_color_blending(
+    assert isinstance(cb, ColorBlending)
+    assert cb.color_blending_id == 17
+    expected = "imageViewConfigStore.colorBlendingImageMap[17]"
+    assert cb._base_path == expected
+    session_get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
+
+
+def test_colorblending_from_image_view_order_rejects_non_color_blending(
     session, session_get_value, mocker
 ):
-    session_get_value.return_value = ImageType.FRAME
-    init = mocker.patch.object(ColorBlending, "__init__", return_value=None)
+    session_get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+    ]
 
     with pytest.raises(
         ValueError,
-        match="imageview_id does not refer to a color blending image.",
+        match="image_view_order does not refer to a color blending image.",
     ):
-        ColorBlending.from_imageview_id(session, 5)
+        ColorBlending.from_image_view_order(session, 0)
 
-    session_get_value.assert_called_once_with(
-        "imageViewConfigStore.imageList[5].type"
-    )
-    init.assert_not_called()
+
+def test_colorblending_from_image_view_order_out_of_range(
+    session, session_get_value
+):
+    session_get_value.return_value = []
+    with pytest.raises(IndexError):
+        ColorBlending.from_image_view_order(session, 0)
 
 
 def test_colorblending_from_images_success(session, mocker):
@@ -522,78 +596,46 @@ def test_colorblending_from_images_success(session, mocker):
     img1 = Image(session, 200)
     img2 = Image(session, 300)
 
-    mocker.patch.object(session, "call_action")
-    mocker.patch.object(img1, "call_action", return_value=True)
-    mocker.patch.object(img2, "call_action", return_value=True)
-    layer_list = mocker.patch.object(
-        ColorBlending,
-        "layer_list",
-        autospec=True,
-        return_value=[object(), object(), object(), object()],
-    )
-    delete_layer = mocker.patch.object(
-        ColorBlending, "delete_layer", autospec=True
-    )
-    add_layer = mocker.patch.object(ColorBlending, "add_layer", autospec=True)
-
-    session.call_action.side_effect = [None, 123]
+    call_action = mocker.patch.object(session, "call_action", return_value={"id": 123})
 
     cb = ColorBlending.from_images(session, [img0, img1, img2])
 
     assert isinstance(cb, ColorBlending)
-    assert cb.store_id == 123
+    assert cb.color_blending_id == 123
     assert cb._base_path == "imageViewConfigStore.colorBlendingImageMap[123]"
-    session.call_action.assert_any_call(
-        "setSpatialReference", img0._frame, False
-    )
-    img1.call_action.assert_called_with("setSpatialReference", img0._frame)
-    img2.call_action.assert_called_with("setSpatialReference", img0._frame)
-    session.call_action.assert_called_with(
-        "imageViewConfigStore.createColorBlending", return_path="id"
-    )
-    layer_list.assert_called_once_with(cb)
-    delete_layer.assert_has_calls(
-        [mocker.call(cb, 1), mocker.call(cb, 1), mocker.call(cb, 1)]
-    )
-    add_layer.assert_has_calls([mocker.call(cb, img1), mocker.call(cb, img2)])
 
-
-def test_colorblending_from_images_alignment_failure(
-    session, mocker, mock_property
-):
-    img0 = Image(session, 100)
-    img1 = Image(session, 200)
-
-    mocker.patch.object(session, "call_action")
-    mock_property("carta.image.Image")("file_name", "bad.fits")
-    mocker.patch.object(img1, "call_action", return_value=False)
-
-    with pytest.raises(CartaActionFailed) as e:
-        ColorBlending.from_images(session, [img0, img1])
-    assert "Failed to set spatial reference for image bad.fits." in str(
-        e.value
+    call_action.assert_called_once_with(
+        "imageViewConfigStore.createColorBlendingFromFrames",
+        [img0._frame, img1._frame, img2._frame],
     )
 
 
-def test_colorblending_from_images_rejects_more_than_initial_layer_limit(
+def test_colorblending_from_images_null_return_raises_action_failed(
     session, mocker
 ):
-    images = [
-        Image(session, image_id)
-        for image_id in range(ColorBlending.MAX_INITIAL_LAYERS + 1)
-    ]
-    session_call_action = mocker.patch.object(session, "call_action")
+    img0 = Image(session, 100)
+    mocker.patch.object(session, "call_action", return_value=None)
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            "Color blending initialization supports at most 10 images "
-            r"\(the base layer plus 9 matched images\)."
-        ),
-    ):
-        ColorBlending.from_images(session, images)
+    with pytest.raises(CartaActionFailed):
+        ColorBlending.from_images(session, [img0])
 
-    session_call_action.assert_not_called()
+
+def test_colorblending_from_images_rejects_empty_list(session, mocker):
+    call_action = mocker.patch.object(session, "call_action")
+
+    with pytest.raises(CartaValidationFailed):
+        ColorBlending.from_images(session, [])
+
+    call_action.assert_not_called()
+
+
+def test_colorblending_from_images_rejects_non_image_element(session, mocker):
+    call_action = mocker.patch.object(session, "call_action")
+
+    with pytest.raises(CartaValidationFailed):
+        ColorBlending.from_images(session, ["not-an-image"])
+
+    call_action.assert_not_called()
 
 
 def test_colorblending_from_files(session, mocker):
@@ -607,26 +649,5 @@ def test_colorblending_from_files(session, mocker):
     )
     out = ColorBlending.from_files(session, ["a.fits", "b.fits"], append=True)
     mock_open_images.assert_called_with(["a.fits", "b.fits"], append=True)
-    mock_from_images.assert_called()
+    mock_from_images.assert_called_once()
     assert out == "CB"
-
-
-def test_colorblending_from_files_rejects_more_than_initial_layer_limit(
-    session, mocker
-):
-    files = [
-        f"image-{file_id}.fits"
-        for file_id in range(ColorBlending.MAX_INITIAL_LAYERS + 1)
-    ]
-    mock_open_images = mocker.patch.object(session, "open_images")
-
-    with pytest.raises(
-        ValueError,
-        match=(
-            "Color blending initialization supports at most 10 images "
-            r"\(the base layer plus 9 matched images\)."
-        ),
-    ):
-        ColorBlending.from_files(session, files)
-
-    mock_open_images.assert_not_called()

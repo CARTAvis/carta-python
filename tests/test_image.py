@@ -1,8 +1,8 @@
 import pytest
 
-from carta.image import Image
-from carta.util import CartaValidationFailed, Point as Pt
-from carta.constants import NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
+from carta.image import Image, ImageBase
+from carta.util import CartaActionFailed, CartaValidationFailed, Point as Pt
+from carta.constants import ImageType, NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
 
 
 # FIXTURES
@@ -77,7 +77,7 @@ def test_new(session, session_call_action, session_method, args, kwargs, expecte
 
     assert type(image_object) is Image
     assert image_object.session == session
-    assert image_object.image_id == 123
+    assert image_object.file_id == 123
 
 
 # SUBOBJECTS
@@ -110,7 +110,129 @@ def test_simple_properties(image, property_name, expected_path, get_value):
 
 def test_make_active(image, session_call_action):
     image.make_active()
-    session_call_action.assert_called_with("setActiveImageByFileId", 0)
+    session_call_action.assert_called_with(
+        "setActiveImageById", ImageType.FRAME, 0
+    )
+
+
+def test_image_base_image_view_order_not_implemented(session):
+    base = ImageBase(session)
+    with pytest.raises(NotImplementedError):
+        base.image_view_order
+
+
+def test_image_base_stable_id_not_implemented(session):
+    base = ImageBase(session)
+    with pytest.raises(NotImplementedError):
+        base._stable_id
+
+
+def test_image_base_make_active_uses_subclass_ids(session, session_call_action):
+    # Verify the shared ImageBase.make_active dispatches setActiveImageById
+    # with the subclass's _image_type and _stable_id exactly once.
+    class Dummy(ImageBase):
+        _image_type = ImageType.FRAME
+
+        def __init__(self, session, id_):
+            super().__init__(session)
+            self._id = id_
+
+        @property
+        def _stable_id(self):
+            return self._id
+
+    Dummy(session, 42).make_active()
+    session_call_action.assert_called_once_with(
+        "setActiveImageById", ImageType.FRAME, 42
+    )
+
+
+def test_image_view_order_uses_summary_once(session, mocker, image):
+    find = mocker.patch.object(
+        session, "_find_image_view_order", return_value=3
+    )
+    # Frame with file_id=0 at viewer order 3.
+    assert image.image_view_order == 3
+    find.assert_called_once_with(ImageType.FRAME, 0)
+
+
+def test_image_view_order_ignores_non_frame_entries(session, mocker):
+    get_value = mocker.patch.object(
+        session,
+        "get_value",
+        return_value=[
+            {"type": ImageType.COLOR_BLENDING, "id": 0},
+            {"type": ImageType.FRAME, "id": 7},
+            {"type": ImageType.FRAME, "id": 3},
+        ],
+    )
+    img = Image(session, 3)
+    assert img.image_view_order == 2
+    get_value.assert_called_once_with("imageViewConfigStore.imageListSummary")
+
+
+def test_image_view_order_raises_when_missing(session, mocker):
+    mocker.patch.object(
+        session,
+        "get_value",
+        return_value=[{"type": ImageType.FRAME, "id": 99}],
+    )
+    img = Image(session, 3)
+    with pytest.raises(RuntimeError):
+        img.image_view_order
+
+
+def test_image_repr_cached_name_resolves_only_image_view_order(session, image, mocker):
+    mocker.patch.object(session, "_find_image_view_order", return_value=3)
+    get_value = mocker.patch.object(image, "get_value")
+    image._cache = {"file_name": "cube.fits"}
+    r = repr(image)
+    assert r == "Image(image_view_order=3, file_name='cube.fits', file_id=0)"
+    get_value.assert_not_called()
+
+
+def test_image_repr_resolves_image_view_order_and_file_name(session, image, mocker):
+    mocker.patch.object(session, "_find_image_view_order", return_value=3)
+    mocker.patch.object(image, "get_value", return_value="cube.fits")
+    r = repr(image)
+    assert r == "Image(image_view_order=3, file_name='cube.fits', file_id=0)"
+
+
+def test_image_repr_closed_when_image_view_order_missing(session, image, mocker):
+    mocker.patch.object(
+        session,
+        "_find_image_view_order",
+        side_effect=RuntimeError("not in image list"),
+    )
+    r = repr(image)
+    assert r == "[Closed] Image(image_view_order=None, file_id=0)"
+
+
+def test_image_repr_closed_shows_cached_file_name(session, image, mocker):
+    # When the image-view-order lookup fails but file_name was previously
+    # cached, the closed repr still surfaces the cached name without
+    # triggering any fresh round-trip.
+    mocker.patch.object(
+        session,
+        "_find_image_view_order",
+        side_effect=RuntimeError("not in image list"),
+    )
+    get_value = mocker.patch.object(image, "get_value")
+    image._cache = {"file_name": "cube.fits"}
+    r = repr(image)
+    assert r == "[Closed] Image(image_view_order=None, file_name='cube.fits', file_id=0)"
+    get_value.assert_not_called()
+
+
+def test_image_repr_closed_when_frame_is_gone(session, image, mocker):
+    mocker.patch.object(session, "_find_image_view_order", return_value=3)
+    mocker.patch.object(
+        image,
+        "get_value",
+        side_effect=CartaActionFailed("frameMap entry is missing"),
+    )
+    r = repr(image)
+    assert r == "[Closed] Image(image_view_order=3, file_id=0)"
 
 
 @pytest.mark.parametrize("channel", [0, 10, 19])

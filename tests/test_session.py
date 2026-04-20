@@ -3,7 +3,7 @@ import pytest
 from carta.image import Image
 from carta.colorblending import ColorBlending
 from carta.util import Macro
-from carta.constants import ComplexComponent as CC, Polarization as Pol
+from carta.constants import ComplexComponent as CC, ImageType, Polarization as Pol
 
 # FIXTURES
 
@@ -71,31 +71,170 @@ def test_cd(session, method, call_action):
     call_action.assert_called_with("fileBrowserStore.saveStartingDirectory", "/resolved/file/path")
 
 
-def test_color_blending_list(session, get_value):
-    get_value.side_effect = [2, 3, 8]
+# IMAGE LIST / GET_IMAGE / COLOR-BLENDING HELPERS
 
-    color_blendings = session.color_blending_list()
 
-    assert len(color_blendings) == 2
-    assert all(isinstance(cb, ColorBlending) for cb in color_blendings)
-    get_value.assert_any_call("imageViewConfigStore.colorBlendingImages.length")
-    get_value.assert_any_call("imageViewConfigStore.colorBlendingImages[0].id")
-    get_value.assert_any_call("imageViewConfigStore.colorBlendingImages[1].id")
-    assert [cb.session for cb in color_blendings] == [session, session]
-    assert [cb.store_id for cb in color_blendings] == [3, 8]
-    assert [cb._base_path for cb in color_blendings] == [
-        "imageViewConfigStore.colorBlendingImageMap[3]",
-        "imageViewConfigStore.colorBlendingImageMap[8]",
+def test_image_list_heterogeneous(session, get_value):
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.COLOR_BLENDING, "id": 3},
+        {"type": ImageType.FRAME, "id": 20},
     ]
 
+    images = session.image_list()
 
-def test_color_blending_list_empty(session, get_value):
-    get_value.return_value = 0
-
-    assert session.color_blending_list() == []
     get_value.assert_called_once_with(
-        "imageViewConfigStore.colorBlendingImages.length"
+        "imageViewConfigStore.imageListSummary"
     )
+    assert len(images) == 3
+    assert isinstance(images[0], Image) and images[0].file_id == 10
+    assert isinstance(images[1], ColorBlending) and images[1].color_blending_id == 3
+    assert isinstance(images[2], Image) and images[2].file_id == 20
+
+
+def test_image_list_raises_on_pv_preview(session, get_value):
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.PV_PREVIEW, "id": -2},
+    ]
+    with pytest.raises(NotImplementedError):
+        session.image_list()
+
+
+def test_image_list_empty(session, get_value):
+    get_value.return_value = []
+    assert session.image_list() == []
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
+
+
+def test_find_image_view_order_single_round_trip(session, get_value):
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 7},
+        {"type": ImageType.COLOR_BLENDING, "id": 7},
+        {"type": ImageType.FRAME, "id": 3},
+    ]
+
+    assert session._find_image_view_order(ImageType.FRAME, 3) == 2
+    assert session._find_image_view_order(ImageType.COLOR_BLENDING, 7) == 1
+    assert get_value.call_count == 2
+    for call in get_value.call_args_list:
+        assert call.args == ("imageViewConfigStore.imageListSummary",)
+
+
+def test_find_image_view_order_raises_when_missing(session, get_value):
+    get_value.return_value = [{"type": ImageType.FRAME, "id": 1}]
+    with pytest.raises(RuntimeError):
+        session._find_image_view_order(ImageType.FRAME, 99)
+
+
+# session.get_image
+
+
+@pytest.fixture
+def summary(get_value):
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.COLOR_BLENDING, "id": 7},
+        {"type": ImageType.FRAME, "id": 20},
+    ]
+    return get_value
+
+
+def test_get_image_requires_exactly_one_keyword(session, get_value):
+    # Zero keywords -> ValueError with all three names listed.
+    with pytest.raises(ValueError) as e:
+        session.get_image()
+    for name in ("image_view_order", "file_id", "color_blending_id"):
+        assert name in str(e.value)
+    # Multiple keywords -> ValueError.
+    with pytest.raises(ValueError):
+        session.get_image(file_id=1, color_blending_id=2)
+
+
+def test_get_image_rejects_positional(session):
+    with pytest.raises(TypeError):
+        session.get_image(0)
+
+
+def test_get_image_by_image_view_order(session, summary):
+    img = session.get_image(image_view_order=0)
+    assert isinstance(img, Image)
+    assert img.file_id == 10
+
+    cb = session.get_image(image_view_order=1)
+    assert isinstance(cb, ColorBlending)
+    assert cb.color_blending_id == 7
+
+    img2 = session.get_image(image_view_order=2)
+    assert isinstance(img2, Image)
+    assert img2.file_id == 20
+
+
+def test_get_image_by_image_view_order_out_of_range(session, summary):
+    with pytest.raises(IndexError):
+        session.get_image(image_view_order=99)
+
+
+def test_get_image_by_file_id(session, summary):
+    img = session.get_image(file_id=20)
+    assert isinstance(img, Image)
+    assert img.file_id == 20
+
+
+def test_get_image_by_file_id_no_cross_type_fallback(session, summary):
+    # The summary contains a COLOR_BLENDING entry with id=7, but no FRAME
+    # with that id, so get_image(file_id=7) must raise.
+    with pytest.raises(RuntimeError):
+        session.get_image(file_id=7)
+
+
+def test_get_image_by_color_blending_id(session, summary):
+    cb = session.get_image(color_blending_id=7)
+    assert isinstance(cb, ColorBlending)
+    assert cb.color_blending_id == 7
+
+
+def test_get_image_by_color_blending_id_no_cross_type_fallback(session, summary):
+    # The summary contains a FRAME with id=10, but no COLOR_BLENDING with
+    # that id, so get_image(color_blending_id=10) must raise.
+    with pytest.raises(RuntimeError):
+        session.get_image(color_blending_id=10)
+
+
+def test_get_image_single_round_trip(session, summary):
+    session.get_image(image_view_order=0)
+    session.get_image(file_id=10)
+    session.get_image(color_blending_id=7)
+    assert summary.call_count == 3
+    for call in summary.call_args_list:
+        assert call.args == ("imageViewConfigStore.imageListSummary",)
+
+
+# open_as_color_blending / create_color_blending
+
+
+def test_open_as_color_blending_delegates_to_from_files(session, mocker):
+    mock_from_files = mocker.patch.object(
+        ColorBlending, "from_files", return_value="CB"
+    )
+    result = session.open_as_color_blending(["a.fits", "b.fits"], append=True)
+    mock_from_files.assert_called_once_with(
+        session, ["a.fits", "b.fits"], append=True
+    )
+    assert result == "CB"
+
+
+def test_create_color_blending_delegates_to_from_images(session, mocker):
+    img0 = Image(session, 100)
+    img1 = Image(session, 200)
+    mock_from_images = mocker.patch.object(
+        ColorBlending, "from_images", return_value="CB"
+    )
+    result = session.create_color_blending([img0, img1])
+    mock_from_images.assert_called_once_with(session, [img0, img1])
+    assert result == "CB"
 
 # OPENING IMAGES
 
@@ -206,7 +345,7 @@ def test_open_hypercube_guess_polarization(mocker, session, call_action, method,
 
     assert type(hypercube) is Image
     assert hypercube.session == session
-    assert hypercube.image_id == 123
+    assert hypercube.file_id == 123
 
 
 @pytest.mark.parametrize("paths,expected_calls,mocked_side_effect,expected_error", [
@@ -260,7 +399,7 @@ def test_open_hypercube_explicit_polarization(mocker, session, call_action, meth
 
     assert type(hypercube) is Image
     assert hypercube.session == session
-    assert hypercube.image_id == 123
+    assert hypercube.file_id == 123
 
 
 @pytest.mark.parametrize("paths,expected_error", [
