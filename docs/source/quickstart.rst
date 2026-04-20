@@ -178,6 +178,43 @@ Helper methods on the session object open images in the frontend and return imag
     img0 = session.open_image("data/hdf5/first_file.hdf5")
     img1 = session.open_image("data/fits/second_file.fits", append=True)
     img2 = session.open_image("data/fits/third_file.fits", append=True)
+
+    # Open multiple images in one call
+    img0, img1, img2 = session.open_images([
+        "data/hdf5/first_file.hdf5",
+        "data/fits/second_file.fits",
+        "data/fits/third_file.fits",
+    ])
+
+Inspecting the list of open images
+----------------------------------
+
+The session's image list is heterogeneous: it may contain both ordinary frame-backed images (:obj:`carta.image.Image`) and color blending images (:obj:`carta.colorblending.ColorBlending`). Its order matches the image list panel shown in the frontend, as illustrated below.
+
+.. figure:: images/image_list.jpg
+   :alt: CARTA frontend image list panel showing frame-backed images and a color blending entry.
+   :align: center
+
+   The frontend image list panel. Each row corresponds to an item returned by :obj:`carta.session.Session.image_list`, and its position in the list is the item's ``image_view_order``.
+
+.. code-block:: python
+
+    from carta.image import Image
+    from carta.colorblending import ColorBlending
+
+    # All open image-view items, in display order
+    items = session.image_list()
+
+    # Filter by type if needed
+    images = [i for i in items if isinstance(i, Image)]
+    color_blendings = [i for i in items if isinstance(i, ColorBlending)]
+
+    # Every image-view item exposes its current image-view order
+    print(img0.image_view_order)
+
+    # Retrieve a specific item by image view order
+    img = session.get_image(image_view_order=0)
+    cb = session.get_image(image_view_order=1)
         
 Changing image properties
 -------------------------
@@ -234,55 +271,26 @@ Properties which affect the whole session can be set through the session object:
 Making color blended image
 --------------------------
 
-Create a color blending object from a list of files:
+The session object provides two convenience methods which create a color blending image and apply a sensible default colormap set (``RGB`` for three layers or fewer, ``RAINBOW`` for more):
 
 .. code-block:: python
 
-    from carta.colorblending import ColorBlending
-    from carta.constants import Colormap, ColormapSet
-
-    # Make a color blending object
-    # Warning: setting `append=False` will close any existing images
-    # Note: The base layer (index = 0) cannot be deleted or moved.
     files = [
         "data/hdf5/first_file.hdf5",
         "data/fits/second_file.fits",
         "data/fits/third_file.fits",
     ]
-    cb = ColorBlending.from_files(session, files, append=False)
 
-Create a color blending object from a list of images:
+    # Open the files and combine them into a new color blending image
+    # Warning: setting `append=False` will close any existing images
+    cb = session.open_as_color_blending(files, append=False)
 
-.. code-block:: python
-
-    from carta.colorblending import ColorBlending
-    from carta.constants import Colormap, ColormapSet
-
-    # Make a color blending object
-    # Warning: This will break the current spatial matching and
+    # Combine already-open images into a new color blending image
+    # Warning: this will break the current spatial matching and
     #          use the first image as the spatial reference
-    # Note: The base layer (index = 0) cannot be deleted or moved.
-    cb = ColorBlending.from_images(session, [img0, img1, img2])
+    cb = session.create_color_blending([img0, img1, img2])
 
-To work with color blending images that are already open in a session, use
-the session helper:
-
-.. code-block:: python
-
-    # Get all open color blending objects in this session
-    color_blendings = session.color_blending_list()
-    cb = color_blendings[0]
-
-    # Or get a color blending object by its image view index
-    cb = ColorBlending.from_imageview_id(session, 3)
-
-.. note::
-    The ``ColorBlending`` constructor takes the internal color blending store ID,
-    not the image view index. Use ``ColorBlending.from_files``,
-    ``ColorBlending.from_images``, ``ColorBlending.from_imageview_id`` or
-    ``session.color_blending_list`` in scripts.
-
-Manipulate properties of the color blending object and the underlying images:
+Manipulate properties of the color blending object and the underlying layers:
 
 .. code-block:: python
 
@@ -327,7 +335,10 @@ Manipulate properties of the color blending object and the underlying images:
     # Set zoom level
     cb.set_zoom_level(2)
 
-    # Set the color blending object as the active frame
+    # Get the current image-view order of the color blending image
+    print(cb.image_view_order)
+
+    # Set the color blending object as the active image-view item
     cb.make_active()
 
     # Set contour visibility
@@ -338,8 +349,9 @@ Manipulate properties of the color blending object and the underlying images:
     cb.close()
 
 .. note::
-    If you need to change the layer order involving the base layer (index = 0),
-    close the current color blending object and create a new one.
+    The base layer (index = 0) cannot be deleted or moved. If you need to
+    change the layer order involving the base layer, close the current color
+    blending object and create a new one.
 
 Saving or displaying an image
 -----------------------------
@@ -369,9 +381,9 @@ Closing images
 
 .. code-block:: python
 
-    # Close all images open in the session
-    for img in session.image_list():
-        img.close()
+    # Close all image-view items open in the session
+    for item in session.image_list():
+        item.close()
     
 Closing the session
 -------------------
