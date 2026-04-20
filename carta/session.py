@@ -11,7 +11,7 @@ import posixpath
 
 from .image import Image
 from .colorblending import ColorBlending
-from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization
+from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
 from .util import Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl, Point as Pt
@@ -670,7 +670,12 @@ class Session:
         :obj:`carta.colorblending.ColorBlending`
             The new color blending object.
         """
-        return ColorBlending.from_files(self, files, append=append)
+        cb = ColorBlending.from_files(self, files, append=append)
+        if len(files) <= 3:
+            cb.set_colormap_set(ColormapSet.RGB)
+        else:
+            cb.set_colormap_set(ColormapSet.RAINBOW)
+        return cb
 
     def create_color_blending(self, images):
         """Combine already-open images into a new color blending image.
