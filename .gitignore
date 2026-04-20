@@ -1,6 +1,11 @@
 docs/build
 __pycache__
 build
+dist
 carta.egg-info
 .DS_Store
 .coverage
+.coverage.*
+.pytest_cache
+.ruff_cache
+.venv

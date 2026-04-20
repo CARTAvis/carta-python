@@ -1,12 +1,19 @@
 name: "Sphinx documentation build check"
-on: 
-- pull_request
+
+on:
+  pull_request:
 
 jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - uses: ammaraskar/sphinx-action@master
-      with:
-        docs-folder: "docs/"
+      - uses: actions/checkout@v6
+      - name: Install uv and set Python version
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.10"
+          enable-cache: true
+      - name: Sync docs environment
+        run: uv sync --locked --no-group dev --group docs
+      - name: Build documentation
+        run: uv run --no-sync sphinx-build -W -b html docs/source docs/build/html
