@@ -3,7 +3,7 @@ import pytest
 from carta.image import Image
 from carta.colorblending import ColorBlending
 from carta.util import Macro
-from carta.constants import ComplexComponent as CC, ImageType, Polarization as Pol
+from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 
 # FIXTURES
 
@@ -215,15 +215,23 @@ def test_get_image_single_round_trip(session, summary):
 # open_as_color_blending / create_color_blending
 
 
-def test_open_as_color_blending_delegates_to_from_files(session, mocker):
+@pytest.mark.parametrize("files,expected_colormap_set", [
+    # <= 3 files -> RGB
+    (["a.fits"], ColormapSet.RGB),
+    (["a.fits", "b.fits"], ColormapSet.RGB),
+    (["a.fits", "b.fits", "c.fits"], ColormapSet.RGB),
+    # > 3 files -> RAINBOW
+    (["a.fits", "b.fits", "c.fits", "d.fits"], ColormapSet.RAINBOW),
+])
+def test_open_as_color_blending_delegates_to_from_files(session, mocker, files, expected_colormap_set):
+    fake_cb = mocker.MagicMock(name="ColorBlending")
     mock_from_files = mocker.patch.object(
-        ColorBlending, "from_files", return_value="CB"
+        ColorBlending, "from_files", return_value=fake_cb
     )
-    result = session.open_as_color_blending(["a.fits", "b.fits"], append=True)
-    mock_from_files.assert_called_once_with(
-        session, ["a.fits", "b.fits"], append=True
-    )
-    assert result == "CB"
+    result = session.open_as_color_blending(files, append=True)
+    mock_from_files.assert_called_once_with(session, files, append=True)
+    fake_cb.set_colormap_set.assert_called_once_with(expected_colormap_set)
+    assert result is fake_cb
 
 
 def test_create_color_blending_delegates_to_from_images(session, mocker):
