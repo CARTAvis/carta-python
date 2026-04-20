@@ -6,7 +6,7 @@ Installation
 
 This package is not yet published on PyPi, but can be installed from a local checkout of the repository.
 
-Ensure that you're using a Python 3 installation and its corresponding ``pip``, either using a ``virtualenv`` or the appropriate system executable, which may be called ``pip3``.
+Requires **Python 3.10** or later. Install with ``pip``:
 
 .. code-block:: shell
 
@@ -14,7 +14,11 @@ Ensure that you're using a Python 3 installation and its corresponding ``pip``, 
     cd carta-python
     pip install .
 
-The required Python library dependencies should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the ``selenium`` Python library.
+The required Python library dependencies should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the optional browser dependencies:
+
+.. code-block:: shell
+
+    pip install ".[browser]"
 
 You need access either to a CARTA backend executable, on the local host or on a remote host which you can access through SSH, or to a CARTA controller instance (a multi-user system with web-based authentication). You must be able to access the frontend served by this CARTA instance. If you are using your own backend executable, you must start it with the ``--enable_scripting`` commandline parameter to enable the scripting interface.
 
