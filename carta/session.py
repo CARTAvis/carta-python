@@ -690,7 +690,12 @@ class Session:
         :obj:`carta.colorblending.ColorBlending`
             The new color blending object.
         """
-        return ColorBlending.from_images(self, images)
+        cb = ColorBlending.from_images(self, images)
+        if len(images) <= 3:
+            cb.set_colormap_set(ColormapSet.RGB)
+        else:
+            cb.set_colormap_set(ColormapSet.RAINBOW)
+        return cb
 
     def active_frame(self):
         """Return the currently active image.

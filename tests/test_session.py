@@ -234,15 +234,24 @@ def test_open_as_color_blending_delegates_to_from_files(session, mocker, files, 
     assert result is fake_cb
 
 
-def test_create_color_blending_delegates_to_from_images(session, mocker):
-    img0 = Image(session, 100)
-    img1 = Image(session, 200)
+@pytest.mark.parametrize("image_count,expected_colormap_set", [
+    # <= 3 images -> RGB
+    (1, ColormapSet.RGB),
+    (2, ColormapSet.RGB),
+    (3, ColormapSet.RGB),
+    # > 3 images -> RAINBOW
+    (4, ColormapSet.RAINBOW),
+])
+def test_create_color_blending_delegates_to_from_images(session, mocker, image_count, expected_colormap_set):
+    images = [Image(session, 100 + i) for i in range(image_count)]
+    fake_cb = mocker.MagicMock(name="ColorBlending")
     mock_from_images = mocker.patch.object(
-        ColorBlending, "from_images", return_value="CB"
+        ColorBlending, "from_images", return_value=fake_cb
     )
-    result = session.create_color_blending([img0, img1])
-    mock_from_images.assert_called_once_with(session, [img0, img1])
-    assert result == "CB"
+    result = session.create_color_blending(images)
+    mock_from_images.assert_called_once_with(session, images)
+    fake_cb.set_colormap_set.assert_called_once_with(expected_colormap_set)
+    assert result is fake_cb
 
 # OPENING IMAGES
 
