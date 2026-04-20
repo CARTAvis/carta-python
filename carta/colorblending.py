@@ -1,9 +1,10 @@
 """This module contains functionality for interacting with color blending images and their layers."""
 
 from .constants import Colormap, ColormapSet, ImageType
-from .image import Image
-from .util import BasePathMixin, CartaActionFailed, Macro
+from .image import Image, ImageBase
+from .util import BasePathMixin, CartaActionFailed, CartaScriptingException, Macro
 from .validation import (
+    Any,
     Boolean,
     Constant,
     Coordinate,
@@ -62,15 +63,30 @@ class Layer(BasePathMixin):
         return [cls(colorblending, layer_id) for layer_id in layer_ids]
 
     def __repr__(self):
-        """A human-readable representation of this object."""
-        session_id = self.session.session_id
-        cb_imageview_id = self.colorblending.imageview_id
-        cb_name = self.colorblending.file_name
-        repr_content = [
-            f"{session_id}:{cb_imageview_id}:{cb_name}",
-            f"{self.layer_id}:{self.file_name}",
-        ]
-        return ":".join(repr_content)
+        """A human-readable representation of this layer."""
+        cls = type(self).__name__
+        cb_id = self.colorblending.color_blending_id
+
+        try:
+            order = self.colorblending.image_view_order
+        except (CartaScriptingException, RuntimeError):
+            return (
+                f"[Closed] {cls}(image_view_order=None, "
+                f"color_blending_id={cb_id}, layer_id={self.layer_id})"
+            )
+
+        try:
+            name = self.file_name
+        except CartaScriptingException:
+            return (
+                f"[Closed] {cls}(image_view_order={order}, "
+                f"color_blending_id={cb_id}, layer_id={self.layer_id})"
+            )
+
+        return (
+            f"{cls}(image_view_order={order}, color_blending_id={cb_id}, "
+            f"layer_id={self.layer_id}, file_name={name!r})"
+        )
 
     @property
     def file_name(self):
@@ -84,13 +100,13 @@ class Layer(BasePathMixin):
         return self.get_value("frameInfo.fileInfo.name")
 
     @property
-    def image_id(self):
-        """The ID of the image.
+    def file_id(self):
+        """The frontend file id of the layer's underlying image.
 
         Returns
         -------
         integer
-            The image ID.
+            The file id.
         """
         return self.get_value("frameInfo.fileId")
 
@@ -120,81 +136,48 @@ class Layer(BasePathMixin):
         self.call_action("renderConfig.setInverted", invert)
 
 
-class ColorBlending(BasePathMixin):
+class ColorBlending(ImageBase, BasePathMixin):
     """This object represents a color blending image in a session.
 
     Parameters
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this color blending.
-    store_id : integer
-        The color blending store ID of the color blending image.
+    color_blending_id : integer
+        The id of the backing ``ColorBlendingStore`` on the frontend.
 
     Attributes
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this color blending.
-    store_id : integer
-        The color blending store ID of the color blending image.
+    color_blending_id : integer
+        The id of the backing ``ColorBlendingStore`` on the frontend.
     """
 
-    # Mirrors ColorBlendingStore.DEFAULT_LAYER_LIMIT in carta-frontend.
-    MAX_INITIAL_LAYERS = 10
+    _image_type = ImageType.COLOR_BLENDING
 
-    def __init__(self, session, store_id):
+    def __init__(self, session, color_blending_id):
         self.session = session
-        self.store_id = store_id
+        self.color_blending_id = color_blending_id
 
         path = "imageViewConfigStore.colorBlendingImageMap"
-        self._base_path = f"{path}[{self.store_id}]"
+        self._base_path = f"{path}[{self.color_blending_id}]"
         self._frame = Macro("", self._base_path)
 
-    @classmethod
-    def _validate_initial_layer_count(cls, layer_count):
-        if layer_count > cls.MAX_INITIAL_LAYERS:
-            raise ValueError(
-                "Color blending initialization supports at most "
-                f"{cls.MAX_INITIAL_LAYERS} images (the base layer plus "
-                f"{cls.MAX_INITIAL_LAYERS - 1} matched images)."
-            )
+    @property
+    def _stable_id(self):
+        return self.color_blending_id
 
     @classmethod
-    def from_imageview_id(cls, session, imageview_id):
-        """Create a color blending object from an image view ID.
+    def from_image_view_order(cls, session, image_view_order):
+        """Create a color blending object from an image view order.
 
         Parameters
         ----------
         session : :obj:`carta.session.Session`
             The session object.
-        imageview_id : integer
-            The image view ID, the index of the image within the list of
-            currently open images, of the color blending image.
-
-        Returns
-        -------
-        :obj:`carta.colorblending.ColorBlending`
-            A new color blending object.
-        """
-        # Find the store ID for the given image view ID
-        path = f"imageViewConfigStore.imageList[{imageview_id}]"
-        image_type = session.get_value(f"{path}.type")
-        if image_type != ImageType.COLOR_BLENDING:
-            raise ValueError(
-                "imageview_id does not refer to a color blending image."
-            )
-        store_id = session.get_value(f"{path}.store.id")
-        return cls(session, store_id)
-
-    @classmethod
-    def from_images(cls, session, images):
-        """Create a color blending object from a list of images.
-
-        Parameters
-        ----------
-        session : :obj:`carta.session.Session`
-            The session object.
-        images : list of :obj:`carta.image.Image`
-            The images to be blended.
+        image_view_order : integer
+            The image-view order of the color blending image.
 
         Returns
         -------
@@ -204,39 +187,66 @@ class ColorBlending(BasePathMixin):
         Raises
         ------
         ValueError
-            If more images are provided than the frontend can include when
-            initializing the color blending layers.
+            If the entry at the given image-view order is not a color blending image.
+        IndexError
+            If ``image_view_order`` is out of range.
         """
-        cls._validate_initial_layer_count(len(images))
-
-        # Set the first image as the spatial reference
-        session.call_action("setSpatialReference", images[0]._frame, False)
-        # Align the other images to the spatial reference
-        for image in images[1:]:
-            success = image.call_action(
-                "setSpatialReference", images[0]._frame
+        summary = session.get_value("imageViewConfigStore.imageListSummary")
+        if image_view_order < 0 or image_view_order >= len(summary):
+            raise IndexError(
+                f"image_view_order {image_view_order} is out of range for "
+                f"an image list of length {len(summary)}."
             )
-            if not success:
-                name = image.file_name
-                raise CartaActionFailed(
-                    f"Failed to set spatial reference for image {name}."
-                )
+        entry = summary[image_view_order]
+        if entry["type"] != ImageType.COLOR_BLENDING:
+            raise ValueError(
+                "image_view_order does not refer to a color blending image."
+            )
+        return cls(session, entry["id"])
 
-        command = "imageViewConfigStore.createColorBlending"
-        store_id = session.call_action(command, return_path="id")
-        colorblending = cls(session, store_id)
+    @classmethod
+    @validate(Any(), IterableOf(InstanceOf(Image), min_size=1))
+    def from_images(cls, session, images):
+        """Create a color blending object from a list of images.
 
-        # The frontend initializes color blending from the current spatial
-        # reference's secondarySpatialImages, which can include frames matched
-        # before this helper was called. Rebuild the non-base layers so the
-        # blend contains exactly the images requested here without clearing the
-        # session-wide spatial matching state.
-        for _ in colorblending.layer_list()[1:]:
-            colorblending.delete_layer(1)
-        for image in images[1:]:
-            colorblending.add_layer(image)
+        Side effect: this overwrites the session-wide spatial reference
+        to ``images[0]`` and spatially matches each of ``images[1:]`` to
+        it.
 
-        return colorblending
+        Parameters
+        ----------
+        session : :obj:`carta.session.Session`
+            The session object.
+        images : {1}
+            The images to be blended. Must be non-empty. The first entry
+            becomes the base layer.
+
+        Returns
+        -------
+        :obj:`carta.colorblending.ColorBlending`
+            A new color blending object.
+
+        Raises
+        ------
+        CartaValidationFailed
+            If ``images`` is empty or contains a non-:obj:`carta.image.Image`
+            value.
+        CartaActionFailed
+            If the atomic frontend action fails. In practice this
+            happens when the input contains a stale/closed frame or
+            exceeds the frontend's layer-count limit.
+        """
+        result = session.call_action(
+            "imageViewConfigStore.createColorBlendingFromFrames",
+            [image._frame for image in images],
+        )
+        if result is None:
+            raise CartaActionFailed(
+                "Failed to create color blending: the frontend returned "
+                "null. This indicates a stale frame or a layer-count "
+                "limit exceeded."
+            )
+        return cls(session, result["id"])
 
     @classmethod
     def from_files(cls, session, files, append=False):
@@ -258,14 +268,34 @@ class ColorBlending(BasePathMixin):
         :obj:`carta.colorblending.ColorBlending`
             A new color blending object.
         """
-        cls._validate_initial_layer_count(len(files))
         images = session.open_images(files, append=append)
         return cls.from_images(session, images)
 
     def __repr__(self):
         """A human-readable representation of this color blending object."""
-        session_id = self.session.session_id
-        return f"{session_id}:{self.imageview_id}:{self.file_name}"
+        cls = type(self).__name__
+
+        try:
+            order = self.image_view_order
+        except (CartaScriptingException, RuntimeError):
+            return (
+                f"[Closed] {cls}(image_view_order=None, "
+                f"color_blending_id={self.color_blending_id})"
+            )
+
+        try:
+            name = self.file_name
+        except CartaScriptingException:
+            return (
+                f"[Closed] {cls}(image_view_order={order}, "
+                f"color_blending_id={self.color_blending_id})"
+            )
+
+        return (
+            f"{cls}(image_view_order={order}, "
+            f"color_blending_id={self.color_blending_id}, "
+            f"file_name={name!r})"
+        )
 
     @property
     def _base_frame(self):
@@ -283,26 +313,21 @@ class ColorBlending(BasePathMixin):
         return self.get_value("filename")
 
     @property
-    def imageview_id(self):
-        """The image view ID of the color blending image.
+    def image_view_order(self):
+        """The current index of this color blending in image list.
 
         Returns
         -------
         integer
-            The image view ID.
+            The image view order.
+
+        Raises
+        ------
+        RuntimeError
+            If no matching color blending entry exists in the image list.
         """
-        path = "imageViewConfigStore.imageList"
-        length = self.session.get_value(f"{path}.length")
-        for idx in range(length):
-            entry = f"{path}[{idx}]"
-            entry_type = self.session.get_value(f"{entry}.type")
-            if entry_type != ImageType.COLOR_BLENDING:
-                continue
-            entry_id = self.session.get_value(f"{entry}.store.id")
-            if entry_id == self.store_id:
-                return idx
-        raise RuntimeError(
-            "Could not find this color blending image in the image list."
+        return self.session._find_image_view_order(
+            ImageType.COLOR_BLENDING, self.color_blending_id
         )
 
     @property
@@ -315,10 +340,6 @@ class ColorBlending(BasePathMixin):
             The alpha values.
         """
         return self.get_value("alpha")
-
-    def make_active(self):
-        """Make this the active image."""
-        self.session.call_action("setActiveImageByIndex", self.imageview_id)
 
     def layer_list(self):
         """
@@ -416,7 +437,7 @@ class ColorBlending(BasePathMixin):
         current_alpha_values = self.alpha
         target_layer_states = [
             (
-                Image(self.session, current_layers[layer_index].image_id),
+                Image(self.session, current_layers[layer_index].file_id),
                 current_alpha_values[layer_index],
             )
             for layer_index in layer_indices[1:]
