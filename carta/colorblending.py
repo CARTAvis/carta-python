@@ -169,6 +169,8 @@ class ColorBlending(ImageBase, BasePathMixin):
     def _stable_id(self):
         return self.color_blending_id
 
+    # FACTORIES
+
     @classmethod
     def from_image_view_order(cls, session, image_view_order):
         """Create a color blending object from an image view order.
@@ -272,6 +274,24 @@ class ColorBlending(ImageBase, BasePathMixin):
         images = session.open_images(files, append=append)
         return cls.from_images(session, images)
 
+    @property
+    def image_view_order(self):
+        """The current index of this color blending in image list.
+
+        Returns
+        -------
+        integer
+            The image view order.
+
+        Raises
+        ------
+        RuntimeError
+            If no matching color blending entry exists in the image list.
+        """
+        return self.session._find_image_view_order(
+            ImageType.COLOR_BLENDING, self.color_blending_id
+        )
+
     def __repr__(self):
         """A human-readable representation of this color blending object."""
         cls = type(self).__name__
@@ -298,6 +318,8 @@ class ColorBlending(ImageBase, BasePathMixin):
             f"file_name={name!r})"
         )
 
+    # METADATA
+
     @property
     def _base_frame(self):
         return Image(self.session, self.get_value("frames[0].id"))
@@ -313,23 +335,7 @@ class ColorBlending(ImageBase, BasePathMixin):
         """
         return self.get_value("filename")
 
-    @property
-    def image_view_order(self):
-        """The current index of this color blending in image list.
-
-        Returns
-        -------
-        integer
-            The image view order.
-
-        Raises
-        ------
-        RuntimeError
-            If no matching color blending entry exists in the image list.
-        """
-        return self.session._find_image_view_order(
-            ImageType.COLOR_BLENDING, self.color_blending_id
-        )
+    # LAYERS
 
     @property
     def alpha(self):
@@ -341,6 +347,24 @@ class ColorBlending(ImageBase, BasePathMixin):
             The alpha values.
         """
         return self.get_value("alpha")
+
+    @validate(IterableOf(Number(0, 1)))
+    def set_alpha(self, alpha_list):
+        """Set the alpha value for the color blending layers.
+
+        Parameters
+        ----------
+        alpha_list : {0}
+            The alpha values.
+        """
+        layer_list = self.layer_list()
+        if len(alpha_list) != len(layer_list):
+            raise ValueError(
+                f"alpha_list length ({len(alpha_list)}) does not match "
+                f"the number of layers ({len(layer_list)})."
+            )
+        for alpha, layer in zip(alpha_list, layer_list):
+            layer.set_alpha(alpha)
 
     def layer_list(self):
         """
@@ -456,6 +480,8 @@ class ColorBlending(ImageBase, BasePathMixin):
             self.add_layer(image)
             Layer(self, target_layer_index).set_alpha(alpha)
 
+    # NAVIGATION
+
     @validate(Coordinate(), Coordinate())
     def set_center(self, x, y):
         """Set the center position, in image or world coordinates.
@@ -503,6 +529,8 @@ class ColorBlending(ImageBase, BasePathMixin):
         """
         self._base_frame.set_zoom_level(zoom, absolute)
 
+    # RENDERING
+
     @validate(Constant(ColormapSet))
     def set_colormap_set(self, colormap_set):
         """Set the colormap set for the color blending.
@@ -514,23 +542,7 @@ class ColorBlending(ImageBase, BasePathMixin):
         """
         self.call_action("applyColormapSet", colormap_set)
 
-    @validate(IterableOf(Number(0, 1)))
-    def set_alpha(self, alpha_list):
-        """Set the alpha value for the color blending layers.
-
-        Parameters
-        ----------
-        alpha_list : {0}
-            The alpha values.
-        """
-        layer_list = self.layer_list()
-        if len(alpha_list) != len(layer_list):
-            raise ValueError(
-                f"alpha_list length ({len(alpha_list)}) does not match "
-                f"the number of layers ({len(layer_list)})."
-            )
-        for alpha, layer in zip(alpha_list, layer_list):
-            layer.set_alpha(alpha)
+    # VISIBILITY
 
     @validate(Boolean())
     def set_raster_visible(self, state):
@@ -570,6 +582,8 @@ class ColorBlending(ImageBase, BasePathMixin):
         is_visible = self.get_value("vectorOverlayVisible")
         if is_visible != state:
             self.call_action("toggleVectorOverlayVisible")
+
+    # CLOSE
 
     def close(self):
         """Close this color blending object."""
