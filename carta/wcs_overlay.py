@@ -437,8 +437,9 @@ class ImageWCSConnector:
 
     def _images(self, image_ids=None):
         """Internal helper function for fetching image objects."""
+        from .image import Image
         if image_ids is None:
-            return self.session.image_list()
+            return [img for img in self.session.image_list() if isinstance(img, Image)]
         return [self.session.image_by_id(image_id) for image_id in image_ids]
 
     def _get_image_wcs_properties(self, image_ids, property_path):
