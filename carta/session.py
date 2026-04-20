@@ -640,7 +640,7 @@ class Session:
                 if entry["type"] == ImageType.FRAME and entry["id"] == file_id:
                     return Image(self, file_id)
             raise RuntimeError(
-                f"No file-based image with file_id={file_id} is open."
+                f"No frame-backed image with file_id={file_id} is open."
             )
 
         # color_blending_id is not None

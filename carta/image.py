@@ -17,7 +17,7 @@ from .region import RegionSet
 
 
 class ImageBase:
-    """Base class for image-view items (file-based images and color blendings).
+    """Base class for image-view items (frame-backed images and color blendings).
 
     This class is not intended to be instantiated directly.
 
@@ -50,7 +50,7 @@ class ImageBase:
 
 
 class Image(ImageBase, BasePathMixin):
-    """This object corresponds to a file-based image open in a CARTA frontend session.
+    """This object corresponds to a frame-backed image open in a CARTA frontend session.
 
     This class should not be instantiated directly. Instead, use the session object's methods for opening new images or retrieving existing images.
 
