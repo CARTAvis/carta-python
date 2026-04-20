@@ -5,6 +5,7 @@ Image objects should not be instantiated directly, and should only be created th
 
 
 from .constants import ImageType, Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
+from .image_base import ImageBase
 from .util import Macro, cached, BasePathMixin, CartaScriptingException, Point as Pt
 from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr, IterableOf, Point
@@ -14,39 +15,6 @@ from .contours import Contours
 from .vector_overlay import VectorOverlay
 from .wcs_overlay import ImageWCSOverlay
 from .region import RegionSet
-
-
-class ImageBase:
-    """Base class for image-view items (frame-backed images and color blendings).
-
-    This class is not intended to be instantiated directly.
-
-    Attributes
-    ----------
-    session : :obj:`carta.session.Session`
-        The session object associated with this image-view item.
-    """
-
-    _image_type: ImageType = None
-
-    def __init__(self, session):
-        self.session = session
-
-    @property
-    def _stable_id(self):
-        """The stable identifier of this image-view item."""
-        raise NotImplementedError
-
-    @property
-    def image_view_order(self):
-        """The index of this item in image list."""
-        raise NotImplementedError
-
-    def make_active(self):
-        """Make this the active image-view item."""
-        self.session.call_action(
-            "setActiveImageById", self._image_type, self._stable_id
-        )
 
 
 class Image(ImageBase, BasePathMixin):

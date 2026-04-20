@@ -516,7 +516,7 @@ class Session:
 
         Returns
         -------
-        list of :obj:`carta.image.ImageBase`
+        list of :obj:`carta.image_base.ImageBase`
             The heterogeneous list of image-view items open in this session.
         """
         summary = self.get_value("imageViewConfigStore.imageListSummary")
@@ -585,7 +585,7 @@ class Session:
 
         Returns
         -------
-        :obj:`carta.image.ImageBase`
+        :obj:`carta.image_base.ImageBase`
             The matching image-view item.
 
         Raises

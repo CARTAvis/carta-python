@@ -49,6 +49,14 @@ carta.image module
    :undoc-members:
    :show-inheritance:
 
+carta.image\_base module
+------------------------
+
+.. automodule:: carta.image_base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.metadata module
 ---------------------
 

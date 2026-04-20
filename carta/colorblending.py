@@ -1,7 +1,8 @@
 """This module contains functionality for interacting with color blending images and their layers."""
 
 from .constants import Colormap, ColormapSet, ImageType
-from .image import Image, ImageBase
+from .image import Image
+from .image_base import ImageBase
 from .util import BasePathMixin, CartaActionFailed, CartaScriptingException, Macro
 from .validation import (
     Any,
