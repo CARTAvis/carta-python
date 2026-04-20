@@ -165,12 +165,12 @@ class Image(ImageBase, BasePathMixin):
         try:
             order = self.image_view_order
         except (CartaScriptingException, RuntimeError):
-            return f"[Invalid] {cls}(image_view_order=None{name_part}, file_id={self.file_id})"
+            return f"[Closed] {cls}(image_view_order=None{name_part}, file_id={self.file_id})"
 
         try:
             name = self.file_name
         except CartaScriptingException:
-            return f"[Invalid] {cls}(image_view_order={order}{name_part}, file_id={self.file_id})"
+            return f"[Closed] {cls}(image_view_order={order}{name_part}, file_id={self.file_id})"
 
         return f"{cls}(image_view_order={order}, file_name={name!r}, file_id={self.file_id})"
 
