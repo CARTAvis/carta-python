@@ -637,6 +637,7 @@ def test_colorblending_from_images_success(session, mocker):
     img1 = Image(session, 200)
     img2 = Image(session, 300)
 
+    validate = mocker.patch.object(session, "_validate_color_blending_base")
     call_action = mocker.patch.object(session, "call_action", return_value={"id": 123})
 
     cb = ColorBlending.from_images(session, [img0, img1, img2])
@@ -645,6 +646,7 @@ def test_colorblending_from_images_success(session, mocker):
     assert cb.color_blending_id == 123
     assert cb._base_path == "imageViewConfigStore.colorBlendingImageMap[123]"
 
+    validate.assert_called_once_with(100)
     call_action.assert_called_once_with(
         "imageViewConfigStore.createColorBlendingFromFrames",
         [img0._frame, img1._frame, img2._frame],
@@ -655,10 +657,30 @@ def test_colorblending_from_images_null_return_raises_action_failed(
     session, mocker
 ):
     img0 = Image(session, 100)
+    validate = mocker.patch.object(session, "_validate_color_blending_base")
     mocker.patch.object(session, "call_action", return_value=None)
 
     with pytest.raises(CartaActionFailed):
         ColorBlending.from_images(session, [img0])
+
+    validate.assert_called_once_with(100)
+
+
+def test_colorblending_from_images_propagates_base_validation_error(
+    session, mocker
+):
+    img0 = Image(session, 100)
+    call_action = mocker.patch.object(session, "call_action")
+    mocker.patch.object(
+        session,
+        "_validate_color_blending_base",
+        side_effect=ValueError(),
+    )
+
+    with pytest.raises(ValueError):
+        ColorBlending.from_images(session, [img0])
+
+    call_action.assert_not_called()
 
 
 def test_colorblending_from_images_rejects_empty_list(session, mocker):
@@ -688,7 +710,7 @@ def test_colorblending_from_files(session, mocker):
     mock_from_images = mocker.patch.object(
         ColorBlending, "from_images", return_value="CB"
     )
-    out = ColorBlending.from_files(session, ["a.fits", "b.fits"], append=True)
-    mock_open_images.assert_called_with(["a.fits", "b.fits"], append=True)
+    out = ColorBlending.from_files(session, ["a.fits", "b.fits"])
+    mock_open_images.assert_called_with(["a.fits", "b.fits"], append=False)
     mock_from_images.assert_called_once()
     assert out == "CB"

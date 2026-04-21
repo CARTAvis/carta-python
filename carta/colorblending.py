@@ -235,9 +235,13 @@ class ColorBlending(ImageBase, BasePathMixin):
     def from_images(cls, session, images):
         """Create a color blending object from a list of images.
 
-        Side effect: this overwrites the session-wide spatial reference
-        to ``images[0]`` and spatially matches each of ``images[1:]`` to
-        it.
+        If color blending images are already open, ``images[0]`` must
+        already be the current spatial reference. Rebasing existing
+        color blendings is rejected.
+
+        Side effect: on success, this ensures that ``images[0]`` is the
+        current spatial reference and that each of ``images[1:]`` is
+        spatially matched to it.
 
         Parameters
         ----------
@@ -257,11 +261,15 @@ class ColorBlending(ImageBase, BasePathMixin):
         CartaValidationFailed
             If ``images`` is empty or contains a non-:obj:`carta.image.Image`
             value.
+        ValueError
+            If color blendings are already open and ``images[0]`` is not the
+            current spatial reference.
         CartaActionFailed
             If the atomic frontend action fails. In practice this
             happens when the input contains a stale/closed frame or
             exceeds the frontend's layer-count limit.
         """
+        session._validate_color_blending_base(images[0].file_id)
         result = session.call_action(
             "imageViewConfigStore.createColorBlendingFromFrames",
             [image._frame for image in images],
@@ -275,8 +283,13 @@ class ColorBlending(ImageBase, BasePathMixin):
         return cls(session, result["id"])
 
     @classmethod
-    def from_files(cls, session, files, append=False):
+    def from_files(cls, session, files):
         """Create a color blending object from a list of files.
+
+        This helper always opens the files with ``append=False``, which
+        closes any currently open images before opening ``files``,
+        because the frontend does not support creating a color blending
+        in append mode.
 
         Parameters
         ----------
@@ -284,17 +297,13 @@ class ColorBlending(ImageBase, BasePathMixin):
             The session object.
         files : list of string
             The files to be blended.
-        append : bool
-            Whether the images should be appended to existing images.
-            By default this is ``False`` and any existing open images
-            are closed.
 
         Returns
         -------
         :obj:`carta.colorblending.ColorBlending`
             A new color blending object.
         """
-        images = session.open_images(files, append=append)
+        images = session.open_images(files, append=False)
         return cls.from_images(session, images)
 
     @property

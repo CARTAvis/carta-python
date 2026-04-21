@@ -282,13 +282,26 @@ The session object provides two convenience methods which create a color blendin
     ]
 
     # Open the files and combine them into a new color blending image
-    # Warning: setting `append=False` will close any existing images
-    cb = session.open_as_color_blending(files, append=False)
+    # Warning: this always opens files with append=False,
+    #          so any existing images will be closed first
+    cb = session.open_as_color_blending(files)
 
     # Combine already-open images into a new color blending image
-    # Warning: this will break the current spatial matching and
-    #          use the first image as the spatial reference
+    # Set the first image as the base layer.
+    # If color blendings are already open, img0 must already be the
+    # current spatial reference; otherwise make it the reference first.
+    img0.make_spatial_reference()
     cb = session.create_color_blending([img0, img1, img2])
+
+.. note::
+    ``session.open_as_color_blending(files)`` always closes any currently
+    open images before opening ``files``.
+
+    ``session.create_color_blending(images)`` treats ``images[0]`` as the
+    base layer. If color blending images are already open, ``images[0]``
+    must already be the current spatial reference. To switch to a new base
+    image first, call ``images[0].make_spatial_reference()`` before creating
+    the color blending.
 
 Manipulate properties of the color blending object and the underlying layers:
 

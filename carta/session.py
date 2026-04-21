@@ -566,6 +566,38 @@ class Session:
             f"{stable_id} in the image list."
         )
 
+    def _validate_color_blending_base(self, base_file_id):
+        """Reject color-blending creation that would rebase existing blendings.
+
+        Parameters
+        ----------
+        base_file_id : integer
+            The file id of the requested base image.
+
+        Raises
+        ------
+        ValueError
+            If one or more color blending images are already open and the
+            requested base image is not the current spatial reference.
+        """
+        summary = self.get_value("imageViewConfigStore.imageListSummary")
+        has_open_color_blending = any(
+            entry["type"] == ImageType.COLOR_BLENDING for entry in summary
+        )
+        if not has_open_color_blending:
+            return
+
+        current_spatial_reference_file_id = self.get_value("spatialReference.id")
+        if current_spatial_reference_file_id != base_file_id:
+            raise ValueError(
+                "Cannot create a color blending with a different base image "
+                "while color blendings are already open. images[0] must be "
+                "the current spatial reference. Call "
+                "images[0].make_spatial_reference() and retry "
+                f"(requested base file_id={base_file_id}, current spatial "
+                f"reference file_id={current_spatial_reference_file_id})."
+            )
+
     def get_image(self, *, image_view_order=None, file_id=None, color_blending_id=None):
         """Return the image-view item identified by exactly one of the supported identifiers.
 
@@ -654,23 +686,33 @@ class Session:
             f"No color blending with color_blending_id={color_blending_id} is open."
         )
 
-    @validate(IterableOf(String()), Boolean())
-    def open_as_color_blending(self, files, append=False):
+    @validate(IterableOf(String()))
+    def open_as_color_blending(self, files):
         """Open files and combine them into a new color blending image.
+
+        This helper always opens the files with ``append=False``, which
+        closes any currently open images before opening ``files``,
+        because the frontend does not support creating a color blending
+        in append mode.
 
         Parameters
         ----------
         files : {0}
             The files to be blended.
-        append : {1}
-            Whether the images should be appended to existing images. By default this is ``False`` and any existing open images are closed.
 
         Returns
         -------
         :obj:`carta.colorblending.ColorBlending`
             The new color blending object.
+
+        Raises
+        ------
+        ValueError
+            If color blendings are already open and the first opened file does
+            not become the current spatial reference. This validation happens
+            after the files are opened.
         """
-        cb = ColorBlending.from_files(self, files, append=append)
+        cb = ColorBlending.from_files(self, files)
         if len(files) <= 3:
             cb.set_colormap_set(ColormapSet.RGB)
         else:
@@ -689,6 +731,12 @@ class Session:
         -------
         :obj:`carta.colorblending.ColorBlending`
             The new color blending object.
+
+        Raises
+        ------
+        ValueError
+            If color blendings are already open and ``images[0]`` is not the
+            current spatial reference.
         """
         cb = ColorBlending.from_images(self, images)
         if len(images) <= 3:

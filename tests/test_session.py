@@ -2,7 +2,7 @@ import pytest
 
 from carta.image import Image
 from carta.colorblending import ColorBlending
-from carta.util import Macro
+from carta.util import CartaValidationFailed, Macro
 from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 
 # FIXTURES
@@ -212,6 +212,63 @@ def test_get_image_single_round_trip(session, summary):
         assert call.args == ("imageViewConfigStore.imageListSummary",)
 
 
+# session._validate_color_blending_base
+
+
+def test_validate_color_blending_base_allows_when_no_open_color_blendings(
+    session, get_value
+):
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.FRAME, "id": 20},
+    ]
+
+    session._validate_color_blending_base(10)
+
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
+
+
+def test_validate_color_blending_base_allows_current_spatial_reference(
+    session, get_value
+):
+    get_value.side_effect = [
+        [
+            {"type": ImageType.FRAME, "id": 10},
+            {"type": ImageType.COLOR_BLENDING, "id": 7},
+        ],
+        10,
+    ]
+
+    session._validate_color_blending_base(10)
+
+    assert [call.args for call in get_value.call_args_list] == [
+        ("imageViewConfigStore.imageListSummary",),
+        ("spatialReference.id",),
+    ]
+
+
+def test_validate_color_blending_base_rejects_rebasing_existing_color_blendings(
+    session, get_value
+):
+    get_value.side_effect = [
+        [
+            {"type": ImageType.FRAME, "id": 10},
+            {"type": ImageType.COLOR_BLENDING, "id": 7},
+        ],
+        20,
+    ]
+
+    with pytest.raises(ValueError):
+        session._validate_color_blending_base(10)
+
+    assert [call.args for call in get_value.call_args_list] == [
+        ("imageViewConfigStore.imageListSummary",),
+        ("spatialReference.id",),
+    ]
+
+
 # open_as_color_blending / create_color_blending
 
 
@@ -228,8 +285,8 @@ def test_open_as_color_blending_delegates_to_from_files(session, mocker, files, 
     mock_from_files = mocker.patch.object(
         ColorBlending, "from_files", return_value=fake_cb
     )
-    result = session.open_as_color_blending(files, append=True)
-    mock_from_files.assert_called_once_with(session, files, append=True)
+    result = session.open_as_color_blending(files)
+    mock_from_files.assert_called_once_with(session, files)
     fake_cb.set_colormap_set.assert_called_once_with(expected_colormap_set)
     assert result is fake_cb
 
