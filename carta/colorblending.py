@@ -1,6 +1,6 @@
 """This module contains functionality for interacting with color blending images and their layers."""
 
-from .constants import Colormap, ColormapSet, ImageType
+from .constants import Colormap, ColormapSet, ImageType, SpatialAxis
 from .image import Image
 from .image_base import ImageBase
 from .util import BasePathMixin, CartaScriptingException, Macro
@@ -11,6 +11,7 @@ from .validation import (
     InstanceOf,
     IterableOf,
     Number,
+    Size,
     validate,
 )
 
@@ -429,6 +430,26 @@ class ColorBlending(ImageBase, BasePathMixin):
             number formats.
         """
         self._base_frame.set_center(x, y)
+
+    @validate(Size(), Constant(SpatialAxis))
+    def zoom_to_size(self, size, axis):
+        """Zoom to the given size along the specified axis.
+
+        Numbers are interpreted as pixel sizes. Numeric strings with no units are interpreted as arcseconds.
+
+        Parameters
+        ----------
+        size : {0}
+            The size to zoom to.
+        axis : {1}
+            The spatial axis to use.
+
+        Raises
+        ------
+        ValueError
+            If an angular size is provided and the image has no valid WCS information.
+        """
+        self._base_frame.zoom_to_size(size, axis)
 
     @validate(Number(), Boolean())
     def set_zoom_level(self, zoom, absolute=True):

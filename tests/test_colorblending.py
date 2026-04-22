@@ -4,6 +4,7 @@ from carta.colorblending import ColorBlending, Layer
 from carta.constants import Colormap as CM
 from carta.constants import ColormapSet as CMS
 from carta.constants import ImageType
+from carta.constants import SpatialAxis as SA
 from carta.image import Image
 from carta.util import CartaActionFailed, CartaValidationFailed, Macro
 
@@ -482,6 +483,34 @@ def test_colorblending_set_center(colorblending, mocker):
 
     colorblending.set_center(1, 2)
     base_frame.set_center.assert_called_once_with(1, 2)
+
+
+@pytest.mark.parametrize("size,axis", [(123, SA.X), ("123arcsec", SA.Y)])
+def test_colorblending_zoom_to_size(colorblending, mocker, size, axis):
+    base_frame = mocker.create_autospec(Image, instance=True)
+    mocker.patch(
+        "carta.colorblending.ColorBlending._base_frame",
+        new_callable=mocker.PropertyMock,
+        return_value=base_frame,
+    )
+
+    colorblending.zoom_to_size(size, axis)
+    base_frame.zoom_to_size.assert_called_once_with(size, axis)
+
+
+@pytest.mark.parametrize("size,axis", [("123px", SA.X), (123, "z")])
+def test_colorblending_zoom_to_size_invalid(colorblending, mocker, size, axis):
+    base_frame = mocker.create_autospec(Image, instance=True)
+    mocker.patch(
+        "carta.colorblending.ColorBlending._base_frame",
+        new_callable=mocker.PropertyMock,
+        return_value=base_frame,
+    )
+
+    with pytest.raises(CartaValidationFailed):
+        colorblending.zoom_to_size(size, axis)
+
+    base_frame.zoom_to_size.assert_not_called()
 
 
 @pytest.mark.parametrize("zoom,absolute", [(2, True), (3.5, False)])
