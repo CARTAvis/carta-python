@@ -14,7 +14,7 @@ from .colorblending import ColorBlending
 from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
-from .util import Macro, split_action_path, CartaActionFailed, CartaBadID, CartaBadSession, CartaBadUrl, Point as Pt
+from .util import Macro, split_action_path, CartaActionFailed, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, cached, Point as Pt
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, MapOf, Union
 
 from .wcs_overlay import SessionWCSOverlay
@@ -51,6 +51,8 @@ class Session:
     ----------
     session_id : integer
         The ID of the CARTA frontend session associated with this object.
+    carta_version : string
+        The CARTA version string reported by the frontend.
     wcs : :obj:`carta.wcs_overlay.SessionWCSOverlay`
         Sub-object with functions related to the WCS overlay.
     raster : :obj:`carta.raster.SessionRaster`
@@ -233,7 +235,35 @@ class Session:
 
     def __repr__(self):
         """A human-readable representation of this session object."""
-        return f"Session(session_id={self.session_id}, uri={self._protocol.frontend_url if self._protocol else None})"
+        uri = self._protocol.frontend_url if self._protocol else None
+        cache = getattr(self, "_cache", {})
+
+        if "carta_version" in cache:
+            version = cache["carta_version"]
+        else:
+            try:
+                version = self.carta_version
+            except (AttributeError, CartaScriptingException):
+                return f"Session(session_id={self.session_id}, uri={uri!r})"
+
+        return (
+            f"Session(session_id={self.session_id}, uri={uri!r}, "
+            f"carta_version={version!r})"
+        )
+
+    # METADATA
+
+    @property
+    @cached
+    def carta_version(self):
+        """The CARTA version.
+
+        Returns
+        -------
+        string
+            The version string reported by the frontend.
+        """
+        return self.get_value("frontendVersion")
 
     def call_action(self, path, *args, **kwargs):
         """Call an action on the frontend through the backend's scripting interface.

@@ -33,6 +33,36 @@ def method(session, mock_method):
 def test_subobjects(session, name, classname):
     assert getattr(session, name).__class__.__name__ == classname
 
+
+def test_carta_version_property(session, get_value):
+    get_value.return_value = "6.0.0"
+
+    assert session.carta_version == "6.0.0"
+    assert session.carta_version == "6.0.0"
+
+    get_value.assert_called_once_with("frontendVersion")
+
+
+def test_session_repr_includes_carta_version(session, get_value, mocker):
+    session._protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    get_value.return_value = "6.0.0"
+
+    assert (
+        repr(session)
+        == "Session(session_id=0, uri='http://localhost:3000', carta_version='6.0.0')"
+    )
+
+
+def test_session_repr_omits_carta_version_when_lookup_fails(session, mocker):
+    session._protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    mocker.patch.object(
+        session,
+        "get_value",
+        side_effect=CartaActionFailed("frontendVersion unavailable"),
+    )
+
+    assert repr(session) == "Session(session_id=0, uri='http://localhost:3000')"
+
 # PATHS
 
 
