@@ -115,16 +115,9 @@ def test_make_active(image, session_call_action):
     )
 
 
-def test_image_base_image_view_order_not_implemented(session):
-    base = ImageBase(session)
-    with pytest.raises(NotImplementedError):
-        base.image_view_order
-
-
-def test_image_base_stable_id_not_implemented(session):
-    base = ImageBase(session)
-    with pytest.raises(NotImplementedError):
-        base._stable_id
+def test_image_base_is_abstract(session):
+    with pytest.raises(TypeError, match="abstract method _stable_id"):
+        ImageBase(session)
 
 
 def test_image_base_make_active_uses_subclass_ids(session, session_call_action):
@@ -145,6 +138,62 @@ def test_image_base_make_active_uses_subclass_ids(session, session_call_action):
     session_call_action.assert_called_once_with(
         "setActiveImageById", ImageType.FRAME, 42
     )
+
+
+def test_image_base_image_view_order_uses_subclass_ids(session, mocker):
+    class Dummy(ImageBase):
+        _image_type = ImageType.COLOR_BLENDING
+
+        def __init__(self, session, id_):
+            super().__init__(session)
+            self._id = id_
+
+        @property
+        def _stable_id(self):
+            return self._id
+
+    find = mocker.patch.object(session, "_find_image_view_order", return_value=5)
+    assert Dummy(session, 42).image_view_order == 5
+    find.assert_called_once_with(ImageType.COLOR_BLENDING, 42)
+
+
+def test_image_base_image_type_required_for_make_active(
+    session, session_call_action
+):
+    class Dummy(ImageBase):
+        def __init__(self, session, id_):
+            super().__init__(session)
+            self._id = id_
+
+        @property
+        def _stable_id(self):
+            return self._id
+
+    with pytest.raises(
+        NotImplementedError, match="Subclasses must define _image_type"
+    ):
+        Dummy(session, 42).make_active()
+
+    session_call_action.assert_not_called()
+
+
+def test_image_base_image_type_required_for_image_view_order(session, mocker):
+    class Dummy(ImageBase):
+        def __init__(self, session, id_):
+            super().__init__(session)
+            self._id = id_
+
+        @property
+        def _stable_id(self):
+            return self._id
+
+    find = mocker.patch.object(session, "_find_image_view_order")
+    with pytest.raises(
+        NotImplementedError, match="Subclasses must define _image_type"
+    ):
+        Dummy(session, 42).image_view_order
+
+    find.assert_not_called()
 
 
 def test_image_view_order_uses_summary_once(session, mocker, image):

@@ -50,7 +50,7 @@ class Image(ImageBase, BasePathMixin):
     _image_type = ImageType.FRAME
 
     def __init__(self, session, file_id):
-        self.session = session
+        super().__init__(session)
         self.file_id = file_id
 
         self._base_path = f"frameMap[{file_id}]"
@@ -107,22 +107,6 @@ class Image(ImageBase, BasePathMixin):
 
         file_id = session.call_action(command, *params, return_path="frameInfo.fileId")
         return cls(session, file_id)
-
-    @property
-    def image_view_order(self):
-        """The current index of this image in image list.
-
-        Returns
-        -------
-        integer
-            The image view order.
-
-        Raises
-        ------
-        RuntimeError
-            If no matching frame entry exists in the image list.
-        """
-        return self.session._find_image_view_order(ImageType.FRAME, self.file_id)
 
     def __repr__(self):
         """A human-readable representation of this image object."""

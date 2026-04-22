@@ -181,7 +181,7 @@ class ColorBlending(ImageBase, BasePathMixin):
     _image_type = ImageType.COLOR_BLENDING
 
     def __init__(self, session, color_blending_id):
-        self.session = session
+        super().__init__(session)
         self.color_blending_id = color_blending_id
 
         path = "imageViewConfigStore.colorBlendingImageMap"
@@ -191,24 +191,6 @@ class ColorBlending(ImageBase, BasePathMixin):
     @property
     def _stable_id(self):
         return self.color_blending_id
-
-    @property
-    def image_view_order(self):
-        """The current index of this color blending in image list.
-
-        Returns
-        -------
-        integer
-            The image view order.
-
-        Raises
-        ------
-        RuntimeError
-            If no matching color blending entry exists in the image list.
-        """
-        return self.session._find_image_view_order(
-            ImageType.COLOR_BLENDING, self.color_blending_id
-        )
 
     def __repr__(self):
         """A human-readable representation of this color blending object."""
