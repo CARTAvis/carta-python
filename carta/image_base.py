@@ -29,7 +29,7 @@ class ImageBase(ABC):
     @abstractmethod
     def _stable_id(self):
         """The stable identifier of this image-view item."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def _require_image_type(self):
         if self._image_type is None:

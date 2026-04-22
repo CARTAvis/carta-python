@@ -382,6 +382,30 @@ def test_colorblending_set_layer_sequence(session, colorblending, mocker):
     assert [call.args[1] for call in set_alpha.call_args_list] == [0.8, 0.2]
 
 
+def test_colorblending_set_layer_sequence_noop_when_order_is_unchanged(
+    colorblending, mocker
+):
+    mocker.patch.object(
+        ColorBlending,
+        "layer_list",
+        return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
+    )
+    mocker.patch(
+        "carta.colorblending.ColorBlending.alpha",
+        new_callable=mocker.PropertyMock,
+        side_effect=AssertionError("alpha should not be read"),
+    )
+    del_layer = mocker.patch.object(colorblending, "delete_layer")
+    add_layer = mocker.patch.object(colorblending, "add_layer")
+    set_alpha = mocker.patch.object(Layer, "set_alpha", autospec=True)
+
+    colorblending.set_layer_sequence([0, 1, 2])
+
+    del_layer.assert_not_called()
+    add_layer.assert_not_called()
+    set_alpha.assert_not_called()
+
+
 def test_colorblending_set_layer_sequence_supports_user_specified_subset_order(
     session, colorblending, mocker
 ):

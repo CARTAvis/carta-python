@@ -2,7 +2,7 @@ import pytest
 
 from carta.image import Image
 from carta.colorblending import ColorBlending
-from carta.util import CartaActionFailed, Macro
+from carta.util import CartaActionFailed, Macro, Point as Pt
 from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 
 # FIXTURES
@@ -51,6 +51,20 @@ def test_session_repr_includes_carta_version(session, get_value, mocker):
         repr(session)
         == "Session(session_id=0, uri='http://localhost:3000', carta_version='6.0.0')"
     )
+
+
+def test_session_repr_uses_cached_carta_version_without_lookup(
+    session, mocker
+):
+    session._protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    session._cache = {"carta_version": "6.0.0"}
+    get_value = mocker.patch.object(session, "get_value")
+
+    assert (
+        repr(session)
+        == "Session(session_id=0, uri='http://localhost:3000', carta_version='6.0.0')"
+    )
+    get_value.assert_not_called()
 
 
 def test_session_repr_omits_carta_version_when_lookup_fails(session, mocker):
@@ -207,6 +221,17 @@ def test_image_by_id_by_image_view_order_out_of_range(session, summary):
         session.image_by_id(image_view_order=99)
 
 
+def test_image_by_id_by_image_view_order_raises_on_unsupported_type(
+    session, get_value
+):
+    get_value.return_value = [
+        {"type": ImageType.PV_PREVIEW, "id": -2},
+    ]
+
+    with pytest.raises(NotImplementedError):
+        session.image_by_id(image_view_order=0)
+
+
 def test_image_by_id_by_file_id(session, summary):
     img = session.image_by_id(file_id=20)
     assert isinstance(img, Image)
@@ -360,6 +385,13 @@ def test_create_color_blending_raises_when_no_frames_are_open(session, mocker):
     get_value.assert_called_once_with("frames.length")
     call_action.assert_not_called()
     mock_set_colormap.assert_not_called()
+
+
+def test_set_cursor(session, call_action):
+    session.set_cursor(1, 2)
+    call_action.assert_called_once_with(
+        "activeFrame.setCursorPosition", Pt(1, 2)
+    )
 
 # OPENING IMAGES
 
