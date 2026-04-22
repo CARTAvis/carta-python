@@ -836,8 +836,6 @@ class Session:
     def set_cursor(self, x, y):
         """Set the curson position.
 
-        TODO: this is a precursor to making z-profiles available, but currently the relevant functionality is not exposed by the frontend. There is also a frontend issue which is preventing the cursor from being updated correctly (it is updated only in the profiles).
-
         Parameters
         ----------
         x : {0}
@@ -846,7 +844,7 @@ class Session:
             The Y position.
 
         """
-        self.call_action("activeFrame.regionSet.updateCursorRegionPosition", Pt(x, y))
+        self.call_action("activeFrame.setCursorPosition", Pt(x, y))
 
     # SAVE IMAGE
 
