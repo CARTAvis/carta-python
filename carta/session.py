@@ -511,6 +511,35 @@ class Session:
         file_id = self.call_action(command, stokes_images, output_directory, output_hdu)
         return Image(self, file_id)
 
+    @validate(IterableOf(String()))
+    def open_as_color_blending(self, files):
+        """Open files and combine them into a new color blending image.
+
+        This helper always opens the files with ``append=False``, which
+        closes any currently open images before opening ``files``. It
+        then makes the first opened image the spatial reference, enables
+        spatial matching for the remaining opened images, and calls
+        :obj:`create_color_blending`.
+
+        Parameters
+        ----------
+        files : {0}
+            The files to be blended.
+
+        Returns
+        -------
+        :obj:`carta.colorblending.ColorBlending`
+            The new color blending object.
+        """
+        images = self.open_images(files, append=False)
+        images[0].make_spatial_reference()
+        for image in images[1:]:
+            image.set_spatial_matching(True)
+        cb = self.create_color_blending()
+        return cb
+
+    # IMAGE-VIEW ITEMS
+
     def image_list(self):
         """Return the list of currently open image-view items.
 
@@ -654,32 +683,36 @@ class Session:
             f"No color blending with color_blending_id={color_blending_id} is open."
         )
 
-    @validate(IterableOf(String()))
-    def open_as_color_blending(self, files):
-        """Open files and combine them into a new color blending image.
+    def active_image(self):
+        """Return the currently active image-view item.
 
-        This helper always opens the files with ``append=False``, which
-        closes any currently open images before opening ``files``. It
-        then makes the first opened image the spatial reference, enables
-        spatial matching for the remaining opened images, and calls
-        :obj:`create_color_blending`.
-
-        Parameters
-        ----------
-        files : {0}
-            The files to be blended.
+        This is the frame-backed image or color blending image that is
+        currently active in the viewer.
 
         Returns
         -------
-        :obj:`carta.colorblending.ColorBlending`
-            The new color blending object.
+        :obj:`carta.image.Image` or :obj:`carta.colorblending.ColorBlending`
+            The currently active image-view item.
+
+        Raises
+        ------
+        NotImplementedError
+            If the active image is of a type that is not yet wrapped on
+            the Python side.
         """
-        images = self.open_images(files, append=False)
-        images[0].make_spatial_reference()
-        for image in images[1:]:
-            image.set_spatial_matching(True)
-        cb = self.create_color_blending()
-        return cb
+        active_type = self.get_value("activeImage.type")
+        active_id = self.get_value("activeImage.store.id")
+        if active_type == ImageType.FRAME:
+            return Image(self, active_id)
+        if active_type == ImageType.COLOR_BLENDING:
+            return ColorBlending(self, active_id)
+        raise NotImplementedError(
+            f"active_image encountered an unsupported image-view type "
+            f"{active_type!r}; only Image (FRAME) and ColorBlending "
+            "(COLOR_BLENDING) entries are currently wrapped."
+        )
+
+    # COLOR BLENDING
 
     def create_color_blending(self):
         """Create a new color blending from the current spatial reference
@@ -711,35 +744,6 @@ class Session:
         else:
             cb.set_colormap_set(ColormapSet.RAINBOW)
         return cb
-
-    def active_image(self):
-        """Return the currently active image-view item.
-
-        This is the frame-backed image or color blending image that is
-        currently active in the viewer.
-
-        Returns
-        -------
-        :obj:`carta.image.Image` or :obj:`carta.colorblending.ColorBlending`
-            The currently active image-view item.
-
-        Raises
-        ------
-        NotImplementedError
-            If the active image is of a type that is not yet wrapped on
-            the Python side.
-        """
-        active_type = self.get_value("activeImage.type")
-        active_id = self.get_value("activeImage.store.id")
-        if active_type == ImageType.FRAME:
-            return Image(self, active_id)
-        if active_type == ImageType.COLOR_BLENDING:
-            return ColorBlending(self, active_id)
-        raise NotImplementedError(
-            f"active_image encountered an unsupported image-view type "
-            f"{active_type!r}; only Image (FRAME) and ColorBlending "
-            "(COLOR_BLENDING) entries are currently wrapped."
-        )
 
     def clear_spatial_reference(self):
         """Clear the spatial reference."""
