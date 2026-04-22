@@ -291,6 +291,7 @@ The session object provides two convenience methods which create a color blendin
     # and its currently spatially matched frames.
     # Set the desired base image as the current spatial reference and
     # enable spatial matching for the other layers first.
+    session.clear_spatial_reference()
     img0.make_spatial_reference()
     img1.set_spatial_matching(True)
     img2.set_spatial_matching(True)
