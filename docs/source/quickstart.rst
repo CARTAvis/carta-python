@@ -307,12 +307,12 @@ Manipulate properties of the color blending object and the underlying layers:
 .. code-block:: python
 
     # Get layer objects
-    layers = cb.layer_list()
+    red, green, blue = cb.layer_list()
 
     # Set colormap for individual layers
-    layers[0].set_colormap(Colormap.REDS)
-    layers[1].set_colormap(Colormap.GREENS)
-    layers[2].set_colormap(Colormap.BLUES)
+    red.set_colormap(Colormap.REDS)
+    green.set_colormap(Colormap.GREENS)
+    blue.set_colormap(Colormap.BLUES)
 
     # Or apply an existing colormap set
     cb.set_colormap_set(ColormapSet.RGB)
@@ -321,9 +321,9 @@ Manipulate properties of the color blending object and the underlying layers:
     print(cb.alpha)
 
     # Set alpha for individual layers
-    layers[0].set_alpha(0.7)
-    layers[1].set_alpha(0.8)
-    layers[2].set_alpha(0.9)
+    red.set_alpha(0.7)
+    green.set_alpha(0.8)
+    blue.set_alpha(0.9)
 
     # Or set alpha for all layers at once
     cb.set_alpha([0.7, 0.8, 0.9])
