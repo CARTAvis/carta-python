@@ -27,14 +27,14 @@ class Image(ImageBase, BasePathMixin):
     session : :obj:`carta.session.Session`
         The session object associated with this image.
     file_id : integer
-        The frontend file id identifying this image. This is a unique number which is not reused, not the index of the image within the list of currently open images.
+        The frontend file ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
 
     Attributes
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this image.
     file_id : integer
-        The frontend file id identifying this image.
+        The frontend file ID identifying this image within the session.
     raster : :obj:`carta.raster.Raster`
         Sub-object with functions related to the raster image.
     contours : :obj:`carta.contours.Contours`
@@ -374,7 +374,7 @@ class Image(ImageBase, BasePathMixin):
     def set_center(self, x, y):
         """Set the center position, in image or world coordinates.
 
-        World coordinates are interpreted according to the session's globally set coordinate system and any custom number formats. These can be changed using :obj:`carta.wcs_overlay.Global.set_coordinate_system` and :obj:`carta.wcs_overlay.Numbers.set_format`.
+        World coordinates are interpreted according to the session's globally set coordinate system and any custom number formats. These can be changed using :obj:`carta.session.wcs.global_.set_coordinate_system` and :obj:`carta.session.wcs.numbers.set_format`.
 
         Coordinates must either both be image coordinates or match the current number formats. Numbers are interpreted as image coordinates, and numeric strings with no units are interpreted as degrees.
 

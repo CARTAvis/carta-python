@@ -406,8 +406,8 @@ class ColorBlending(ImageBase, BasePathMixin):
         World coordinates are interpreted according to the session's globally
         set coordinate system and any custom number formats. These can be
         changed using
-        :obj:`carta.wcs_overlay.Global.set_coordinate_system` and
-        :obj:`carta.wcs_overlay.Numbers.set_format`.
+        :obj:`carta.session.wcs.global_.set_coordinate_system` and
+        :obj:`carta.session.wcs.numbers.set_format`.
 
         Coordinates must either both be image coordinates or match the current
         number formats. Numbers are interpreted as image coordinates, and
