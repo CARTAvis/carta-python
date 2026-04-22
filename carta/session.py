@@ -729,9 +729,9 @@ class Session:
             If no frames are open or the frontend could not create the
             color blending image.
         """
-        frame_length = self.get_value("frames.length")
-        if frame_length <= 0:
-            raise CartaActionFailed("No frames are open")
+        frame_count = self.get_value("frames.length")
+        if frame_count <= 0:
+            raise CartaActionFailed("No frames are open.")
 
         color_blending_id = self.call_action(
             "imageViewConfigStore.createColorBlending",
@@ -739,7 +739,8 @@ class Session:
         )
         cb = ColorBlending(self, color_blending_id)
 
-        if frame_length <= 3:
+        layer_count = cb.get_value("frames.length")
+        if layer_count <= 3:
             cb.set_colormap_set(ColormapSet.RGB)
         else:
             cb.set_colormap_set(ColormapSet.RAINBOW)

@@ -280,16 +280,21 @@ def test_open_as_color_blending_opens_files_sets_matching_and_creates_blending(
     assert result is fake_cb
 
 
-@pytest.mark.parametrize("frame_count,expected_colormap_set", [
-    # <= 3 open frames -> RGB
-    (1, ColormapSet.RGB),
-    (2, ColormapSet.RGB),
-    (3, ColormapSet.RGB),
-    # > 3 open frames -> RAINBOW
-    (4, ColormapSet.RAINBOW),
+@pytest.mark.parametrize("open_frame_count,layer_count,expected_colormap_set", [
+    (1, 1, ColormapSet.RGB),
+    (3, 3, ColormapSet.RGB),
+    (5, 3, ColormapSet.RGB),
+    (5, 4, ColormapSet.RAINBOW),
 ])
-def test_create_color_blending_calls_frontend_create_action(session, mocker, frame_count, expected_colormap_set):
-    get_value = mocker.patch.object(session, "get_value", return_value=frame_count)
+def test_create_color_blending_calls_frontend_create_action(session, mocker, open_frame_count, layer_count, expected_colormap_set):
+    get_value = mocker.patch.object(
+        session,
+        "get_value",
+        side_effect=[
+            open_frame_count,
+            layer_count,
+        ],
+    )
     call_action = mocker.patch.object(
         session,
         "call_action",
@@ -298,7 +303,13 @@ def test_create_color_blending_calls_frontend_create_action(session, mocker, fra
     mock_set_colormap = mocker.patch.object(ColorBlending, "set_colormap_set")
 
     result = session.create_color_blending()
-    get_value.assert_called_once_with("frames.length")
+    assert get_value.call_args_list == [
+        mocker.call("frames.length"),
+        mocker.call(
+            "imageViewConfigStore.colorBlendingImageMap[123].frames.length",
+            return_path=None,
+        ),
+    ]
     call_action.assert_called_once_with(
         "imageViewConfigStore.createColorBlending",
         return_path="id",
