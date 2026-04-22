@@ -2,7 +2,7 @@ import pytest
 
 from carta.image import Image
 from carta.colorblending import ColorBlending
-from carta.util import CartaValidationFailed, Macro
+from carta.util import CartaActionFailed, Macro
 from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 
 # FIXTURES
@@ -244,104 +244,81 @@ def test_active_image_raises_on_unsupported_type(session, get_value):
     with pytest.raises(NotImplementedError):
         session.active_image()
 
-
-# session._validate_color_blending_base
-
-
-def test_validate_color_blending_base_allows_when_no_open_color_blendings(
-    session, get_value
-):
-    get_value.return_value = [
-        {"type": ImageType.FRAME, "id": 10},
-        {"type": ImageType.FRAME, "id": 20},
-    ]
-
-    session._validate_color_blending_base(10)
-
-    get_value.assert_called_once_with(
-        "imageViewConfigStore.imageListSummary"
-    )
-
-
-def test_validate_color_blending_base_allows_current_spatial_reference(
-    session, get_value
-):
-    get_value.side_effect = [
-        [
-            {"type": ImageType.FRAME, "id": 10},
-            {"type": ImageType.COLOR_BLENDING, "id": 7},
-        ],
-        10,
-    ]
-
-    session._validate_color_blending_base(10)
-
-    assert [call.args for call in get_value.call_args_list] == [
-        ("imageViewConfigStore.imageListSummary",),
-        ("spatialReference.id",),
-    ]
-
-
-def test_validate_color_blending_base_rejects_rebasing_existing_color_blendings(
-    session, get_value
-):
-    get_value.side_effect = [
-        [
-            {"type": ImageType.FRAME, "id": 10},
-            {"type": ImageType.COLOR_BLENDING, "id": 7},
-        ],
-        20,
-    ]
-
-    with pytest.raises(ValueError):
-        session._validate_color_blending_base(10)
-
-    assert [call.args for call in get_value.call_args_list] == [
-        ("imageViewConfigStore.imageListSummary",),
-        ("spatialReference.id",),
-    ]
-
-
 # open_as_color_blending / create_color_blending
 
 
-@pytest.mark.parametrize("files,expected_colormap_set", [
-    # <= 3 files -> RGB
-    (["a.fits"], ColormapSet.RGB),
-    (["a.fits", "b.fits"], ColormapSet.RGB),
-    (["a.fits", "b.fits", "c.fits"], ColormapSet.RGB),
-    # > 3 files -> RAINBOW
-    (["a.fits", "b.fits", "c.fits", "d.fits"], ColormapSet.RAINBOW),
+@pytest.mark.parametrize("files", [
+    ["a.fits"],
+    ["a.fits", "b.fits"],
+    ["a.fits", "b.fits", "c.fits"],
+    ["a.fits", "b.fits", "c.fits", "d.fits"],
 ])
-def test_open_as_color_blending_delegates_to_from_files(session, mocker, files, expected_colormap_set):
-    fake_cb = mocker.MagicMock(name="ColorBlending")
-    mock_from_files = mocker.patch.object(
-        ColorBlending, "from_files", return_value=fake_cb
+def test_open_as_color_blending_opens_files_sets_matching_and_creates_blending(
+    session, mocker, files
+):
+    images = [mocker.MagicMock(name=f"image{i}") for i in range(len(files))]
+    open_images = mocker.patch.object(
+        session,
+        "open_images",
+        return_value=images,
     )
+    fake_cb = mocker.MagicMock(name="ColorBlending")
+    create_color_blending = mocker.patch.object(
+        session,
+        "create_color_blending",
+        return_value=fake_cb,
+    )
+
     result = session.open_as_color_blending(files)
-    mock_from_files.assert_called_once_with(session, files)
-    fake_cb.set_colormap_set.assert_called_once_with(expected_colormap_set)
+    open_images.assert_called_once_with(files, append=False)
+    images[0].make_spatial_reference.assert_called_once_with()
+    images[0].set_spatial_matching.assert_not_called()
+    for image in images[1:]:
+        image.set_spatial_matching.assert_called_once_with(True)
+        image.make_spatial_reference.assert_not_called()
+    create_color_blending.assert_called_once_with()
     assert result is fake_cb
 
 
-@pytest.mark.parametrize("image_count,expected_colormap_set", [
-    # <= 3 images -> RGB
+@pytest.mark.parametrize("frame_count,expected_colormap_set", [
+    # <= 3 open frames -> RGB
     (1, ColormapSet.RGB),
     (2, ColormapSet.RGB),
     (3, ColormapSet.RGB),
-    # > 3 images -> RAINBOW
+    # > 3 open frames -> RAINBOW
     (4, ColormapSet.RAINBOW),
 ])
-def test_create_color_blending_delegates_to_from_images(session, mocker, image_count, expected_colormap_set):
-    images = [Image(session, 100 + i) for i in range(image_count)]
-    fake_cb = mocker.MagicMock(name="ColorBlending")
-    mock_from_images = mocker.patch.object(
-        ColorBlending, "from_images", return_value=fake_cb
+def test_create_color_blending_calls_frontend_create_action(session, mocker, frame_count, expected_colormap_set):
+    get_value = mocker.patch.object(session, "get_value", return_value=frame_count)
+    call_action = mocker.patch.object(
+        session,
+        "call_action",
+        return_value=123,
     )
-    result = session.create_color_blending(images)
-    mock_from_images.assert_called_once_with(session, images)
-    fake_cb.set_colormap_set.assert_called_once_with(expected_colormap_set)
-    assert result is fake_cb
+    mock_set_colormap = mocker.patch.object(ColorBlending, "set_colormap_set")
+
+    result = session.create_color_blending()
+    get_value.assert_called_once_with("frames.length")
+    call_action.assert_called_once_with(
+        "imageViewConfigStore.createColorBlending",
+        return_path="id",
+    )
+    mock_set_colormap.assert_called_once_with(expected_colormap_set)
+    assert isinstance(result, ColorBlending)
+    assert result.color_blending_id == 123
+
+
+def test_create_color_blending_raises_when_no_frames_are_open(session, mocker):
+    get_value = mocker.patch.object(session, "get_value", return_value=0)
+    call_action = mocker.patch.object(session, "call_action")
+    mock_set_colormap = mocker.patch.object(ColorBlending, "set_colormap_set")
+
+    with pytest.raises(CartaActionFailed, match="No frames are open"):
+        session.create_color_blending()
+
+    get_value.assert_called_once_with("frames.length")
+    call_action.assert_not_called()
+    mock_set_colormap.assert_not_called()
 
 # OPENING IMAGES
 

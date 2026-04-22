@@ -14,7 +14,7 @@ from .colorblending import ColorBlending
 from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
-from .util import Macro, split_action_path, CartaBadID, CartaBadSession, CartaBadUrl, Point as Pt
+from .util import Macro, split_action_path, CartaActionFailed, CartaBadID, CartaBadSession, CartaBadUrl, Point as Pt
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, MapOf, Union
 
 from .wcs_overlay import SessionWCSOverlay
@@ -566,38 +566,6 @@ class Session:
             f"{stable_id} in the image list."
         )
 
-    def _validate_color_blending_base(self, base_file_id):
-        """Reject color-blending creation that would rebase existing blendings.
-
-        Parameters
-        ----------
-        base_file_id : integer
-            The file id of the requested base image.
-
-        Raises
-        ------
-        ValueError
-            If one or more color blending images are already open and the
-            requested base image is not the current spatial reference.
-        """
-        summary = self.get_value("imageViewConfigStore.imageListSummary")
-        has_open_color_blending = any(
-            entry["type"] == ImageType.COLOR_BLENDING for entry in summary
-        )
-        if not has_open_color_blending:
-            return
-
-        current_spatial_reference_file_id = self.get_value("spatialReference.id")
-        if current_spatial_reference_file_id != base_file_id:
-            raise ValueError(
-                "Cannot create a color blending with a different base image "
-                "while color blendings are already open. images[0] must be "
-                "the current spatial reference. Call "
-                "images[0].make_spatial_reference() and retry "
-                f"(requested base file_id={base_file_id}, current spatial "
-                f"reference file_id={current_spatial_reference_file_id})."
-            )
-
     def image_by_id(self, *, image_view_order=None, file_id=None, color_blending_id=None):
         """Return the image-view item identified by exactly one of the supported identifiers.
 
@@ -691,9 +659,10 @@ class Session:
         """Open files and combine them into a new color blending image.
 
         This helper always opens the files with ``append=False``, which
-        closes any currently open images before opening ``files``,
-        because the frontend does not support creating a color blending
-        in append mode.
+        closes any currently open images before opening ``files``. It
+        then makes the first opened image the spatial reference, enables
+        spatial matching for the remaining opened images, and calls
+        :obj:`create_color_blending`.
 
         Parameters
         ----------
@@ -704,28 +673,17 @@ class Session:
         -------
         :obj:`carta.colorblending.ColorBlending`
             The new color blending object.
-
-        Raises
-        ------
-        ValueError
-            If color blendings are already open and the first opened file does
-            not become the current spatial reference. This validation happens
-            after the files are opened.
         """
-        cb = ColorBlending.from_files(self, files)
-        if len(files) <= 3:
-            cb.set_colormap_set(ColormapSet.RGB)
-        else:
-            cb.set_colormap_set(ColormapSet.RAINBOW)
+        images = self.open_images(files, append=False)
+        images[0].make_spatial_reference()
+        for image in images[1:]:
+            image.set_spatial_matching(True)
+        cb = self.create_color_blending()
         return cb
 
-    def create_color_blending(self, images):
-        """Combine already-open images into a new color blending image.
-
-        Parameters
-        ----------
-        images : list of :obj:`carta.image.Image`
-            The images to be blended. The first entry becomes the base layer.
+    def create_color_blending(self):
+        """Create a new color blending from the current spatial reference
+        and its currently spatially matched frames.
 
         Returns
         -------
@@ -734,12 +692,21 @@ class Session:
 
         Raises
         ------
-        ValueError
-            If color blendings are already open and ``images[0]`` is not the
-            current spatial reference.
+        CartaActionFailed
+            If no frames are open or the frontend could not create the
+            color blending image.
         """
-        cb = ColorBlending.from_images(self, images)
-        if len(images) <= 3:
+        frame_length = self.get_value("frames.length")
+        if frame_length <= 0:
+            raise CartaActionFailed("No frames are open")
+
+        color_blending_id = self.call_action(
+            "imageViewConfigStore.createColorBlending",
+            return_path="id",
+        )
+        cb = ColorBlending(self, color_blending_id)
+
+        if frame_length <= 3:
             cb.set_colormap_set(ColormapSet.RGB)
         else:
             cb.set_colormap_set(ColormapSet.RAINBOW)

@@ -281,27 +281,26 @@ The session object provides two convenience methods which create a color blendin
         "data/fits/third_file.fits",
     ]
 
-    # Open the files and combine them into a new color blending image
-    # Warning: this always opens files with append=False,
-    #          so any existing images will be closed first
+    # Open the files and combine them into a new color blending image.
+    # This closes any currently open images, makes the first opened
+    # image the spatial reference, and spatially matches the remaining
+    # opened images to it.
     cb = session.open_as_color_blending(files)
 
-    # Combine already-open images into a new color blending image
-    # Set the first image as the base layer.
-    # If color blendings are already open, img0 must already be the
-    # current spatial reference; otherwise make it the reference first.
+    # Create a new color blending from the current spatial reference
+    # and its currently spatially matched frames.
+    # Set the desired base image as the current spatial reference and
+    # enable spatial matching for the other layers first.
     img0.make_spatial_reference()
-    cb = session.create_color_blending([img0, img1, img2])
+    img1.set_spatial_matching(True)
+    img2.set_spatial_matching(True)
+    cb = session.create_color_blending()
 
 .. note::
     ``session.open_as_color_blending(files)`` always closes any currently
-    open images before opening ``files``.
-
-    ``session.create_color_blending(images)`` treats ``images[0]`` as the
-    base layer. If color blending images are already open, ``images[0]``
-    must already be the current spatial reference. To switch to a new base
-    image first, call ``images[0].make_spatial_reference()`` before creating
-    the color blending.
+    open images before opening ``files``. It then makes the first opened
+    image the spatial reference and spatially matches the remaining
+    opened images to it before creating the color blending.
 
 Manipulate properties of the color blending object and the underlying layers:
 

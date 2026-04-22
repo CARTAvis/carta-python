@@ -3,9 +3,8 @@
 from .constants import Colormap, ColormapSet, ImageType
 from .image import Image
 from .image_base import ImageBase
-from .util import BasePathMixin, CartaActionFailed, CartaScriptingException, Macro
+from .util import BasePathMixin, CartaScriptingException, Macro
 from .validation import (
-    Any,
     Boolean,
     Constant,
     Coordinate,
@@ -191,120 +190,6 @@ class ColorBlending(ImageBase, BasePathMixin):
     @property
     def _stable_id(self):
         return self.color_blending_id
-
-    # FACTORIES
-
-    @classmethod
-    def from_image_view_order(cls, session, image_view_order):
-        """Create a color blending object from an image view order.
-
-        Parameters
-        ----------
-        session : :obj:`carta.session.Session`
-            The session object.
-        image_view_order : integer
-            The image-view order of the color blending image.
-
-        Returns
-        -------
-        :obj:`carta.colorblending.ColorBlending`
-            A new color blending object.
-
-        Raises
-        ------
-        ValueError
-            If the entry at the given image-view order is not a color blending image.
-        IndexError
-            If ``image_view_order`` is out of range.
-        """
-        summary = session.get_value("imageViewConfigStore.imageListSummary")
-        if image_view_order < 0 or image_view_order >= len(summary):
-            raise IndexError(
-                f"image_view_order {image_view_order} is out of range for "
-                f"an image list of length {len(summary)}."
-            )
-        entry = summary[image_view_order]
-        if entry["type"] != ImageType.COLOR_BLENDING:
-            raise ValueError(
-                "image_view_order does not refer to a color blending image."
-            )
-        return cls(session, entry["id"])
-
-    @classmethod
-    @validate(Any(), IterableOf(InstanceOf(Image), min_size=1))
-    def from_images(cls, session, images):
-        """Create a color blending object from a list of images.
-
-        If color blending images are already open, ``images[0]`` must
-        already be the current spatial reference. Rebasing existing
-        color blendings is rejected.
-
-        Side effect: on success, this ensures that ``images[0]`` is the
-        current spatial reference and that each of ``images[1:]`` is
-        spatially matched to it.
-
-        Parameters
-        ----------
-        session : :obj:`carta.session.Session`
-            The session object.
-        images : {1}
-            The images to be blended. Must be non-empty. The first entry
-            becomes the base layer.
-
-        Returns
-        -------
-        :obj:`carta.colorblending.ColorBlending`
-            A new color blending object.
-
-        Raises
-        ------
-        CartaValidationFailed
-            If ``images`` is empty or contains a non-:obj:`carta.image.Image`
-            value.
-        ValueError
-            If color blendings are already open and ``images[0]`` is not the
-            current spatial reference.
-        CartaActionFailed
-            If the atomic frontend action fails. In practice this
-            happens when the input contains a stale/closed frame or
-            exceeds the frontend's layer-count limit.
-        """
-        session._validate_color_blending_base(images[0].file_id)
-        result = session.call_action(
-            "imageViewConfigStore.createColorBlendingFromFrames",
-            [image._frame for image in images],
-        )
-        if result is None:
-            raise CartaActionFailed(
-                "Failed to create color blending: the frontend returned "
-                "null. This indicates a stale frame or a layer-count "
-                "limit exceeded."
-            )
-        return cls(session, result["id"])
-
-    @classmethod
-    def from_files(cls, session, files):
-        """Create a color blending object from a list of files.
-
-        This helper always opens the files with ``append=False``, which
-        closes any currently open images before opening ``files``,
-        because the frontend does not support creating a color blending
-        in append mode.
-
-        Parameters
-        ----------
-        session : :obj:`carta.session.Session`
-            The session object.
-        files : list of string
-            The files to be blended.
-
-        Returns
-        -------
-        :obj:`carta.colorblending.ColorBlending`
-            A new color blending object.
-        """
-        images = session.open_images(files, append=False)
-        return cls.from_images(session, images)
 
     @property
     def image_view_order(self):
