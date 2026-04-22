@@ -666,10 +666,13 @@ class Session:
         }
         given = [key for key, val in provided.items() if val is not None]
         if len(given) != 1:
+            given_values = {
+                key: val for key, val in provided.items() if val is not None
+            }
             raise ValueError(
                 "image_by_id requires exactly one of the keyword arguments "
                 "`image_view_order`, `file_id`, or `color_blending_id`; "
-                f"got {len(given)}."
+                f"got {len(given)} with values {given_values!r}."
             )
 
         summary = self.get_value("imageViewConfigStore.imageListSummary")

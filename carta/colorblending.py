@@ -329,30 +329,44 @@ class ColorBlending(ImageBase, BasePathMixin):
             must be the base layer (index = 0). Existing alpha values are
             preserved.
         """
+        layer_indices = list(layer_indices)
         current_layers = self.layer_list()
         max_current_layer_index = len(current_layers) - 1
-        if any(
-            layer_index > max_current_layer_index
+        invalid_layer_indices = [
+            layer_index
             for layer_index in layer_indices
-        ):
+            if layer_index > max_current_layer_index
+        ]
+        if invalid_layer_indices:
             raise ValueError(
-                "layer_indices contains a layer index which does not exist."
+                f"layer_indices {layer_indices!r} contains non-existent layer "
+                f"indices {invalid_layer_indices!r}; available layer indices "
+                f"are 0..{max_current_layer_index}."
             )
 
         if layer_indices[0] != 0:
             raise ValueError(
-                "layer_indices must start with the base layer index 0."
+                f"layer_indices {layer_indices!r} must start with the base "
+                "layer index 0."
             )
 
         if 0 in layer_indices[1:]:
             raise ValueError(
-                "layer_indices must contain the base layer index 0 only once, "
-                "as the first index."
+                f"layer_indices {layer_indices!r} must contain the base layer "
+                "index 0 only once, as the first index."
             )
 
         if len(layer_indices) != len(set(layer_indices)):
+            duplicate_layer_indices = sorted(
+                {
+                    layer_index
+                    for layer_index in layer_indices
+                    if layer_indices.count(layer_index) > 1
+                }
+            )
             raise ValueError(
-                "layer_indices must not contain duplicate layer indices."
+                f"layer_indices {layer_indices!r} must not contain duplicate "
+                f"layer indices; duplicates were {duplicate_layer_indices!r}."
             )
 
         current_layer_indices = list(range(len(current_layers)))

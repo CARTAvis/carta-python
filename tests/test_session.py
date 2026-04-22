@@ -192,9 +192,12 @@ def test_image_by_id_requires_exactly_one_keyword(session, get_value):
         session.image_by_id()
     for name in ("image_view_order", "file_id", "color_blending_id"):
         assert name in str(e.value)
+    assert "got 0 with values {}" in str(e.value)
     # Multiple keywords -> ValueError.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as e:
         session.image_by_id(file_id=1, color_blending_id=2)
+    assert "'file_id': 1" in str(e.value)
+    assert "'color_blending_id': 2" in str(e.value)
 
 
 def test_image_by_id_rejects_positional(session):

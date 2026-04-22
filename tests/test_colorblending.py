@@ -439,11 +439,11 @@ def test_colorblending_set_layer_sequence_rejects_missing_layer_index(
         return_value=[_L(0, 10), _L(1, 20), _L(2, 30), _L(3, 40)],
     )
 
-    with pytest.raises(
-        ValueError,
-        match="layer_indices contains a layer index which does not exist.",
-    ):
+    with pytest.raises(ValueError) as e:
         colorblending.set_layer_sequence([0, 4, 1])
+    assert "layer_indices [0, 4, 1]" in str(e.value)
+    assert "[4]" in str(e.value)
+    assert "0..3" in str(e.value)
 
 
 def test_colorblending_set_layer_sequence_requires_base_layer_first(
@@ -455,11 +455,10 @@ def test_colorblending_set_layer_sequence_requires_base_layer_first(
         return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
     )
 
-    with pytest.raises(
-        ValueError,
-        match="layer_indices must start with the base layer index 0.",
-    ):
+    with pytest.raises(ValueError) as e:
         colorblending.set_layer_sequence([2, 1])
+    assert "layer_indices [2, 1]" in str(e.value)
+    assert "must start with the base layer index 0" in str(e.value)
 
 
 def test_colorblending_set_layer_sequence_rejects_duplicate_base_layer(
@@ -471,14 +470,10 @@ def test_colorblending_set_layer_sequence_rejects_duplicate_base_layer(
         return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
     )
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            "layer_indices must contain the base layer index 0 only once, "
-            "as the first index."
-        ),
-    ):
+    with pytest.raises(ValueError) as e:
         colorblending.set_layer_sequence([0, 2, 0])
+    assert "layer_indices [0, 2, 0]" in str(e.value)
+    assert "must contain the base layer index 0 only once" in str(e.value)
 
 
 def test_colorblending_set_layer_sequence_rejects_duplicate_non_base_layer(
@@ -490,11 +485,11 @@ def test_colorblending_set_layer_sequence_rejects_duplicate_non_base_layer(
         return_value=[_L(0, 10), _L(1, 20), _L(2, 30)],
     )
 
-    with pytest.raises(
-        ValueError,
-        match="layer_indices must not contain duplicate layer indices.",
-    ):
+    with pytest.raises(ValueError) as e:
         colorblending.set_layer_sequence([0, 1, 1])
+    assert "layer_indices [0, 1, 1]" in str(e.value)
+    assert "must not contain duplicate layer indices" in str(e.value)
+    assert "[1]" in str(e.value)
 
 
 def test_colorblending_set_center(colorblending, mocker):
