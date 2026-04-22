@@ -274,31 +274,35 @@ def test_image_by_id_single_round_trip(session, summary):
 
 
 def test_active_image_returns_image_when_frame_active(session, get_value):
-    get_value.side_effect = [ImageType.FRAME, 12]
+    get_value.side_effect = [
+        {"type": ImageType.FRAME, "store": {"id": 12}},
+    ]
     active = session.active_image()
     assert isinstance(active, Image)
     assert active.file_id == 12
     assert [call.args for call in get_value.call_args_list] == [
-        ("activeImage.type",),
-        ("activeImage.store.id",),
+        ("activeImage",),
     ]
 
 
 def test_active_image_returns_color_blending_when_color_blending_active(
     session, get_value
 ):
-    get_value.side_effect = [ImageType.COLOR_BLENDING, 3]
+    get_value.side_effect = [
+        {"type": ImageType.COLOR_BLENDING, "store": {"id": 3}},
+    ]
     active = session.active_image()
     assert isinstance(active, ColorBlending)
     assert active.color_blending_id == 3
     assert [call.args for call in get_value.call_args_list] == [
-        ("activeImage.type",),
-        ("activeImage.store.id",),
+        ("activeImage",),
     ]
 
 
 def test_active_image_raises_on_unsupported_type(session, get_value):
-    get_value.side_effect = [ImageType.PV_PREVIEW, -2]
+    get_value.side_effect = [
+        {"type": ImageType.PV_PREVIEW, "store": {"id": -2}},
+    ]
     with pytest.raises(NotImplementedError):
         session.active_image()
 

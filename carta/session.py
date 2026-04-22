@@ -733,8 +733,9 @@ class Session:
             If the active image is of a type that is not yet wrapped on
             the Python side.
         """
-        active_type = self.get_value("activeImage.type")
-        active_id = self.get_value("activeImage.store.id")
+        active = self.get_value("activeImage")
+        active_type = active["type"]
+        active_id = active["store"]["id"]
         if active_type == ImageType.FRAME:
             return Image(self, active_id)
         if active_type == ImageType.COLOR_BLENDING:
