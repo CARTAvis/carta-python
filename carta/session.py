@@ -541,7 +541,7 @@ class Session:
         file_id = self.call_action(command, stokes_images, output_directory, output_hdu)
         return Image(self, file_id)
 
-    @validate(IterableOf(String()))
+    @validate(IterableOf(String(), min_size=1))
     def open_as_color_blending(self, files):
         """Open files and combine them into a new color blending image.
 

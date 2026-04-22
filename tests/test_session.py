@@ -2,7 +2,7 @@ import pytest
 
 from carta.image import Image
 from carta.colorblending import ColorBlending
-from carta.util import CartaActionFailed, Macro, Point as Pt
+from carta.util import CartaActionFailed, CartaValidationFailed, Macro, Point as Pt
 from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 
 # FIXTURES
@@ -336,6 +336,20 @@ def test_open_as_color_blending_opens_files_sets_matching_and_creates_blending(
         image.make_spatial_reference.assert_not_called()
     create_color_blending.assert_called_once_with()
     assert result is fake_cb
+
+
+def test_open_as_color_blending_rejects_empty_file_list(session, mocker):
+    open_images = mocker.patch.object(session, "open_images")
+    create_color_blending = mocker.patch.object(
+        session, "create_color_blending"
+    )
+
+    with pytest.raises(CartaValidationFailed) as e:
+        session.open_as_color_blending([])
+
+    assert "at least 1" in str(e.value)
+    open_images.assert_not_called()
+    create_color_blending.assert_not_called()
 
 
 @pytest.mark.parametrize("open_frame_count,layer_count,expected_colormap_set", [
