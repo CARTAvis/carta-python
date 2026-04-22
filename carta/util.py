@@ -130,7 +130,7 @@ def cached(func):
         return self._cache[func.__name__]
 
     if newfunc.__doc__ is not None:
-        newfunc.__doc__ = re.sub(r"($|\n)", r" This value is transparently cached on the parent object.\1", newfunc.__doc__, 1)
+        newfunc.__doc__ = re.sub(r"($|\n)", r" This value is transparently cached on the parent object.\1", newfunc.__doc__, count=1)
 
     return newfunc
 
