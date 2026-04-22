@@ -116,7 +116,7 @@ def test_make_active(image, session_call_action):
 
 
 def test_image_base_is_abstract(session):
-    with pytest.raises(TypeError, match="abstract method _stable_id"):
+    with pytest.raises(TypeError, match=r"abstract method.*_stable_id"):
         ImageBase(session)
 
 
