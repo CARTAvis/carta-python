@@ -213,8 +213,8 @@ The session's image list is heterogeneous: it may contain both ordinary frame-ba
     print(img0.image_view_order)
 
     # Retrieve a specific item by image view order
-    img = session.get_image(image_view_order=0)
-    cb = session.get_image(image_view_order=1)
+    img = session.image_by_id(image_view_order=0)
+    cb = session.image_by_id(image_view_order=1)
         
 Changing image properties
 -------------------------

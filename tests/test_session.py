@@ -129,7 +129,7 @@ def test_find_image_view_order_raises_when_missing(session, get_value):
         session._find_image_view_order(ImageType.FRAME, 99)
 
 
-# session.get_image
+# session.image_by_id
 
 
 @pytest.fixture
@@ -142,71 +142,71 @@ def summary(get_value):
     return get_value
 
 
-def test_get_image_requires_exactly_one_keyword(session, get_value):
+def test_image_by_id_requires_exactly_one_keyword(session, get_value):
     # Zero keywords -> ValueError with all three names listed.
     with pytest.raises(ValueError) as e:
-        session.get_image()
+        session.image_by_id()
     for name in ("image_view_order", "file_id", "color_blending_id"):
         assert name in str(e.value)
     # Multiple keywords -> ValueError.
     with pytest.raises(ValueError):
-        session.get_image(file_id=1, color_blending_id=2)
+        session.image_by_id(file_id=1, color_blending_id=2)
 
 
-def test_get_image_rejects_positional(session):
+def test_image_by_id_rejects_positional(session):
     with pytest.raises(TypeError):
-        session.get_image(0)
+        session.image_by_id(0)
 
 
-def test_get_image_by_image_view_order(session, summary):
-    img = session.get_image(image_view_order=0)
+def test_image_by_id_by_image_view_order(session, summary):
+    img = session.image_by_id(image_view_order=0)
     assert isinstance(img, Image)
     assert img.file_id == 10
 
-    cb = session.get_image(image_view_order=1)
+    cb = session.image_by_id(image_view_order=1)
     assert isinstance(cb, ColorBlending)
     assert cb.color_blending_id == 7
 
-    img2 = session.get_image(image_view_order=2)
+    img2 = session.image_by_id(image_view_order=2)
     assert isinstance(img2, Image)
     assert img2.file_id == 20
 
 
-def test_get_image_by_image_view_order_out_of_range(session, summary):
+def test_image_by_id_by_image_view_order_out_of_range(session, summary):
     with pytest.raises(IndexError):
-        session.get_image(image_view_order=99)
+        session.image_by_id(image_view_order=99)
 
 
-def test_get_image_by_file_id(session, summary):
-    img = session.get_image(file_id=20)
+def test_image_by_id_by_file_id(session, summary):
+    img = session.image_by_id(file_id=20)
     assert isinstance(img, Image)
     assert img.file_id == 20
 
 
-def test_get_image_by_file_id_no_cross_type_fallback(session, summary):
+def test_image_by_id_by_file_id_no_cross_type_fallback(session, summary):
     # The summary contains a COLOR_BLENDING entry with id=7, but no FRAME
-    # with that id, so get_image(file_id=7) must raise.
+    # with that id, so image_by_id(file_id=7) must raise.
     with pytest.raises(RuntimeError):
-        session.get_image(file_id=7)
+        session.image_by_id(file_id=7)
 
 
-def test_get_image_by_color_blending_id(session, summary):
-    cb = session.get_image(color_blending_id=7)
+def test_image_by_id_by_color_blending_id(session, summary):
+    cb = session.image_by_id(color_blending_id=7)
     assert isinstance(cb, ColorBlending)
     assert cb.color_blending_id == 7
 
 
-def test_get_image_by_color_blending_id_no_cross_type_fallback(session, summary):
+def test_image_by_id_by_color_blending_id_no_cross_type_fallback(session, summary):
     # The summary contains a FRAME with id=10, but no COLOR_BLENDING with
-    # that id, so get_image(color_blending_id=10) must raise.
+    # that id, so image_by_id(color_blending_id=10) must raise.
     with pytest.raises(RuntimeError):
-        session.get_image(color_blending_id=10)
+        session.image_by_id(color_blending_id=10)
 
 
-def test_get_image_single_round_trip(session, summary):
-    session.get_image(image_view_order=0)
-    session.get_image(file_id=10)
-    session.get_image(color_blending_id=7)
+def test_image_by_id_single_round_trip(session, summary):
+    session.image_by_id(image_view_order=0)
+    session.image_by_id(file_id=10)
+    session.image_by_id(color_blending_id=7)
     assert summary.call_count == 3
     for call in summary.call_args_list:
         assert call.args == ("imageViewConfigStore.imageListSummary",)

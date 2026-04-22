@@ -598,7 +598,7 @@ class Session:
                 f"reference file_id={current_spatial_reference_file_id})."
             )
 
-    def get_image(self, *, image_view_order=None, file_id=None, color_blending_id=None):
+    def image_by_id(self, *, image_view_order=None, file_id=None, color_blending_id=None):
         """Return the image-view item identified by exactly one of the supported identifiers.
 
         Parameters
@@ -640,7 +640,7 @@ class Session:
         given = [key for key, val in provided.items() if val is not None]
         if len(given) != 1:
             raise ValueError(
-                "get_image requires exactly one of the keyword arguments "
+                "image_by_id requires exactly one of the keyword arguments "
                 "`image_view_order`, `file_id`, or `color_blending_id`; "
                 f"got {len(given)}."
             )
@@ -661,7 +661,7 @@ class Session:
             if entry_type == ImageType.COLOR_BLENDING:
                 return ColorBlending(self, entry_id)
             raise NotImplementedError(
-                f"get_image encountered an unsupported image-view entry "
+                f"image_by_id encountered an unsupported image-view entry "
                 f"at order {image_view_order} with type {entry_type!r}; "
                 "only Image (FRAME) and ColorBlending (COLOR_BLENDING) "
                 "entries are currently wrapped."
@@ -773,23 +773,6 @@ class Session:
             f"{active_type!r}; only Image (FRAME) and ColorBlending "
             "(COLOR_BLENDING) entries are currently wrapped."
         )
-
-    def image_by_id(self, image_id):
-        """Return an image object with the specified ID.
-
-        This is a helper function which constructs a :obj:`carta.image.Image` object with the specified ID, without checking whether an image with that ID is currently open. It is the caller's responsibility to ensure this.
-
-        Parameters
-        ----------
-        image_id : integer
-            The ID of the image to return.
-
-        Returns
-        -------
-        :obj:`carta.image.Image`
-            The image with the specified ID.
-        """
-        return Image(self, image_id)
 
     def clear_spatial_reference(self):
         """Clear the spatial reference."""
