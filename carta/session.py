@@ -745,16 +745,34 @@ class Session:
             cb.set_colormap_set(ColormapSet.RAINBOW)
         return cb
 
-    def active_frame(self):
-        """Return the currently active image.
+    def active_image(self):
+        """Return the currently active image-view item.
+
+        This is the frame-backed image or color blending image that is
+        currently active in the viewer.
 
         Returns
         -------
-        :obj:`carta.image.Image`
-            The currently active image.
+        :obj:`carta.image.Image` or :obj:`carta.colorblending.ColorBlending`
+            The currently active image-view item.
+
+        Raises
+        ------
+        NotImplementedError
+            If the active image is of a type that is not yet wrapped on
+            the Python side.
         """
-        file_id = self.get_value("activeFrame.frameInfo.fileId")
-        return Image(self, file_id)
+        active_type = self.get_value("activeImage.type")
+        active_id = self.get_value("activeImage.store.id")
+        if active_type == ImageType.FRAME:
+            return Image(self, active_id)
+        if active_type == ImageType.COLOR_BLENDING:
+            return ColorBlending(self, active_id)
+        raise NotImplementedError(
+            f"active_image encountered an unsupported image-view type "
+            f"{active_type!r}; only Image (FRAME) and ColorBlending "
+            "(COLOR_BLENDING) entries are currently wrapped."
+        )
 
     def image_by_id(self, image_id):
         """Return an image object with the specified ID.
@@ -845,7 +863,7 @@ class Session:
             The Y position.
 
         """
-        self.active_frame().regions.call_action("updateCursorRegionPosition", Pt(x, y))
+        self.call_action("activeFrame.regionSet.updateCursorRegionPosition", Pt(x, y))
 
     # SAVE IMAGE
 

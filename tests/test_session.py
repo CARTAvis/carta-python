@@ -212,6 +212,39 @@ def test_get_image_single_round_trip(session, summary):
         assert call.args == ("imageViewConfigStore.imageListSummary",)
 
 
+# session.active_image
+
+
+def test_active_image_returns_image_when_frame_active(session, get_value):
+    get_value.side_effect = [ImageType.FRAME, 12]
+    active = session.active_image()
+    assert isinstance(active, Image)
+    assert active.file_id == 12
+    assert [call.args for call in get_value.call_args_list] == [
+        ("activeImage.type",),
+        ("activeImage.store.id",),
+    ]
+
+
+def test_active_image_returns_color_blending_when_color_blending_active(
+    session, get_value
+):
+    get_value.side_effect = [ImageType.COLOR_BLENDING, 3]
+    active = session.active_image()
+    assert isinstance(active, ColorBlending)
+    assert active.color_blending_id == 3
+    assert [call.args for call in get_value.call_args_list] == [
+        ("activeImage.type",),
+        ("activeImage.store.id",),
+    ]
+
+
+def test_active_image_raises_on_unsupported_type(session, get_value):
+    get_value.side_effect = [ImageType.PV_PREVIEW, -2]
+    with pytest.raises(NotImplementedError):
+        session.active_image()
+
+
 # session._validate_color_blending_base
 
 
