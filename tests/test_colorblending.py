@@ -198,7 +198,7 @@ def test_colorblending_init(session):
 
 
 def test_colorblending_repr_healthy(session, colorblending, cb_property, mocker):
-    mocker.patch.object(session, "_find_image_view_order", return_value=2)
+    mocker.patch.object(session, "call_action", return_value=2)
     cb_property("file_name", "Color Blending 1")
     r = repr(colorblending)
     assert r == (
@@ -212,7 +212,7 @@ def test_colorblending_repr_closed_when_not_in_image_list(
 ):
     mocker.patch.object(
         session,
-        "_find_image_view_order",
+        "call_action",
         side_effect=RuntimeError("not in image list"),
     )
     r = repr(colorblending)
@@ -224,7 +224,7 @@ def test_colorblending_repr_closed_when_not_in_image_list(
 def test_colorblending_repr_closed_when_backing_entry_is_gone(
     session, colorblending, mocker
 ):
-    mocker.patch.object(session, "_find_image_view_order", return_value=2)
+    mocker.patch.object(session, "call_action", return_value=2)
     mocker.patch(
         "carta.colorblending.ColorBlending.file_name",
         new_callable=mocker.PropertyMock,
@@ -242,35 +242,22 @@ def test_colorblending_file_name(colorblending, cb_get_value):
 
 
 def test_colorblending_image_view_order(
-    session, colorblending, session_get_value
+    session, colorblending, session_call_action
 ):
-    session_get_value.return_value = [
-        {"type": ImageType.FRAME, "id": 10},
-        {"type": ImageType.COLOR_BLENDING, "id": 99},
-        {"type": ImageType.COLOR_BLENDING, "id": 0},
-    ]
+    session_call_action.return_value = 2
     assert colorblending.image_view_order == 2
-    session_get_value.assert_called_once_with(
-        "imageViewConfigStore.imageListSummary"
+    session_call_action.assert_called_once_with(
+        "imageViewConfigStore.getImageListIndex",
+        ImageType.COLOR_BLENDING,
+        0,
+        response_expected=True,
     )
 
 
-def test_colorblending_image_view_order_ignores_non_color_blending(
-    session, colorblending, session_get_value
-):
-    session_get_value.return_value = [
-        {"type": ImageType.FRAME, "id": 0},
-        {"type": ImageType.COLOR_BLENDING, "id": 0},
-    ]
-    assert colorblending.image_view_order == 1
-
-
 def test_colorblending_image_view_order_raises_when_missing(
-    session, colorblending, session_get_value
+    session, colorblending, session_call_action
 ):
-    session_get_value.return_value = [
-        {"type": ImageType.COLOR_BLENDING, "id": 99},
-    ]
+    session_call_action.return_value = -1
     with pytest.raises(RuntimeError):
         colorblending.image_view_order
 

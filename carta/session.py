@@ -609,21 +609,25 @@ class Session:
         Returns
         -------
         integer
-            The image-view order of the first matching entry.
+            The image-view order of the matching entry.
 
         Raises
         ------
         RuntimeError
             If no matching entry exists in the image list.
         """
-        summary = self.get_value("imageViewConfigStore.imageListSummary")
-        for idx, entry in enumerate(summary):
-            if entry["type"] == image_type and entry["id"] == stable_id:
-                return idx
-        raise RuntimeError(
-            f"Could not find an image of type {image_type!r} with id "
-            f"{stable_id} in the image list."
+        image_view_order = self.call_action(
+            "imageViewConfigStore.getImageListIndex",
+            image_type,
+            stable_id,
+            response_expected=True,
         )
+        if image_view_order == -1:
+            raise RuntimeError(
+                f"Could not find an image of type {image_type!r} with id "
+                f"{stable_id} in the image list."
+            )
+        return image_view_order
 
     def image_by_id(self, *, image_view_order=None, file_id=None, color_blending_id=None):
         """Return the image-view item identified by exactly one of the supported identifiers.

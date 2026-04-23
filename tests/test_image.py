@@ -196,7 +196,7 @@ def test_image_base_image_type_required_for_image_view_order(session, mocker):
     find.assert_not_called()
 
 
-def test_image_view_order_uses_summary_once(session, mocker, image):
+def test_image_view_order_uses_find_image_view_order(session, mocker, image):
     find = mocker.patch.object(
         session, "_find_image_view_order", return_value=3
     )
@@ -205,26 +205,9 @@ def test_image_view_order_uses_summary_once(session, mocker, image):
     find.assert_called_once_with(ImageType.FRAME, 0)
 
 
-def test_image_view_order_ignores_non_frame_entries(session, mocker):
-    get_value = mocker.patch.object(
-        session,
-        "get_value",
-        return_value=[
-            {"type": ImageType.COLOR_BLENDING, "id": 0},
-            {"type": ImageType.FRAME, "id": 7},
-            {"type": ImageType.FRAME, "id": 3},
-        ],
-    )
-    img = Image(session, 3)
-    assert img.image_view_order == 2
-    get_value.assert_called_once_with("imageViewConfigStore.imageListSummary")
-
-
 def test_image_view_order_raises_when_missing(session, mocker):
     mocker.patch.object(
-        session,
-        "get_value",
-        return_value=[{"type": ImageType.FRAME, "id": 99}],
+        session, "_find_image_view_order", side_effect=RuntimeError
     )
     img = Image(session, 3)
     with pytest.raises(RuntimeError):

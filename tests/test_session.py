@@ -1,3 +1,5 @@
+from unittest.mock import call
+
 import pytest
 
 from carta.image import Image
@@ -153,22 +155,29 @@ def test_image_list_empty(session, get_value):
     )
 
 
-def test_find_image_view_order_single_round_trip(session, get_value):
-    get_value.return_value = [
-        {"type": ImageType.FRAME, "id": 7},
-        {"type": ImageType.COLOR_BLENDING, "id": 7},
-        {"type": ImageType.FRAME, "id": 3},
-    ]
+def test_find_image_view_order_single_round_trip(session, call_action):
+    call_action.side_effect = [2, 1]
 
     assert session._find_image_view_order(ImageType.FRAME, 3) == 2
     assert session._find_image_view_order(ImageType.COLOR_BLENDING, 7) == 1
-    assert get_value.call_count == 2
-    for call in get_value.call_args_list:
-        assert call.args == ("imageViewConfigStore.imageListSummary",)
+    assert call_action.call_args_list == [
+        call(
+            "imageViewConfigStore.getImageListIndex",
+            ImageType.FRAME,
+            3,
+            response_expected=True,
+        ),
+        call(
+            "imageViewConfigStore.getImageListIndex",
+            ImageType.COLOR_BLENDING,
+            7,
+            response_expected=True,
+        ),
+    ]
 
 
-def test_find_image_view_order_raises_when_missing(session, get_value):
-    get_value.return_value = [{"type": ImageType.FRAME, "id": 1}]
+def test_find_image_view_order_raises_when_missing(session, call_action):
+    call_action.return_value = -1
     with pytest.raises(RuntimeError):
         session._find_image_view_order(ImageType.FRAME, 99)
 
