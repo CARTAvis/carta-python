@@ -275,8 +275,8 @@ def test_image_by_id_single_round_trip(session, summary):
     session.image_by_id(file_id=10)
     session.image_by_id(color_blending_id=7)
     assert summary.call_count == 3
-    for call in summary.call_args_list:
-        assert call.args == ("imageViewConfigStore.imageListSummary",)
+    for call_ in summary.call_args_list:
+        assert call_.args == ("imageViewConfigStore.imageListSummary",)
 
 
 # session.active_image
