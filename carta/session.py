@@ -236,15 +236,10 @@ class Session:
     def __repr__(self):
         """A human-readable representation of this session object."""
         uri = self._protocol.frontend_url if self._protocol else None
-        cache = getattr(self, "_cache", {})
-
-        if "carta_version" in cache:
-            version = cache["carta_version"]
-        else:
-            try:
-                version = self.carta_version
-            except (AttributeError, CartaScriptingException):
-                return f"Session(session_id={self.session_id}, uri={uri!r})"
+        try:
+            version = self.carta_version
+        except (AttributeError, CartaScriptingException):
+            return f"Session(session_id={self.session_id}, uri={uri!r})"
 
         return (
             f"Session(session_id={self.session_id}, uri={uri!r}, "
