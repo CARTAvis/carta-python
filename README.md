@@ -53,7 +53,7 @@ Alternative contributor setup with uv
 If you prefer a synced local development environment, `uv` is also supported:
 
 ```
-uv sync
+uv sync --all-extras
 ```
 
 This creates a local virtual environment, installs the package in editable mode, and syncs the default development groups.
