@@ -57,6 +57,11 @@ class CartaActionFailed(CartaScriptingException):
     pass
 
 
+class CartaUnsupportedVersion(CartaScriptingException):
+    """The connected CARTA version is not supported."""
+    pass
+
+
 class CartaBadResponse(CartaScriptingException):
     """An action request received an unexpected response from the CARTA frontend."""
     pass
@@ -140,6 +145,59 @@ def split_action_path(path):
     """
     parts = path.split('.')
     return '.'.join(parts[:-1]), parts[-1]
+
+
+def parse_carta_version(version):
+    """Parse a CARTA version string into a ``(major, minor, patch)`` tuple.
+
+    Any prerelease suffix (e.g. ``"-dev"``, ``"-beta.1"``) is ignored.
+
+    Parameters
+    ----------
+    version : string
+        A version string of the form ``"MAJOR.MINOR.PATCH"`` with an optional
+        ``"-SUFFIX"`` (e.g. ``"6.0.0"`` or ``"6.0.0-dev"``).
+
+    Returns
+    -------
+    tuple or None
+        ``(major, minor, patch)`` or ``None`` if the version string cannot be
+        parsed.
+    """
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-[A-Za-z0-9.]+)?", str(version))
+    if not match:
+        return None
+
+    major, minor, patch = match.groups()
+    return (int(major), int(minor), int(patch))
+
+
+def carta_version_meets_minimum(version, minimum_version):
+    """Check whether a CARTA version meets a minimum version requirement.
+
+    Only the ``MAJOR.MINOR.PATCH`` components are compared; any prerelease
+    suffix is ignored.
+
+    Parameters
+    ----------
+    version : string
+        The CARTA version string to check.
+    minimum_version : string
+        The minimum CARTA version string required.
+
+    Returns
+    -------
+    boolean
+        ``True`` if ``version`` meets the minimum, ``False`` otherwise
+        (including when either argument cannot be parsed).
+    """
+    version_base = parse_carta_version(version)
+    minimum_base = parse_carta_version(minimum_version)
+
+    if version_base is None or minimum_base is None:
+        return False
+
+    return version_base >= minimum_base
 
 
 class BasePathMixin:
