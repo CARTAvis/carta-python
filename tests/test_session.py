@@ -12,7 +12,6 @@ from carta.util import (
     CartaValidationFailed,
     Macro,
     Point as Pt,
-    carta_version_meets_minimum,
 )
 from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 
@@ -90,61 +89,44 @@ def test_session_repr_omits_carta_version_when_lookup_fails(session, mocker):
     assert repr(session) == "Session(session_id=0, uri='http://localhost:3000')"
 
 
-@pytest.mark.parametrize("version", [
-    "6.0.0",
-    "6.1.0",
-    "7.0.0",
-    "6.0.0-dev",
-    "6.1.0-dev",
-    "7.0.0-dev",
-    "6.0.0-beta.1",
-    "6.0.0-rc.1",
-])
-def test_carta_version_meets_minimum_accepts_supported_versions(version):
-    assert carta_version_meets_minimum(version, "6.0.0")
-
-
-@pytest.mark.parametrize("version", [
-    "6.9.9",
-    "6.9.9-dev",
-    "6.9.9-beta.1",
-    "bad.version",
-])
-def test_carta_version_meets_minimum_rejects_unsupported_versions(version):
-    assert not carta_version_meets_minimum(version, "7.0.0")
-
-
 def test_require_carta_version_returns_detected_version(session, get_value):
     get_value.return_value = "6.1.0-dev"
 
-    assert session.require_carta_version("6.0.0", feature="test feature") == "6.1.0-dev"
+    assert session.require_carta_version(">=6.0.0", feature="test feature") == "6.1.0-dev"
 
 
 def test_require_carta_version_raises_for_unsupported_version(session, get_value):
     get_value.return_value = "6.9.9"
 
     with pytest.raises(CartaUnsupportedVersion) as e:
-        session.require_carta_version("7.0.0", feature="test feature")
+        session.require_carta_version(">=7.0.0", feature="test feature")
 
     message = str(e.value)
     assert "test feature" in message
     assert "6.9.9" in message
-    assert "7.0.0" in message
+    assert ">=7.0.0" in message
 
 
-def test_direct_session_construction_does_not_check_connection(mocker):
-    check_connection = mocker.patch.object(Session, "_check_connection")
+def test_require_carta_version_raises_for_invalid_requirement(session, get_value):
+    get_value.return_value = "6.1.0"
+
+    with pytest.raises(CartaValidationFailed):
+        session.require_carta_version("6.1.0")
+
+
+def test_direct_session_construction_does_not_validate_session(mocker):
+    validate_session = mocker.patch.object(Session, "_validate_session")
 
     session = Session(0, None)
 
     assert session.session_id == 0
-    check_connection.assert_not_called()
+    validate_session.assert_not_called()
 
 
-def test_check_connection_fetches_frontend_version_with_timeout(session, call_action):
+def test_validate_session_fetches_frontend_version_with_timeout(session, call_action):
     call_action.return_value = "6.0.0-dev"
 
-    assert session._check_connection(timeout=3) == "6.0.0-dev"
+    assert session._validate_session(timeout=3) == "6.0.0-dev"
 
     call_action.assert_called_once_with(
         "fetchParameter",
@@ -155,12 +137,49 @@ def test_check_connection_fetches_frontend_version_with_timeout(session, call_ac
     assert session.carta_version == "6.0.0-dev"
 
 
-def test_check_connection_wraps_frontend_version_failure(session, call_action, mocker):
+def test_validate_session_applies_user_requirement(session, call_action):
+    call_action.return_value = "6.1.0-dev"
+
+    assert (
+        session._validate_session(
+            timeout=3,
+            carta_version_requirement=">=6.1.0,<7.0.0",
+        )
+        == "6.1.0-dev"
+    )
+
+
+def test_validate_session_raises_for_unsatisfied_user_requirement(session, call_action):
+    call_action.return_value = "6.1.0"
+
+    with pytest.raises(CartaUnsupportedVersion) as e:
+        session._validate_session(
+            timeout=3,
+            carta_version_requirement="==6.2.0",
+        )
+
+    message = str(e.value)
+    assert "6.1.0" in message
+    assert "==6.2.0" in message
+    assert "user-specified CARTA version requirement" in message
+
+
+def test_validate_session_validates_requirement_before_fetching_version(session, call_action):
+    with pytest.raises(CartaValidationFailed):
+        session._validate_session(
+            timeout=3,
+            carta_version_requirement="6.1.0",
+        )
+
+    call_action.assert_not_called()
+
+
+def test_validate_session_wraps_frontend_version_failure(session, call_action, mocker):
     session._protocol = mocker.Mock(frontend_url="http://localhost:3000")
     call_action.side_effect = CartaActionFailed("frontendVersion unavailable")
 
     with pytest.raises(CartaBadSession) as e:
-        session._check_connection(timeout=2)
+        session._validate_session(timeout=2)
 
     message = str(e.value)
     assert "Could not validate CARTA session 0" in message
@@ -175,19 +194,22 @@ def test_check_connection_wraps_frontend_version_failure(session, call_action, m
 def test_interact_checks_connection_by_default(mocker):
     protocol = mocker.Mock(frontend_url="http://localhost:3000")
     mocker.patch("carta.session.Protocol", return_value=protocol)
-    check_connection = mocker.patch.object(Session, "_check_connection")
+    validate_session = mocker.patch.object(Session, "_validate_session")
 
     session = Session.interact("http://localhost:3000?token=x", "123")
 
     assert session.session_id == 123
     assert session._protocol is protocol
-    check_connection.assert_called_once_with(timeout=10)
+    validate_session.assert_called_once_with(
+        timeout=10,
+        carta_version_requirement=None,
+    )
 
 
 def test_interact_passes_connection_check_timeout(mocker):
     protocol = mocker.Mock(frontend_url="http://localhost:3000")
     mocker.patch("carta.session.Protocol", return_value=protocol)
-    check_connection = mocker.patch.object(Session, "_check_connection")
+    validate_session = mocker.patch.object(Session, "_validate_session")
 
     Session.interact(
         "http://localhost:3000?token=x",
@@ -195,13 +217,16 @@ def test_interact_passes_connection_check_timeout(mocker):
         connection_check_timeout=4,
     )
 
-    check_connection.assert_called_once_with(timeout=4)
+    validate_session.assert_called_once_with(
+        timeout=4,
+        carta_version_requirement=None,
+    )
 
 
 def test_interact_can_skip_connection_check(mocker):
     protocol = mocker.Mock(frontend_url="http://localhost:3000")
     mocker.patch("carta.session.Protocol", return_value=protocol)
-    check_connection = mocker.patch.object(Session, "_check_connection")
+    validate_session = mocker.patch.object(Session, "_validate_session")
 
     Session.interact(
         "http://localhost:3000?token=x",
@@ -209,7 +234,25 @@ def test_interact_can_skip_connection_check(mocker):
         check_connection=False,
     )
 
-    check_connection.assert_not_called()
+    validate_session.assert_not_called()
+
+
+def test_interact_checks_connection_when_requirement_is_provided(mocker):
+    protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    mocker.patch("carta.session.Protocol", return_value=protocol)
+    validate_session = mocker.patch.object(Session, "_validate_session")
+
+    Session.interact(
+        "http://localhost:3000?token=x",
+        123,
+        check_connection=False,
+        carta_version_requirement="==6.1.0",
+    )
+
+    validate_session.assert_called_once_with(
+        timeout=10,
+        carta_version_requirement="==6.1.0",
+    )
 
 
 def test_start_and_interact_stops_backend_when_connection_check_fails(mocker):
@@ -246,6 +289,7 @@ def test_create_passes_connection_check_options_to_browser(mocker):
         debug_no_auth=True,
         check_connection=False,
         connection_check_timeout=4,
+        carta_version_requirement=">=6.1.0,<7.0.0",
     )
 
     assert result is expected_session
@@ -257,6 +301,7 @@ def test_create_passes_connection_check_options_to_browser(mocker):
         debug_no_auth=True,
         check_connection=False,
         connection_check_timeout=4,
+        carta_version_requirement=">=6.1.0,<7.0.0",
     )
 
 
@@ -275,6 +320,7 @@ def test_start_and_create_passes_connection_check_options_to_browser(mocker):
         frontend_url_timeout=8,
         check_connection=False,
         connection_check_timeout=4,
+        carta_version_requirement=">=6.1.0,<7.0.0",
     )
 
     assert result is expected_session
@@ -287,6 +333,7 @@ def test_start_and_create_passes_connection_check_options_to_browser(mocker):
         8,
         check_connection=False,
         connection_check_timeout=4,
+        carta_version_requirement=">=6.1.0,<7.0.0",
     )
 
 

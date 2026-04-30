@@ -38,7 +38,7 @@ class CartaBadUrl(CartaScriptingException):
 
 
 class CartaValidationFailed(CartaScriptingException):
-    """Invalid parameters were passed to a function with a :obj:`carta.validation.validate` decorator."""
+    """A user-supplied parameter or requirement is invalid."""
     pass
 
 
@@ -172,32 +172,84 @@ def parse_carta_version(version):
     return (int(major), int(minor), int(patch))
 
 
-def carta_version_meets_minimum(version, minimum_version):
-    """Check whether a CARTA version meets a minimum version requirement.
+def _parse_carta_version_requirement(requirement):
+    """Parse a CARTA version requirement string.
+
+    The requirement is a comma-separated list of comparison clauses such as
+    ``">=6.1.0"``, ``"<7.0.0"`` or ``"==6.2.0"``.
+    """
+    if not isinstance(requirement, str) or not requirement.strip():
+        raise CartaValidationFailed(
+            "CARTA version requirement must be a non-empty string."
+        )
+
+    clauses = []
+    for clause in requirement.split(","):
+        clause = clause.strip()
+        match = re.fullmatch(r"(>=|<=|==|>|<)\s*(.+)", clause)
+        if not match:
+            raise CartaValidationFailed(
+                f"Invalid CARTA version requirement clause {clause!r}. "
+                "Expected an operator (>=, >, <=, <, ==) followed by a "
+                "MAJOR.MINOR.PATCH version."
+            )
+
+        operator, required_version = match.groups()
+        required_base = parse_carta_version(required_version)
+        if required_base is None:
+            raise CartaValidationFailed(
+                f"Invalid CARTA version {required_version!r} in requirement "
+                f"{requirement!r}."
+            )
+
+        clauses.append((operator, required_base))
+
+    return clauses
+
+
+def carta_version_satisfies_requirement(version, requirement):
+    """Check whether a CARTA version satisfies a version requirement.
 
     Only the ``MAJOR.MINOR.PATCH`` components are compared; any prerelease
-    suffix is ignored.
+    suffix is ignored. The requirement is a comma-separated list of comparison
+    clauses, all of which must be satisfied.
 
     Parameters
     ----------
     version : string
         The CARTA version string to check.
-    minimum_version : string
-        The minimum CARTA version string required.
+    requirement : string
+        A comma-separated requirement string such as ``">=6.1.0"``,
+        ``"==6.2.0"`` or ``">=6.1.0,<7.0.0"``.
 
     Returns
     -------
     boolean
-        ``True`` if ``version`` meets the minimum, ``False`` otherwise
-        (including when either argument cannot be parsed).
-    """
-    version_base = parse_carta_version(version)
-    minimum_base = parse_carta_version(minimum_version)
+        ``True`` if ``version`` satisfies the requirement, ``False`` if the
+        version cannot be parsed or does not satisfy every clause.
 
-    if version_base is None or minimum_base is None:
+    Raises
+    ------
+    CartaValidationFailed
+        If the requirement string cannot be parsed.
+    """
+    parsed_requirement = _parse_carta_version_requirement(requirement)
+
+    checks = {
+        ">=": lambda left, right: left >= right,
+        ">": lambda left, right: left > right,
+        "<=": lambda left, right: left <= right,
+        "<": lambda left, right: left < right,
+        "==": lambda left, right: left == right,
+    }
+    version_base = parse_carta_version(version)
+    if version_base is None:
         return False
 
-    return version_base >= minimum_base
+    return all(
+        checks[operator](version_base, required_base)
+        for operator, required_base in parsed_requirement
+    )
 
 
 class BasePathMixin:

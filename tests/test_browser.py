@@ -72,7 +72,10 @@ def test_new_session_from_url_runs_connection_check_after_parsing_session_id(
 
     assert result is session
     session_class.assert_called_once_with(123, protocol, browser=browser, backend=None)
-    session._check_connection.assert_called_once_with(timeout=5)
+    session._validate_session.assert_called_once_with(
+        timeout=5,
+        carta_version_requirement=None,
+    )
     assert browser.driver.closed is False
 
 
@@ -88,7 +91,28 @@ def test_new_session_from_url_skips_connection_check(mocker, browser_module):
         check_connection=False,
     )
 
-    session._check_connection.assert_not_called()
+    session._validate_session.assert_not_called()
+
+
+def test_new_session_from_url_checks_connection_when_requirement_is_provided(
+    mocker, browser_module
+):
+    browser = make_browser(browser_module.Browser)
+    protocol = mocker.Mock(controller_auth=False, frontend_url="http://localhost:3000")
+    mocker.patch("carta.browser.Protocol", return_value=protocol)
+    session = mocker.Mock()
+    mocker.patch("carta.browser.Session", return_value=session)
+
+    browser.new_session_from_url(
+        "http://localhost:3000?token=x",
+        check_connection=False,
+        carta_version_requirement="<=6.2.0",
+    )
+
+    session._validate_session.assert_called_once_with(
+        timeout=10,
+        carta_version_requirement="<=6.2.0",
+    )
 
 
 def test_new_session_from_url_closes_browser_and_preserves_validation_error(
@@ -98,7 +122,7 @@ def test_new_session_from_url_closes_browser_and_preserves_validation_error(
     protocol = mocker.Mock(controller_auth=False, frontend_url="http://localhost:3000")
     mocker.patch("carta.browser.Protocol", return_value=protocol)
     session = mocker.Mock()
-    session._check_connection.side_effect = util_module.CartaUnsupportedVersion("bad version")
+    session._validate_session.side_effect = util_module.CartaUnsupportedVersion("bad version")
     mocker.patch("carta.browser.Session", return_value=session)
 
     with pytest.raises(util_module.CartaUnsupportedVersion):
@@ -118,7 +142,7 @@ def test_new_session_from_url_preserves_validation_error_when_close_fails(
     protocol = mocker.Mock(controller_auth=False, frontend_url="http://localhost:3000")
     mocker.patch("carta.browser.Protocol", return_value=protocol)
     session = mocker.Mock()
-    session._check_connection.side_effect = util_module.CartaUnsupportedVersion("bad version")
+    session._validate_session.side_effect = util_module.CartaUnsupportedVersion("bad version")
     mocker.patch("carta.browser.Session", return_value=session)
 
     with pytest.raises(util_module.CartaUnsupportedVersion):
@@ -150,6 +174,50 @@ def test_new_session_with_backend_stops_backend_when_session_creation_fails(
         browser.new_session_with_backend(check_connection=True)
 
     backend.stop.assert_called_once_with()
+    browser.new_session_from_url.assert_called_once_with(
+        "http://localhost:3000",
+        "token",
+        backend=backend,
+        timeout=10,
+        debug_no_auth=False,
+        check_connection=True,
+        connection_check_timeout=10,
+        carta_version_requirement=None,
+    )
+
+
+def test_new_session_with_backend_passes_carta_version_requirement(
+    mocker, browser_module
+):
+    browser = make_browser(browser_module.Browser)
+    backend = mocker.Mock(
+        frontend_url="http://localhost:3000",
+        token="token",
+        debug_no_auth=False,
+        errors=[],
+    )
+    backend.start.return_value = True
+    mocker.patch("carta.browser.Backend", return_value=backend)
+    session = mocker.Mock()
+    new_session = mocker.patch.object(browser, "new_session_from_url", return_value=session)
+
+    result = browser.new_session_with_backend(
+        check_connection=False,
+        connection_check_timeout=4,
+        carta_version_requirement="==6.1.0",
+    )
+
+    assert result is session
+    new_session.assert_called_once_with(
+        "http://localhost:3000",
+        "token",
+        backend=backend,
+        timeout=10,
+        debug_no_auth=False,
+        check_connection=False,
+        connection_check_timeout=4,
+        carta_version_requirement="==6.1.0",
+    )
 
 
 def test_new_session_with_backend_stops_backend_when_frontend_url_missing(

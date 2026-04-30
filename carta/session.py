@@ -14,7 +14,7 @@ from .colorblending import ColorBlending
 from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
-from .util import Macro, split_action_path, CartaActionFailed, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaUnsupportedVersion, cached, carta_version_meets_minimum, Point as Pt
+from .util import Macro, split_action_path, CartaActionFailed, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaUnsupportedVersion, cached, carta_version_satisfies_requirement, _parse_carta_version_requirement, Point as Pt
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, MapOf, Union
 
 from .wcs_overlay import SessionWCSOverlay
@@ -78,7 +78,7 @@ class Session:
         self.close()
 
     @classmethod
-    def interact(cls, frontend_url, session_id, token=None, debug_no_auth=False, backend=None, check_connection=True, connection_check_timeout=10):
+    def interact(cls, frontend_url, session_id, token=None, debug_no_auth=False, backend=None, check_connection=True, connection_check_timeout=10, carta_version_requirement=None):
         """Interact with an existing CARTA frontend session.
 
         Parameters
@@ -96,10 +96,16 @@ class Session:
         check_connection : boolean, optional
             Whether to validate the session by reading the CARTA frontend
             version through the scripting interface before returning.
-            Default: ``True``. Set to ``False`` to skip startup scripting calls.
+            Default: ``True``. Set to ``False`` to skip startup scripting calls
+            unless ``carta_version_requirement`` is provided.
         connection_check_timeout : number, optional
             Maximum time in seconds to wait for the startup validation action.
             Default: 10 seconds.
+        carta_version_requirement : string, optional
+            A CARTA version requirement string. If provided, the session
+            frontend version is checked before this method returns, even when
+            ``check_connection`` is ``False``. Examples: ``">=6.1.0"``,
+            ``"<=6.2.0"``, ``"==6.1.0"`` or ``">=6.1.0,<7.0.0"``.
 
         Returns
         -------
@@ -117,8 +123,10 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend reports a version below the
-            minimum supported CARTA version.
+            If the connected CARTA frontend does not satisfy the internal
+            minimum version requirement or the user-specified requirement.
+        CartaValidationFailed
+            If the user-specified requirement string cannot be parsed.
         """
         try:
             session_id = int(session_id)
@@ -130,12 +138,15 @@ class Session:
             Protocol(frontend_url, token, debug_no_auth=debug_no_auth),
             backend=backend,
         )
-        if check_connection:
-            session._check_connection(timeout=connection_check_timeout)
+        if check_connection or carta_version_requirement is not None:
+            session._validate_session(
+                timeout=connection_check_timeout,
+                carta_version_requirement=carta_version_requirement,
+            )
         return session
 
     @classmethod
-    def start_and_interact(cls, executable_path="carta", remote_host=None, params=tuple(), token=None, frontend_url_timeout=10, session_creation_timeout=10, check_connection=True, connection_check_timeout=10):
+    def start_and_interact(cls, executable_path="carta", remote_host=None, params=tuple(), token=None, frontend_url_timeout=10, session_creation_timeout=10, check_connection=True, connection_check_timeout=10, carta_version_requirement=None):
         """Start a new CARTA backend instance and interact with the default CARTA frontend session which is created automatically in the user's browser. This method cannot be used with a CARTA controller instance.
 
         Parameters
@@ -155,10 +166,16 @@ class Session:
         check_connection : boolean, optional
             Whether to validate the session by reading the CARTA frontend
             version through the scripting interface before returning.
-            Default: ``True``. Set to ``False`` to skip startup scripting calls.
+            Default: ``True``. Set to ``False`` to skip startup scripting calls
+            unless ``carta_version_requirement`` is provided.
         connection_check_timeout : number, optional
             Maximum time in seconds to wait for the startup validation action.
             Default: 10 seconds.
+        carta_version_requirement : string, optional
+            A CARTA version requirement string. If provided, the session
+            frontend version is checked before this method returns, even when
+            ``check_connection`` is ``False``. Examples: ``">=6.1.0"``,
+            ``"<=6.2.0"``, ``"==6.1.0"`` or ``">=6.1.0,<7.0.0"``.
 
         Returns
         -------
@@ -176,8 +193,10 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend reports a version below the
-            minimum supported CARTA version.
+            If the connected CARTA frontend does not satisfy the internal
+            minimum version requirement or the user-specified requirement.
+        CartaValidationFailed
+            If the user-specified requirement string cannot be parsed.
         """
         backend = Backend(("--enable_scripting", *params), executable_path, remote_host, token, frontend_url_timeout, session_creation_timeout)
         if not backend.start():
@@ -200,13 +219,14 @@ class Session:
                 backend,
                 check_connection=check_connection,
                 connection_check_timeout=connection_check_timeout,
+                carta_version_requirement=carta_version_requirement,
             )
         except Exception:
             backend.stop()
             raise
 
     @classmethod
-    def create(cls, browser, frontend_url, token=None, timeout=10, debug_no_auth=False, check_connection=True, connection_check_timeout=10):
+    def create(cls, browser, frontend_url, token=None, timeout=10, debug_no_auth=False, check_connection=True, connection_check_timeout=10, carta_version_requirement=None):
         """Connect to an existing CARTA backend or CARTA controller instance and create a new session.
 
         Parameters
@@ -224,10 +244,16 @@ class Session:
         check_connection : boolean, optional
             Whether to validate the session by reading the CARTA frontend
             version through the scripting interface before returning.
-            Default: ``True``. Set to ``False`` to skip startup scripting calls.
+            Default: ``True``. Set to ``False`` to skip startup scripting calls
+            unless ``carta_version_requirement`` is provided.
         connection_check_timeout : number, optional
             Maximum time in seconds to wait for the startup validation action.
             Default: 10 seconds.
+        carta_version_requirement : string, optional
+            A CARTA version requirement string. If provided, the session
+            frontend version is checked before this method returns, even when
+            ``check_connection`` is ``False``. Examples: ``">=6.1.0"``,
+            ``"<=6.2.0"``, ``"==6.1.0"`` or ``">=6.1.0,<7.0.0"``.
 
         Returns
         -------
@@ -243,8 +269,10 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend reports a version below the
-            minimum supported CARTA version.
+            If the connected CARTA frontend does not satisfy the internal
+            minimum version requirement or the user-specified requirement.
+        CartaValidationFailed
+            If the user-specified requirement string cannot be parsed.
         """
         return browser.new_session_from_url(
             frontend_url,
@@ -254,10 +282,11 @@ class Session:
             debug_no_auth=debug_no_auth,
             check_connection=check_connection,
             connection_check_timeout=connection_check_timeout,
+            carta_version_requirement=carta_version_requirement,
         )
 
     @classmethod
-    def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10, check_connection=True, connection_check_timeout=10):
+    def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10, check_connection=True, connection_check_timeout=10, carta_version_requirement=None):
         """Start a new CARTA backend instance and create a new session. This method cannot be used with a CARTA controller instance (which already starts and stops backend instances for the user on demand).
 
         Parameters
@@ -279,10 +308,16 @@ class Session:
         check_connection : boolean, optional
             Whether to validate the session by reading the CARTA frontend
             version through the scripting interface before returning.
-            Default: ``True``. Set to ``False`` to skip startup scripting calls.
+            Default: ``True``. Set to ``False`` to skip startup scripting calls
+            unless ``carta_version_requirement`` is provided.
         connection_check_timeout : number, optional
             Maximum time in seconds to wait for the startup validation action.
             Default: 10 seconds.
+        carta_version_requirement : string, optional
+            A CARTA version requirement string. If provided, the session
+            frontend version is checked before this method returns, even when
+            ``check_connection`` is ``False``. Examples: ``">=6.1.0"``,
+            ``"<=6.2.0"``, ``"==6.1.0"`` or ``">=6.1.0,<7.0.0"``.
 
         Returns
         -------
@@ -298,8 +333,10 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend reports a version below the
-            minimum supported CARTA version.
+            If the connected CARTA frontend does not satisfy the internal
+            minimum version requirement or the user-specified requirement.
+        CartaValidationFailed
+            If the user-specified requirement string cannot be parsed.
         """
         return browser.new_session_with_backend(
             executable_path,
@@ -310,6 +347,7 @@ class Session:
             frontend_url_timeout,
             check_connection=check_connection,
             connection_check_timeout=connection_check_timeout,
+            carta_version_requirement=carta_version_requirement,
         )
 
     def __repr__(self):
@@ -339,13 +377,14 @@ class Session:
         """
         return self.get_value("frontendVersion")
 
-    def require_carta_version(self, minimum_version, feature=None):
-        """Require this session to be connected to a supported CARTA version.
+    def require_carta_version(self, carta_version_requirement, feature=None):
+        """Require this session to satisfy a CARTA version requirement.
 
         Parameters
         ----------
-        minimum_version : string
-            The minimum CARTA release version required.
+        carta_version_requirement : string
+            A CARTA version requirement string. Examples: ``">=6.1.0"``,
+            ``"<=6.2.0"``, ``"==6.1.0"`` or ``">=6.1.0,<7.0.0"``.
         feature : string, optional
             The feature requiring this version. Used in error messages.
 
@@ -357,17 +396,19 @@ class Session:
         Raises
         ------
         CartaUnsupportedVersion
-            If the detected CARTA version is below the minimum or cannot be
-            parsed.
+            If the frontend-reported CARTA version cannot be parsed or does
+            not satisfy the requirement.
+        CartaValidationFailed
+            If the user-supplied requirement string cannot be parsed.
         """
         version = self.carta_version
-        if carta_version_meets_minimum(version, minimum_version):
+        if carta_version_satisfies_requirement(version, carta_version_requirement):
             return version
 
         feature_text = f" for {feature}" if feature else ""
         raise CartaUnsupportedVersion(
             f"CARTA version {version!r} is not supported{feature_text}. "
-            f"Required minimum version is {minimum_version!r}."
+            f"Required version is {carta_version_requirement!r}."
         )
 
     def _fetch_frontend_version(self, timeout=None):
@@ -386,7 +427,10 @@ class Session:
             self._cache = {}
         self._cache["carta_version"] = version
 
-    def _check_connection(self, timeout=10):
+    def _validate_session(self, timeout=10, carta_version_requirement=None):
+        if carta_version_requirement is not None:
+            _parse_carta_version_requirement(carta_version_requirement)
+
         try:
             version = self._fetch_frontend_version(timeout=timeout)
         except CartaScriptingException as e:
@@ -396,9 +440,14 @@ class Session:
 
         self._cache_carta_version(version)
         self.require_carta_version(
-            MINIMUM_CARTA_VERSION,
+            f">={MINIMUM_CARTA_VERSION}",
             feature="carta-python session startup",
         )
+        if carta_version_requirement is not None:
+            self.require_carta_version(
+                carta_version_requirement,
+                feature="user-specified CARTA version requirement",
+            )
         return version
 
     def _connection_check_error_message(self, error, timeout):

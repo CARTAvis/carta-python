@@ -32,6 +32,12 @@ You need access either to a CARTA backend executable, on the local host or on a 
    prerelease builds such as ``6.0.0-beta.1`` do not expose
    ``frontendVersion`` and therefore fail this validation.
 
+   Scripts can also require a more specific CARTA frontend version when
+   creating a session. Pass ``carta_version_requirement`` with one or more
+   comma-separated clauses such as ``">=6.1.0"``, ``"<=6.2.0"``,
+   ``"==6.1.0"`` or ``">=6.1.0,<7.0.0"``. This check runs before the
+   session object is returned, even if ``check_connection=False``.
+
 If session creation fails during startup validation, check that the frontend
 URL is reachable, the session ID is correct, the token is valid, and the
 backend was started with ``--enable_scripting``. A failure while reading
@@ -54,6 +60,12 @@ Use the ``interact`` method if you want to use scripting to control a CARTA sess
             from carta.token import BackendToken
 
             session = Session.interact("FRONTEND URL", 123456, BackendToken("SECURITY TOKEN"))
+            session = Session.interact(
+                "FRONTEND URL",
+                123456,
+                BackendToken("SECURITY TOKEN"),
+                carta_version_requirement=">=6.1.0,<7.0.0",
+            )
 
         If you have launched a backend directly, the frontend URL and security token must match your running backend process. You have the option of using an environment variable, ``CARTA_AUTH_TOKEN``, to run CARTA with a fixed security token. Otherwise, a randomly generated token will be printed by the backend when it starts. If you include the security token in the URL, you may omit the security token parameter (it will be parsed from the URL automatically):
 
@@ -108,6 +120,7 @@ Creating a new interactive session
 
             # New session, start local backend
             session = Session.start_and_interact()
+            session = Session.start_and_interact(carta_version_requirement="==6.1.0")
 
             # New session, start remote backend
             session = Session.start_and_interact(remote_host="REMOTE HOSTNAME OR IP")
@@ -144,6 +157,12 @@ Use the ``create`` method if you want to write a non-interactive script which st
 
             # New session, connect to an existing backend
             session = Session.create(Chrome(), "FRONTEND URL", BackendToken("SECURITY TOKEN"))
+            session = Session.create(
+                Chrome(),
+                "FRONTEND URL",
+                BackendToken("SECURITY TOKEN"),
+                carta_version_requirement=">=6.1.0,<7.0.0",
+            )
 
             # New session, start local backend
             session = Session.start_and_create(Chrome())
