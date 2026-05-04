@@ -1,6 +1,6 @@
 """This module contains the shared base class for image-view items (frame-backed images and color blendings).
 
-The class in this module should not be instantiated directly. It exists so that :obj:`carta.image.Image` and :obj:`carta.colorblending.ColorBlending` can share a common protocol without one having to import the other.
+The class in this module should not be instantiated directly. It exists so that :obj:`carta.image.Image` and :obj:`carta.color_blending.ColorBlending` can share a common protocol without one having to import the other.
 """
 
 

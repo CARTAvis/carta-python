@@ -21,14 +21,14 @@ class Layer(BasePathMixin):
 
     Parameters
     ----------
-    colorblending : :obj:`carta.colorblending.ColorBlending`
+    color_blending : :obj:`carta.color_blending.ColorBlending`
         The color blending object.
     layer_id : integer
         The layer ID.
 
     Attributes
     ----------
-    colorblending : :obj:`carta.colorblending.ColorBlending`
+    color_blending : :obj:`carta.color_blending.ColorBlending`
         The color blending object.
     layer_id : integer
         The layer ID.
@@ -36,32 +36,32 @@ class Layer(BasePathMixin):
         The session object associated with this layer.
     """
 
-    def __init__(self, colorblending, layer_id):
-        self.colorblending = colorblending
+    def __init__(self, color_blending, layer_id):
+        self.color_blending = color_blending
         self.layer_id = layer_id
-        self.session = colorblending.session
+        self.session = color_blending.session
 
-        self._base_path = f"{self.colorblending._base_path}.frames[{layer_id}]"
+        self._base_path = f"{self.color_blending._base_path}.frames[{layer_id}]"
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def from_list(cls, colorblending, layer_ids):
+    def from_list(cls, color_blending, layer_ids):
         """
         Create a list of Layer objects from a list of layer IDs.
 
         Parameters
         ----------
-        colorblending : :obj:`carta.colorblending.ColorBlending`
+        color_blending : :obj:`carta.color_blending.ColorBlending`
             The color blending object.
         layer_ids : list of integer
             The layer IDs.
 
         Returns
         -------
-        list of :obj:`carta.colorblending.Layer`
+        list of :obj:`carta.color_blending.Layer`
             A list of new Layer objects.
         """
-        return [cls(colorblending, layer_id) for layer_id in layer_ids]
+        return [cls(color_blending, layer_id) for layer_id in layer_ids]
 
     @property
     def image_view_order(self):
@@ -70,7 +70,7 @@ class Layer(BasePathMixin):
         This is the position of the underlying frame in the session's image
         list. A layer does not occupy its own position in the image list;
         its parent color blending does (see
-        :obj:`carta.colorblending.ColorBlending.image_view_order`).
+        :obj:`carta.color_blending.ColorBlending.image_view_order`).
 
         Returns
         -------
@@ -89,7 +89,7 @@ class Layer(BasePathMixin):
     def __repr__(self):
         """A human-readable representation of this layer."""
         cls = type(self).__name__
-        cb_id = self.colorblending.color_blending_id
+        cb_id = self.color_blending.color_blending_id
 
         try:
             order = self.image_view_order
@@ -143,7 +143,7 @@ class Layer(BasePathMixin):
         alpha : {0}
             The alpha value.
         """
-        self.colorblending.call_action("setAlpha", self.layer_id, alpha)
+        self.color_blending.call_action("setAlpha", self.layer_id, alpha)
 
     @validate(Constant(Colormap), Boolean())
     def set_colormap(self, colormap, invert=False):
@@ -273,7 +273,7 @@ class ColorBlending(ImageBase, BasePathMixin):
 
         Returns
         -------
-        list of :obj:`carta.colorblending.Layer`
+        list of :obj:`carta.color_blending.Layer`
             A list of Layer objects.
         """
         layer_count = self.get_value("frames.length")

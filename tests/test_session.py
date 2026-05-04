@@ -3,7 +3,7 @@ from unittest.mock import call
 import pytest
 
 from carta.image import Image
-from carta.colorblending import ColorBlending
+from carta.color_blending import ColorBlending
 from carta.util import CartaActionFailed, CartaValidationFailed, Macro, Point as Pt
 from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 

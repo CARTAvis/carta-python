@@ -189,7 +189,7 @@ Helper methods on the session object open images in the frontend and return imag
 Inspecting the list of open images
 ----------------------------------
 
-The session's image list is heterogeneous: it may contain both ordinary frame-backed images (:obj:`carta.image.Image`) and color blending images (:obj:`carta.colorblending.ColorBlending`). Its order matches the image list panel shown in the frontend, as illustrated below.
+The session's image list is heterogeneous: it may contain both ordinary frame-backed images (:obj:`carta.image.Image`) and color blending images (:obj:`carta.color_blending.ColorBlending`). Its order matches the image list panel shown in the frontend, as illustrated below.
 
 .. figure:: images/image_list.jpg
    :alt: CARTA frontend image list panel showing frame-backed images and a color blending entry.
@@ -200,7 +200,7 @@ The session's image list is heterogeneous: it may contain both ordinary frame-ba
 .. code-block:: python
 
     from carta.image import Image
-    from carta.colorblending import ColorBlending
+    from carta.color_blending import ColorBlending
 
     # All open image-view items, in display order
     items = session.image_list()

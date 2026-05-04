@@ -10,7 +10,7 @@ import base64
 import posixpath
 
 from .image import Image
-from .colorblending import ColorBlending
+from .color_blending import ColorBlending
 from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
@@ -553,7 +553,7 @@ class Session:
 
         Returns
         -------
-        :obj:`carta.colorblending.ColorBlending`
+        :obj:`carta.color_blending.ColorBlending`
             The new color blending object.
         """
         images = self.open_images(files, append=False)
@@ -632,7 +632,7 @@ class Session:
         image_view_order : integer, optional
             The index of the item in the image list.
             Returns whichever concrete wrapper (:obj:`carta.image.Image`
-            or :obj:`carta.colorblending.ColorBlending`) matches the
+            or :obj:`carta.color_blending.ColorBlending`) matches the
             entry type at that position. Raises :obj:`NotImplementedError`
             for any future entry type that is not yet wrapped on the
             Python side.
@@ -723,7 +723,7 @@ class Session:
 
         Returns
         -------
-        :obj:`carta.image.Image` or :obj:`carta.colorblending.ColorBlending`
+        :obj:`carta.image.Image` or :obj:`carta.color_blending.ColorBlending`
             The currently active image-view item.
 
         Raises
@@ -753,7 +753,7 @@ class Session:
 
         Returns
         -------
-        :obj:`carta.colorblending.ColorBlending`
+        :obj:`carta.color_blending.ColorBlending`
             The new color blending object.
 
         Raises
