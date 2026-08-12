@@ -10,11 +10,12 @@ import base64
 import posixpath
 
 from .image import Image
+from .image_base import ImageBase
 from .color_blending import ColorBlending
 from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
-from .util import Macro, split_action_path, CartaActionFailed, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, cached, Point as Pt
+from .util import Macro, split_action_path, CartaActionFailed, CartaBadResponse, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaValidationFailed, cached, Point as Pt
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, MapOf, Union
 
 from .wcs_overlay import SessionWCSOverlay
@@ -576,17 +577,14 @@ class Session:
         summary = self.get_value("imageViewConfigStore.imageListSummary")
         result = []
         for order, entry in enumerate(summary):
-            entry_type = entry["type"]
-            if entry_type == ImageType.FRAME:
-                result.append(Image(self, entry["id"]))
-            elif entry_type == ImageType.COLOR_BLENDING:
-                result.append(ColorBlending(self, entry["id"]))
-            else:
-                raise NotImplementedError(
-                    f"image_list encountered an unsupported image-view "
-                    f"entry at order {order} with type {entry_type!r}; "
-                    "only Image (FRAME) and ColorBlending (COLOR_BLENDING) "
-                    "entries are currently wrapped."
+            try:
+                result.append(
+                    ImageBase.image_class(entry["type"])(self, entry["id"])
+                )
+            except (CartaValidationFailed, NotImplementedError) as e:
+                print(
+                    f"Skipping unsupported image-view entry at order {order}: "
+                    f"{entry!r}: {e}"
                 )
         return result
 
@@ -663,56 +661,64 @@ class Session:
             "file_id": file_id,
             "color_blending_id": color_blending_id,
         }
-        given = [key for key, val in provided.items() if val is not None]
-        if len(given) != 1:
-            given_values = {
-                key: val for key, val in provided.items() if val is not None
-            }
+        provided_values = {
+            key: value
+            for key, value in provided.items()
+            if value is not None
+        }
+        if len(provided_values) != 1:
             raise ValueError(
                 "image_by_id requires exactly one of the keyword arguments "
                 "`image_view_order`, `file_id`, or `color_blending_id`; "
-                f"got {len(given)} with values {given_values!r}."
+                f"got {len(provided_values)} with values {provided_values!r}."
             )
-
-        summary = self.get_value("imageViewConfigStore.imageListSummary")
 
         if image_view_order is not None:
-            if image_view_order < 0 or image_view_order >= len(summary):
+            if image_view_order < 0:
                 raise IndexError(
                     f"image_view_order {image_view_order} is out of range "
-                    f"for an image list of length {len(summary)}."
+                    "for the image list."
                 )
-            entry = summary[image_view_order]
-            entry_type = entry["type"]
-            entry_id = entry["id"]
-            if entry_type == ImageType.FRAME:
-                return Image(self, entry_id)
-            if entry_type == ImageType.COLOR_BLENDING:
-                return ColorBlending(self, entry_id)
-            raise NotImplementedError(
-                f"image_by_id encountered an unsupported image-view entry "
-                f"at order {image_view_order} with type {entry_type!r}; "
-                "only Image (FRAME) and ColorBlending (COLOR_BLENDING) "
-                "entries are currently wrapped."
-            )
+            try:
+                entry = self.get_value(
+                    "imageViewConfigStore.imageListSummary"
+                    f"[{image_view_order}]"
+                )
+            except (CartaActionFailed, CartaBadResponse) as e:
+                raise IndexError(
+                    f"image_view_order {image_view_order} is out of range "
+                    "for the image list."
+                ) from e
+            return ImageBase.image_class(entry["type"])(self, entry["id"])
 
         if file_id is not None:
-            for entry in summary:
-                if entry["type"] == ImageType.FRAME and entry["id"] == file_id:
-                    return Image(self, file_id)
-            raise RuntimeError(
-                f"No frame-backed image with file_id={file_id} is open."
+            try:
+                resolved_file_id = self.get_value(
+                    f"frameMap[{file_id}]",
+                    return_path="frameInfo.fileId",
+                )
+            except (CartaActionFailed, CartaBadResponse) as e:
+                raise RuntimeError(
+                    f"No frame-backed image with file_id={file_id} is open."
+                ) from e
+            return ImageBase.image_class(ImageType.FRAME)(
+                self, resolved_file_id
             )
 
         # color_blending_id is not None
-        for entry in summary:
-            if (
-                entry["type"] == ImageType.COLOR_BLENDING
-                and entry["id"] == color_blending_id
-            ):
-                return ColorBlending(self, color_blending_id)
-        raise RuntimeError(
-            f"No color blending with color_blending_id={color_blending_id} is open."
+        try:
+            resolved_color_blending_id = self.get_value(
+                f"imageViewConfigStore.colorBlendingImageMap"
+                f"[{color_blending_id}]",
+                return_path="id",
+            )
+        except (CartaActionFailed, CartaBadResponse) as e:
+            raise RuntimeError(
+                f"No color blending with color_blending_id={color_blending_id} "
+                "is open."
+            ) from e
+        return ImageBase.image_class(ImageType.COLOR_BLENDING)(
+            self, resolved_color_blending_id
         )
 
     def active_image(self):
@@ -733,16 +739,8 @@ class Session:
             the Python side.
         """
         active = self.get_value("activeImage")
-        active_type = active["type"]
-        active_id = active["store"]["id"]
-        if active_type == ImageType.FRAME:
-            return Image(self, active_id)
-        if active_type == ImageType.COLOR_BLENDING:
-            return ColorBlending(self, active_id)
-        raise NotImplementedError(
-            f"active_image encountered an unsupported image-view type "
-            f"{active_type!r}; only Image (FRAME) and ColorBlending "
-            "(COLOR_BLENDING) entries are currently wrapped."
+        return ImageBase.image_class(active["type"])(
+            self, active["store"]["id"]
         )
 
     # COLOR BLENDING

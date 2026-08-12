@@ -47,7 +47,7 @@ class Image(ImageBase, BasePathMixin):
         Functions for manipulating regions associated with this image.
     """
 
-    _image_type = ImageType.FRAME
+    IMAGE_TYPE = ImageType.FRAME
 
     def __init__(self, session, file_id):
         super().__init__(session)

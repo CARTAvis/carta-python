@@ -178,7 +178,7 @@ class ColorBlending(ImageBase, BasePathMixin):
         The id of the backing ``ColorBlendingStore`` on the frontend.
     """
 
-    _image_type = ImageType.COLOR_BLENDING
+    IMAGE_TYPE = ImageType.COLOR_BLENDING
 
     def __init__(self, session, color_blending_id):
         super().__init__(session)

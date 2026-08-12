@@ -4,7 +4,7 @@ import pytest
 
 from carta.image import Image
 from carta.color_blending import ColorBlending
-from carta.util import CartaActionFailed, CartaValidationFailed, Macro, Point as Pt
+from carta.util import CartaActionFailed, CartaBadResponse, CartaValidationFailed, Macro, Point as Pt
 from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 
 # FIXTURES
@@ -138,13 +138,20 @@ def test_image_list_heterogeneous(session, get_value):
     assert isinstance(images[2], Image) and images[2].file_id == 20
 
 
-def test_image_list_raises_on_pv_preview(session, get_value):
+def test_image_list_skips_unsupported_image_type(session, get_value, capsys):
     get_value.return_value = [
         {"type": ImageType.FRAME, "id": 10},
-        {"type": ImageType.PV_PREVIEW, "id": -2},
+        {"type": 99, "id": 11},
+        {"type": ImageType.FRAME, "id": 20},
     ]
-    with pytest.raises(NotImplementedError):
-        session.image_list()
+
+    images = session.image_list()
+
+    assert [image.file_id for image in images] == [10, 20]
+    assert (
+        "Skipping unsupported image-view entry at order 1"
+        in capsys.readouterr().out
+    )
 
 
 def test_image_list_empty(session, get_value):
@@ -185,16 +192,6 @@ def test_find_image_view_order_raises_when_missing(session, call_action):
 # session.image_by_id
 
 
-@pytest.fixture
-def summary(get_value):
-    get_value.return_value = [
-        {"type": ImageType.FRAME, "id": 10},
-        {"type": ImageType.COLOR_BLENDING, "id": 7},
-        {"type": ImageType.FRAME, "id": 20},
-    ]
-    return get_value
-
-
 def test_image_by_id_requires_exactly_one_keyword(session, get_value):
     # Zero keywords -> ValueError with all three names listed.
     with pytest.raises(ValueError) as e:
@@ -214,69 +211,113 @@ def test_image_by_id_rejects_positional(session):
         session.image_by_id(0)
 
 
-def test_image_by_id_by_image_view_order(session, summary):
+@pytest.mark.parametrize(
+    "entry,expected_type,expected_id",
+    [
+        ({"type": ImageType.FRAME, "id": 10}, Image, 10),
+        (
+            {"type": ImageType.COLOR_BLENDING, "id": 7},
+            ColorBlending,
+            7,
+        ),
+    ],
+)
+def test_image_by_id_by_image_view_order(
+    session, get_value, entry, expected_type, expected_id
+):
+    get_value.return_value = entry
+
     img = session.image_by_id(image_view_order=0)
-    assert isinstance(img, Image)
-    assert img.file_id == 10
-
-    cb = session.image_by_id(image_view_order=1)
-    assert isinstance(cb, ColorBlending)
-    assert cb.color_blending_id == 7
-
-    img2 = session.image_by_id(image_view_order=2)
-    assert isinstance(img2, Image)
-    assert img2.file_id == 20
+    assert isinstance(img, expected_type)
+    assert (
+        img.file_id if expected_type is Image else img.color_blending_id
+    ) == expected_id
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary[0]"
+    )
 
 
-def test_image_by_id_by_image_view_order_out_of_range(session, summary):
+def test_image_by_id_by_image_view_order_out_of_range(session, get_value):
+    get_value.side_effect = CartaBadResponse("undefined")
+
     with pytest.raises(IndexError):
         session.image_by_id(image_view_order=99)
+
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary[99]"
+    )
 
 
 def test_image_by_id_by_image_view_order_raises_on_unsupported_type(
     session, get_value
 ):
-    get_value.return_value = [
-        {"type": ImageType.PV_PREVIEW, "id": -2},
-    ]
+    get_value.return_value = {"type": ImageType.PV_PREVIEW, "id": -2}
 
     with pytest.raises(NotImplementedError):
         session.image_by_id(image_view_order=0)
 
 
-def test_image_by_id_by_file_id(session, summary):
+def test_image_by_id_by_file_id(session, get_value):
+    get_value.return_value = 20
+
     img = session.image_by_id(file_id=20)
     assert isinstance(img, Image)
     assert img.file_id == 20
+    get_value.assert_called_once_with(
+        "frameMap[20]",
+        return_path="frameInfo.fileId",
+    )
 
 
-def test_image_by_id_by_file_id_no_cross_type_fallback(session, summary):
-    # The summary contains a COLOR_BLENDING entry with id=7, but no FRAME
-    # with that id, so image_by_id(file_id=7) must raise.
+def test_image_by_id_by_file_id_no_cross_type_fallback(session, get_value):
+    get_value.side_effect = CartaBadResponse("undefined")
+
     with pytest.raises(RuntimeError):
         session.image_by_id(file_id=7)
 
 
-def test_image_by_id_by_color_blending_id(session, summary):
+def test_image_by_id_by_color_blending_id(session, get_value):
+    get_value.return_value = 7
+
     cb = session.image_by_id(color_blending_id=7)
     assert isinstance(cb, ColorBlending)
     assert cb.color_blending_id == 7
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.colorBlendingImageMap[7]",
+        return_path="id",
+    )
 
 
-def test_image_by_id_by_color_blending_id_no_cross_type_fallback(session, summary):
-    # The summary contains a FRAME with id=10, but no COLOR_BLENDING with
-    # that id, so image_by_id(color_blending_id=10) must raise.
+def test_image_by_id_by_color_blending_id_no_cross_type_fallback(
+    session, get_value
+):
+    get_value.side_effect = CartaBadResponse("undefined")
+
     with pytest.raises(RuntimeError):
         session.image_by_id(color_blending_id=10)
 
 
-def test_image_by_id_single_round_trip(session, summary):
+def test_image_by_id_uses_targeted_frontend_lookups(session, get_value):
+    get_value.side_effect = [
+        {"type": ImageType.FRAME, "id": 10},
+        10,
+        7,
+    ]
+
     session.image_by_id(image_view_order=0)
     session.image_by_id(file_id=10)
     session.image_by_id(color_blending_id=7)
-    assert summary.call_count == 3
-    for call_ in summary.call_args_list:
-        assert call_.args == ("imageViewConfigStore.imageListSummary",)
+
+    assert get_value.call_args_list == [
+        call(
+            "imageViewConfigStore.imageListSummary[0]"
+        ),
+        call("frameMap[10]", return_path="frameInfo.fileId"),
+        call(
+            "imageViewConfigStore.colorBlendingImageMap[7]",
+            return_path="id",
+        ),
+    ]
 
 
 # session.active_image
