@@ -259,7 +259,9 @@ class ColorBlending(ImageBase, BasePathMixin):
         """The number of layers in the color blending."""
         return self.get_value("frames.length")
 
-    @validate(IterableOf(Number(0, 1)))
+    @validate(
+        Evaluate(IterableOf, Number(0, 1), Attr("depth"), Attr("depth"))
+    )
     def set_alpha(self, alpha_list):
         """Set the alpha value for the color blending layers.
 
@@ -268,13 +270,7 @@ class ColorBlending(ImageBase, BasePathMixin):
         alpha_list : {0}
             The alpha values.
         """
-        layer_list = self.layer_list()
-        if len(alpha_list) != len(layer_list):
-            raise ValueError(
-                f"alpha_list length ({len(alpha_list)}) does not match "
-                f"the number of layers ({len(layer_list)})."
-            )
-        for alpha, layer in zip(alpha_list, layer_list):
+        for alpha, layer in zip(alpha_list, self.layer_list()):
             layer.set_alpha(alpha)
 
     def layer_list(self):
