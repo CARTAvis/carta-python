@@ -256,7 +256,7 @@ class Image(ImageBase, BasePathMixin):
 
     def make_spatial_reference(self):
         """Make this image the spatial reference."""
-        self.session.call_action("setSpatialReference", self._frame)
+        self.session.call_action("setSpatialReference", self._frame, False)
 
     @validate(Boolean())
     def set_spatial_matching(self, state):

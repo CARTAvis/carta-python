@@ -115,6 +115,15 @@ def test_make_active(image, session_call_action):
     )
 
 
+def test_make_spatial_reference_disables_color_blending_alert(
+    image, session_call_action
+):
+    image.make_spatial_reference()
+    session_call_action.assert_called_once_with(
+        "setSpatialReference", image._frame, False
+    )
+
+
 def test_image_base_is_abstract(session):
     with pytest.raises(TypeError, match=r"abstract method.*_stable_id"):
         ImageBase(session)
