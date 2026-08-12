@@ -329,10 +329,10 @@ def test_color_blending_delete_layer_rejects_base_layer(
 
 
 @pytest.mark.parametrize("idx,expected_param", [(1, 0), (5, 4)])
-def test_color_blending_set_layer(
+def test_color_blending_set_layer_image(
     color_blending, cb_call_action, image, idx, expected_param
 ):
-    color_blending.set_layer(image, idx)
+    color_blending.set_layer_image(idx, image)
     cb_call_action.assert_called_with(
         "setSelectedFrame", expected_param, image._frame
     )

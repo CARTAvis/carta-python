@@ -303,17 +303,17 @@ class ColorBlending(ImageBase, BasePathMixin):
             raise ValueError("The base layer cannot be deleted.")
         self.call_action("deleteSelectedFrame", layer_index - 1)
 
-    @validate(InstanceOf(Image), Number(1, None))
-    def set_layer(self, image, layer_index):
-        """Set a layer at a specified index in the color blending.
+    @validate(Number(1, None), InstanceOf(Image))
+    def set_layer_image(self, layer_index, image):
+        """Set the image for a layer at a specified index in the color blending.
 
         Parameters
         ----------
-        image : {0}
-            The image to set.
-        layer_index : {1}
+        layer_index : {0}
             The layer index. The base layer (layer_index = 0) cannot
             be set.
+        image : {1}
+            The image to set.
         """
         self.call_action("setSelectedFrame", layer_index - 1, image._frame)
 
