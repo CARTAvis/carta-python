@@ -329,18 +329,24 @@ Manipulate properties of the color blending object and the underlying layers:
     # Or set alpha for all layers at once
     cb.set_alpha([0.7, 0.8, 0.9])
 
-    # Set which layers to keep, and in what order
-    # The first layer index must be the base layer (index = 0)
-    # Since the base layer cannot be moved,
-    # the layers will be reordered as [img0, img2, img1]
-    cb.set_layer_sequence([0, 2, 1])
-
     # Remove the last layer (index = 2)
     cb.delete_layer(2)
 
-    # Add a new layer
+    # Add the removed image back as a new layer
     # The layer to be added cannot be one of the current layers
-    cb.add_layer(img1)
+    cb.add_layer(img2)
+
+    # Layer objects can delete themselves from the color blending
+    red, green, blue = cb.layer_list()
+    blue.delete()
+
+    # Deleting the base layer promotes the next layer to the spatial
+    # reference. The old base remains spatially matched but is removed
+    # from the color blending layers.
+    red.delete()
+
+    # Append the old base as a new color blending layer if desired.
+    cb.add_layer(img0)
 
     # Set center
     cb.set_center(100, 100)
@@ -362,9 +368,13 @@ Manipulate properties of the color blending object and the underlying layers:
     cb.close()
 
 .. note::
-    The base layer (index = 0) cannot be deleted or moved. If you need to
-    change the layer order involving the base layer, close the current color
-    blending object and create a new one.
+    Layer indices are zero-based and refer to the current layer list. The
+    base layer (index = 0) can be deleted: if other layers remain, the next
+    layer becomes the new spatial reference; if it is the only layer, the
+    color blending object is closed. The old base remains spatially matched
+    to the new reference but is no longer part of the color blending until it
+    is appended as a new color blending layer with
+    :meth:`carta.color_blending.ColorBlending.add_layer`.
 
 Saving or displaying an image
 -----------------------------

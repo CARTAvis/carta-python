@@ -12,6 +12,8 @@ from .validation import (
     IterableOf,
     Number,
     Size,
+    Attr,
+    Evaluate,
     validate,
 )
 
@@ -134,6 +136,10 @@ class Layer(BasePathMixin):
         """
         return self.get_value("frameInfo.fileId")
 
+    def delete(self):
+        """Delete this layer from its parent color blending."""
+        self.color_blending.delete_layer(self.layer_id)
+
     @validate(Number(0, 1))
     def set_alpha(self, alpha):
         """Set the alpha value for the layer in the color blending.
@@ -248,6 +254,11 @@ class ColorBlending(ImageBase, BasePathMixin):
         """
         return self.get_value("alpha")
 
+    @property
+    def depth(self):
+        """The number of layers in the color blending."""
+        return self.get_value("frames.length")
+
     @validate(IterableOf(Number(0, 1)))
     def set_alpha(self, alpha_list):
         """Set the alpha value for the color blending layers.
@@ -276,8 +287,7 @@ class ColorBlending(ImageBase, BasePathMixin):
         list of :obj:`carta.color_blending.Layer`
             A list of Layer objects.
         """
-        layer_count = self.get_value("frames.length")
-        return Layer.from_list(self, list(range(layer_count)))
+        return Layer.from_list(self, list(range(self.depth)))
 
     def add_layer(self, image):
         """Add a new layer to the color blending.
@@ -289,18 +299,25 @@ class ColorBlending(ImageBase, BasePathMixin):
         """
         self.call_action("addSelectedFrame", image._frame)
 
-    @validate(Number(0, None))
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1))
     def delete_layer(self, layer_index):
         """Delete a layer from the color blending.
 
         Parameters
         ----------
         layer_index : {0}
-            The layer index. The base layer (layer_index = 0) cannot
-            be deleted.
+            The layer index. If the base layer (layer_index = 0) is deleted,
+            the next layer becomes the spatial reference. If it is the only
+            layer, the color blending is closed.
         """
         if layer_index == 0:
-            raise ValueError("The base layer cannot be deleted.")
+            layers = self.layer_list()
+            if len(layers) == 1:
+                self.close()
+                return
+
+            Image(self.session, layers[1].file_id).make_spatial_reference()
+            return
         self.call_action("deleteSelectedFrame", layer_index - 1)
 
     @validate(Number(1, None), InstanceOf(Image))

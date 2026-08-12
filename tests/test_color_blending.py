@@ -138,6 +138,14 @@ def test_layer_file_id_property(layer, layer_get_value):
     layer_get_value.assert_called_with("frameInfo.fileId")
 
 
+def test_layer_delete(layer, mocker):
+    delete_layer = mocker.patch.object(layer.color_blending, "delete_layer")
+
+    layer.delete()
+
+    delete_layer.assert_called_once_with(layer.layer_id)
+
+
 def test_layer_image_view_order(session, color_blending, layer_property, mocker):
     find = mocker.patch.object(session, "_find_image_view_order", return_value=7)
     layer_property("file_id", 42)
@@ -313,17 +321,74 @@ def test_color_blending_add_layer(color_blending, cb_call_action, image):
 
 @pytest.mark.parametrize("idx,expected_param", [(1, 0), (3, 2)])
 def test_color_blending_delete_layer(
-    color_blending, cb_call_action, idx, expected_param
+    color_blending, cb_call_action, idx, expected_param, mocker
 ):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=4,
+    )
     color_blending.delete_layer(idx)
     cb_call_action.assert_called_with("deleteSelectedFrame", expected_param)
 
 
-def test_color_blending_delete_layer_rejects_base_layer(
-    color_blending, cb_call_action
+def test_color_blending_delete_base_layer_promotes_next_layer(
+    color_blending, cb_call_action, mocker
 ):
-    with pytest.raises(ValueError, match="The base layer cannot be deleted."):
-        color_blending.delete_layer(0)
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=2,
+    )
+    layers = [Layer(color_blending, 0), Layer(color_blending, 1)]
+    mocker.patch.object(color_blending, "layer_list", return_value=layers)
+    mocker.patch.object(
+        Layer, "file_id", new_callable=mocker.PropertyMock, return_value=42
+    )
+    image = mocker.patch("carta.color_blending.Image", autospec=True)
+
+    color_blending.delete_layer(0)
+
+    cb_call_action.assert_not_called()
+    image.assert_called_once_with(color_blending.session, 42)
+    image.return_value.make_spatial_reference.assert_called_once_with()
+
+
+def test_color_blending_delete_only_base_layer_closes_color_blending(
+    color_blending, cb_call_action, mocker
+):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=1,
+    )
+    mocker.patch.object(
+        color_blending, "layer_list", return_value=[Layer(color_blending, 0)]
+    )
+    close = mocker.patch.object(color_blending, "close")
+
+    color_blending.delete_layer(0)
+
+    close.assert_called_once_with()
+    cb_call_action.assert_not_called()
+
+
+@pytest.mark.parametrize("idx", [-1, 2])
+def test_color_blending_delete_layer_rejects_out_of_range(
+    color_blending, cb_call_action, idx, mocker
+):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=2,
+    )
+
+    with pytest.raises(CartaValidationFailed):
+        color_blending.delete_layer(idx)
 
     cb_call_action.assert_not_called()
 
