@@ -765,9 +765,7 @@ class Session:
                 raise RuntimeError(
                     f"No frame-backed image with file_id={file_id} is open."
                 ) from e
-            return ImageBase.image_class(ImageType.FRAME)(
-                self, resolved_file_id
-            )
+            return Image(self, resolved_file_id)
 
         # color_blending_id is not None
         try:
@@ -781,9 +779,7 @@ class Session:
                 f"No color blending with color_blending_id={color_blending_id} "
                 "is open."
             ) from e
-        return ImageBase.image_class(ImageType.COLOR_BLENDING)(
-            self, resolved_color_blending_id
-        )
+        return ColorBlending(self, resolved_color_blending_id)
 
     def active_image(self):
         """Return the currently active image-view item.
