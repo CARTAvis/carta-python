@@ -75,11 +75,13 @@ def test_layer_repr_healthy(session, color_blending, layer_property, mocker):
     layer_property("file_id", 42)
     layer_property("file_name", "layer1.fits")
     layer_property("colormap", "viridis")
+    layer_property("inverted", False)
     layer_property("alpha", 0.5)
     r = repr(Layer(color_blending, 3))
     assert r == (
         "Layer(image_view_order=2, color_blending_id=0, layer_id=3, "
-        "file_name='layer1.fits', colormap='viridis', alpha=0.5)"
+        "file_name='layer1.fits', colormap='viridis', inverted=False, "
+        "alpha=0.5)"
     )
     find.assert_called_once_with(ImageType.FRAME, 42)
 
@@ -145,6 +147,13 @@ def test_layer_colormap_property(layer, layer_get_value):
 
     assert layer.colormap == "viridis"
     layer_get_value.assert_called_once_with("renderConfig.colorMap")
+
+
+def test_layer_inverted_property(layer, layer_get_value):
+    layer_get_value.return_value = True
+
+    assert layer.inverted is True
+    layer_get_value.assert_called_once_with("renderConfig.isInverted")
 
 
 def test_layer_alpha_property(layer, cb_get_value):

@@ -322,8 +322,8 @@ Manipulate properties of the color blending object and the underlying layers:
     layer2.set_colormap(Colormap.GREENS)
     layer3.set_colormap(Colormap.BLUES)
 
-    # Inspect the colormap and alpha of an individual layer
-    print(layer1.colormap, layer1.alpha)
+    # Inspect the colormap, inversion, and alpha of an individual layer
+    print(layer1.colormap, layer1.inverted, layer1.alpha)
 
     # Or apply an existing colormap set
     cb.set_colormap_set(ColormapSet.RGB)

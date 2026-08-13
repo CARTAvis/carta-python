@@ -103,6 +103,7 @@ class Layer(BasePathMixin):
         try:
             name = self.file_name
             colormap = self.colormap
+            inverted = self.inverted
             alpha = self.alpha
         except CartaScriptingException:
             return (
@@ -113,7 +114,8 @@ class Layer(BasePathMixin):
         return (
             f"{cls}(image_view_order={order}, color_blending_id={cb_id}, "
             f"layer_id={self.layer_id}, file_name={name!r}, "
-            f"colormap={colormap!r}, alpha={alpha!r})"
+            f"colormap={colormap!r}, inverted={inverted!r}, "
+            f"alpha={alpha!r})"
         )
 
     @property
@@ -148,6 +150,17 @@ class Layer(BasePathMixin):
             The colormap name.
         """
         return self.get_value("renderConfig.colorMap")
+
+    @property
+    def inverted(self):
+        """Whether the layer's colormap is inverted.
+
+        Returns
+        -------
+        boolean
+            Whether the colormap is inverted.
+        """
+        return self.get_value("renderConfig.isInverted")
 
     @property
     def alpha(self):
