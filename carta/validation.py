@@ -910,7 +910,7 @@ class Evaluate(Parameter):
 def validate(*vargs):
     """The function which returns the decorator used to validate method parameters.
 
-    It is assumed that the function to be decorated is an object method and the first parameter is ``self``; this parameter is therefore ignored by the decorator. The remaining positional parameters are validated in order using the provided descriptors. The descriptors are also combined pairwise with the parameter names in the signature of the original function to create a dictionary for validating keyword parameters.
+    It is assumed that the function to be decorated is an object method and the first parameter is ``self``; this parameter is therefore ignored by the decorator. The remaining positional and keyword-only parameters are validated in order using the provided descriptors. The descriptors are also combined pairwise with the parameter names in the signature of the original function to create a dictionary for validating keyword parameters.
 
     Functions with ``*args`` or ``**kwargs`` are not currently supported: use iterables and explicit keyword parameters instead.
 
@@ -932,7 +932,9 @@ def validate(*vargs):
     """
 
     def decorator(func):
-        kwvargs = {k: v for (k, v) in zip(inspect.getfullargspec(func).args[1:], vargs)}
+        spec = inspect.getfullargspec(func)
+        parameter_names = spec.args[1:] + spec.kwonlyargs
+        kwvargs = {k: v for (k, v) in zip(parameter_names, vargs)}
         STRIP_OBJ = re.compile(":obj:`(.*)`")
         STRIP_CODE = re.compile("``(.*)``")
         PRESERVE = re.compile("(:obj:`.+?`|``.+?``)")
