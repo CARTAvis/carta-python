@@ -162,6 +162,69 @@ def test_image_list_empty(session, get_value):
     )
 
 
+def test_images_uses_frame_list(session, get_value):
+    get_value.side_effect = [2, 10, 20]
+
+    images = session.images()
+
+    assert [image.file_id for image in images] == [10, 20]
+    assert get_value.call_args_list == [
+        call("frames.length"),
+        call("frames[0]", return_path="frameInfo.fileId"),
+        call("frames[1]", return_path="frameInfo.fileId"),
+    ]
+
+
+def test_images_uses_frame_map_for_explicit_ids(session, mocker):
+    image_by_id = mocker.patch.object(session, "image_by_id")
+    image_by_id.side_effect = [object(), object()]
+
+    images = session.images(file_ids=[10, 20])
+
+    assert len(images) == 2
+    assert image_by_id.call_args_list == [
+        call(file_id=10),
+        call(file_id=20),
+    ]
+
+
+def test_color_blendings_uses_color_blending_list(session, get_value):
+    get_value.side_effect = [2, 3, 7]
+
+    color_blendings = session.color_blendings()
+
+    assert [
+        color_blending.color_blending_id
+        for color_blending in color_blendings
+    ] == [3, 7]
+    assert get_value.call_args_list == [
+        call("imageViewConfigStore.colorBlendingImages.length"),
+        call(
+            "imageViewConfigStore.colorBlendingImages[0]",
+            return_path="id",
+        ),
+        call(
+            "imageViewConfigStore.colorBlendingImages[1]",
+            return_path="id",
+        ),
+    ]
+
+
+def test_color_blendings_uses_color_blending_map_for_explicit_ids(
+    session, mocker
+):
+    image_by_id = mocker.patch.object(session, "image_by_id")
+    image_by_id.side_effect = [object(), object()]
+
+    color_blendings = session.color_blendings([3, 7])
+
+    assert len(color_blendings) == 2
+    assert image_by_id.call_args_list == [
+        call(color_blending_id=3),
+        call(color_blending_id=7),
+    ]
+
+
 def test_find_image_view_order_single_round_trip(session, call_action):
     call_action.side_effect = [2, 1]
 

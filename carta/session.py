@@ -588,6 +588,72 @@ class Session:
                 )
         return result
 
+    def _image_list(self, path, image_class, return_path):
+        count = self.get_value(f"{path}.length")
+        return [
+            image_class(
+                self,
+                self.get_value(
+                    f"{path}[{index}]",
+                    return_path=return_path,
+                ),
+            )
+            for index in range(count)
+        ]
+
+    @validate(NoneOr(IterableOf(Number.ID)))
+    def images(self, file_ids=None):
+        """Return frame-backed images from the session.
+
+        When no IDs are supplied, all open frame-backed images are returned.
+        When IDs are supplied, they are validated against the session's frame
+        map.
+
+        Parameters
+        ----------
+        file_ids : {0}
+            The file IDs of the images to return. By default, all open
+            frame-backed images are returned.
+
+        Returns
+        -------
+        list of :obj:`carta.image.Image`
+            The requested frame-backed images.
+        """
+        if file_ids is None:
+            return self._image_list("frames", Image, "frameInfo.fileId")
+        return [self.image_by_id(file_id=file_id) for file_id in file_ids]
+
+    @validate(NoneOr(IterableOf(Number.ID)))
+    def color_blendings(self, color_blending_ids=None):
+        """Return color blending images from the session.
+
+        When no IDs are supplied, all open color blending images are
+        returned. When IDs are supplied, they are validated against the
+        session's color blending map.
+
+        Parameters
+        ----------
+        color_blending_ids : {0}
+            The IDs of the color blending images to return. By default, all
+            open color blending images are returned.
+
+        Returns
+        -------
+        list of :obj:`carta.color_blending.ColorBlending`
+            The requested color blending images.
+        """
+        if color_blending_ids is None:
+            return self._image_list(
+                "imageViewConfigStore.colorBlendingImages",
+                ColorBlending,
+                "id",
+            )
+        return [
+            self.image_by_id(color_blending_id=color_blending_id)
+            for color_blending_id in color_blending_ids
+        ]
+
     def _find_image_view_order(self, image_type, stable_id):
         """Return the image-view order of an item identified by a stable id.
 
