@@ -162,6 +162,27 @@ def test_layer_delete(layer, mocker):
     delete_layer.assert_called_once_with(layer.layer_id)
 
 
+def test_layer_set_image(layer, image, mocker):
+    set_layer_image = mocker.patch.object(
+        layer.color_blending, "set_layer_image"
+    )
+
+    layer.set_image(image)
+
+    set_layer_image.assert_called_once_with(layer.layer_id, image)
+
+
+def test_layer_set_image_rejects_invalid_image(layer, mocker):
+    set_layer_image = mocker.patch.object(
+        layer.color_blending, "set_layer_image"
+    )
+
+    with pytest.raises(CartaValidationFailed):
+        layer.set_image(object())
+
+    set_layer_image.assert_not_called()
+
+
 def test_layer_image_view_order(session, color_blending, layer_property, mocker):
     find = mocker.patch.object(session, "_find_image_view_order", return_value=7)
     layer_property("file_id", 42)
@@ -417,6 +438,17 @@ def test_color_blending_set_layer_image(
     cb_call_action.assert_called_with(
         "setSelectedFrame", expected_param, image._frame
     )
+
+
+def test_color_blending_set_base_layer_image(color_blending, cb_call_action, image, mocker):
+    set_spatial_matching = mocker.patch.object(image, "set_spatial_matching")
+    make_spatial_reference = mocker.patch.object(image, "make_spatial_reference")
+
+    color_blending.set_layer_image(0, image)
+
+    set_spatial_matching.assert_called_once_with(True)
+    make_spatial_reference.assert_called_once_with()
+    cb_call_action.assert_not_called()
 
 
 def test_color_blending_set_center(color_blending, mocker):

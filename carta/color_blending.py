@@ -164,6 +164,17 @@ class Layer(BasePathMixin):
         """Delete this layer from its parent color blending."""
         self.color_blending.delete_layer(self.layer_id)
 
+    @validate(InstanceOf(Image))
+    def set_image(self, image):
+        """Set the image for this layer.
+
+        Parameters
+        ----------
+        image : {0}
+            The image to set.
+        """
+        self.color_blending.set_layer_image(self.layer_id, image)
+
     @validate(Number(0, 1))
     def set_alpha(self, alpha):
         """Set the alpha value for the layer in the color blending.
@@ -344,18 +355,23 @@ class ColorBlending(ImageBase, BasePathMixin):
             return
         self.call_action("deleteSelectedFrame", layer_index - 1)
 
-    @validate(Number(1, None), InstanceOf(Image))
+    @validate(Number(0, None), InstanceOf(Image))
     def set_layer_image(self, layer_index, image):
         """Set the image for a layer at a specified index in the color blending.
 
         Parameters
         ----------
         layer_index : {0}
-            The layer index. The base layer (layer_index = 0) cannot
-            be set.
+            The layer index. If the base layer (layer_index = 0) is selected,
+            ``image`` becomes the new spatial reference. Otherwise, the
+            specified secondary layer is replaced.
         image : {1}
             The image to set.
         """
+        if layer_index == 0:
+            image.set_spatial_matching(True)
+            image.make_spatial_reference()
+            return
         self.call_action("setSelectedFrame", layer_index - 1, image._frame)
 
     # NAVIGATION
