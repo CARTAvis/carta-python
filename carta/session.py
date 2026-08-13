@@ -10,9 +10,9 @@ import base64
 import posixpath
 
 from .image import Image
-from .image_base import ImageBase
+from .view import View
 from .color_blending import ColorBlending
-from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
+from .constants import PanelMode, GridMode, ComplexComponent, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
 from .util import Macro, split_action_path, CartaActionFailed, CartaBadResponse, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaValidationFailed, cached, Point as Pt
@@ -534,8 +534,8 @@ class Session:
         output_directory = self.pwd()
         output_hdu = ""
         command = "appendConcatFile" if append else "openConcatFile"
-        file_id = self.call_action(command, stokes_images, output_directory, output_hdu)
-        return Image(self, file_id)
+        image_id = self.call_action(command, stokes_images, output_directory, output_hdu)
+        return Image(self, image_id)
 
     @validate(IterableOf(String(), min_size=1))
     def open_as_color_blending(self, files):
@@ -564,34 +564,45 @@ class Session:
         cb = self.create_color_blending()
         return cb
 
-    # IMAGE-VIEW ITEMS
+    # VIEWS
 
-    def image_list(self):
-        """Return the list of currently open image-view items.
+    @validate(NoneOr(IterableOf(Number.ID)))
+    def views(self, view_indices=None):
+        """Return all or selected currently open views.
+
+        When no indices are supplied, all open views are returned. When
+        indices are supplied, the views at those positions are returned in
+        the requested order.
 
         Returns
         -------
-        list of :obj:`carta.image_base.ImageBase`
-            The heterogeneous list of image-view items open in this session.
+        list of :obj:`carta.view.View`
+            The requested heterogeneous views open in this session.
         """
+        if view_indices is not None:
+            return [
+                self.view_by_id(view_index=view_index)
+                for view_index in view_indices
+            ]
+
         summary = self.get_value("imageViewConfigStore.imageListSummary")
         result = []
-        for order, entry in enumerate(summary):
+        for index, entry in enumerate(summary):
             try:
                 result.append(
-                    ImageBase.image_class(entry["type"])(self, entry["id"])
+                    View.view_class(entry["type"])(self, entry["id"])
                 )
             except (CartaValidationFailed, NotImplementedError) as e:
                 print(
-                    f"Skipping unsupported image-view entry at order {order}: "
+                    f"Skipping unsupported view entry at index {index}: "
                     f"{entry!r}: {e}"
                 )
         return result
 
-    def _image_list(self, path, image_class, return_path):
+    def _view_list(self, path, view_class, return_path):
         count = self.get_value(f"{path}.length")
         return [
-            image_class(
+            view_class(
                 self,
                 self.get_value(
                     f"{path}[{index}]",
@@ -602,27 +613,25 @@ class Session:
         ]
 
     @validate(NoneOr(IterableOf(Number.ID)))
-    def images(self, file_ids=None):
-        """Return frame-backed images from the session.
+    def images(self, image_ids=None):
+        """Return images from the session.
 
-        When no IDs are supplied, all open frame-backed images are returned.
-        When IDs are supplied, they are validated against the session's frame
-        map.
+        When no IDs are supplied, all open images are returned. When IDs are
+        supplied, they are validated against the session's image map.
 
         Parameters
         ----------
-        file_ids : {0}
-            The file IDs of the images to return. By default, all open
-            frame-backed images are returned.
+        image_ids : {0}
+            The image IDs to return. By default, all open images are returned.
 
         Returns
         -------
         list of :obj:`carta.image.Image`
-            The requested frame-backed images.
+            The requested images.
         """
-        if file_ids is None:
-            return self._image_list("frames", Image, "frameInfo.fileId")
-        return [self.image_by_id(file_id=file_id) for file_id in file_ids]
+        if image_ids is None:
+            return self._view_list("frames", Image, "frameInfo.fileId")
+        return [self.view_by_id(image_id=image_id) for image_id in image_ids]
 
     @validate(NoneOr(IterableOf(Number.ID)))
     def color_blendings(self, color_blending_ids=None):
@@ -644,74 +653,74 @@ class Session:
             The requested color blending images.
         """
         if color_blending_ids is None:
-            return self._image_list(
+            return self._view_list(
                 "imageViewConfigStore.colorBlendingImages",
                 ColorBlending,
                 "id",
             )
         return [
-            self.image_by_id(color_blending_id=color_blending_id)
+            self.view_by_id(color_blending_id=color_blending_id)
             for color_blending_id in color_blending_ids
         ]
 
-    def _find_image_view_order(self, image_type, stable_id):
-        """Return the image-view order of an item identified by a stable id.
+    def _find_view_index(self, view_type, stable_id):
+        """Return the view index of an item identified by a stable id.
 
         Parameters
         ----------
-        image_type : :obj:`carta.constants.ImageType`
-            The image-view item type.
+        view_type : :obj:`carta.constants.ImageType`
+            The view type.
         stable_id : integer
-            The stable id for that type (``file_id`` for frames,
+            The stable id for that type (``image_id`` for images,
             ``color_blending_id`` for color blendings).
 
         Returns
         -------
         integer
-            The image-view order of the matching entry.
+            The view index of the matching entry.
 
         Raises
         ------
         RuntimeError
-            If no matching entry exists in the image list.
+            If no matching entry exists in the views.
         """
-        image_view_order = self.call_action(
+        view_index = self.call_action(
             "imageViewConfigStore.getImageListIndex",
-            image_type,
+            view_type,
             stable_id,
             response_expected=True,
         )
-        if image_view_order == -1:
+        if view_index == -1:
             raise RuntimeError(
-                f"Could not find an image of type {image_type!r} with id "
-                f"{stable_id} in the image list."
+                f"Could not find a view of type {view_type!r} with id "
+                f"{stable_id} in the views."
             )
-        return image_view_order
+        return view_index
 
     @validate(NoneOr(Number.ID), NoneOr(Number.ID), NoneOr(Number.ID))
-    def image_by_id(
-        self, *, image_view_order=None, file_id=None, color_blending_id=None
+    def view_by_id(
+        self, *, view_index=None, image_id=None, color_blending_id=None
     ):
-        """Return the image-view item identified by exactly one of the supported identifiers.
+        """Return the view identified by exactly one supported identifier.
 
         Parameters
         ----------
-        image_view_order : integer, optional
-            The index of the item in the image list.
+        view_index : integer, optional
+            The index of the item in the views.
             Returns whichever concrete wrapper (:obj:`carta.image.Image`
             or :obj:`carta.color_blending.ColorBlending`) matches the
             entry type at that position. Raises :obj:`NotImplementedError`
             for any future entry type that is not yet wrapped on the
             Python side.
-        file_id : integer, optional
-            The stable frontend file id of a normal frame-backed image.
+        image_id : integer, optional
+            The stable id of an image.
         color_blending_id : integer, optional
             The stable id of a color blending.
 
         Returns
         -------
-        :obj:`carta.image_base.ImageBase`
-            The matching image-view item.
+        :obj:`carta.view.View`
+            The matching view.
 
         Raises
         ------
@@ -720,14 +729,14 @@ class Session:
             The error message lists the three accepted keyword names so
             the API is discoverable from the exception alone.
         IndexError
-            If ``image_view_order`` is out of range.
+            If ``view_index`` is out of range.
         RuntimeError
-            If no matching entry exists for the given ``file_id`` or
+            If no matching entry exists for the given ``image_id`` or
             ``color_blending_id``. There is no cross-type fallback.
         """
         provided = {
-            "image_view_order": image_view_order,
-            "file_id": file_id,
+            "view_index": view_index,
+            "image_id": image_id,
             "color_blending_id": color_blending_id,
         }
         provided_values = {
@@ -737,35 +746,34 @@ class Session:
         }
         if len(provided_values) != 1:
             raise ValueError(
-                "image_by_id requires exactly one of the keyword arguments "
-                "`image_view_order`, `file_id`, or `color_blending_id`; "
+                "view_by_id requires exactly one of the keyword arguments "
+                "`view_index`, `image_id`, or `color_blending_id`; "
                 f"got {len(provided_values)} with values {provided_values!r}."
             )
 
-        if image_view_order is not None:
+        if view_index is not None:
             try:
                 entry = self.get_value(
                     "imageViewConfigStore.imageListSummary"
-                    f"[{image_view_order}]"
+                    f"[{view_index}]"
                 )
             except (CartaActionFailed, CartaBadResponse) as e:
                 raise IndexError(
-                    f"image_view_order {image_view_order} is out of range "
-                    "for the image list."
+                    f"view_index {view_index} is out of range for the views."
                 ) from e
-            return ImageBase.image_class(entry["type"])(self, entry["id"])
+            return View.view_class(entry["type"])(self, entry["id"])
 
-        if file_id is not None:
+        if image_id is not None:
             try:
-                resolved_file_id = self.get_value(
-                    f"frameMap[{file_id}]",
+                resolved_image_id = self.get_value(
+                    f"frameMap[{image_id}]",
                     return_path="frameInfo.fileId",
                 )
             except (CartaActionFailed, CartaBadResponse) as e:
                 raise RuntimeError(
-                    f"No frame-backed image with file_id={file_id} is open."
+                    f"No image with image_id={image_id} is open."
                 ) from e
-            return Image(self, resolved_file_id)
+            return Image(self, resolved_image_id)
 
         # color_blending_id is not None
         try:
@@ -781,25 +789,24 @@ class Session:
             ) from e
         return ColorBlending(self, resolved_color_blending_id)
 
-    def active_image(self):
-        """Return the currently active image-view item.
+    def active_view(self):
+        """Return the currently active view.
 
-        This is the frame-backed image or color blending image that is
-        currently active in the viewer.
+        This is the image or color blending image that is currently active.
 
         Returns
         -------
         :obj:`carta.image.Image` or :obj:`carta.color_blending.ColorBlending`
-            The currently active image-view item.
+            The currently active view.
 
         Raises
         ------
         NotImplementedError
-            If the active image is of a type that is not yet wrapped on
+            If the active view is of a type that is not yet wrapped on
             the Python side.
         """
         active = self.get_value("activeImage")
-        return ImageBase.image_class(active["type"])(
+        return View.view_class(active["type"])(
             self, active["store"]["id"]
         )
 
@@ -807,7 +814,7 @@ class Session:
 
     def create_color_blending(self):
         """Create a new color blending from the current spatial reference
-        and its currently spatially matched frames.
+        and its currently spatially matched images.
 
         Returns
         -------
@@ -817,12 +824,12 @@ class Session:
         Raises
         ------
         CartaActionFailed
-            If no frames are open or the frontend could not create the
+            If no images are open or the frontend could not create the
             color blending image.
         """
-        frame_count = self.get_value("frames.length")
-        if frame_count <= 0:
-            raise CartaActionFailed("No frames are open.")
+        image_count = self.get_value("frames.length")
+        if image_count <= 0:
+            raise CartaActionFailed("No images are open.")
 
         color_blending_id = self.call_action(
             "imageViewConfigStore.createColorBlending",
@@ -913,7 +920,7 @@ class Session:
 
     @validate(NoneOr(Color()))
     def rendered_view_url(self, background_color=None):
-        """Get a data URL of the rendered active image.
+        """Get a data URL of the rendered active view.
 
         Parameters
         ----------
@@ -934,7 +941,7 @@ class Session:
 
     @validate(NoneOr(Color()))
     def rendered_view_data(self, background_color=None):
-        """Get the decoded data of the rendered active image.
+        """Get the decoded data of the rendered active view.
 
         Parameters
         ----------
@@ -953,7 +960,7 @@ class Session:
 
     @validate(String(), NoneOr(Color()))
     def save_rendered_view(self, file_name, background_color=None):
-        """Save the decoded data of the rendered active image to a file.
+        """Save the decoded data of the rendered active view to a file.
 
         Parameters
         ----------

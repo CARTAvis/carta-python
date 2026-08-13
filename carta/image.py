@@ -1,11 +1,11 @@
-"""This module contains the image classes representing image-view items open in the session.
+"""This module contains the image classes representing images open in the session.
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
 
 
 from .constants import ImageType, Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
-from .image_base import ImageBase
+from .view import View
 from .util import Macro, cached, BasePathMixin, CartaScriptingException, Point as Pt
 from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr, IterableOf, Point
@@ -17,8 +17,8 @@ from .wcs_overlay import ImageWCSOverlay
 from .region import RegionSet
 
 
-class Image(ImageBase, BasePathMixin):
-    """This object corresponds to a frame-backed image open in a CARTA frontend session.
+class Image(View, BasePathMixin):
+    """This object corresponds to an image open in a CARTA frontend session.
 
     This class should not be instantiated directly. Instead, use the session object's methods for opening new images or retrieving existing images.
 
@@ -26,15 +26,15 @@ class Image(ImageBase, BasePathMixin):
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this image.
-    file_id : integer
-        The frontend file ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
+    image_id : integer
+        The frontend image ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
 
     Attributes
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this image.
-    file_id : integer
-        The frontend file ID identifying this image within the session.
+    image_id : integer
+        The frontend image ID identifying this image within the session.
     raster : :obj:`carta.raster.Raster`
         Sub-object with functions related to the raster image.
     contours : :obj:`carta.contours.Contours`
@@ -47,13 +47,13 @@ class Image(ImageBase, BasePathMixin):
         Functions for manipulating regions associated with this image.
     """
 
-    IMAGE_TYPE = ImageType.FRAME
+    VIEW_TYPE = ImageType.FRAME
 
-    def __init__(self, session, file_id):
+    def __init__(self, session, image_id):
         super().__init__(session)
-        self.file_id = file_id
+        self.image_id = image_id
 
-        self._base_path = f"frameMap[{file_id}]"
+        self._base_path = f"frameMap[{image_id}]"
         self._frame = Macro("", self._base_path)
 
         # Sub-objects grouping related functions
@@ -65,7 +65,7 @@ class Image(ImageBase, BasePathMixin):
 
     @property
     def _stable_id(self):
-        return self.file_id
+        return self.image_id
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
@@ -105,8 +105,8 @@ class Image(ImageBase, BasePathMixin):
             params.append(make_active)
         params.append(update_directory)
 
-        file_id = session.call_action(command, *params, return_path="frameInfo.fileId")
-        return cls(session, file_id)
+        image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
+        return cls(session, image_id)
 
     def __repr__(self):
         """A human-readable representation of this image object."""
@@ -115,16 +115,16 @@ class Image(ImageBase, BasePathMixin):
         name_part = f", file_name={cached_name!r}" if cached_name is not None else ""
 
         try:
-            order = self.image_view_order
+            index = self.view_index
         except (CartaScriptingException, RuntimeError):
-            return f"[Closed] {cls}(image_view_order=None{name_part}, file_id={self.file_id})"
+            return f"[Closed] {cls}(view_index=None{name_part}, image_id={self.image_id})"
 
         try:
             name = self.file_name
         except CartaScriptingException:
-            return f"[Closed] {cls}(image_view_order={order}{name_part}, file_id={self.file_id})"
+            return f"[Closed] {cls}(view_index={index}{name_part}, image_id={self.image_id})"
 
-        return f"{cls}(image_view_order={order}, file_name={name!r}, file_id={self.file_id})"
+        return f"{cls}(view_index={index}, file_name={name!r}, image_id={self.image_id})"
 
     # METADATA
 

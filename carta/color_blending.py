@@ -2,7 +2,7 @@
 
 from .constants import Colormap, ColormapSet, ImageType, SpatialAxis
 from .image import Image
-from .image_base import ImageBase
+from .view import View
 from .util import BasePathMixin, CartaScriptingException, Macro
 from .validation import (
     Boolean,
@@ -65,27 +65,25 @@ class Layer(BasePathMixin):
         return [cls(color_blending, layer_id) for layer_id in layer_ids]
 
     @property
-    def image_view_order(self):
-        """The image-view order of this layer's underlying frame.
+    def view_index(self):
+        """The view index of this layer's underlying image.
 
-        This is the position of the underlying frame in the session's image
-        list. A layer does not occupy its own position in the image list;
-        its parent color blending does (see
-        :obj:`carta.color_blending.ColorBlending.image_view_order`).
+        This is the position of the underlying image in the session's views.
+        A layer does not occupy its own position in the views; its parent
+        color blending does (see
+        :obj:`carta.color_blending.ColorBlending.view_index`).
 
         Returns
         -------
         integer
-            The image-view order of the underlying frame.
+            The view index of the underlying image.
 
         Raises
         ------
         RuntimeError
-            If no matching frame entry exists in the image list.
+            If no matching image entry exists in the views.
         """
-        return self.session._find_image_view_order(
-            ImageType.FRAME, self.file_id
-        )
+        return self.session._find_view_index(ImageType.FRAME, self.image_id)
 
     def __repr__(self):
         """A human-readable representation of this layer."""
@@ -93,10 +91,10 @@ class Layer(BasePathMixin):
         cb_id = self.color_blending.color_blending_id
 
         try:
-            order = self.image_view_order
+            index = self.view_index
         except (CartaScriptingException, RuntimeError):
             return (
-                f"[Closed] {cls}(image_view_order=None, "
+                f"[Closed] {cls}(view_index=None, "
                 f"color_blending_id={cb_id}, layer_id={self.layer_id})"
             )
 
@@ -107,12 +105,12 @@ class Layer(BasePathMixin):
             alpha = self.alpha
         except CartaScriptingException:
             return (
-                f"[Closed] {cls}(image_view_order={order}, "
+                f"[Closed] {cls}(view_index={index}, "
                 f"color_blending_id={cb_id}, layer_id={self.layer_id})"
             )
 
         return (
-            f"{cls}(image_view_order={order}, color_blending_id={cb_id}, "
+            f"{cls}(view_index={index}, color_blending_id={cb_id}, "
             f"layer_id={self.layer_id}, file_name={name!r}, "
             f"colormap={colormap!r}, inverted={inverted!r}, "
             f"alpha={alpha!r})"
@@ -130,13 +128,13 @@ class Layer(BasePathMixin):
         return self.get_value("frameInfo.fileInfo.name")
 
     @property
-    def file_id(self):
-        """The frontend file id of the layer's underlying image.
+    def image_id(self):
+        """The frontend image id of the layer's underlying image.
 
         Returns
         -------
         integer
-            The file id.
+            The image id.
         """
         return self.get_value("frameInfo.fileId")
 
@@ -214,7 +212,7 @@ class Layer(BasePathMixin):
         self.call_action("renderConfig.setInverted", invert)
 
 
-class ColorBlending(ImageBase, BasePathMixin):
+class ColorBlending(View, BasePathMixin):
     """This object represents a color blending image in a session.
 
     Parameters
@@ -232,7 +230,7 @@ class ColorBlending(ImageBase, BasePathMixin):
         The id of the backing ``ColorBlendingStore`` on the frontend.
     """
 
-    IMAGE_TYPE = ImageType.COLOR_BLENDING
+    VIEW_TYPE = ImageType.COLOR_BLENDING
 
     def __init__(self, session, color_blending_id):
         super().__init__(session)
@@ -251,10 +249,10 @@ class ColorBlending(ImageBase, BasePathMixin):
         cls = type(self).__name__
 
         try:
-            order = self.image_view_order
+            index = self.view_index
         except (CartaScriptingException, RuntimeError):
             return (
-                f"[Closed] {cls}(image_view_order=None, "
+                f"[Closed] {cls}(view_index=None, "
                 f"color_blending_id={self.color_blending_id})"
             )
 
@@ -262,12 +260,12 @@ class ColorBlending(ImageBase, BasePathMixin):
             name = self.file_name
         except CartaScriptingException:
             return (
-                f"[Closed] {cls}(image_view_order={order}, "
+                f"[Closed] {cls}(view_index={index}, "
                 f"color_blending_id={self.color_blending_id})"
             )
 
         return (
-            f"{cls}(image_view_order={order}, "
+            f"{cls}(view_index={index}, "
             f"color_blending_id={self.color_blending_id}, "
             f"file_name={name!r})"
         )
@@ -365,7 +363,7 @@ class ColorBlending(ImageBase, BasePathMixin):
                 self.close()
                 return
 
-            Image(self.session, layers[1].file_id).make_spatial_reference()
+            Image(self.session, layers[1].image_id).make_spatial_reference()
             return
         self.call_action("deleteSelectedFrame", layer_index - 1)
 

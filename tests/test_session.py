@@ -117,57 +117,79 @@ def test_cd(session, method, call_action):
     call_action.assert_called_with("fileBrowserStore.saveStartingDirectory", "/resolved/file/path")
 
 
-# IMAGE LIST / GET_IMAGE / COLOR-BLENDING HELPERS
+# VIEWS / IMAGES / COLOR-BLENDING HELPERS
 
 
-def test_image_list_heterogeneous(session, get_value):
+def test_views_heterogeneous(session, get_value):
     get_value.return_value = [
         {"type": ImageType.FRAME, "id": 10},
         {"type": ImageType.COLOR_BLENDING, "id": 3},
         {"type": ImageType.FRAME, "id": 20},
     ]
 
-    images = session.image_list()
+    views = session.views()
 
     get_value.assert_called_once_with(
         "imageViewConfigStore.imageListSummary"
     )
-    assert len(images) == 3
-    assert isinstance(images[0], Image) and images[0].file_id == 10
-    assert isinstance(images[1], ColorBlending) and images[1].color_blending_id == 3
-    assert isinstance(images[2], Image) and images[2].file_id == 20
+    assert len(views) == 3
+    assert isinstance(views[0], Image) and views[0].image_id == 10
+    assert isinstance(views[1], ColorBlending) and views[1].color_blending_id == 3
+    assert isinstance(views[2], Image) and views[2].image_id == 20
 
 
-def test_image_list_skips_unsupported_image_type(session, get_value, capsys):
+def test_views_skips_unsupported_view_type(session, get_value, capsys):
     get_value.return_value = [
         {"type": ImageType.FRAME, "id": 10},
         {"type": 99, "id": 11},
         {"type": ImageType.FRAME, "id": 20},
     ]
 
-    images = session.image_list()
+    views = session.views()
 
-    assert [image.file_id for image in images] == [10, 20]
+    assert [view.image_id for view in views] == [10, 20]
     assert (
-        "Skipping unsupported image-view entry at order 1"
+        "Skipping unsupported view entry at index 1"
         in capsys.readouterr().out
     )
 
 
-def test_image_list_empty(session, get_value):
+def test_views_empty(session, get_value):
     get_value.return_value = []
-    assert session.image_list() == []
+    assert session.views() == []
     get_value.assert_called_once_with(
         "imageViewConfigStore.imageListSummary"
     )
 
 
-def test_images_uses_frame_list(session, get_value):
+def test_views_uses_explicit_indices(session, mocker):
+    view_by_id = mocker.patch.object(session, "view_by_id")
+    view_by_id.side_effect = ["view-2", "view-0", "view-2-again"]
+
+    views = session.views(view_indices=[2, 0, 2])
+
+    assert views == ["view-2", "view-0", "view-2-again"]
+    assert view_by_id.call_args_list == [
+        call(view_index=2),
+        call(view_index=0),
+        call(view_index=2),
+    ]
+
+
+@pytest.mark.parametrize("view_indices", [[-1], [1.5], ["1"]])
+def test_views_rejects_invalid_indices(session, get_value, view_indices):
+    with pytest.raises(CartaValidationFailed):
+        session.views(view_indices=view_indices)
+
+    get_value.assert_not_called()
+
+
+def test_images_uses_frontend_image_array(session, get_value):
     get_value.side_effect = [2, 10, 20]
 
     images = session.images()
 
-    assert [image.file_id for image in images] == [10, 20]
+    assert [image.image_id for image in images] == [10, 20]
     assert get_value.call_args_list == [
         call("frames.length"),
         call("frames[0]", return_path="frameInfo.fileId"),
@@ -175,16 +197,16 @@ def test_images_uses_frame_list(session, get_value):
     ]
 
 
-def test_images_uses_frame_map_for_explicit_ids(session, mocker):
-    image_by_id = mocker.patch.object(session, "image_by_id")
-    image_by_id.side_effect = [object(), object()]
+def test_images_uses_image_map_for_explicit_ids(session, mocker):
+    view_by_id = mocker.patch.object(session, "view_by_id")
+    view_by_id.side_effect = [object(), object()]
 
-    images = session.images(file_ids=[10, 20])
+    images = session.images(image_ids=[10, 20])
 
     assert len(images) == 2
-    assert image_by_id.call_args_list == [
-        call(file_id=10),
-        call(file_id=20),
+    assert view_by_id.call_args_list == [
+        call(image_id=10),
+        call(image_id=20),
     ]
 
 
@@ -213,23 +235,23 @@ def test_color_blendings_uses_color_blending_list(session, get_value):
 def test_color_blendings_uses_color_blending_map_for_explicit_ids(
     session, mocker
 ):
-    image_by_id = mocker.patch.object(session, "image_by_id")
-    image_by_id.side_effect = [object(), object()]
+    view_by_id = mocker.patch.object(session, "view_by_id")
+    view_by_id.side_effect = [object(), object()]
 
     color_blendings = session.color_blendings([3, 7])
 
     assert len(color_blendings) == 2
-    assert image_by_id.call_args_list == [
+    assert view_by_id.call_args_list == [
         call(color_blending_id=3),
         call(color_blending_id=7),
     ]
 
 
-def test_find_image_view_order_single_round_trip(session, call_action):
+def test_find_view_index_single_round_trip(session, call_action):
     call_action.side_effect = [2, 1]
 
-    assert session._find_image_view_order(ImageType.FRAME, 3) == 2
-    assert session._find_image_view_order(ImageType.COLOR_BLENDING, 7) == 1
+    assert session._find_view_index(ImageType.FRAME, 3) == 2
+    assert session._find_view_index(ImageType.COLOR_BLENDING, 7) == 1
     assert call_action.call_args_list == [
         call(
             "imageViewConfigStore.getImageListIndex",
@@ -246,45 +268,45 @@ def test_find_image_view_order_single_round_trip(session, call_action):
     ]
 
 
-def test_find_image_view_order_raises_when_missing(session, call_action):
+def test_find_view_index_raises_when_missing(session, call_action):
     call_action.return_value = -1
     with pytest.raises(RuntimeError):
-        session._find_image_view_order(ImageType.FRAME, 99)
+        session._find_view_index(ImageType.FRAME, 99)
 
 
-# session.image_by_id
+# session.view_by_id
 
 
-def test_image_by_id_requires_exactly_one_keyword(session, get_value):
+def test_view_by_id_requires_exactly_one_keyword(session, get_value):
     # Zero keywords -> ValueError with all three names listed.
     with pytest.raises(ValueError) as e:
-        session.image_by_id()
-    for name in ("image_view_order", "file_id", "color_blending_id"):
+        session.view_by_id()
+    for name in ("view_index", "image_id", "color_blending_id"):
         assert name in str(e.value)
     assert "got 0 with values {}" in str(e.value)
     # Multiple keywords -> ValueError.
     with pytest.raises(ValueError) as e:
-        session.image_by_id(file_id=1, color_blending_id=2)
-    assert "'file_id': 1" in str(e.value)
+        session.view_by_id(image_id=1, color_blending_id=2)
+    assert "'image_id': 1" in str(e.value)
     assert "'color_blending_id': 2" in str(e.value)
 
 
-def test_image_by_id_rejects_positional(session):
+def test_view_by_id_rejects_positional(session):
     with pytest.raises(TypeError):
-        session.image_by_id(0)
+        session.view_by_id(0)
 
 
 @pytest.mark.parametrize("keyword", [
-    "image_view_order",
-    "file_id",
+    "view_index",
+    "image_id",
     "color_blending_id",
 ])
 @pytest.mark.parametrize("value", [-1, 1.5, "1"])
-def test_image_by_id_rejects_invalid_identifier(
+def test_view_by_id_rejects_invalid_identifier(
     session, get_value, keyword, value
 ):
     with pytest.raises(CartaValidationFailed):
-        session.image_by_id(**{keyword: value})
+        session.view_by_id(**{keyword: value})
 
     get_value.assert_not_called()
 
@@ -300,64 +322,64 @@ def test_image_by_id_rejects_invalid_identifier(
         ),
     ],
 )
-def test_image_by_id_by_image_view_order(
+def test_view_by_id_by_view_index(
     session, get_value, entry, expected_type, expected_id
 ):
     get_value.return_value = entry
 
-    img = session.image_by_id(image_view_order=0)
+    img = session.view_by_id(view_index=0)
     assert isinstance(img, expected_type)
     assert (
-        img.file_id if expected_type is Image else img.color_blending_id
+        img.image_id if expected_type is Image else img.color_blending_id
     ) == expected_id
     get_value.assert_called_once_with(
         "imageViewConfigStore.imageListSummary[0]"
     )
 
 
-def test_image_by_id_by_image_view_order_out_of_range(session, get_value):
+def test_view_by_id_by_view_index_out_of_range(session, get_value):
     get_value.side_effect = CartaBadResponse("undefined")
 
     with pytest.raises(IndexError):
-        session.image_by_id(image_view_order=99)
+        session.view_by_id(view_index=99)
 
     get_value.assert_called_once_with(
         "imageViewConfigStore.imageListSummary[99]"
     )
 
 
-def test_image_by_id_by_image_view_order_raises_on_unsupported_type(
+def test_view_by_id_by_view_index_raises_on_unsupported_type(
     session, get_value
 ):
     get_value.return_value = {"type": ImageType.PV_PREVIEW, "id": -2}
 
     with pytest.raises(NotImplementedError):
-        session.image_by_id(image_view_order=0)
+        session.view_by_id(view_index=0)
 
 
-def test_image_by_id_by_file_id(session, get_value):
+def test_view_by_id_by_image_id(session, get_value):
     get_value.return_value = 20
 
-    img = session.image_by_id(file_id=20)
+    img = session.view_by_id(image_id=20)
     assert isinstance(img, Image)
-    assert img.file_id == 20
+    assert img.image_id == 20
     get_value.assert_called_once_with(
         "frameMap[20]",
         return_path="frameInfo.fileId",
     )
 
 
-def test_image_by_id_by_file_id_no_cross_type_fallback(session, get_value):
+def test_view_by_id_by_image_id_no_cross_type_fallback(session, get_value):
     get_value.side_effect = CartaBadResponse("undefined")
 
     with pytest.raises(RuntimeError):
-        session.image_by_id(file_id=7)
+        session.view_by_id(image_id=7)
 
 
-def test_image_by_id_by_color_blending_id(session, get_value):
+def test_view_by_id_by_color_blending_id(session, get_value):
     get_value.return_value = 7
 
-    cb = session.image_by_id(color_blending_id=7)
+    cb = session.view_by_id(color_blending_id=7)
     assert isinstance(cb, ColorBlending)
     assert cb.color_blending_id == 7
     get_value.assert_called_once_with(
@@ -366,25 +388,25 @@ def test_image_by_id_by_color_blending_id(session, get_value):
     )
 
 
-def test_image_by_id_by_color_blending_id_no_cross_type_fallback(
+def test_view_by_id_by_color_blending_id_no_cross_type_fallback(
     session, get_value
 ):
     get_value.side_effect = CartaBadResponse("undefined")
 
     with pytest.raises(RuntimeError):
-        session.image_by_id(color_blending_id=10)
+        session.view_by_id(color_blending_id=10)
 
 
-def test_image_by_id_uses_targeted_frontend_lookups(session, get_value):
+def test_view_by_id_uses_targeted_frontend_lookups(session, get_value):
     get_value.side_effect = [
         {"type": ImageType.FRAME, "id": 10},
         10,
         7,
     ]
 
-    session.image_by_id(image_view_order=0)
-    session.image_by_id(file_id=10)
-    session.image_by_id(color_blending_id=7)
+    session.view_by_id(view_index=0)
+    session.view_by_id(image_id=10)
+    session.view_by_id(color_blending_id=7)
 
     assert get_value.call_args_list == [
         call(
@@ -398,28 +420,28 @@ def test_image_by_id_uses_targeted_frontend_lookups(session, get_value):
     ]
 
 
-# session.active_image
+# session.active_view
 
 
-def test_active_image_returns_image_when_frame_active(session, get_value):
+def test_active_view_returns_image_when_image_active(session, get_value):
     get_value.side_effect = [
         {"type": ImageType.FRAME, "store": {"id": 12}},
     ]
-    active = session.active_image()
+    active = session.active_view()
     assert isinstance(active, Image)
-    assert active.file_id == 12
+    assert active.image_id == 12
     assert [call.args for call in get_value.call_args_list] == [
         ("activeImage",),
     ]
 
 
-def test_active_image_returns_color_blending_when_color_blending_active(
+def test_active_view_returns_color_blending_when_color_blending_active(
     session, get_value
 ):
     get_value.side_effect = [
         {"type": ImageType.COLOR_BLENDING, "store": {"id": 3}},
     ]
-    active = session.active_image()
+    active = session.active_view()
     assert isinstance(active, ColorBlending)
     assert active.color_blending_id == 3
     assert [call.args for call in get_value.call_args_list] == [
@@ -427,12 +449,12 @@ def test_active_image_returns_color_blending_when_color_blending_active(
     ]
 
 
-def test_active_image_raises_on_unsupported_type(session, get_value):
+def test_active_view_raises_on_unsupported_type(session, get_value):
     get_value.side_effect = [
         {"type": ImageType.PV_PREVIEW, "store": {"id": -2}},
     ]
     with pytest.raises(NotImplementedError):
-        session.active_image()
+        session.active_view()
 
 # open_as_color_blending / create_color_blending
 
@@ -484,18 +506,18 @@ def test_open_as_color_blending_rejects_empty_file_list(session, mocker):
     create_color_blending.assert_not_called()
 
 
-@pytest.mark.parametrize("open_frame_count,layer_count,expected_colormap_set", [
+@pytest.mark.parametrize("open_image_count,layer_count,expected_colormap_set", [
     (1, 1, ColormapSet.RGB),
     (3, 3, ColormapSet.RGB),
     (5, 3, ColormapSet.RGB),
     (5, 4, ColormapSet.RAINBOW),
 ])
-def test_create_color_blending_calls_frontend_create_action(session, mocker, open_frame_count, layer_count, expected_colormap_set):
+def test_create_color_blending_calls_frontend_create_action(session, mocker, open_image_count, layer_count, expected_colormap_set):
     get_value = mocker.patch.object(
         session,
         "get_value",
         side_effect=[
-            open_frame_count,
+            open_image_count,
             layer_count,
         ],
     )
@@ -523,12 +545,12 @@ def test_create_color_blending_calls_frontend_create_action(session, mocker, ope
     assert result.color_blending_id == 123
 
 
-def test_create_color_blending_raises_when_no_frames_are_open(session, mocker):
+def test_create_color_blending_raises_when_no_images_are_open(session, mocker):
     get_value = mocker.patch.object(session, "get_value", return_value=0)
     call_action = mocker.patch.object(session, "call_action")
     mock_set_colormap = mocker.patch.object(ColorBlending, "set_colormap_set")
 
-    with pytest.raises(CartaActionFailed, match="No frames are open"):
+    with pytest.raises(CartaActionFailed, match="No images are open"):
         session.create_color_blending()
 
     get_value.assert_called_once_with("frames.length")
@@ -651,7 +673,7 @@ def test_open_hypercube_guess_polarization(mocker, session, call_action, method,
 
     assert type(hypercube) is Image
     assert hypercube.session == session
-    assert hypercube.file_id == 123
+    assert hypercube.image_id == 123
 
 
 @pytest.mark.parametrize("paths,expected_calls,mocked_side_effect,expected_error", [
@@ -705,7 +727,7 @@ def test_open_hypercube_explicit_polarization(mocker, session, call_action, meth
 
     assert type(hypercube) is Image
     assert hypercube.session == session
-    assert hypercube.file_id == 123
+    assert hypercube.image_id == 123
 
 
 @pytest.mark.parametrize("paths,expected_error", [

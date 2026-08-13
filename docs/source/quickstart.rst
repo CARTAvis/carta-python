@@ -189,36 +189,39 @@ Helper methods on the session object open images in the frontend and return imag
 Inspecting the list of open images
 ----------------------------------
 
-The session's image list is heterogeneous: it may contain both ordinary frame-backed images (:obj:`carta.image.Image`) and color blending images (:obj:`carta.color_blending.ColorBlending`). Its order matches the image list panel shown in the frontend, as illustrated below.
+The session's views are heterogeneous: they may contain both ordinary images (:obj:`carta.image.Image`) and color blending images (:obj:`carta.color_blending.ColorBlending`). Their order matches the views panel shown in the frontend, as illustrated below.
 
 .. figure:: images/image_list.jpg
-   :alt: CARTA frontend image list panel showing frame-backed images and a color blending entry.
+   :alt: CARTA frontend views panel showing images and a color blending entry.
    :align: center
 
-   The frontend image list panel. Each row corresponds to an item returned by :obj:`carta.session.Session.image_list`, and its position in the list is the item's ``image_view_order``.
+   The frontend views panel. Each row corresponds to an item returned by :obj:`carta.session.Session.views`, and its position in the list is the item's ``view_index``.
 
 Use :meth:`carta.session.Session.images` and
 :meth:`carta.session.Session.color_blendings` to retrieve the two concrete
-image-view types directly, optionally filtering by their stable IDs.
+view types directly, optionally filtering by their stable IDs.
 
 .. code-block:: python
 
-    # All open image-view items, in display order
-    items = session.image_list()
+    # All open views, in display order
+    items = session.views()
 
-    # Get frame-backed images or color blending images directly
+    # Select views by their current indices, preserving the requested order
+    selected = session.views(view_indices=[1, 0])
+
+    # Get images or color blending images directly
     images = session.images()
     color_blendings = session.color_blendings()
 
-    # Every image-view item exposes its current image-view order
-    print(img0.image_view_order)
+    # Every view exposes its current view index
+    print(img0.view_index)
 
-    # Retrieve a specific item by image view order
-    img = session.image_by_id(image_view_order=0)
-    cb = session.image_by_id(image_view_order=1)
+    # Retrieve a specific view by view index
+    img = session.view_by_id(view_index=0)
+    cb = session.view_by_id(view_index=1)
 
     # Filter by stable IDs when needed
-    images = session.images(file_ids=[img0.file_id, img1.file_id])
+    images = session.images(image_ids=[img0.image_id, img1.image_id])
     color_blendings = session.color_blendings(
         color_blending_ids=[cb.color_blending_id]
     )
@@ -295,7 +298,7 @@ The session object provides two convenience methods which create a color blendin
     cb = session.open_as_color_blending(files)
 
     # Create a new color blending from the current spatial reference
-    # and its currently spatially matched frames.
+    # and its currently spatially matched images.
     # Set the desired base image as the current spatial reference and
     # enable spatial matching for the other layers first.
     session.clear_spatial_reference()
@@ -368,10 +371,10 @@ Manipulate properties of the color blending object and the underlying layers:
     # Set zoom level
     cb.set_zoom_level(2)
 
-    # Get the current image-view order of the color blending image
-    print(cb.image_view_order)
+    # Get the current view index of the color blending image
+    print(cb.view_index)
 
-    # Set the color blending object as the active image-view item
+    # Set the color blending object as the active view
     cb.make_active()
 
     # Set contour visibility
@@ -422,8 +425,8 @@ Closing images
 
 .. code-block:: python
 
-    # Close all image-view items open in the session
-    for item in session.image_list():
+    # Close all views open in the session
+    for item in session.views():
         item.close()
     
 Closing the session

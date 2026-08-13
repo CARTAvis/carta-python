@@ -435,14 +435,14 @@ class ImageWCSConnector:
 
     ANY_IDS = NoneOr(IterableOf(Number.ID))
 
-    def _get_image_wcs_properties(self, file_ids, property_path):
+    def _get_image_wcs_properties(self, image_ids, property_path):
         """Internal helper function for fetching wcs properties from multiple images."""
-        images = self.session.images(file_ids)
+        images = self.session.images(image_ids)
         return tuple(attrgetter(property_path)(image.wcs) for image in images)
 
-    def _call_image_wcs_functions(self, file_ids, function_path, *function_args):
+    def _call_image_wcs_functions(self, image_ids, function_path, *function_args):
         """Internal helper function for executing wcs functions on multiple images."""
-        images = self.session.images(file_ids)
+        images = self.session.images(image_ids)
         for image in images:
             attrgetter(function_path)(image.wcs)(*function_args)
 
@@ -535,12 +535,12 @@ class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, ImageWCSConne
     COMPONENT = Overlay.TITLE
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def text(self, file_ids=None):
+    def text(self, image_ids=None):
         """The custom title text for the specified images.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to query.
 
         Returns
@@ -548,10 +548,10 @@ class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, ImageWCSConne
         tuple of string
             The title text of the specified images.
         """
-        return self._get_image_wcs_properties(file_ids, "title.text")
+        return self._get_image_wcs_properties(image_ids, "title.text")
 
     @validate(String(), ImageWCSConnector.ANY_IDS)
-    def set_text(self, title_text, file_ids=None):
+    def set_text(self, title_text, image_ids=None):
         """Set the custom title text for the specified images.
 
         This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
@@ -560,10 +560,10 @@ class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, ImageWCSConne
         ----------
         title_text : {0}
             The custom title text for the specified images.
-        file_ids : {1}
+        image_ids : {1}
             The images to configure.
         """
-        self._call_image_wcs_functions(file_ids, "title.set_text", title_text)
+        self._call_image_wcs_functions(image_ids, "title.set_text", title_text)
 
 
 class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
@@ -1047,12 +1047,12 @@ class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRo
     PREFIX = "label"
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def text(self, file_ids=None):
+    def text(self, image_ids=None):
         """The custom colorbar label text for the specified images.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to query.
 
         Returns
@@ -1060,10 +1060,10 @@ class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRo
         tuple of string
             The colorbar label text of the specified images.
         """
-        return self._get_image_wcs_properties(file_ids, "colorbar.label.text")
+        return self._get_image_wcs_properties(image_ids, "colorbar.label.text")
 
     @validate(String(), ImageWCSConnector.ANY_IDS)
-    def set_text(self, label_text, file_ids=None):
+    def set_text(self, label_text, image_ids=None):
         """Set the custom colorbar label text for the specified images.
 
         This also automatically enables custom title text for all images. It can be disabled with :obj:`carta.wcs_overlay.Title.set_custom_text`.
@@ -1072,11 +1072,11 @@ class ColorbarLabel(HasVisibility, HasCustomColor, HasCustomText, HasFont, HasRo
         ----------
         label_text : {0}
             The custom colorbar label text for the specified images.
-        file_ids : {1}
+        image_ids : {1}
             The images to configure.
 
         """
-        self._call_image_wcs_functions(file_ids, "colorbar.label.set_text", label_text)
+        self._call_image_wcs_functions(image_ids, "colorbar.label.set_text", label_text)
 
 
 class ColorbarGradient(HasVisibility, ColorbarComponent):
@@ -1200,12 +1200,12 @@ class Beam(ImageWCSConnector, OverlayComponent):
     COMPONENT = Overlay.BEAM
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def position(self, file_ids=None):
+    def position(self, image_ids=None):
         """The beam position.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to query. By default, values will be returned for all images.
 
         Returns
@@ -1213,15 +1213,15 @@ class Beam(ImageWCSConnector, OverlayComponent):
         tuple of (number, number) tuples
             The X and Y beam positions of the specified images, in pixels.
         """
-        return self._get_image_wcs_properties(file_ids, "beam.position")
+        return self._get_image_wcs_properties(image_ids, "beam.position")
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def type(self, file_ids=None):
+    def type(self, image_ids=None):
         """The beam type.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to query. By default, values will be returned for all images.
 
         Returns
@@ -1229,15 +1229,15 @@ class Beam(ImageWCSConnector, OverlayComponent):
         tuple of members of :obj:`carta.constants.BeamType`
             The beam types of the specified images.
         """
-        return self._get_image_wcs_properties(file_ids, "beam.type")
+        return self._get_image_wcs_properties(image_ids, "beam.type")
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def color(self, file_ids=None):
+    def color(self, image_ids=None):
         """The color of this component.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to query. By default, values will be returned for all images.
 
         Returns
@@ -1245,15 +1245,15 @@ class Beam(ImageWCSConnector, OverlayComponent):
         tuple of members of :obj:`carta.constants.color.PaletteColor`
             The colors of the beam in the specified images.
         """
-        return self._get_image_wcs_properties(file_ids, "beam.color")
+        return self._get_image_wcs_properties(image_ids, "beam.color")
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def visible(self, file_ids=None):
+    def visible(self, image_ids=None):
         """The visibility of this component.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to query. By default, values will be returned for all images.
 
         Returns
@@ -1261,15 +1261,15 @@ class Beam(ImageWCSConnector, OverlayComponent):
         tuple of boolean
             Whether the beam is visible in the specified images.
         """
-        return self._get_image_wcs_properties(file_ids, "beam.visible")
+        return self._get_image_wcs_properties(image_ids, "beam.visible")
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def width(self, file_ids=None):
+    def width(self, image_ids=None):
         """The width of this component.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to query. By default, values will be returned for all images.
 
         Returns
@@ -1277,10 +1277,10 @@ class Beam(ImageWCSConnector, OverlayComponent):
         tuple of boolean
             The width of the beam in the specified images.
         """
-        return self._get_image_wcs_properties(file_ids, "beam.width")
+        return self._get_image_wcs_properties(image_ids, "beam.width")
 
     @validate(*all_optional(Number(), Number(), ImageWCSConnector.ANY_IDS))
-    def set_position(self, position_x=None, position_y=None, file_ids=None):
+    def set_position(self, position_x=None, position_y=None, image_ids=None):
         """Set the beam position.
 
         Parameters
@@ -1289,84 +1289,84 @@ class Beam(ImageWCSConnector, OverlayComponent):
             The X position, in pixels.
         position_y : {1}
             The Y position, in pixels.
-        file_ids : {2}
+        image_ids : {2}
             The images to configure. By default, the settings will be changed for all images.
         """
-        self._call_image_wcs_functions(file_ids, "beam.set_position", position_x, position_y)
+        self._call_image_wcs_functions(image_ids, "beam.set_position", position_x, position_y)
 
     @validate(Constant(BeamType), ImageWCSConnector.ANY_IDS)
-    def set_type(self, beam_type, file_ids=None):
+    def set_type(self, beam_type, image_ids=None):
         """Set the beam type.
 
         Parameters
         ----------
         beam_type : {0}
             The beam type.
-        file_ids : {1}
+        image_ids : {1}
             The images to configure. By default, the settings will be changed for all images.
         """
-        self._call_image_wcs_functions(file_ids, "beam.set_type", beam_type)
+        self._call_image_wcs_functions(image_ids, "beam.set_type", beam_type)
 
     @validate(Constant(PaletteColor), ImageWCSConnector.ANY_IDS)
-    def set_color(self, color, file_ids=None):
+    def set_color(self, color, image_ids=None):
         """Set the color of this component.
 
         Parameters
         ----------
         color : {0}
             The color.
-        file_ids : {1}
+        image_ids : {1}
             The images to configure. By default, the settings will be changed for all images.
         """
-        self._call_image_wcs_functions(file_ids, "beam.set_color", color)
+        self._call_image_wcs_functions(image_ids, "beam.set_color", color)
 
     @validate(Boolean(), ImageWCSConnector.ANY_IDS)
-    def set_visible(self, state, file_ids=None):
+    def set_visible(self, state, image_ids=None):
         """Set the visibility of this component.
 
         Parameters
         ----------
         visible : {0}
             Whether this component should be visible.
-        file_ids : {1}
+        image_ids : {1}
             The images to configure. By default, the settings will be changed for all images.
         """
-        self._call_image_wcs_functions(file_ids, "beam.set_visible", state)
+        self._call_image_wcs_functions(image_ids, "beam.set_visible", state)
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def show(self, file_ids=None):
+    def show(self, image_ids=None):
         """Show this component.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to configure. By default, the settings will be changed for all images.
         """
-        self.set_visible(True, file_ids)
+        self.set_visible(True, image_ids)
 
     @validate(ImageWCSConnector.ANY_IDS)
-    def hide(self, file_ids=None):
+    def hide(self, image_ids=None):
         """Hide this component.
 
         Parameters
         ----------
-        file_ids : {0}
+        image_ids : {0}
             The images to configure. By default, the settings will be changed for all images.
         """
-        self.set_visible(False, file_ids)
+        self.set_visible(False, image_ids)
 
     @validate(Number.POSITIVE, ImageWCSConnector.ANY_IDS)
-    def set_width(self, width, file_ids=None):
+    def set_width(self, width, image_ids=None):
         """Set the width of this component.
 
         Parameters
         ----------
         width : {0}
             The width.
-        file_ids : {1}
+        image_ids : {1}
             The images to configure. By default, the settings will be changed for all images.
         """
-        self._call_image_wcs_functions(file_ids, "beam.set_width", width)
+        self._call_image_wcs_functions(image_ids, "beam.set_width", width)
 
 
 class ImageWCSOverlay(BasePathMixin):

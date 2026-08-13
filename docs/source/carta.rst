@@ -49,10 +49,10 @@ carta.image module
    :undoc-members:
    :show-inheritance:
 
-carta.image\_base module
-------------------------
+carta.view module
+-----------------
 
-.. automodule:: carta.image_base
+.. automodule:: carta.view
    :members:
    :undoc-members:
    :show-inheritance:

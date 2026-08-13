@@ -71,46 +71,46 @@ def test_layer_from_list(color_blending):
 
 
 def test_layer_repr_healthy(session, color_blending, layer_property, mocker):
-    find = mocker.patch.object(session, "_find_image_view_order", return_value=2)
-    layer_property("file_id", 42)
+    find = mocker.patch.object(session, "_find_view_index", return_value=2)
+    layer_property("image_id", 42)
     layer_property("file_name", "layer1.fits")
     layer_property("colormap", "viridis")
     layer_property("inverted", False)
     layer_property("alpha", 0.5)
     r = repr(Layer(color_blending, 3))
     assert r == (
-        "Layer(image_view_order=2, color_blending_id=0, layer_id=3, "
+        "Layer(view_index=2, color_blending_id=0, layer_id=3, "
         "file_name='layer1.fits', colormap='viridis', inverted=False, "
         "alpha=0.5)"
     )
     find.assert_called_once_with(ImageType.FRAME, 42)
 
 
-def test_layer_repr_closed_when_frame_not_in_image_list(
+def test_layer_repr_closed_when_image_not_in_views(
     session, color_blending, layer_property, mocker
 ):
-    layer_property("file_id", 42)
+    layer_property("image_id", 42)
     mocker.patch.object(
         session,
-        "_find_image_view_order",
-        side_effect=RuntimeError("not in image list"),
+        "_find_view_index",
+        side_effect=RuntimeError("not in views"),
     )
     r = repr(Layer(color_blending, 3))
     assert r == (
-        "[Closed] Layer(image_view_order=None, color_blending_id=0, "
+        "[Closed] Layer(view_index=None, color_blending_id=0, "
         "layer_id=3)"
     )
 
 
-def test_layer_repr_closed_when_frame_is_gone(session, color_blending, mocker):
+def test_layer_repr_closed_when_image_is_gone(session, color_blending, mocker):
     mocker.patch(
-        "carta.color_blending.Layer.file_id",
+        "carta.color_blending.Layer.image_id",
         new_callable=mocker.PropertyMock,
         side_effect=CartaActionFailed("frame is gone"),
     )
     r = repr(Layer(color_blending, 3))
     assert r == (
-        "[Closed] Layer(image_view_order=None, color_blending_id=0, "
+        "[Closed] Layer(view_index=None, color_blending_id=0, "
         "layer_id=3)"
     )
 
@@ -118,8 +118,8 @@ def test_layer_repr_closed_when_frame_is_gone(session, color_blending, mocker):
 def test_layer_repr_closed_when_file_name_read_fails(
     session, color_blending, layer_property, mocker
 ):
-    mocker.patch.object(session, "_find_image_view_order", return_value=2)
-    layer_property("file_id", 42)
+    mocker.patch.object(session, "_find_view_index", return_value=2)
+    layer_property("image_id", 42)
     mocker.patch(
         "carta.color_blending.Layer.file_name",
         new_callable=mocker.PropertyMock,
@@ -127,7 +127,7 @@ def test_layer_repr_closed_when_file_name_read_fails(
     )
     r = repr(Layer(color_blending, 3))
     assert r == (
-        "[Closed] Layer(image_view_order=2, color_blending_id=0, "
+        "[Closed] Layer(view_index=2, color_blending_id=0, "
         "layer_id=3)"
     )
 
@@ -137,8 +137,8 @@ def test_layer_file_name_property(layer, layer_get_value):
     layer_get_value.assert_called_with("frameInfo.fileInfo.name")
 
 
-def test_layer_file_id_property(layer, layer_get_value):
-    layer.file_id
+def test_layer_image_id_property(layer, layer_get_value):
+    layer.image_id
     layer_get_value.assert_called_with("frameInfo.fileId")
 
 
@@ -192,24 +192,24 @@ def test_layer_set_image_rejects_invalid_image(layer, mocker):
     set_layer_image.assert_not_called()
 
 
-def test_layer_image_view_order(session, color_blending, layer_property, mocker):
-    find = mocker.patch.object(session, "_find_image_view_order", return_value=7)
-    layer_property("file_id", 42)
-    assert Layer(color_blending, 3).image_view_order == 7
+def test_layer_view_index(session, color_blending, layer_property, mocker):
+    find = mocker.patch.object(session, "_find_view_index", return_value=7)
+    layer_property("image_id", 42)
+    assert Layer(color_blending, 3).view_index == 7
     find.assert_called_once_with(ImageType.FRAME, 42)
 
 
-def test_layer_image_view_order_raises_when_frame_not_in_image_list(
+def test_layer_view_index_raises_when_image_not_in_views(
     session, color_blending, layer_property, mocker
 ):
-    layer_property("file_id", 42)
+    layer_property("image_id", 42)
     mocker.patch.object(
         session,
-        "_find_image_view_order",
-        side_effect=RuntimeError("not in image list"),
+        "_find_view_index",
+        side_effect=RuntimeError("not in views"),
     )
     with pytest.raises(RuntimeError):
-        Layer(color_blending, 3).image_view_order
+        Layer(color_blending, 3).view_index
 
 
 @pytest.mark.parametrize("alpha", [0.0, 0.5, 1.0])
@@ -256,22 +256,22 @@ def test_color_blending_repr_healthy(session, color_blending, cb_property, mocke
     cb_property("file_name", "Color Blending 1")
     r = repr(color_blending)
     assert r == (
-        "ColorBlending(image_view_order=2, color_blending_id=0, "
+        "ColorBlending(view_index=2, color_blending_id=0, "
         "file_name='Color Blending 1')"
     )
 
 
-def test_color_blending_repr_closed_when_not_in_image_list(
+def test_color_blending_repr_closed_when_not_in_views(
     session, color_blending, mocker
 ):
     mocker.patch.object(
         session,
         "call_action",
-        side_effect=RuntimeError("not in image list"),
+        side_effect=RuntimeError("not in views"),
     )
     r = repr(color_blending)
     assert r == (
-        "[Closed] ColorBlending(image_view_order=None, color_blending_id=0)"
+        "[Closed] ColorBlending(view_index=None, color_blending_id=0)"
     )
 
 
@@ -286,7 +286,7 @@ def test_color_blending_repr_closed_when_backing_entry_is_gone(
     )
     r = repr(color_blending)
     assert r == (
-        "[Closed] ColorBlending(image_view_order=2, color_blending_id=0)"
+        "[Closed] ColorBlending(view_index=2, color_blending_id=0)"
     )
 
 
@@ -295,11 +295,11 @@ def test_color_blending_file_name(color_blending, cb_get_value):
     cb_get_value.assert_called_with("filename")
 
 
-def test_color_blending_image_view_order(
+def test_color_blending_view_index(
     session, color_blending, session_call_action
 ):
     session_call_action.return_value = 2
-    assert color_blending.image_view_order == 2
+    assert color_blending.view_index == 2
     session_call_action.assert_called_once_with(
         "imageViewConfigStore.getImageListIndex",
         ImageType.COLOR_BLENDING,
@@ -308,12 +308,12 @@ def test_color_blending_image_view_order(
     )
 
 
-def test_color_blending_image_view_order_raises_when_missing(
+def test_color_blending_view_index_raises_when_missing(
     session, color_blending, session_call_action
 ):
     session_call_action.return_value = -1
     with pytest.raises(RuntimeError):
-        color_blending.image_view_order
+        color_blending.view_index
 
 
 def test_color_blending_alpha(color_blending, cb_get_value):
@@ -328,19 +328,19 @@ def test_color_blending_base_frame(color_blending, cb_get_value):
     cb_get_value.assert_called_once_with("frames[0].id")
     assert isinstance(base_frame, Image)
     assert base_frame.session is color_blending.session
-    assert base_frame.file_id == 42
+    assert base_frame.image_id == 42
 
 
 def test_color_blending_make_active(session, color_blending, session_call_action):
     # make_active must be driven by color_blending_id via setActiveImageById.
-    # It must not depend on image_view_order (which is volatile).
+    # It must not depend on view_index (which is volatile).
     color_blending.make_active()
     session_call_action.assert_called_with(
         "setActiveImageById", ImageType.COLOR_BLENDING, 0
     )
 
 
-def test_color_blending_make_active_does_not_read_image_view_order(
+def test_color_blending_make_active_does_not_read_view_index(
     session, color_blending, session_call_action, session_get_value
 ):
     color_blending.make_active()
@@ -400,7 +400,7 @@ def test_color_blending_delete_base_layer_promotes_next_layer(
     layers = [Layer(color_blending, 0), Layer(color_blending, 1)]
     mocker.patch.object(color_blending, "layer_list", return_value=layers)
     mocker.patch.object(
-        Layer, "file_id", new_callable=mocker.PropertyMock, return_value=42
+        Layer, "image_id", new_callable=mocker.PropertyMock, return_value=42
     )
     image = mocker.patch("carta.color_blending.Image", autospec=True)
 
