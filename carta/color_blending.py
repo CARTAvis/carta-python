@@ -337,6 +337,7 @@ class ColorBlending(ImageBase, BasePathMixin):
         """
         return Layer.from_list(self, list(range(self.depth)))
 
+    @validate(InstanceOf(Image))
     def add_layer(self, image):
         """Add a new layer to the color blending.
 
@@ -368,7 +369,10 @@ class ColorBlending(ImageBase, BasePathMixin):
             return
         self.call_action("deleteSelectedFrame", layer_index - 1)
 
-    @validate(Number(0, None), InstanceOf(Image))
+    @validate(
+        Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1),
+        InstanceOf(Image),
+    )
     def set_layer_image(self, layer_index, image):
         """Set the image for a layer at a specified index in the color blending.
 

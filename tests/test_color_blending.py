@@ -365,6 +365,15 @@ def test_color_blending_add_layer(color_blending, cb_call_action, image):
     cb_call_action.assert_called_with("addSelectedFrame", image._frame)
 
 
+def test_color_blending_add_layer_rejects_invalid_image(
+    color_blending, cb_call_action
+):
+    with pytest.raises(CartaValidationFailed):
+        color_blending.add_layer(object())
+
+    cb_call_action.assert_not_called()
+
+
 @pytest.mark.parametrize("idx,expected_param", [(1, 0), (3, 2)])
 def test_color_blending_delete_layer(
     color_blending, cb_call_action, idx, expected_param, mocker
@@ -441,15 +450,46 @@ def test_color_blending_delete_layer_rejects_out_of_range(
 
 @pytest.mark.parametrize("idx,expected_param", [(1, 0), (5, 4)])
 def test_color_blending_set_layer_image(
-    color_blending, cb_call_action, image, idx, expected_param
+    color_blending, cb_call_action, image, idx, expected_param, mocker
 ):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=6,
+    )
     color_blending.set_layer_image(idx, image)
     cb_call_action.assert_called_with(
         "setSelectedFrame", expected_param, image._frame
     )
 
 
-def test_color_blending_set_base_layer_image(color_blending, cb_call_action, image, mocker):
+@pytest.mark.parametrize("idx", [-1, 2])
+def test_color_blending_set_layer_image_rejects_out_of_range(
+    color_blending, cb_call_action, image, idx, mocker
+):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=2,
+    )
+
+    with pytest.raises(CartaValidationFailed):
+        color_blending.set_layer_image(idx, image)
+
+    cb_call_action.assert_not_called()
+
+
+def test_color_blending_set_base_layer_image(
+    color_blending, cb_call_action, image, mocker
+):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=1,
+    )
     set_spatial_matching = mocker.patch.object(image, "set_spatial_matching")
     make_spatial_reference = mocker.patch.object(image, "make_spatial_reference")
 

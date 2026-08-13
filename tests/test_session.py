@@ -274,6 +274,21 @@ def test_image_by_id_rejects_positional(session):
         session.image_by_id(0)
 
 
+@pytest.mark.parametrize("keyword", [
+    "image_view_order",
+    "file_id",
+    "color_blending_id",
+])
+@pytest.mark.parametrize("value", [-1, 1.5, "1"])
+def test_image_by_id_rejects_invalid_identifier(
+    session, get_value, keyword, value
+):
+    with pytest.raises(CartaValidationFailed):
+        session.image_by_id(**{keyword: value})
+
+    get_value.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "entry,expected_type,expected_id",
     [

@@ -688,7 +688,10 @@ class Session:
             )
         return image_view_order
 
-    def image_by_id(self, *, image_view_order=None, file_id=None, color_blending_id=None):
+    @validate(NoneOr(Number.ID), NoneOr(Number.ID), NoneOr(Number.ID))
+    def image_by_id(
+        self, *, image_view_order=None, file_id=None, color_blending_id=None
+    ):
         """Return the image-view item identified by exactly one of the supported identifiers.
 
         Parameters
@@ -740,11 +743,6 @@ class Session:
             )
 
         if image_view_order is not None:
-            if image_view_order < 0:
-                raise IndexError(
-                    f"image_view_order {image_view_order} is out of range "
-                    "for the image list."
-                )
             try:
                 entry = self.get_value(
                     "imageViewConfigStore.imageListSummary"
