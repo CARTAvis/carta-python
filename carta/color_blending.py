@@ -3,7 +3,12 @@
 from .constants import Colormap, ColormapSet, ImageType, SpatialAxis
 from .image import Image
 from .view import View
-from .util import BasePathMixin, CartaScriptingException, Macro
+from .util import (
+    BasePathMixin,
+    CartaScriptingException,
+    CartaValidationFailed,
+    Macro,
+)
 from .validation import (
     Boolean,
     Constant,
@@ -397,7 +402,19 @@ class ColorBlending(View, BasePathMixin):
             specified secondary layer is replaced.
         image : {1}
             The image to set.
+
+        Raises
+        ------
+        CartaValidationFailed
+            If ``image`` is already present in this color blending.
         """
+        image_id = image.image_id
+        if any(layer.image_id == image_id for layer in self.layers()):
+            raise CartaValidationFailed(
+                f"Image with image_id={image_id} is already in the "
+                "color blending layers."
+            )
+
         if layer_index == 0:
             image.set_spatial_matching(True)
             image.make_spatial_reference()

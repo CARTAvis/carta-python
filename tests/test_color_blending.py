@@ -491,6 +491,7 @@ def test_color_blending_set_layer_image(
         new_callable=mocker.PropertyMock,
         return_value=6,
     )
+    mocker.patch.object(color_blending, "layers", return_value=[])
     color_blending.set_layer_image(idx, image)
     cb_call_action.assert_called_with(
         "setSelectedFrame", expected_param, image._frame
@@ -514,6 +515,34 @@ def test_color_blending_set_layer_image_rejects_out_of_range(
     cb_call_action.assert_not_called()
 
 
+@pytest.mark.parametrize("idx", [0, 2])
+def test_color_blending_set_layer_image_rejects_existing_image(
+    color_blending, cb_call_action, image, idx, mocker
+):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=3,
+    )
+    mocker.patch.object(color_blending, "layers", return_value=[Layer(color_blending, 1)])
+    mocker.patch.object(
+        Layer,
+        "image_id",
+        new_callable=mocker.PropertyMock,
+        return_value=image.image_id,
+    )
+    set_spatial_matching = mocker.patch.object(image, "set_spatial_matching")
+    make_spatial_reference = mocker.patch.object(image, "make_spatial_reference")
+
+    with pytest.raises(CartaValidationFailed, match="already"):
+        color_blending.set_layer_image(idx, image)
+
+    cb_call_action.assert_not_called()
+    set_spatial_matching.assert_not_called()
+    make_spatial_reference.assert_not_called()
+
+
 def test_color_blending_set_base_layer_image(
     color_blending, cb_call_action, image, mocker
 ):
@@ -523,6 +552,7 @@ def test_color_blending_set_base_layer_image(
         new_callable=mocker.PropertyMock,
         return_value=1,
     )
+    mocker.patch.object(color_blending, "layers", return_value=[])
     set_spatial_matching = mocker.patch.object(image, "set_spatial_matching")
     make_spatial_reference = mocker.patch.object(image, "make_spatial_reference")
 
