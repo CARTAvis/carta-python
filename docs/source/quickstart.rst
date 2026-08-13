@@ -197,17 +197,18 @@ The session's image list is heterogeneous: it may contain both ordinary frame-ba
 
    The frontend image list panel. Each row corresponds to an item returned by :obj:`carta.session.Session.image_list`, and its position in the list is the item's ``image_view_order``.
 
-.. code-block:: python
+Use :meth:`carta.session.Session.images` and
+:meth:`carta.session.Session.color_blendings` to retrieve the two concrete
+image-view types directly, optionally filtering by their stable IDs.
 
-    from carta.image import Image
-    from carta.color_blending import ColorBlending
+.. code-block:: python
 
     # All open image-view items, in display order
     items = session.image_list()
 
-    # Filter by type if needed
-    images = [i for i in items if isinstance(i, Image)]
-    color_blendings = [i for i in items if isinstance(i, ColorBlending)]
+    # Get frame-backed images or color blending images directly
+    images = session.images()
+    color_blendings = session.color_blendings()
 
     # Every image-view item exposes its current image-view order
     print(img0.image_view_order)
@@ -215,7 +216,13 @@ The session's image list is heterogeneous: it may contain both ordinary frame-ba
     # Retrieve a specific item by image view order
     img = session.image_by_id(image_view_order=0)
     cb = session.image_by_id(image_view_order=1)
-        
+
+    # Filter by stable IDs when needed
+    images = session.images(file_ids=[img0.file_id, img1.file_id])
+    color_blendings = session.color_blendings(
+        color_blending_ids=[cb.color_blending_id]
+    )
+
 Changing image properties
 -------------------------
 
@@ -224,7 +231,7 @@ Properties specific to individual images can be accessed through image objects:
 .. code-block:: python
 
     import numpy as np
-    from carta.constants import Colormap, Scaling, Polarization
+    from carta.constants import Colormap, ColormapSet, Scaling, Polarization
 
     # change the channel and polarization
     img.set_channel(10)
@@ -308,12 +315,15 @@ Manipulate properties of the color blending object and the underlying layers:
 .. code-block:: python
 
     # Get layer objects
-    red, green, blue = cb.layer_list()
+    layer1, layer2, layer3 = cb.layer_list()
 
-    # Set colormap for individual layers
-    red.set_colormap(Colormap.REDS)
-    green.set_colormap(Colormap.GREENS)
-    blue.set_colormap(Colormap.BLUES)
+    # Set colormap for the images in individual layers
+    layer1.set_colormap(Colormap.REDS)
+    layer2.set_colormap(Colormap.GREENS)
+    layer3.set_colormap(Colormap.BLUES)
+
+    # Inspect the colormap and alpha of an individual layer
+    print(layer1.colormap, layer1.alpha)
 
     # Or apply an existing colormap set
     cb.set_colormap_set(ColormapSet.RGB)
@@ -322,12 +332,16 @@ Manipulate properties of the color blending object and the underlying layers:
     print(cb.alpha)
 
     # Set alpha for individual layers
-    red.set_alpha(0.7)
-    green.set_alpha(0.8)
-    blue.set_alpha(0.9)
+    layer1.set_alpha(0.7)
+    layer2.set_alpha(0.8)
+    layer3.set_alpha(0.9)
 
     # Or set alpha for all layers at once
     cb.set_alpha([0.7, 0.8, 0.9])
+
+    # Replace the image in a layer
+    # For layer1, this also makes the new image the spatial reference.
+    # layer1.set_image(new_image)
 
     # Remove the last layer (index = 2)
     cb.delete_layer(2)
@@ -337,13 +351,13 @@ Manipulate properties of the color blending object and the underlying layers:
     cb.add_layer(img2)
 
     # Layer objects can delete themselves from the color blending
-    red, green, blue = cb.layer_list()
-    blue.delete()
+    layer1, layer2, layer3 = cb.layer_list()
+    layer3.delete()
 
     # Deleting the base layer promotes the next layer to the spatial
     # reference. The old base remains spatially matched but is removed
     # from the color blending layers.
-    red.delete()
+    layer1.delete()
 
     # Append the old base as a new color blending layer if desired.
     cb.add_layer(img0)
@@ -375,6 +389,10 @@ Manipulate properties of the color blending object and the underlying layers:
     to the new reference but is no longer part of the color blending until it
     is appended as a new color blending layer with
     :meth:`carta.color_blending.ColorBlending.add_layer`.
+
+    An image can be replaced through :meth:`carta.color_blending.Layer.set_image`.
+    Replacing the base layer first enables spatial matching for the new image
+    and then makes it the spatial reference.
 
 Saving or displaying an image
 -----------------------------
