@@ -307,6 +307,11 @@ The session object provides two convenience methods which create a color blendin
     img2.set_spatial_matching(True)
     cb = session.create_color_blending()
 
+    # Or select already-open images directly in the requested layer order.
+    cb = session.create_color_blending(
+        images=[img0, img1, img2]
+    )
+
 .. note::
     ``session.open_as_color_blending(files)`` always closes any currently
     open images before opening ``files``. It then makes the first opened

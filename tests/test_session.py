@@ -4,6 +4,7 @@ import pytest
 
 from carta.image import Image
 from carta.color_blending import ColorBlending
+from carta.session import Session
 from carta.util import CartaActionFailed, CartaBadResponse, CartaValidationFailed, Macro, Point as Pt
 from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
 
@@ -543,6 +544,80 @@ def test_create_color_blending_calls_frontend_create_action(session, mocker, ope
     mock_set_colormap.assert_called_once_with(expected_colormap_set)
     assert isinstance(result, ColorBlending)
     assert result.color_blending_id == 123
+
+
+def test_create_color_blending_with_images_sets_reference_and_matching(
+    session, mocker
+):
+    images = [Image(session, 10), Image(session, 20), Image(session, 30)]
+    for image in images:
+        mocker.patch.object(image, "make_spatial_reference")
+        mocker.patch.object(image, "set_spatial_matching")
+    mocker.patch.object(session, "call_action", return_value=123)
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        side_effect=[4, 3],
+    )
+    delete_layer = mocker.patch.object(ColorBlending, "delete_layer")
+    add_layer = mocker.patch.object(ColorBlending, "add_layer")
+    mock_set_colormap = mocker.patch.object(ColorBlending, "set_colormap_set")
+
+    result = session.create_color_blending(images=images)
+
+    images[0].make_spatial_reference.assert_called_once_with()
+    images[0].set_spatial_matching.assert_not_called()
+    images[1].set_spatial_matching.assert_called_once_with(True)
+    images[2].set_spatial_matching.assert_called_once_with(True)
+    assert delete_layer.call_args_list == [
+        mocker.call(3),
+        mocker.call(2),
+        mocker.call(1),
+    ]
+    assert add_layer.call_args_list == [
+        mocker.call(images[1]),
+        mocker.call(images[2]),
+    ]
+    mock_set_colormap.assert_called_once_with(ColormapSet.RGB)
+    assert isinstance(result, ColorBlending)
+
+
+@pytest.mark.parametrize("images", [[], [object()]])
+def test_create_color_blending_rejects_invalid_images(
+    session, mocker, images
+):
+    call_action = mocker.patch.object(session, "call_action")
+
+    with pytest.raises(CartaValidationFailed):
+        session.create_color_blending(images=images)
+
+    call_action.assert_not_called()
+
+
+def test_create_color_blending_rejects_duplicate_images(session, mocker):
+    images = [Image(session, 10), Image(session, 20), Image(session, 10)]
+    call_action = mocker.patch.object(session, "call_action")
+
+    with pytest.raises(
+        CartaValidationFailed,
+        match="must not contain duplicate images",
+    ):
+        session.create_color_blending(images=images)
+
+    call_action.assert_not_called()
+
+
+def test_create_color_blending_rejects_image_from_another_session(
+    session, mocker
+):
+    images = [Image(session, 10), Image(Session(1, None), 20)]
+    call_action = mocker.patch.object(session, "call_action")
+
+    with pytest.raises(CartaValidationFailed, match="current session"):
+        session.create_color_blending(images=images)
+
+    call_action.assert_not_called()
 
 
 def test_create_color_blending_raises_when_no_images_are_open(session, mocker):

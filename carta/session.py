@@ -16,7 +16,7 @@ from .constants import PanelMode, GridMode, ComplexComponent, Polarization, Colo
 from .backend import Backend
 from .protocol import Protocol
 from .util import Macro, split_action_path, CartaActionFailed, CartaBadResponse, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaValidationFailed, cached, Point as Pt
-from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, MapOf, Union
+from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, InstanceOf, MapOf, Union
 
 from .wcs_overlay import SessionWCSOverlay
 from .raster import SessionRaster
@@ -812,9 +812,30 @@ class Session:
 
     # COLOR BLENDING
 
-    def create_color_blending(self):
-        """Create a new color blending from the current spatial reference
-        and its currently spatially matched images.
+    @validate(NoneOr(IterableOf(InstanceOf(Image), min_size=1)))
+    def create_color_blending(self, images=None):
+        """Create a color blending from open images.
+
+        There are two ways to choose the images for the new color blending:
+
+        * If ``images`` is provided, it must contain one or more
+          :obj:`carta.image.Image` objects from this session. The first image
+          becomes the base layer and spatial reference. The remaining images
+          become secondary layers in the same order as the input. The result
+          contains exactly these images; other open images are left open but
+          are not included.
+        * If ``images`` is omitted, the current spatial reference and all
+          currently spatially matched images are used.
+
+        This method creates a color blending from images that are already
+        open. It does not open files or close other open images.
+
+        Parameters
+        ----------
+        images : {0}
+            An iterable of open images to combine, in the desired layer order.
+            The first image is used as the base layer. By default, use the
+            current spatial reference and spatially matched images.
 
         Returns
         -------
@@ -824,12 +845,31 @@ class Session:
         Raises
         ------
         CartaActionFailed
-            If no images are open or the frontend could not create the
-            color blending image.
+            If no images are open, an image is no longer open, or the
+            frontend cannot create or update the color blending.
+        CartaValidationFailed
+            If ``images`` is empty, contains duplicates, or contains an image
+            from another session.
         """
-        image_count = self.get_value("frames.length")
-        if image_count <= 0:
-            raise CartaActionFailed("No images are open.")
+        if images is not None:
+            if any(image.session is not self for image in images):
+                raise CartaValidationFailed(
+                    "images must belong to the current session."
+                )
+
+            image_ids = [image.image_id for image in images]
+            if len(set(image_ids)) != len(image_ids):
+                raise CartaValidationFailed(
+                    "images must not contain duplicate images."
+                )
+
+            images[0].make_spatial_reference()
+            for image in images[1:]:
+                image.set_spatial_matching(True)
+        else:
+            image_count = self.get_value("frames.length")
+            if image_count <= 0:
+                raise CartaActionFailed("No images are open.")
 
         color_blending_id = self.call_action(
             "imageViewConfigStore.createColorBlending",
@@ -837,8 +877,16 @@ class Session:
         )
         cb = ColorBlending(self, color_blending_id)
 
-        layer_count = cb.get_value("frames.length")
-        if layer_count <= 3:
+        if images is not None:
+            # The frontend action includes every currently spatially matched
+            # image, so normalize the created blending to the requested
+            # sequence before applying the final colormap set.
+            for layer_index in range(cb.depth - 1, 0, -1):
+                cb.delete_layer(layer_index)
+            for image in images[1:]:
+                cb.add_layer(image)
+
+        if cb.depth <= 3:
             cb.set_colormap_set(ColormapSet.RGB)
         else:
             cb.set_colormap_set(ColormapSet.RAINBOW)
