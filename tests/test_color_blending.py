@@ -317,7 +317,7 @@ def test_color_blending_view_index_raises_when_missing(
 
 
 def test_color_blending_alpha(color_blending, cb_get_value):
-    color_blending.alpha
+    color_blending.alphas
     cb_get_value.assert_called_with("alpha")
 
 
@@ -348,16 +348,49 @@ def test_color_blending_make_active_does_not_read_view_index(
         assert call.args != ("imageViewConfigStore.imageListSummary",)
 
 
-def test_color_blending_layer_list_derived(session, mocker):
+def test_color_blending_layers_derived(session, mocker):
     cb = ColorBlending(session, 3)
 
     # Simulate two layers from the frontend's computed frames array length.
     gv = mocker.patch.object(cb, "get_value")
     gv.return_value = 2
 
-    layers = cb.layer_list()
+    layers = cb.layers()
     assert [ly.layer_id for ly in layers] == [0, 1]
     gv.assert_called_once_with("frames.length")
+
+
+def test_color_blending_layers_accepts_ids_in_order_with_duplicates(
+    color_blending, mocker
+):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=3,
+    )
+
+    layers = color_blending.layers([2, 0, 2])
+
+    assert [layer.layer_id for layer in layers] == [2, 0, 2]
+
+
+@pytest.mark.parametrize("layer_ids", [[-1], [3], [1.5], ["1"]])
+def test_color_blending_layers_rejects_invalid_ids(
+    color_blending, mocker, layer_ids
+):
+    mocker.patch.object(
+        ColorBlending,
+        "depth",
+        new_callable=mocker.PropertyMock,
+        return_value=3,
+    )
+    from_list = mocker.patch.object(Layer, "from_list")
+
+    with pytest.raises(CartaValidationFailed):
+        color_blending.layers(layer_ids)
+
+    from_list.assert_not_called()
 
 
 def test_color_blending_add_layer(color_blending, cb_call_action, image):
@@ -398,7 +431,7 @@ def test_color_blending_delete_base_layer_promotes_next_layer(
         return_value=2,
     )
     layers = [Layer(color_blending, 0), Layer(color_blending, 1)]
-    mocker.patch.object(color_blending, "layer_list", return_value=layers)
+    mocker.patch.object(color_blending, "layers", return_value=layers)
     mocker.patch.object(
         Layer, "image_id", new_callable=mocker.PropertyMock, return_value=42
     )
@@ -421,7 +454,7 @@ def test_color_blending_delete_only_base_layer_closes_color_blending(
         return_value=1,
     )
     mocker.patch.object(
-        color_blending, "layer_list", return_value=[Layer(color_blending, 0)]
+        color_blending, "layers", return_value=[Layer(color_blending, 0)]
     )
     close = mocker.patch.object(color_blending, "close")
 
@@ -558,7 +591,7 @@ def test_color_blending_set_colormap_set(color_blending, cb_call_action):
     cb_call_action.assert_called_with("applyColormapSet", CMS.RAINBOW)
 
 
-def test_color_blending_set_alpha_valid(color_blending, mocker):
+def test_color_blending_set_alphas_valid(color_blending, mocker):
     ly1 = mocker.create_autospec(Layer(color_blending, 1), instance=True)
     ly2 = mocker.create_autospec(Layer(color_blending, 2), instance=True)
     mocker.patch.object(
@@ -567,15 +600,15 @@ def test_color_blending_set_alpha_valid(color_blending, mocker):
         new_callable=mocker.PropertyMock,
         return_value=2,
     )
-    mocker.patch.object(ColorBlending, "layer_list", return_value=[ly1, ly2])
+    mocker.patch.object(ColorBlending, "layers", return_value=[ly1, ly2])
 
-    color_blending.set_alpha([0.2, 0.8])
+    color_blending.set_alphas([0.2, 0.8])
     ly1.set_alpha.assert_called_with(0.2)
     ly2.set_alpha.assert_called_with(0.8)
 
 
 @pytest.mark.parametrize("vals", [[-0.1, 0.5], [1.2], [0.1, 2.0, 0.3]])
-def test_color_blending_set_alpha_invalid(color_blending, vals, mocker):
+def test_color_blending_set_alphas_invalid(color_blending, vals, mocker):
     mocker.patch.object(
         ColorBlending,
         "depth",
@@ -584,11 +617,11 @@ def test_color_blending_set_alpha_invalid(color_blending, vals, mocker):
     )
 
     with pytest.raises(CartaValidationFailed):
-        color_blending.set_alpha(vals)
+        color_blending.set_alphas(vals)
 
 
 @pytest.mark.parametrize("vals", [[0.5], [0.1, 0.2, 0.3]])
-def test_color_blending_set_alpha_length_mismatch(color_blending, mocker, vals):
+def test_color_blending_set_alphas_length_mismatch(color_blending, mocker, vals):
     ly1 = mocker.create_autospec(Layer(color_blending, 1), instance=True)
     ly2 = mocker.create_autospec(Layer(color_blending, 2), instance=True)
     mocker.patch.object(
@@ -597,10 +630,10 @@ def test_color_blending_set_alpha_length_mismatch(color_blending, mocker, vals):
         new_callable=mocker.PropertyMock,
         return_value=2,
     )
-    mocker.patch.object(ColorBlending, "layer_list", return_value=[ly1, ly2])
+    mocker.patch.object(ColorBlending, "layers", return_value=[ly1, ly2])
 
     with pytest.raises(CartaValidationFailed):
-        color_blending.set_alpha(vals)
+        color_blending.set_alphas(vals)
 
 
 @pytest.mark.parametrize(

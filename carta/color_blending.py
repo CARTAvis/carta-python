@@ -11,6 +11,7 @@ from .validation import (
     InstanceOf,
     IterableOf,
     Number,
+    NoneOr,
     Size,
     Attr,
     Evaluate,
@@ -290,7 +291,7 @@ class ColorBlending(View, BasePathMixin):
     # LAYERS
 
     @property
-    def alpha(self):
+    def alphas(self):
         """The alpha value list for the color blending layers.
 
         Returns
@@ -314,7 +315,7 @@ class ColorBlending(View, BasePathMixin):
     @validate(
         Evaluate(IterableOf, Number(0, 1), Attr("depth"), Attr("depth"))
     )
-    def set_alpha(self, alpha_list):
+    def set_alphas(self, alpha_list):
         """Set the alpha value for the color blending layers.
 
         Parameters
@@ -322,18 +323,32 @@ class ColorBlending(View, BasePathMixin):
         alpha_list : {0}
             The alpha values.
         """
-        for alpha, layer in zip(alpha_list, self.layer_list()):
+        for alpha, layer in zip(alpha_list, self.layers()):
             layer.set_alpha(alpha)
 
-    def layer_list(self):
-        """Return a list of Layer objects for this color blending.
+    @validate(
+        NoneOr(Evaluate(IterableOf, Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1)))
+    )
+    def layers(self, layer_ids=None):
+        """Return all or selected Layer objects for this color blending.
+
+        When no layer IDs are supplied, all layers are returned. When layer
+        IDs are supplied, the layers are returned in the requested order.
+        Duplicate layer IDs are preserved.
+
+        Parameters
+        ----------
+        layer_ids : {0}
+            The layer IDs to return. By default, all layers are returned.
 
         Returns
         -------
         list of :obj:`carta.color_blending.Layer`
-            A list of Layer objects.
+            The requested layers.
         """
-        return Layer.from_list(self, list(range(self.depth)))
+        if layer_ids is None:
+            layer_ids = range(self.depth)
+        return Layer.from_list(self, layer_ids)
 
     @validate(InstanceOf(Image))
     def add_layer(self, image):
@@ -358,7 +373,7 @@ class ColorBlending(View, BasePathMixin):
             layer, the color blending is closed.
         """
         if layer_index == 0:
-            layers = self.layer_list()
+            layers = self.layers()
             if len(layers) == 1:
                 self.close()
                 return

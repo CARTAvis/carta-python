@@ -318,7 +318,7 @@ Manipulate properties of the color blending object and the underlying layers:
 .. code-block:: python
 
     # Get layer objects
-    layer1, layer2, layer3 = cb.layer_list()
+    layer1, layer2, layer3 = cb.layers()
 
     # Set colormap for the images in individual layers
     layer1.set_colormap(Colormap.REDS)
@@ -332,7 +332,7 @@ Manipulate properties of the color blending object and the underlying layers:
     cb.set_colormap_set(ColormapSet.RGB)
 
     # Print the current alpha values of all layers
-    print(cb.alpha)
+    print(cb.alphas)
 
     # Set alpha for individual layers
     layer1.set_alpha(0.7)
@@ -340,7 +340,7 @@ Manipulate properties of the color blending object and the underlying layers:
     layer3.set_alpha(0.9)
 
     # Or set alpha for all layers at once
-    cb.set_alpha([0.7, 0.8, 0.9])
+    cb.set_alphas([0.7, 0.8, 0.9])
 
     # Replace the image in a layer
     # For layer1, this also makes the new image the spatial reference.
@@ -354,7 +354,7 @@ Manipulate properties of the color blending object and the underlying layers:
     cb.add_layer(img2)
 
     # Layer objects can delete themselves from the color blending
-    layer1, layer2, layer3 = cb.layer_list()
+    layer1, layer2, layer3 = cb.layers()
     layer3.delete()
 
     # Deleting the base layer promotes the next layer to the spatial
