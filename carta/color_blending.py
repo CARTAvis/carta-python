@@ -48,8 +48,7 @@ class Layer(BasePathMixin):
 
     @classmethod
     def from_list(cls, color_blending, layer_ids):
-        """
-        Create a list of Layer objects from a list of layer IDs.
+        """Create a list of Layer objects from a list of layer IDs.
 
         Parameters
         ----------
@@ -103,6 +102,8 @@ class Layer(BasePathMixin):
 
         try:
             name = self.file_name
+            colormap = self.colormap
+            alpha = self.alpha
         except CartaScriptingException:
             return (
                 f"[Closed] {cls}(image_view_order={order}, "
@@ -111,7 +112,8 @@ class Layer(BasePathMixin):
 
         return (
             f"{cls}(image_view_order={order}, color_blending_id={cb_id}, "
-            f"layer_id={self.layer_id}, file_name={name!r})"
+            f"layer_id={self.layer_id}, file_name={name!r}, "
+            f"colormap={colormap!r}, alpha={alpha!r})"
         )
 
     @property
@@ -135,6 +137,28 @@ class Layer(BasePathMixin):
             The file id.
         """
         return self.get_value("frameInfo.fileId")
+
+    @property
+    def colormap(self):
+        """The colormap used to render this layer.
+
+        Returns
+        -------
+        string
+            The colormap name.
+        """
+        return self.get_value("renderConfig.colorMap")
+
+    @property
+    def alpha(self):
+        """The alpha value of this layer in the color blending.
+
+        Returns
+        -------
+        number
+            The alpha value, between 0 and 1.
+        """
+        return self.color_blending.get_value(f"alpha[{self.layer_id}]")
 
     def delete(self):
         """Delete this layer from its parent color blending."""
@@ -256,7 +280,13 @@ class ColorBlending(ImageBase, BasePathMixin):
 
     @property
     def depth(self):
-        """The number of layers in the color blending."""
+        """The number of layers in the color blending.
+
+        Returns
+        -------
+        integer
+            The number of layers.
+        """
         return self.get_value("frames.length")
 
     @validate(
@@ -274,9 +304,7 @@ class ColorBlending(ImageBase, BasePathMixin):
             layer.set_alpha(alpha)
 
     def layer_list(self):
-        """
-        Returns a list of Layer objects, each representing a layer in
-        this color blending object.
+        """Return a list of Layer objects for this color blending.
 
         Returns
         -------

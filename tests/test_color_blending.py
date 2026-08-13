@@ -74,10 +74,12 @@ def test_layer_repr_healthy(session, color_blending, layer_property, mocker):
     find = mocker.patch.object(session, "_find_image_view_order", return_value=2)
     layer_property("file_id", 42)
     layer_property("file_name", "layer1.fits")
+    layer_property("colormap", "viridis")
+    layer_property("alpha", 0.5)
     r = repr(Layer(color_blending, 3))
     assert r == (
         "Layer(image_view_order=2, color_blending_id=0, layer_id=3, "
-        "file_name='layer1.fits')"
+        "file_name='layer1.fits', colormap='viridis', alpha=0.5)"
     )
     find.assert_called_once_with(ImageType.FRAME, 42)
 
@@ -136,6 +138,20 @@ def test_layer_file_name_property(layer, layer_get_value):
 def test_layer_file_id_property(layer, layer_get_value):
     layer.file_id
     layer_get_value.assert_called_with("frameInfo.fileId")
+
+
+def test_layer_colormap_property(layer, layer_get_value):
+    layer_get_value.return_value = "viridis"
+
+    assert layer.colormap == "viridis"
+    layer_get_value.assert_called_once_with("renderConfig.colorMap")
+
+
+def test_layer_alpha_property(layer, cb_get_value):
+    cb_get_value.return_value = 0.5
+
+    assert layer.alpha == 0.5
+    cb_get_value.assert_called_once_with("alpha[1]")
 
 
 def test_layer_delete(layer, mocker):
