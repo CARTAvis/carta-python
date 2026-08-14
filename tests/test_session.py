@@ -178,13 +178,15 @@ def test_views_uses_one_summary_for_explicit_indices(session, get_value):
     )
 
 
-def test_views_explicit_indices_reject_out_of_range(session, get_value):
+def test_views_explicit_indices_list_all_out_of_range(session, get_value):
     get_value.return_value = [
         {"type": ImageType.FRAME, "id": 10},
     ]
 
-    with pytest.raises(IndexError, match=r"view_indices \[1, 2\]"):
-        session.views(view_indices=[1, 2])
+    with pytest.raises(IndexError) as exc_info:
+        session.views(view_indices=[2, 0, 1])
+
+    assert str(exc_info.value) == "No views with indices [2, 1] are open."
 
     get_value.assert_called_once_with(
         "imageViewConfigStore.imageListSummary"
@@ -238,11 +240,13 @@ def test_images_uses_frame_names_for_explicit_ids(session, get_value):
     get_value.assert_called_once_with("frameNames")
 
 
-def test_images_rejects_closed_explicit_id(session, get_value):
+def test_images_list_all_closed_explicit_ids(session, get_value):
     get_value.return_value = [{"value": 10, "label": "Image 10"}]
 
-    with pytest.raises(RuntimeError, match="image_id=20"):
-        session.images(image_ids=[20])
+    with pytest.raises(RuntimeError) as exc_info:
+        session.images(image_ids=[30, 10, 20])
+
+    assert str(exc_info.value) == "No images with image_ids [30, 20] are open."
 
     get_value.assert_called_once_with("frameNames")
 
@@ -287,13 +291,18 @@ def test_color_blendings_uses_image_list_summary_for_explicit_ids(
     )
 
 
-def test_color_blendings_rejects_closed_explicit_id(session, get_value):
+def test_color_blendings_list_all_closed_explicit_ids(session, get_value):
     get_value.return_value = [
         {"type": ImageType.COLOR_BLENDING, "id": 3}
     ]
 
-    with pytest.raises(RuntimeError, match="color_blending_id=7"):
-        session.color_blendings([7])
+    with pytest.raises(RuntimeError) as exc_info:
+        session.color_blendings([7, 3, 5])
+
+    assert (
+        str(exc_info.value)
+        == "No color blendings with color_blending_ids [7, 5] are open."
+    )
 
     get_value.assert_called_once_with(
         "imageViewConfigStore.imageListSummary"

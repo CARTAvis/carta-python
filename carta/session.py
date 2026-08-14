@@ -242,10 +242,7 @@ class Session:
         except (AttributeError, CartaScriptingException):
             return f"Session(session_id={self.session_id}, uri={uri!r})"
 
-        return (
-            f"Session(session_id={self.session_id}, uri={uri!r}, "
-            f"carta_version={version!r})"
-        )
+        return f"Session(session_id={self.session_id}, uri={uri!r}, carta_version={version!r})"
 
     # METADATA
 
@@ -591,36 +588,28 @@ class Session:
             If ``view_indices`` contains an invalid value.
         """
         summary = self.get_value("imageViewConfigStore.imageListSummary")
+        remote_indices = range(len(summary))
 
-        if view_indices is not None:
-            out_of_range = [
-                view_index
-                for view_index in view_indices
-                if view_index >= len(summary)
-            ]
-            if out_of_range:
-                raise IndexError(
-                    f"view_indices {out_of_range!r} are out of range for "
-                    f"views of length {len(summary)}."
-                )
-            indexed_entries = []
-            for view_index in view_indices:
-                indexed_entries.append((view_index, summary[view_index]))
-            skip_unsupported = False
-        else:
-            indexed_entries = enumerate(summary)
+        if view_indices is None:
+            view_indices = remote_indices
             skip_unsupported = True
+        else:
+            missing_indices = [i for i in view_indices if i not in remote_indices]
+            if missing_indices:
+                raise IndexError(f"No views with indices {missing_indices} are open.")
+            skip_unsupported = False
 
-        result = []
-        for index, entry in indexed_entries:
+        views = []
+        for index in view_indices:
+            entry = summary[index]
             try:
-                result.append(View.view_class(entry["type"])(self, entry["id"]))
+                views.append(View.view_class(entry["type"])(self, entry["id"]))
             except (CartaValidationFailed, NotImplementedError):
                 if not skip_unsupported:
                     raise
                 view_type = ImageType(entry["type"])
                 print(f"Skipping unsupported {view_type.name} view at index {index}.")
-        return result
+        return views
 
     @validate(NoneOr(IterableOf(Number.ID)))
     def images(self, image_ids=None):
@@ -639,18 +628,13 @@ class Session:
         list of :obj:`carta.image.Image`
             The requested images.
         """
-        if image_ids is None:
-            return [
-                Image(self, entry["value"]) for entry in self.get_value("frameNames")
-            ]
+        remote_ids = [i["value"] for i in self.get_value("frameNames")]
 
-        frame_ids = {entry["value"] for entry in self.get_value("frameNames")}
-        images = []
-        for image_id in image_ids:
-            if image_id not in frame_ids:
-                raise RuntimeError(f"No image with image_id={image_id} is open.")
-            images.append(Image(self, image_id))
-        return images
+        if image_ids is None:
+            image_ids = remote_ids
+        elif missing_ids := [i for i in image_ids if i not in remote_ids]:
+            raise RuntimeError(f"No images with image_ids {missing_ids} are open.")
+        return [Image(self, i) for i in image_ids]
 
     @validate(NoneOr(IterableOf(Number.ID)))
     def color_blendings(self, color_blending_ids=None):
@@ -672,27 +656,13 @@ class Session:
             The requested color blending images.
         """
         summary = self.get_value("imageViewConfigStore.imageListSummary")
-        if color_blending_ids is None:
-            return [
-                ColorBlending(self, entry["id"])
-                for entry in summary
-                if entry["type"] == ImageType.COLOR_BLENDING
-            ]
+        remote_ids = [i["id"] for i in summary if i["type"] == ImageType.COLOR_BLENDING]
 
-        color_blending_ids_in_summary = {
-            entry["id"]
-            for entry in summary
-            if entry["type"] == ImageType.COLOR_BLENDING
-        }
-        color_blendings = []
-        for color_blending_id in color_blending_ids:
-            if color_blending_id not in color_blending_ids_in_summary:
-                raise RuntimeError(
-                    f"No color blending with "
-                    f"color_blending_id={color_blending_id} is open."
-                )
-            color_blendings.append(ColorBlending(self, color_blending_id))
-        return color_blendings
+        if color_blending_ids is None:
+            color_blending_ids = remote_ids
+        elif missing_ids := [i for i in color_blending_ids if i not in remote_ids]:
+            raise RuntimeError(f"No color blendings with color_blending_ids {missing_ids} are open.")
+        return [ColorBlending(self, i) for i in color_blending_ids]
 
     def _find_view_index(self, view_type, stable_id):
         """Return the view index of an item identified by a stable id.
@@ -722,16 +692,11 @@ class Session:
             response_expected=True,
         )
         if view_index == -1:
-            raise RuntimeError(
-                f"Could not find a view of type {view_type!r} with id "
-                f"{stable_id} in the views."
-            )
+            raise RuntimeError(f"Could not find a view of type {view_type!r} with id {stable_id} in the views.")
         return view_index
 
     @validate(NoneOr(Number.ID), NoneOr(Number.ID), NoneOr(Number.ID))
-    def view_by_id(
-        self, *, view_index=None, image_id=None, color_blending_id=None
-    ):
+    def view_by_id(self, *, view_index=None, image_id=None, color_blending_id=None):
         """Return the view identified by exactly one supported identifier.
 
         Parameters
@@ -765,16 +730,9 @@ class Session:
             If no matching entry exists for the given ``image_id`` or
             ``color_blending_id``. There is no cross-type fallback.
         """
-        provided = {
-            "view_index": view_index,
-            "image_id": image_id,
-            "color_blending_id": color_blending_id,
-        }
-        provided_values = {
-            key: value
-            for key, value in provided.items()
-            if value is not None
-        }
+        provided = {"view_index": view_index, "image_id": image_id, "color_blending_id": color_blending_id}
+        provided_values = {k: v for k, v in provided.items() if v is not None}
+
         if len(provided_values) != 1:
             raise ValueError(
                 "view_by_id requires exactly one of the keyword arguments "
@@ -784,40 +742,25 @@ class Session:
 
         if view_index is not None:
             try:
-                entry = self.get_value(
-                    "imageViewConfigStore.imageListSummary"
-                    f"[{view_index}]"
-                )
+                entry = self.get_value(f"imageViewConfigStore.imageListSummary[{view_index}]")
             except (CartaActionFailed, CartaBadResponse) as e:
-                raise IndexError(
-                    f"view_index {view_index} is out of range for the views."
-                ) from e
+                raise IndexError(f"view_index {view_index} is out of range for the views.") from e
             return View.view_class(entry["type"])(self, entry["id"])
 
         if image_id is not None:
             try:
-                resolved_image_id = self.get_value(
-                    f"frameMap[{image_id}]",
-                    return_path="frameInfo.fileId",
-                )
+                resolved_image_id = self.get_value(f"frameMap[{image_id}]", return_path="frameInfo.fileId")
             except (CartaActionFailed, CartaBadResponse) as e:
-                raise RuntimeError(
-                    f"No image with image_id={image_id} is open."
-                ) from e
+                raise RuntimeError(f"No image with image_id={image_id} is open.") from e
             return Image(self, resolved_image_id)
 
         # color_blending_id is not None
         try:
             resolved_color_blending_id = self.get_value(
-                f"imageViewConfigStore.colorBlendingImageMap"
-                f"[{color_blending_id}]",
-                return_path="id",
+                f"imageViewConfigStore.colorBlendingImageMap[{color_blending_id}]", return_path="id"
             )
         except (CartaActionFailed, CartaBadResponse) as e:
-            raise RuntimeError(
-                f"No color blending with color_blending_id={color_blending_id} "
-                "is open."
-            ) from e
+            raise RuntimeError(f"No color blending with color_blending_id={color_blending_id} is open.") from e
         return ColorBlending(self, resolved_color_blending_id)
 
     def active_view(self):
@@ -837,9 +780,7 @@ class Session:
             the Python side.
         """
         active = self.get_value("activeImage")
-        return View.view_class(active["type"])(
-            self, active["store"]["id"]
-        )
+        return View.view_class(active["type"])(self, active["store"]["id"])
 
     # COLOR BLENDING
 
@@ -883,16 +824,12 @@ class Session:
             from another session.
         """
         if images is not None:
-            if any(image.session is not self for image in images):
-                raise CartaValidationFailed(
-                    "images must belong to the current session."
-                )
+            if any(i.session is not self for i in images):
+                raise CartaValidationFailed("images must belong to the current session.")
 
-            image_ids = [image.image_id for image in images]
+            image_ids = [i.image_id for i in images]
             if len(set(image_ids)) != len(image_ids):
-                raise CartaValidationFailed(
-                    "images must not contain duplicate images."
-                )
+                raise CartaValidationFailed("images must not contain duplicate images.")
 
             images[0].make_spatial_reference()
             for image in images[1:]:
@@ -902,10 +839,7 @@ class Session:
             if image_count <= 0:
                 raise CartaActionFailed("No images are open.")
 
-        color_blending_id = self.call_action(
-            "imageViewConfigStore.createColorBlending",
-            return_path="id",
-        )
+        color_blending_id = self.call_action("imageViewConfigStore.createColorBlending", return_path="id")
         cb = ColorBlending(self, color_blending_id)
 
         if images is not None:
