@@ -142,17 +142,14 @@ def test_views_heterogeneous(session, get_value):
 def test_views_skips_unsupported_view_type(session, get_value, capsys):
     get_value.return_value = [
         {"type": ImageType.FRAME, "id": 10},
-        {"type": 99, "id": 11},
+        {"type": ImageType.PV_PREVIEW, "id": 11},
         {"type": ImageType.FRAME, "id": 20},
     ]
 
     views = session.views()
 
     assert [view.image_id for view in views] == [10, 20]
-    assert (
-        "Skipping unsupported view entry at index 1"
-        in capsys.readouterr().out
-    )
+    assert capsys.readouterr().out == "Skipping unsupported PV_PREVIEW view at index 1.\n"
 
 
 def test_views_empty(session, get_value):
@@ -163,18 +160,48 @@ def test_views_empty(session, get_value):
     )
 
 
-def test_views_uses_explicit_indices(session, mocker):
-    view_by_id = mocker.patch.object(session, "view_by_id")
-    view_by_id.side_effect = ["view-2", "view-0", "view-2-again"]
+def test_views_uses_one_summary_for_explicit_indices(session, get_value):
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.COLOR_BLENDING, "id": 3},
+        {"type": ImageType.FRAME, "id": 20},
+    ]
 
     views = session.views(view_indices=[2, 0, 2])
 
-    assert views == ["view-2", "view-0", "view-2-again"]
-    assert view_by_id.call_args_list == [
-        call(view_index=2),
-        call(view_index=0),
-        call(view_index=2),
+    assert [
+        (type(view), view.image_id if isinstance(view, Image) else view.color_blending_id)
+        for view in views
+    ] == [(Image, 20), (Image, 10), (Image, 20)]
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
+
+
+def test_views_explicit_indices_reject_out_of_range(session, get_value):
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
     ]
+
+    with pytest.raises(IndexError, match=r"view_indices \[1, 2\]"):
+        session.views(view_indices=[1, 2])
+
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
+
+
+def test_views_explicit_indices_raise_for_unsupported_type(session, get_value):
+    get_value.return_value = [
+        {"type": ImageType.PV_PREVIEW, "id": -2}
+    ]
+
+    with pytest.raises(NotImplementedError):
+        session.views(view_indices=[0])
+
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
 
 
 @pytest.mark.parametrize("view_indices", [[-1], [1.5], ["1"]])
@@ -185,34 +212,49 @@ def test_views_rejects_invalid_indices(session, get_value, view_indices):
     get_value.assert_not_called()
 
 
-def test_images_uses_frontend_image_array(session, get_value):
-    get_value.side_effect = [2, 10, 20]
+def test_images_uses_frontend_frame_names(session, get_value):
+    get_value.return_value = [
+        {"value": 10, "label": "Image 10"},
+        {"value": 20, "label": "Image 20"},
+    ]
 
     images = session.images()
 
     assert [image.image_id for image in images] == [10, 20]
-    assert get_value.call_args_list == [
-        call("frames.length"),
-        call("frames[0]", return_path="frameInfo.fileId"),
-        call("frames[1]", return_path="frameInfo.fileId"),
+    get_value.assert_called_once_with(
+        "frameNames"
+    )
+
+
+def test_images_uses_frame_names_for_explicit_ids(session, get_value):
+    get_value.return_value = [
+        {"value": 10, "label": "Image 10"},
+        {"value": 20, "label": "Image 20"},
     ]
 
+    images = session.images(image_ids=[20, 10, 20])
 
-def test_images_uses_image_map_for_explicit_ids(session, mocker):
-    view_by_id = mocker.patch.object(session, "view_by_id")
-    view_by_id.side_effect = [object(), object()]
+    assert [image.image_id for image in images] == [20, 10, 20]
+    get_value.assert_called_once_with("frameNames")
 
-    images = session.images(image_ids=[10, 20])
 
-    assert len(images) == 2
-    assert view_by_id.call_args_list == [
-        call(image_id=10),
-        call(image_id=20),
+def test_images_rejects_closed_explicit_id(session, get_value):
+    get_value.return_value = [{"value": 10, "label": "Image 10"}]
+
+    with pytest.raises(RuntimeError, match="image_id=20"):
+        session.images(image_ids=[20])
+
+    get_value.assert_called_once_with("frameNames")
+
+
+def test_color_blendings_uses_frontend_image_list_summary(
+    session, get_value
+):
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.COLOR_BLENDING, "id": 3},
+        {"type": ImageType.COLOR_BLENDING, "id": 7},
     ]
-
-
-def test_color_blendings_uses_color_blending_list(session, get_value):
-    get_value.side_effect = [2, 3, 7]
 
     color_blendings = session.color_blendings()
 
@@ -220,32 +262,42 @@ def test_color_blendings_uses_color_blending_list(session, get_value):
         color_blending.color_blending_id
         for color_blending in color_blendings
     ] == [3, 7]
-    assert get_value.call_args_list == [
-        call("imageViewConfigStore.colorBlendingImages.length"),
-        call(
-            "imageViewConfigStore.colorBlendingImages[0]",
-            return_path="id",
-        ),
-        call(
-            "imageViewConfigStore.colorBlendingImages[1]",
-            return_path="id",
-        ),
-    ]
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
 
 
-def test_color_blendings_uses_color_blending_map_for_explicit_ids(
-    session, mocker
+def test_color_blendings_uses_image_list_summary_for_explicit_ids(
+    session, get_value
 ):
-    view_by_id = mocker.patch.object(session, "view_by_id")
-    view_by_id.side_effect = [object(), object()]
-
-    color_blendings = session.color_blendings([3, 7])
-
-    assert len(color_blendings) == 2
-    assert view_by_id.call_args_list == [
-        call(color_blending_id=3),
-        call(color_blending_id=7),
+    get_value.return_value = [
+        {"type": ImageType.FRAME, "id": 10},
+        {"type": ImageType.COLOR_BLENDING, "id": 3},
+        {"type": ImageType.COLOR_BLENDING, "id": 7},
     ]
+
+    color_blendings = session.color_blendings([7, 3, 7])
+
+    assert [
+        color_blending.color_blending_id
+        for color_blending in color_blendings
+    ] == [7, 3, 7]
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
+
+
+def test_color_blendings_rejects_closed_explicit_id(session, get_value):
+    get_value.return_value = [
+        {"type": ImageType.COLOR_BLENDING, "id": 3}
+    ]
+
+    with pytest.raises(RuntimeError, match="color_blending_id=7"):
+        session.color_blendings([7])
+
+    get_value.assert_called_once_with(
+        "imageViewConfigStore.imageListSummary"
+    )
 
 
 def test_find_view_index_single_round_trip(session, call_action):

@@ -12,7 +12,7 @@ import posixpath
 from .image import Image
 from .view import View
 from .color_blending import ColorBlending
-from .constants import PanelMode, GridMode, ComplexComponent, Polarization, ColormapSet
+from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
 from .util import Macro, split_action_path, CartaActionFailed, CartaBadResponse, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaValidationFailed, cached, Point as Pt
@@ -574,43 +574,53 @@ class Session:
         indices are supplied, the views at those positions are returned in
         the requested order.
 
+        Unsupported view types are skipped when no indices are supplied.
+
         Returns
         -------
         list of :obj:`carta.view.View`
             The requested heterogeneous views open in this session.
+
+        Raises
+        ------
+        IndexError
+            If any requested view index is out of range.
+        NotImplementedError
+            If an explicitly requested view type is unsupported.
+        CartaValidationFailed
+            If ``view_indices`` contains an invalid value.
         """
-        if view_indices is not None:
-            return [
-                self.view_by_id(view_index=view_index)
-                for view_index in view_indices
-            ]
-
         summary = self.get_value("imageViewConfigStore.imageListSummary")
-        result = []
-        for index, entry in enumerate(summary):
-            try:
-                result.append(
-                    View.view_class(entry["type"])(self, entry["id"])
-                )
-            except (CartaValidationFailed, NotImplementedError) as e:
-                print(
-                    f"Skipping unsupported view entry at index {index}: "
-                    f"{entry!r}: {e}"
-                )
-        return result
 
-    def _view_list(self, path, view_class, return_path):
-        count = self.get_value(f"{path}.length")
-        return [
-            view_class(
-                self,
-                self.get_value(
-                    f"{path}[{index}]",
-                    return_path=return_path,
-                ),
-            )
-            for index in range(count)
-        ]
+        if view_indices is not None:
+            out_of_range = [
+                view_index
+                for view_index in view_indices
+                if view_index >= len(summary)
+            ]
+            if out_of_range:
+                raise IndexError(
+                    f"view_indices {out_of_range!r} are out of range for "
+                    f"views of length {len(summary)}."
+                )
+            indexed_entries = []
+            for view_index in view_indices:
+                indexed_entries.append((view_index, summary[view_index]))
+            skip_unsupported = False
+        else:
+            indexed_entries = enumerate(summary)
+            skip_unsupported = True
+
+        result = []
+        for index, entry in indexed_entries:
+            try:
+                result.append(View.view_class(entry["type"])(self, entry["id"]))
+            except (CartaValidationFailed, NotImplementedError):
+                if not skip_unsupported:
+                    raise
+                view_type = ImageType(entry["type"])
+                print(f"Skipping unsupported {view_type.name} view at index {index}.")
+        return result
 
     @validate(NoneOr(IterableOf(Number.ID)))
     def images(self, image_ids=None):
@@ -630,8 +640,17 @@ class Session:
             The requested images.
         """
         if image_ids is None:
-            return self._view_list("frames", Image, "frameInfo.fileId")
-        return [self.view_by_id(image_id=image_id) for image_id in image_ids]
+            return [
+                Image(self, entry["value"]) for entry in self.get_value("frameNames")
+            ]
+
+        frame_ids = {entry["value"] for entry in self.get_value("frameNames")}
+        images = []
+        for image_id in image_ids:
+            if image_id not in frame_ids:
+                raise RuntimeError(f"No image with image_id={image_id} is open.")
+            images.append(Image(self, image_id))
+        return images
 
     @validate(NoneOr(IterableOf(Number.ID)))
     def color_blendings(self, color_blending_ids=None):
@@ -652,16 +671,28 @@ class Session:
         list of :obj:`carta.color_blending.ColorBlending`
             The requested color blending images.
         """
+        summary = self.get_value("imageViewConfigStore.imageListSummary")
         if color_blending_ids is None:
-            return self._view_list(
-                "imageViewConfigStore.colorBlendingImages",
-                ColorBlending,
-                "id",
-            )
-        return [
-            self.view_by_id(color_blending_id=color_blending_id)
-            for color_blending_id in color_blending_ids
-        ]
+            return [
+                ColorBlending(self, entry["id"])
+                for entry in summary
+                if entry["type"] == ImageType.COLOR_BLENDING
+            ]
+
+        color_blending_ids_in_summary = {
+            entry["id"]
+            for entry in summary
+            if entry["type"] == ImageType.COLOR_BLENDING
+        }
+        color_blendings = []
+        for color_blending_id in color_blending_ids:
+            if color_blending_id not in color_blending_ids_in_summary:
+                raise RuntimeError(
+                    f"No color blending with "
+                    f"color_blending_id={color_blending_id} is open."
+                )
+            color_blendings.append(ColorBlending(self, color_blending_id))
+        return color_blendings
 
     def _find_view_index(self, view_type, stable_id):
         """Return the view index of an item identified by a stable id.
