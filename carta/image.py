@@ -1,4 +1,4 @@
-"""This module contains the image classes representing images open in the session.
+"""This module contains an image class which represents a single image open in the session.
 
 Image objects should not be instantiated directly, and should only be created through methods on the :obj:`carta.session.Session` object.
 """
@@ -27,14 +27,14 @@ class Image(View, BasePathMixin):
     session : :obj:`carta.session.Session`
         The session object associated with this image.
     image_id : integer
-        The frontend image ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
+        The ID identifying this image within the session. This is a unique number which is not reused, not the index of the image within the list of currently open images.
 
     Attributes
     ----------
     session : :obj:`carta.session.Session`
         The session object associated with this image.
     image_id : integer
-        The frontend image ID identifying this image within the session.
+        The ID identifying this image within the session.
     raster : :obj:`carta.raster.Raster`
         Sub-object with functions related to the raster image.
     contours : :obj:`carta.contours.Contours`
