@@ -4,12 +4,14 @@ import logging
 import json
 import functools
 import re
+import warnings
 
 from .units import AngularSize, WorldCoordinate
 
 logger = logging.getLogger("carta_scripting")
-logger.setLevel(logging.WARN)
-logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.WARNING)
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler())
 
 
 class CartaScriptingException(Exception):
@@ -112,6 +114,25 @@ class CartaEncoder(json.JSONEncoder):
             # The condition is a workaround to avoid importing numpy
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+
+
+def deprecated(message):
+    """Mark a callable as deprecated and warn when it is called.
+
+    Parameters
+    ----------
+    message : string
+        The message to include in the :obj:`DeprecationWarning`.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def newfunc(*args, **kwargs):
+            warnings.warn(message, DeprecationWarning, stacklevel=2)
+            return func(*args, **kwargs)
+
+        return newfunc
+
+    return decorator
 
 
 def cached(func):
