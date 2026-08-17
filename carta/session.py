@@ -819,8 +819,9 @@ class Session:
             If the active view is of a type that is not yet wrapped on
             the Python side.
         """
-        active = self.get_value("activeImage")
-        return View.view_class(active["type"])(self, active["store"]["id"])
+        view_type = self.get_value("activeImage.type")
+        view_id = self.get_value("activeImage.store.id")
+        return View.view_class(view_type)(self, view_id)
 
     @deprecated("Session.active_frame() is deprecated; use Session.active_view() instead.")
     def active_frame(self):
