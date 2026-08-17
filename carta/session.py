@@ -643,9 +643,9 @@ class Session:
     def image_list(self):
         """Return all open images.
 
-        .. deprecated::
-            Use :meth:`images` for images, :meth:`views` for all views, or
-            :meth:`color_blendings` for color blendings instead.
+        .. warning::
+            Deprecated. Use :meth:`images` for images, :meth:`views` for all
+            views, or :meth:`color_blendings` for color blendings instead.
 
         Returns
         -------
@@ -786,8 +786,8 @@ class Session:
     def image_by_id(self, image_id):
         """Return an image object with the specified ID.
 
-        .. deprecated::
-            Use :meth:`view_by_id` with ``image_id`` instead.
+        .. warning::
+            Deprecated. Use :meth:`view_by_id` with ``image_id`` instead.
 
         This is a helper function which returns the open image with the
         specified ID.
@@ -828,8 +828,8 @@ class Session:
     def active_frame(self):
         """Return the currently active image.
 
-        .. deprecated::
-            Use :meth:`active_view` instead.
+        .. warning::
+            Deprecated. Use :meth:`active_view` instead.
 
         Returns
         -------
