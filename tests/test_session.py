@@ -1,4 +1,5 @@
 from unittest.mock import call
+import logging
 
 import pytest
 
@@ -139,17 +140,52 @@ def test_views_heterogeneous(session, get_value):
     assert isinstance(views[2], Image) and views[2].image_id == 20
 
 
-def test_views_skips_unsupported_view_type(session, get_value, capsys):
+def test_views_skips_unsupported_view_type(session, get_value, caplog, capsys):
     get_value.return_value = [
         {"type": ImageType.FRAME, "id": 10},
         {"type": ImageType.PV_PREVIEW, "id": 11},
         {"type": ImageType.FRAME, "id": 20},
     ]
 
-    views = session.views()
+    with caplog.at_level(logging.WARNING, logger="carta_scripting"):
+        views = session.views()
 
     assert [view.image_id for view in views] == [10, 20]
-    assert capsys.readouterr().out == "Skipping unsupported PV_PREVIEW view at index 1.\n"
+    assert [record.getMessage() for record in caplog.records] == [
+        "Skipping unsupported PV_PREVIEW view at index 1."
+    ]
+    assert capsys.readouterr().out == ""
+
+
+def test_image_list_is_deprecated_and_calls_images(session, mocker):
+    images = mocker.patch.object(session, "images", return_value=["image"])
+
+    with pytest.warns(DeprecationWarning) as warning:
+        assert session.image_list() == ["image"]
+
+    assert str(warning[0].message) == (
+        "Session.image_list() is deprecated; use Session.images() for images, "
+        "Session.views() for all views, or Session.color_blendings() for color blendings."
+    )
+    images.assert_called_once_with()
+
+
+def test_image_by_id_is_deprecated_and_constructs_image(session):
+    with pytest.warns(
+        DeprecationWarning,
+        match=r"Session.image_by_id\(\) is deprecated; use Session.view_by_id\(image_id=image_id\) instead\.",
+    ):
+        image = session.image_by_id(12)
+
+    assert isinstance(image, Image)
+    assert image.image_id == 12
+
+
+@pytest.mark.parametrize("image_id", [-1, 1.5, "12"])
+def test_image_by_id_rejects_invalid_ids(session, image_id):
+    with pytest.warns(DeprecationWarning):
+        with pytest.raises(CartaValidationFailed):
+            session.image_by_id(image_id)
 
 
 def test_views_empty(session, get_value):
@@ -517,6 +553,32 @@ def test_active_view_raises_on_unsupported_type(session, get_value):
     ]
     with pytest.raises(NotImplementedError):
         session.active_view()
+
+
+def test_active_frame_is_deprecated_and_returns_active_image(session, mocker):
+    active = Image(session, 12)
+    active_view = mocker.patch.object(session, "active_view", return_value=active)
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=r"Session.active_frame\(\) is deprecated; use Session.active_view\(\) instead\.",
+    ):
+        assert session.active_frame() is active
+
+    active_view.assert_called_once_with()
+
+
+def test_active_frame_raises_for_non_image_active_view(session, mocker):
+    active_view = mocker.patch.object(
+        session, "active_view", return_value=ColorBlending(session, 3)
+    )
+
+    with pytest.warns(DeprecationWarning):
+        with pytest.raises(TypeError, match="currently active view is not an image"):
+            session.active_frame()
+
+    active_view.assert_called_once_with()
+
 
 # open_as_color_blending / create_color_blending
 

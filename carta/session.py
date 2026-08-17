@@ -15,7 +15,7 @@ from .color_blending import ColorBlending
 from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
-from .util import Macro, split_action_path, CartaActionFailed, CartaBadResponse, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaValidationFailed, cached, Point as Pt
+from .util import Macro, split_action_path, CartaActionFailed, CartaBadResponse, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaValidationFailed, cached, deprecated, logger, Point as Pt
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, InstanceOf, MapOf, Union
 
 from .wcs_overlay import SessionWCSOverlay
@@ -608,7 +608,7 @@ class Session:
                 if not skip_unsupported:
                     raise
                 view_type = ImageType(entry["type"])
-                print(f"Skipping unsupported {view_type.name} view at index {index}.")
+                logger.warning(f"Skipping unsupported {view_type.name} view at index {index}.")
         return views
 
     @validate(NoneOr(IterableOf(Number.ID)))
@@ -635,6 +635,24 @@ class Session:
         elif missing_ids := [i for i in image_ids if i not in remote_ids]:
             raise RuntimeError(f"No images with image_ids {missing_ids} are open.")
         return [Image(self, i) for i in image_ids]
+
+    @deprecated(
+        "Session.image_list() is deprecated; use Session.images() for images, "
+        "Session.views() for all views, or Session.color_blendings() for color blendings."
+    )
+    def image_list(self):
+        """Return all open images.
+
+        .. deprecated::
+            Use :meth:`images` for images, :meth:`views` for all views, or
+            :meth:`color_blendings` for color blendings instead.
+
+        Returns
+        -------
+        list of :obj:`carta.image.Image`
+            The list of images open in this session.
+        """
+        return self.images()
 
     @validate(NoneOr(IterableOf(Number.ID)))
     def color_blendings(self, color_blending_ids=None):
@@ -763,6 +781,28 @@ class Session:
             raise RuntimeError(f"No color blending with color_blending_id={color_blending_id} is open.") from e
         return ColorBlending(self, resolved_color_blending_id)
 
+    @deprecated("Session.image_by_id() is deprecated; use Session.view_by_id(image_id=image_id) instead.")
+    @validate(Number.ID)
+    def image_by_id(self, image_id):
+        """Return an image object with the specified ID.
+
+        .. deprecated::
+            Use :meth:`view_by_id` with ``image_id`` instead.
+
+        This is a helper function which constructs a :obj:`carta.image.Image` object with the specified ID, without checking whether an image with that ID is currently open. It is the caller's responsibility to ensure this.
+
+        Parameters
+        ----------
+        image_id : integer
+            The ID of the image to return.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The image with the specified ID.
+        """
+        return Image(self, image_id)
+
     def active_view(self):
         """Return the currently active view.
 
@@ -781,6 +821,28 @@ class Session:
         """
         active = self.get_value("activeImage")
         return View.view_class(active["type"])(self, active["store"]["id"])
+
+    @deprecated("Session.active_frame() is deprecated; use Session.active_view() instead.")
+    def active_frame(self):
+        """Return the currently active image.
+
+        .. deprecated::
+            Use :meth:`active_view` instead.
+
+        Returns
+        -------
+        :obj:`carta.image.Image`
+            The currently active image.
+
+        Raises
+        ------
+        TypeError
+            If the currently active view is not an image.
+        """
+        active = self.active_view()
+        if not isinstance(active, Image):
+            raise TypeError("The currently active view is not an image.")
+        return active
 
     # COLOR BLENDING
 
