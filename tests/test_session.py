@@ -170,15 +170,17 @@ def test_image_list_is_deprecated_and_calls_images(session, mocker):
     images.assert_called_once_with()
 
 
-def test_image_by_id_is_deprecated_and_constructs_image(session):
+def test_image_by_id_is_deprecated_and_calls_view_by_id(session, mocker):
+    view_by_id = mocker.patch.object(session, "view_by_id", return_value=Image(session, 12))
+
     with pytest.warns(
         DeprecationWarning,
         match=r"Session.image_by_id\(\) is deprecated; use Session.view_by_id\(image_id=image_id\) instead\.",
     ):
         image = session.image_by_id(12)
 
-    assert isinstance(image, Image)
     assert image.image_id == 12
+    view_by_id.assert_called_once_with(image_id=12)
 
 
 @pytest.mark.parametrize("image_id", [-1, 1.5, "12"])
@@ -523,13 +525,15 @@ def test_view_by_id_uses_targeted_frontend_lookups(session, get_value):
 
 def test_active_view_returns_image_when_image_active(session, get_value):
     get_value.side_effect = [
-        {"type": ImageType.FRAME, "store": {"id": 12}},
+        ImageType.FRAME,
+        12,
     ]
     active = session.active_view()
     assert isinstance(active, Image)
     assert active.image_id == 12
     assert [call.args for call in get_value.call_args_list] == [
-        ("activeImage",),
+        ("activeImage.type",),
+        ("activeImage.store.id",),
     ]
 
 
@@ -537,19 +541,22 @@ def test_active_view_returns_color_blending_when_color_blending_active(
     session, get_value
 ):
     get_value.side_effect = [
-        {"type": ImageType.COLOR_BLENDING, "store": {"id": 3}},
+        ImageType.COLOR_BLENDING,
+        3,
     ]
     active = session.active_view()
     assert isinstance(active, ColorBlending)
     assert active.color_blending_id == 3
     assert [call.args for call in get_value.call_args_list] == [
-        ("activeImage",),
+        ("activeImage.type",),
+        ("activeImage.store.id",),
     ]
 
 
 def test_active_view_raises_on_unsupported_type(session, get_value):
     get_value.side_effect = [
-        {"type": ImageType.PV_PREVIEW, "store": {"id": -2}},
+        ImageType.PV_PREVIEW,
+        -2,
     ]
     with pytest.raises(NotImplementedError):
         session.active_view()

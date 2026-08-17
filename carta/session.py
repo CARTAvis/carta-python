@@ -789,7 +789,8 @@ class Session:
         .. deprecated::
             Use :meth:`view_by_id` with ``image_id`` instead.
 
-        This is a helper function which constructs a :obj:`carta.image.Image` object with the specified ID, without checking whether an image with that ID is currently open. It is the caller's responsibility to ensure this.
+        This is a helper function which returns the open image with the
+        specified ID.
 
         Parameters
         ----------
@@ -801,7 +802,7 @@ class Session:
         :obj:`carta.image.Image`
             The image with the specified ID.
         """
-        return Image(self, image_id)
+        return self.view_by_id(image_id=image_id)
 
     def active_view(self):
         """Return the currently active view.
