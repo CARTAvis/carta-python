@@ -23,6 +23,20 @@ Colormap = StrEnum('Colormap', {c.upper(): c for c in ('copper', 'paired', 'gist
 Colormap.__doc__ = """All available colormaps."""
 
 
+class ColormapSet(StrEnum):
+    """Colormap sets for color blending."""
+    RGB = "RGB"
+    CMY = "CMY"
+    RAINBOW = "Rainbow"
+
+
+class ImageType(IntEnum):
+    """View item types, corresponding to the frontend ImageType enum."""
+    FRAME = 0
+    COLOR_BLENDING = 1
+    PV_PREVIEW = 2
+
+
 Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'), start=0)
 Scaling.__doc__ = """Colormap scaling types."""
 

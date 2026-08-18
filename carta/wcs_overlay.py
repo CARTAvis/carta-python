@@ -435,20 +435,14 @@ class ImageWCSConnector:
 
     ANY_IDS = NoneOr(IterableOf(Number.ID))
 
-    def _images(self, image_ids=None):
-        """Internal helper function for fetching image objects."""
-        if image_ids is None:
-            return self.session.image_list()
-        return [self.session.image_by_id(image_id) for image_id in image_ids]
-
     def _get_image_wcs_properties(self, image_ids, property_path):
         """Internal helper function for fetching wcs properties from multiple images."""
-        images = self._images(image_ids)
+        images = self.session.images(image_ids)
         return tuple(attrgetter(property_path)(image.wcs) for image in images)
 
     def _call_image_wcs_functions(self, image_ids, function_path, *function_args):
         """Internal helper function for executing wcs functions on multiple images."""
-        images = self._images(image_ids)
+        images = self.session.images(image_ids)
         for image in images:
             attrgetter(function_path)(image.wcs)(*function_args)
 

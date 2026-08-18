@@ -4,12 +4,12 @@ Image objects should not be instantiated directly, and should only be created th
 """
 
 
-from .constants import Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
-from .util import Macro, cached, BasePathMixin, Point as Pt
+from .constants import ImageType, Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
+from .view import View
+from .util import Macro, cached, BasePathMixin, CartaScriptingException, Point as Pt
 from .units import AngularSize, WorldCoordinate
 from .validation import validate, Number, Constant, Boolean, Evaluate, Attr, Attrs, OneOf, Size, Coordinate, NoneOr, IterableOf, Point
 from .metadata import parse_header
-
 from .raster import Raster
 from .contours import Contours
 from .vector_overlay import VectorOverlay
@@ -17,7 +17,7 @@ from .wcs_overlay import ImageWCSOverlay
 from .region import RegionSet
 
 
-class Image(BasePathMixin):
+class Image(View, BasePathMixin):
     """This object corresponds to an image open in a CARTA frontend session.
 
     This class should not be instantiated directly. Instead, use the session object's methods for opening new images or retrieving existing images.
@@ -47,8 +47,10 @@ class Image(BasePathMixin):
         Functions for manipulating regions associated with this image.
     """
 
+    VIEW_TYPE = ImageType.FRAME
+
     def __init__(self, session, image_id):
-        self.session = session
+        super().__init__(session)
         self.image_id = image_id
 
         self._base_path = f"frameMap[{image_id}]"
@@ -60,6 +62,10 @@ class Image(BasePathMixin):
         self.vectors = VectorOverlay(self)
         self.wcs = ImageWCSOverlay(self)
         self.regions = RegionSet(self)
+
+    @property
+    def _stable_id(self):
+        return self.image_id
 
     @classmethod
     def new(cls, session, directory, file_name, hdu, append, image_arithmetic, make_active=True, update_directory=False):
@@ -102,29 +108,23 @@ class Image(BasePathMixin):
         image_id = session.call_action(command, *params, return_path="frameInfo.fileId")
         return cls(session, image_id)
 
-    @classmethod
-    def from_list(cls, session, image_list):
-        """Create a list of image objects from a list of open images retrieved from the frontend.
-
-        This method should not be used directly. It is wrapped by :obj:`carta.session.Session.image_list`.
-
-        Parameters
-        ----------
-        session : :obj:`carta.session.Session`
-            The session object.
-        image_list : list of dicts
-            The JSON object representing frame names retrieved from the frontend.
-
-        Returns
-        -------
-        list of :obj:`carta.image.Image`
-            A list of new image objects.
-        """
-        return [cls(session, f["value"]) for f in image_list]
-
     def __repr__(self):
         """A human-readable representation of this image object."""
-        return f"{self.session.session_id}:{self.image_id}:{self.file_name}"
+        cls = type(self).__name__
+        cached_name = getattr(self, "_cache", {}).get("file_name")
+        name_part = f", file_name={cached_name!r}" if cached_name is not None else ""
+
+        try:
+            index = self.view_index
+        except (CartaScriptingException, RuntimeError):
+            return f"[Closed] {cls}(view_index=None{name_part}, image_id={self.image_id})"
+
+        try:
+            name = self.file_name
+        except CartaScriptingException:
+            return f"[Closed] {cls}(view_index={index}{name_part}, image_id={self.image_id})"
+
+        return f"{cls}(view_index={index}, file_name={name!r}, image_id={self.image_id})"
 
     # METADATA
 
@@ -254,13 +254,9 @@ class Image(BasePathMixin):
 
     # SELECTION
 
-    def make_active(self):
-        """Make this the active image."""
-        self.session.call_action("setActiveFrameById", self.image_id)
-
     def make_spatial_reference(self):
         """Make this image the spatial reference."""
-        self.session.call_action("setSpatialReference", self._frame)
+        self.session.call_action("setSpatialReference", self._frame, False)
 
     @validate(Boolean())
     def set_spatial_matching(self, state):
@@ -362,7 +358,7 @@ class Image(BasePathMixin):
     def set_center(self, x, y):
         """Set the center position, in image or world coordinates.
 
-        World coordinates are interpreted according to the session's globally set coordinate system and any custom number formats. These can be changed using :obj:`carta.session.set_coordinate_system` and :obj:`set_custom_number_format`.
+        World coordinates are interpreted according to the session's globally set coordinate system and any custom number formats. These can be changed using :obj:`carta.session.wcs.global_.set_coordinate_system` and :obj:`carta.session.wcs.numbers.set_format`.
 
         Coordinates must either both be image coordinates or match the current number formats. Numbers are interpreted as image coordinates, and numeric strings with no units are interpreted as degrees.
 

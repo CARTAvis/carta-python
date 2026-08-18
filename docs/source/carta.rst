@@ -17,6 +17,14 @@ carta.browser module
    :undoc-members:
    :show-inheritance:
 
+carta.color_blending module
+---------------------------
+
+.. automodule:: carta.color_blending
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.constants module
 ----------------------
 
@@ -37,6 +45,14 @@ carta.image module
 ------------------
 
 .. automodule:: carta.image
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+carta.view module
+-----------------
+
+.. automodule:: carta.view
    :members:
    :undoc-members:
    :show-inheritance:
@@ -136,4 +152,3 @@ carta.wcs_overlay module
    :members:
    :undoc-members:
    :show-inheritance:
-

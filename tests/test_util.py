@@ -1,4 +1,37 @@
-from carta.util import Point as Pt
+import warnings
+
+import pytest
+
+from carta.util import Point as Pt, deprecated
+
+
+def test_deprecated_warns_and_preserves_function_metadata():
+    message = "use replacement instead"
+
+    @deprecated(message)
+    def legacy(value, *, increment=0):
+        """The legacy function."""
+        return value + increment
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert legacy(2, increment=3) == 5
+        assert legacy(4) == 4
+
+    assert [warning.category for warning in caught] == [DeprecationWarning, DeprecationWarning]
+    assert [str(warning.message) for warning in caught] == [message, message]
+    assert legacy.__name__ == "legacy"
+    assert legacy.__doc__ == "The legacy function."
+
+
+def test_deprecated_preserves_exceptions():
+    @deprecated("use replacement instead")
+    def legacy():
+        raise RuntimeError("failure")
+
+    with pytest.warns(DeprecationWarning, match="use replacement instead"):
+        with pytest.raises(RuntimeError, match="failure"):
+            legacy()
 
 
 def test_point_equality():

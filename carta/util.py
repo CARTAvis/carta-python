@@ -4,12 +4,14 @@ import logging
 import json
 import functools
 import re
+import warnings
 
 from .units import AngularSize, WorldCoordinate
 
 logger = logging.getLogger("carta_scripting")
-logger.setLevel(logging.WARN)
-logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.WARNING)
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler())
 
 
 class CartaScriptingException(Exception):
@@ -114,6 +116,25 @@ class CartaEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+def deprecated(message):
+    """Mark a callable as deprecated and warn when it is called.
+
+    Parameters
+    ----------
+    message : string
+        The message to include in the :obj:`DeprecationWarning`.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def newfunc(*args, **kwargs):
+            warnings.warn(message, DeprecationWarning, stacklevel=2)
+            return func(*args, **kwargs)
+
+        return newfunc
+
+    return decorator
+
+
 def cached(func):
     """A decorator which transparently caches the return value of the decorated method on the parent object.
 
@@ -130,7 +151,7 @@ def cached(func):
         return self._cache[func.__name__]
 
     if newfunc.__doc__ is not None:
-        newfunc.__doc__ = re.sub(r"($|\n)", r" This value is transparently cached on the parent object.\1", newfunc.__doc__, 1)
+        newfunc.__doc__ = re.sub(r"($|\n)", r" This value is transparently cached on the parent object.\1", newfunc.__doc__, count=1)
 
     return newfunc
 

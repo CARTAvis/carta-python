@@ -175,9 +175,57 @@ Helper methods on the session object open images in the frontend and return imag
 .. code-block:: python
 
     # Open or append images
-    img1 = session.open_image("data/hdf5/first_file.hdf5")
-    img2 = session.open_image("data/fits/second_file.fits", append=True)
-        
+    img0 = session.open_image("data/hdf5/first_file.hdf5")
+    img1 = session.open_image("data/fits/second_file.fits", append=True)
+    img2 = session.open_image("data/fits/third_file.fits", append=True)
+
+    # Open multiple images in one call
+    img0, img1, img2 = session.open_images([
+        "data/hdf5/first_file.hdf5",
+        "data/fits/second_file.fits",
+        "data/fits/third_file.fits",
+    ])
+
+Inspecting the list of open images
+----------------------------------
+
+The session's views are heterogeneous: they may contain both ordinary images (:obj:`carta.image.Image`) and color blending images (:obj:`carta.color_blending.ColorBlending`). Their order matches the views panel shown in the frontend, as illustrated below.
+
+.. figure:: images/image_list.jpg
+   :alt: CARTA frontend views panel showing images and a color blending entry.
+   :align: center
+
+   The frontend views panel. Each row corresponds to an item returned by :obj:`carta.session.Session.views`, and its position in the list is the item's ``view_index``.
+
+Use :meth:`carta.session.Session.images` and
+:meth:`carta.session.Session.color_blendings` to retrieve the two concrete
+view types directly, optionally filtering by their stable IDs.
+
+.. code-block:: python
+
+    # All open views, in display order
+    items = session.views()
+
+    # Select views by their current indices, preserving the requested order
+    selected = session.views(view_indices=[1, 0])
+
+    # Get images or color blending images directly
+    images = session.images()
+    color_blendings = session.color_blendings()
+
+    # Every view exposes its current view index
+    print(img0.view_index)
+
+    # Retrieve a specific view by view index
+    img = session.view_by_id(view_index=0)
+    cb = session.view_by_id(view_index=1)
+
+    # Filter by stable IDs when needed
+    images = session.images(image_ids=[img0.image_id, img1.image_id])
+    color_blendings = session.color_blendings(
+        color_blending_ids=[cb.color_blending_id]
+    )
+
 Changing image properties
 -------------------------
 
@@ -186,7 +234,7 @@ Properties specific to individual images can be accessed through image objects:
 .. code-block:: python
 
     import numpy as np
-    from carta.constants import Colormap, Scaling, Polarization
+    from carta.constants import Colormap, ColormapSet, Scaling, Polarization
 
     # change the channel and polarization
     img.set_channel(10)
@@ -196,7 +244,7 @@ Properties specific to individual images can be accessed through image objects:
     # pan and zoom
     y, x = img.shape[-2:]
     img.set_center(x/2, y/2)
-    img.set_zoom(4)
+    img.set_zoom_level(4)
 
     # change colormap
     img.raster.set_colormap(Colormap.VIRIDIS)
@@ -229,7 +277,131 @@ Properties which affect the whole session can be set through the session object:
     session.wcs.global_.set_color(PaletteColor.RED)
     session.wcs.ticks.set_color(PaletteColor.VIOLET)
     session.wcs.title.show()
-    
+
+Making color blended image
+--------------------------
+
+The session object provides two convenience methods which create a color blending image and apply a sensible default colormap set (``RGB`` for three layers or fewer, ``RAINBOW`` for more):
+
+.. code-block:: python
+
+    files = [
+        "data/hdf5/first_file.hdf5",
+        "data/fits/second_file.fits",
+        "data/fits/third_file.fits",
+    ]
+
+    # Open the files and combine them into a new color blending image.
+    # This closes any currently open images, makes the first opened
+    # image the spatial reference, and spatially matches the remaining
+    # opened images to it.
+    cb = session.open_as_color_blending(files)
+
+    # Create a new color blending from the current spatial reference
+    # and its currently spatially matched images.
+    # Set the desired base image as the current spatial reference and
+    # enable spatial matching for the other layers first.
+    session.clear_spatial_reference()
+    img0.make_spatial_reference()
+    img1.set_spatial_matching(True)
+    img2.set_spatial_matching(True)
+    cb = session.create_color_blending()
+
+    # Or select already-open images directly in the requested layer order.
+    cb = session.create_color_blending(
+        images=[img0, img1, img2]
+    )
+
+.. note::
+    ``session.open_as_color_blending(files)`` always closes any currently
+    open images before opening ``files``. It then makes the first opened
+    image the spatial reference and spatially matches the remaining
+    opened images to it before creating the color blending.
+
+Manipulate properties of the color blending object and the underlying layers:
+
+.. code-block:: python
+
+    # Get layer objects
+    layer1, layer2, layer3 = cb.layers()
+
+    # Set colormap for the images in individual layers
+    layer1.set_colormap(Colormap.REDS)
+    layer2.set_colormap(Colormap.GREENS)
+    layer3.set_colormap(Colormap.BLUES)
+
+    # Inspect the colormap, inversion, and alpha of an individual layer
+    print(layer1.colormap, layer1.inverted, layer1.alpha)
+
+    # Or apply an existing colormap set
+    cb.set_colormap_set(ColormapSet.RGB)
+
+    # Print the current alpha values of all layers
+    print(cb.alphas)
+
+    # Set alpha for individual layers
+    layer1.set_alpha(0.7)
+    layer2.set_alpha(0.8)
+    layer3.set_alpha(0.9)
+
+    # Or set alpha for all layers at once
+    cb.set_alphas([0.7, 0.8, 0.9])
+
+    # Replace the image in a layer
+    # For layer1, this also makes the new image the spatial reference.
+    # layer1.set_image(new_image)
+
+    # Remove the last layer (index = 2)
+    cb.delete_layer(2)
+
+    # Add the removed image back as a new layer
+    # The layer to be added cannot be one of the current layers
+    cb.add_layer(img2)
+
+    # Layer objects can delete themselves from the color blending
+    layer1, layer2, layer3 = cb.layers()
+    layer3.delete()
+
+    # Deleting the base layer promotes the next layer to the spatial
+    # reference. The old base remains spatially matched but is removed
+    # from the color blending layers.
+    layer1.delete()
+
+    # Append the old base as a new color blending layer if desired.
+    cb.add_layer(img0)
+
+    # Set center
+    cb.set_center(100, 100)
+
+    # Set zoom level
+    cb.set_zoom_level(2)
+
+    # Get the current view index of the color blending image
+    print(cb.view_index)
+
+    # Set the color blending object as the active view
+    cb.make_active()
+
+    # Set contour visibility
+    # This will hide the contours (if any)
+    cb.set_contour_visible(False)
+
+    # Close the color blending object
+    cb.close()
+
+.. note::
+    Layer indices are zero-based and refer to the current layer list. The
+    base layer (index = 0) can be deleted: if other layers remain, the next
+    layer becomes the new spatial reference; if it is the only layer, the
+    color blending object is closed. The old base remains spatially matched
+    to the new reference but is no longer part of the color blending until it
+    is appended as a new color blending layer with
+    :meth:`carta.color_blending.ColorBlending.add_layer`.
+
+    An image can be replaced through :meth:`carta.color_blending.Layer.set_image`.
+    Replacing the base layer first enables spatial matching for the new image
+    and then makes it the spatial reference.
+
 Saving or displaying an image
 -----------------------------
 
@@ -258,9 +430,9 @@ Closing images
 
 .. code-block:: python
 
-    # Close all images open in the session
-    for img in session.image_list():
-        img.close()
+    # Close all views open in the session
+    for item in session.views():
+        item.close()
     
 Closing the session
 -------------------

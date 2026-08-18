@@ -1,8 +1,9 @@
 import pytest
 
 from carta.image import Image
-from carta.util import CartaValidationFailed, Point as Pt
-from carta.constants import NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
+from carta.view import View
+from carta.util import CartaActionFailed, CartaValidationFailed, Point as Pt
+from carta.constants import ImageType, NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
 
 
 # FIXTURES
@@ -110,7 +111,126 @@ def test_simple_properties(image, property_name, expected_path, get_value):
 
 def test_make_active(image, session_call_action):
     image.make_active()
-    session_call_action.assert_called_with("setActiveFrameById", 0)
+    session_call_action.assert_called_with(
+        "setActiveImageById", ImageType.FRAME, 0
+    )
+
+
+def test_make_spatial_reference_disables_color_blending_alert(
+    image, session_call_action
+):
+    image.make_spatial_reference()
+    session_call_action.assert_called_once_with(
+        "setSpatialReference", image._frame, False
+    )
+
+
+def test_view_is_abstract(session):
+    with pytest.raises(TypeError, match=r"abstract method.*_stable_id"):
+        View(session)
+
+
+def test_view_make_active_uses_subclass_ids(session, session_call_action):
+    # Verify the shared View.make_active dispatches setActiveImageById
+    # with Image.VIEW_TYPE and its stable ID exactly once.
+    Image(session, 42).make_active()
+    session_call_action.assert_called_once_with(
+        "setActiveImageById", ImageType.FRAME, 42
+    )
+
+
+def test_view_class_resolves_registered_subclasses():
+    from carta.color_blending import ColorBlending
+
+    assert View.view_class(ImageType.FRAME) is Image
+    assert View.view_class(ImageType.COLOR_BLENDING) is ColorBlending
+
+
+def test_view_index_uses_subclass_ids(session, mocker):
+    find = mocker.patch.object(session, "_find_view_index", return_value=5)
+    from carta.color_blending import ColorBlending
+
+    assert ColorBlending(session, 42).view_index == 5
+    find.assert_called_once_with(ImageType.COLOR_BLENDING, 42)
+
+
+def test_view_subclass_requires_view_type():
+    with pytest.raises(
+        AttributeError, match="has no attribute 'VIEW_TYPE'"
+    ):
+        class Dummy(View):
+            pass
+
+
+def test_view_index_uses_find_view_index(session, mocker, image):
+    find = mocker.patch.object(
+        session, "_find_view_index", return_value=3
+    )
+    # Image with image_id=0 at view index 3.
+    assert image.view_index == 3
+    find.assert_called_once_with(ImageType.FRAME, 0)
+
+
+def test_view_index_raises_when_missing(session, mocker):
+    mocker.patch.object(
+        session, "_find_view_index", side_effect=RuntimeError
+    )
+    img = Image(session, 3)
+    with pytest.raises(RuntimeError):
+        img.view_index
+
+
+def test_image_repr_cached_name_resolves_only_view_index(session, image, mocker):
+    mocker.patch.object(session, "_find_view_index", return_value=3)
+    get_value = mocker.patch.object(image, "get_value")
+    image._cache = {"file_name": "cube.fits"}
+    r = repr(image)
+    assert r == "Image(view_index=3, file_name='cube.fits', image_id=0)"
+    get_value.assert_not_called()
+
+
+def test_image_repr_resolves_view_index_and_file_name(session, image, mocker):
+    mocker.patch.object(session, "_find_view_index", return_value=3)
+    mocker.patch.object(image, "get_value", return_value="cube.fits")
+    r = repr(image)
+    assert r == "Image(view_index=3, file_name='cube.fits', image_id=0)"
+
+
+def test_image_repr_closed_when_view_index_missing(session, image, mocker):
+    mocker.patch.object(
+        session,
+        "_find_view_index",
+        side_effect=RuntimeError("not in views"),
+    )
+    r = repr(image)
+    assert r == "[Closed] Image(view_index=None, image_id=0)"
+
+
+def test_image_repr_closed_shows_cached_file_name(session, image, mocker):
+    # When the view-index lookup fails but file_name was previously
+    # cached, the closed repr still surfaces the cached name without
+    # triggering any fresh round-trip.
+    mocker.patch.object(
+        session,
+        "_find_view_index",
+        side_effect=RuntimeError("not in views"),
+    )
+    get_value = mocker.patch.object(image, "get_value")
+    image._cache = {"file_name": "cube.fits"}
+    r = repr(image)
+    assert r == "[Closed] Image(view_index=None, file_name='cube.fits', image_id=0)"
+    get_value.assert_not_called()
+
+
+def test_image_repr_closed_when_image_is_gone(session, image, mocker):
+    mocker.patch.object(session, "_find_view_index", return_value=3)
+    mocker.patch.object(
+        image,
+        "get_value",
+        side_effect=CartaActionFailed("imageMap entry is missing"),
+    )
+    r = repr(image)
+    assert r == "[Closed] Image(view_index=3, image_id=0)"
 
 
 @pytest.mark.parametrize("channel", [0, 10, 19])
