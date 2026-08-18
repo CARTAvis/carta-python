@@ -24,6 +24,7 @@ jobs:
           repository: CARTAvis/carta-frontend
           ref: zhenkai/api_check
           path: carta-frontend
+          submodules: true
 
       - name: Install uv and set Python version
         uses: astral-sh/setup-uv@v7
@@ -47,6 +48,10 @@ jobs:
       - name: Install frontend dependencies
         working-directory: carta-frontend
         run: npm ci --ignore-scripts
+
+      - name: Build frontend protobuf types
+        working-directory: carta-frontend
+        run: npm run build-protobuf
 
       - name: Check frontend APIs
         working-directory: carta-frontend
