@@ -22,28 +22,46 @@ The required Python library dependencies should be installed automatically. To c
 
 You need access either to a CARTA backend executable, on the local host or on a remote host which you can access through SSH, or to a CARTA controller instance (a multi-user system with web-based authentication). You must be able to access the frontend served by this CARTA instance. If you are using your own backend executable, you must start it with the ``--enable_scripting`` commandline parameter to enable the scripting interface.
 
-.. note::
-   This version of the wrapper requires CARTA backend, frontend and
-   (optionally) controller versions compatible with CARTA 6.0.0 or later.
-   Session creation validates the frontend by reading ``frontendVersion``
-   through the scripting interface. Only the ``MAJOR.MINOR.PATCH``
-   components are compared, so any prerelease suffix (e.g. ``-dev``) is
-   accepted as long as the base version meets the minimum. Older
-   prerelease builds such as ``6.0.0-beta.1`` do not expose
-   ``frontendVersion`` and therefore fail this validation.
+If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
 
-   Scripts can also require a more specific CARTA frontend version when
-   creating a session. Pass ``carta_version_requirement`` with one or more
-   comma-separated clauses such as ``">=6.1.0"``, ``"<=6.2.0"``,
-   ``"==6.1.0"`` or ``">=6.1.0,<7.0.0"``. This check runs before the
-   session object is returned, even if ``check_connection=False``.
+CARTA version compatibility
+----------------------------
+
+Every session creation method checks that the CARTA version is compatible
+with the minimum version supported by the installed ``carta-python`` wrapper.
+The wrapper's minimum is maintained by the package and is not normally set by
+the script.
+
+Scripts can also provide their own minimum CARTA version with
+``minimum_carta_version``. This should be the minimum version required by the
+script, rather than the wrapper's minimum. For example:
+
+.. code-block:: python
+
+    from carta.session import Session
+    from carta.constants import VersionMismatchAction
+
+    SCRIPT_MINIMUM_CARTA_VERSION = "6.1.0"
+
+    session = Session.interact(
+        "FRONTEND URL",
+        123456,
+        minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+        version_mismatch_action=VersionMismatchAction.WARN,
+    )
+
+Omit ``minimum_carta_version`` temporarily to receive a deprecation warning;
+it will be required in a future release. Version mismatches produce a warning
+by default, including suggested actions. Use
+``version_mismatch_action=VersionMismatchAction.ERROR`` to raise an exception
+instead.
+
+The session examples below use the ``SCRIPT_MINIMUM_CARTA_VERSION`` variable
+defined above.
 
 If session creation fails during startup validation, check that the frontend
 URL is reachable, the session ID is correct, the token is valid, and the
-backend was started with ``--enable_scripting``. A failure while reading
-``frontendVersion`` can also indicate an unsupported CARTA frontend version.
-
-If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
+backend was started with ``--enable_scripting``.
 
 Connecting to an existing interactive session
 ---------------------------------------------
@@ -59,19 +77,22 @@ Use the ``interact`` method if you want to use scripting to control a CARTA sess
             from carta.session import Session
             from carta.token import BackendToken
 
-            session = Session.interact("FRONTEND URL", 123456, BackendToken("SECURITY TOKEN"))
             session = Session.interact(
                 "FRONTEND URL",
                 123456,
                 BackendToken("SECURITY TOKEN"),
-                carta_version_requirement=">=6.1.0,<7.0.0",
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
             )
 
         If you have launched a backend directly, the frontend URL and security token must match your running backend process. You have the option of using an environment variable, ``CARTA_AUTH_TOKEN``, to run CARTA with a fixed security token. Otherwise, a randomly generated token will be printed by the backend when it starts. If you include the security token in the URL, you may omit the security token parameter (it will be parsed from the URL automatically):
 
         .. code-block:: python
 
-            session = Session.interact("http://HOSTNAME:PORT?token=SECURITY_TOKEN", 123456)
+            session = Session.interact(
+                "http://HOSTNAME:PORT?token=SECURITY_TOKEN",
+                123456,
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+            )
 
         The second parameter is the session ID, which must match the running frontend session: it's visible when you hover over the status indicator at the top right of the CARTA window in your browser. You can copy it by navigating to ``File > Server > Copy session ID to clipboard``, or find it in the backend executable output.
 
@@ -97,7 +118,12 @@ Use the ``interact`` method if you want to use scripting to control a CARTA sess
             from carta.session import Session
             from carta.token import ControllerToken
 
-            session = Session.interact("FRONTEND URL", 123456, ControllerToken.from_file("path/to/token"))
+            session = Session.interact(
+                "FRONTEND URL",
+                123456,
+                ControllerToken.from_file("path/to/token"),
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+            )
 
         The second parameter is the session ID, which must match the running frontend session: it's visible when you hover over the status indicator at the top right of the CARTA window in your browser. You can copy it by navigating to ``File > Server > Copy session ID to clipboard``.
 
@@ -119,11 +145,15 @@ Creating a new interactive session
             from carta.session import Session
 
             # New session, start local backend
-            session = Session.start_and_interact()
-            session = Session.start_and_interact(carta_version_requirement="==6.1.0")
+            session = Session.start_and_interact(
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+            )
 
             # New session, start remote backend
-            session = Session.start_and_interact(remote_host="REMOTE HOSTNAME OR IP")
+            session = Session.start_and_interact(
+                remote_host="REMOTE HOSTNAME OR IP",
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+            )
 
     .. tab:: Controller access
 
@@ -131,7 +161,12 @@ Creating a new interactive session
 
         .. code-block:: python
 
-            session = Session.create(Chrome(headless=False), "FRONTEND URL", ControllerToken.from_file("path/to/token"))
+            session = Session.create(
+                Chrome(headless=False),
+                "FRONTEND URL",
+                ControllerToken.from_file("path/to/token"),
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+            )
 
         You can also create a custom :obj:`carta.browser.Browser` object with any appropriate browser executable and driver and any commandline parameters.
 
@@ -156,19 +191,25 @@ Use the ``create`` method if you want to write a non-interactive script which st
             from carta.browser import Chrome
 
             # New session, connect to an existing backend
-            session = Session.create(Chrome(), "FRONTEND URL", BackendToken("SECURITY TOKEN"))
             session = Session.create(
                 Chrome(),
                 "FRONTEND URL",
                 BackendToken("SECURITY TOKEN"),
-                carta_version_requirement=">=6.1.0,<7.0.0",
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
             )
 
             # New session, start local backend
-            session = Session.start_and_create(Chrome())
+            session = Session.start_and_create(
+                Chrome(),
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+            )
 
             # New session, start remote backend
-            session = Session.start_and_create(Chrome(), remote_host="REMOTE HOSTNAME OR IP")
+            session = Session.start_and_create(
+                Chrome(),
+                remote_host="REMOTE HOSTNAME OR IP",
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+            )
 
     .. tab:: Controller access
 
@@ -194,7 +235,12 @@ Use the ``create`` method if you want to write a non-interactive script which st
             from carta.token import ControllerToken
 
             # New session, connect to an existing controller
-            session = Session.create(Chrome(), "FRONTEND URL", ControllerToken.from_file("path/to/token"))
+            session = Session.create(
+                Chrome(),
+                "FRONTEND URL",
+                ControllerToken.from_file("path/to/token"),
+                minimum_carta_version=SCRIPT_MINIMUM_CARTA_VERSION,
+            )
 
 These commands are further customisable with optional parameters. See :doc:`the API reference <carta>` for more information.
 

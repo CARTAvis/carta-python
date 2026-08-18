@@ -1,5 +1,7 @@
 import pytest
 
+from carta.constants import VersionMismatchAction
+
 
 class FakeElement:
     def __init__(self, text):
@@ -66,7 +68,6 @@ def test_new_session_from_url_runs_connection_check_after_parsing_session_id(
 
     result = browser.new_session_from_url(
         "http://localhost:3000?token=x",
-        check_connection=True,
         connection_check_timeout=5,
     )
 
@@ -74,27 +75,13 @@ def test_new_session_from_url_runs_connection_check_after_parsing_session_id(
     session_class.assert_called_once_with(123, protocol, browser=browser, backend=None)
     session._validate_session.assert_called_once_with(
         timeout=5,
-        carta_version_requirement=None,
+        minimum_carta_version=None,
+        version_mismatch_action=VersionMismatchAction.WARN,
     )
     assert browser.driver.closed is False
 
 
-def test_new_session_from_url_skips_connection_check(mocker, browser_module):
-    browser = make_browser(browser_module.Browser)
-    protocol = mocker.Mock(controller_auth=False, frontend_url="http://localhost:3000")
-    mocker.patch("carta.browser.Protocol", return_value=protocol)
-    session = mocker.Mock()
-    mocker.patch("carta.browser.Session", return_value=session)
-
-    browser.new_session_from_url(
-        "http://localhost:3000?token=x",
-        check_connection=False,
-    )
-
-    session._validate_session.assert_not_called()
-
-
-def test_new_session_from_url_checks_connection_when_requirement_is_provided(
+def test_new_session_from_url_passes_minimum_and_mismatch_action(
     mocker, browser_module
 ):
     browser = make_browser(browser_module.Browser)
@@ -105,13 +92,14 @@ def test_new_session_from_url_checks_connection_when_requirement_is_provided(
 
     browser.new_session_from_url(
         "http://localhost:3000?token=x",
-        check_connection=False,
-        carta_version_requirement="<=6.2.0",
+        minimum_carta_version="6.1.0",
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
     session._validate_session.assert_called_once_with(
         timeout=10,
-        carta_version_requirement="<=6.2.0",
+        minimum_carta_version="6.1.0",
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
 
@@ -128,7 +116,6 @@ def test_new_session_from_url_closes_browser_and_preserves_validation_error(
     with pytest.raises(util_module.CartaUnsupportedVersion):
         browser.new_session_from_url(
             "http://localhost:3000?token=x",
-            check_connection=True,
         )
 
     assert browser.driver.closed is True
@@ -148,7 +135,6 @@ def test_new_session_from_url_preserves_validation_error_when_close_fails(
     with pytest.raises(util_module.CartaUnsupportedVersion):
         browser.new_session_from_url(
             "http://localhost:3000?token=x",
-            check_connection=True,
         )
 
 
@@ -171,7 +157,7 @@ def test_new_session_with_backend_stops_backend_when_session_creation_fails(
     )
 
     with pytest.raises(util_module.CartaBadSession):
-        browser.new_session_with_backend(check_connection=True)
+        browser.new_session_with_backend()
 
     backend.stop.assert_called_once_with()
     browser.new_session_from_url.assert_called_once_with(
@@ -180,13 +166,35 @@ def test_new_session_with_backend_stops_backend_when_session_creation_fails(
         backend=backend,
         timeout=10,
         debug_no_auth=False,
-        check_connection=True,
         connection_check_timeout=10,
-        carta_version_requirement=None,
+        minimum_carta_version=None,
+        version_mismatch_action=VersionMismatchAction.WARN,
     )
 
 
-def test_new_session_with_backend_passes_carta_version_requirement(
+def test_new_session_with_backend_preserves_error_when_backend_stop_fails(
+    mocker, browser_module, util_module
+):
+    browser = make_browser(browser_module.Browser)
+    backend = mocker.Mock(
+        frontend_url="http://localhost:3000",
+        token="token",
+        debug_no_auth=False,
+        errors=[],
+    )
+    backend.start.return_value = True
+    backend.stop.side_effect = RuntimeError("stop failed")
+    mocker.patch("carta.browser.Backend", return_value=backend)
+    startup_error = util_module.CartaBadSession("startup failed")
+    mocker.patch.object(browser, "new_session_from_url", side_effect=startup_error)
+
+    with pytest.raises(util_module.CartaBadSession, match="startup failed"):
+        browser.new_session_with_backend()
+
+    backend.stop.assert_called_once_with()
+
+
+def test_new_session_with_backend_passes_version_options(
     mocker, browser_module
 ):
     browser = make_browser(browser_module.Browser)
@@ -202,9 +210,9 @@ def test_new_session_with_backend_passes_carta_version_requirement(
     new_session = mocker.patch.object(browser, "new_session_from_url", return_value=session)
 
     result = browser.new_session_with_backend(
-        check_connection=False,
         connection_check_timeout=4,
-        carta_version_requirement="==6.1.0",
+        minimum_carta_version="6.1.0",
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
     assert result is session
@@ -214,9 +222,9 @@ def test_new_session_with_backend_passes_carta_version_requirement(
         backend=backend,
         timeout=10,
         debug_no_auth=False,
-        check_connection=False,
         connection_check_timeout=4,
-        carta_version_requirement="==6.1.0",
+        minimum_carta_version="6.1.0",
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
 
