@@ -89,7 +89,7 @@ class SessionWCSOverlay(BasePathMixin):
             The RGB value of the palette colour in the session's current theme, as a 6-digit hexadecimal with a leading ``#``.
         """
         color = PaletteColor(color)
-        if self.session.get_value("darkTheme"):
+        if self.session.get_value("isDarkTheme"):
             return color.rgb_dark
         return color.rgb_light
 
@@ -168,7 +168,7 @@ class HasCustomColor(HasColor):
         boolean
             Whether a custom color is applied.
         """
-        return self.get_value("customColor")
+        return self.get_value("hasCustomColor")
 
     @validate(Constant(PaletteColor))
     def set_color(self, color):
@@ -208,7 +208,7 @@ class HasCustomText:
         boolean
             Whether custom text is applied.
         """
-        return self.get_value("customText")
+        return self.get_value("hasCustomText")
 
     @validate(Boolean())
     def set_custom_text(self, state):
@@ -305,7 +305,7 @@ class HasVisibility:
         boolean
             Whether this component is visible.
         """
-        return self.get_value("visible")
+        return self.get_value("isVisible")
 
     @validate(Boolean())
     def set_visible(self, state):
@@ -402,7 +402,7 @@ class HasCustomPrecision:
         boolean
             Whether a custom precision is applied.
         """
-        return self.get_value("customPrecision")
+        return self.get_value("hasCustomPrecision")
 
     @validate(Number(min=0))
     def set_precision(self, precision):
@@ -598,7 +598,7 @@ class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         boolean
             Whether a custom gap is applied.
         """
-        return self.get_value("customGap")
+        return self.get_value("hasCustomGap")
 
     @validate(*all_optional(Number.POSITIVE, Number.POSITIVE))
     def set_gap(self, gap_x, gap_y):
@@ -692,7 +692,7 @@ class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, Overla
         boolean
             Whether a custom format is applied.
         """
-        return self.get_value("customFormat")
+        return self.get_value("hasCustomFormat")
 
     @validate(*all_optional(Constant(NumberFormat), Constant(NumberFormat)))
     def set_format(self, format_x=None, format_y=None):
@@ -804,7 +804,7 @@ class Ticks(HasCustomColor, HasWidth, OverlayComponent):
         boolean
             Whether a custom density is applied.
         """
-        return self.get_value("customDensity")
+        return self.get_value("hasCustomDensity")
 
     @property
     def draw_on_all_edges(self):
@@ -815,7 +815,7 @@ class Ticks(HasCustomColor, HasWidth, OverlayComponent):
         boolean
             Whether the ticks are drawn on all edges.
         """
-        return self.get_value("drawAll")
+        return self.get_value("shouldDrawAll")
 
     @property
     def minor_length(self):
@@ -951,6 +951,15 @@ class ColorbarComponent:
         object
             The unmodified return value of the colorbar method.
         """
+        property_rewrites = {
+            "isVisible": f"is{self.PREFIX.title()}Visible",
+            "hasCustomColor": f"has{self.PREFIX.title()}CustomColor",
+            "hasCustomText": f"has{self.PREFIX.title()}CustomText",
+            "hasCustomPrecision": f"has{self.PREFIX.title()}CustomPrecision",
+        }
+        if path in property_rewrites:
+            return self.colorbar.get_value(property_rewrites[path], return_path=return_path)
+
         def rewrite(m):
             before, first, rest = m.groups()
             return f"{before}{self.PREFIX}{first.upper()}{rest}"
@@ -1129,7 +1138,7 @@ class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         boolean
             Whether the colorbar is interactive.
         """
-        return self.get_value("interactive")
+        return self.get_value("isInteractive")
 
     @property
     def offset(self):

@@ -1011,10 +1011,8 @@ class Session:
 
         """
         self.call_action("waitForImageData")
-        args = ["getImageDataUrl"]
-        if background_color:
-            args.append(background_color)
-        return self.call_action(*args, response_expected=True)
+        args = [background_color] if background_color else []
+        return self.call_action("getImageDataUrl", *args, response_expected=True)
 
     @validate(NoneOr(Color()))
     def rendered_view_data(self, background_color=None):

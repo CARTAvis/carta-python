@@ -947,3 +947,19 @@ def test_open_hypercube_bad(mocker, session, call_action, method, paths, expecte
     with pytest.raises(Exception) as e:
         session.open_hypercube(paths, append)
     assert expected_error in str(e.value)
+
+
+@pytest.mark.parametrize("background_color,expected_args", [
+    (None, ()),
+    ("white", ("white",)),
+])
+def test_rendered_view_url(mocker, session, call_action, background_color, expected_args):
+    call_action.side_effect = [None, "data:image/png;base64,AAAA"]
+
+    url = session.rendered_view_url(background_color)
+
+    call_action.assert_has_calls([
+        mocker.call("waitForImageData"),
+        mocker.call("getImageDataUrl", *expected_args, response_expected=True),
+    ])
+    assert url == "data:image/png;base64,AAAA"

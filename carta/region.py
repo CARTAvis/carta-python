@@ -1988,7 +1988,7 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, HasSizeMixin, Region):
         boolean
             Whether the east arrowhead is visible.
         """
-        return self.get_value("northArrowhead"), self.get_value("eastArrowhead")
+        return self.get_value("hasNorthArrowhead"), self.get_value("hasEastArrowhead")
 
     # SET PROPERTIES
 
@@ -2109,7 +2109,7 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, HasRotationMixin, HasSize
         boolean
             Whether the auxiliary lines are visible.
         """
-        return self.get_value("auxiliaryLineVisible")
+        return self.get_value("isAuxiliaryLineVisible")
 
     @property
     def auxiliary_lines_dash_length(self):
