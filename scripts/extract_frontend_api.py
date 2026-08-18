@@ -20,9 +20,9 @@ Call sites which the static stage cannot resolve are reported separately, and
 fail ``--check``. A call site with a path which is genuinely dynamic, because it
 is provided by the user, must be listed in ``DYNAMIC`` below.
 
-The extracted APIs are also the two repositories' shared contract. ``frontend_api.json``
-in the root of this repository is the machine-readable form of the contract, which
-carta-frontend's CI fetches to check that every frontend API used here still exists.
+The extracted APIs are the two repositories' shared contract. CI generates
+``frontend_api.json`` from this repository and passes it to carta-frontend's checker
+to verify that every frontend API used here still exists.
 Each entry also records the frontend runtime types which can receive the API, so
 polymorphic objects such as annotations can be checked against the correct subtype.
 carta-frontend publishes the deprecated half of the contract, which ``--deprecations``
@@ -55,7 +55,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 PACKAGE = ROOT / "carta"
 
-# The machine-readable contract, consumed by carta-frontend's CI.
+# The temporary machine-readable contract generated for carta-frontend's CI.
 MANIFEST = ROOT / "frontend_api.json"
 
 # The version of the manifest and deprecation list formats.

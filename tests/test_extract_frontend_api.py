@@ -32,14 +32,6 @@ def api(path, exact=True):
     return {"kind": "action", "path": path, "exact": exact, "return_path": "", "runtime_types": [], "wrappers": ["Wrapper.method"]}
 
 
-def test_manifest_is_current(manifest):
-    assert extract.manifest_diff(manifest) == "", "frontend_api.json is out of date: run scripts/extract_frontend_api.py --write-manifest"
-
-
-def test_manifest_matches_committed_file(manifest):
-    assert json.loads(extract.MANIFEST.read_text()) == manifest
-
-
 def test_manifest_has_only_api_entries(manifest):
     assert set(manifest) == {"apis"}
 
