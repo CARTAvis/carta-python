@@ -25,6 +25,11 @@ def component_get_value(overlay, mocker):
 
 
 @pytest.fixture
+def session_call_action(session, mock_call_action):
+    return mock_call_action(session)
+
+
+@pytest.fixture
 def session_get_value(session, mock_get_value):
     return mock_get_value(session)
 
@@ -105,9 +110,9 @@ def test_palette_to_rgb(overlay, session_get_value, theme_is_dark, expected_rgb)
     assert rgb == expected_rgb
 
 
-def test_set_view_area(overlay, call_action):
+def test_set_view_area(overlay, session_call_action):
     overlay.set_view_area(100, 200)
-    call_action.assert_called_with("setViewDimension", 100, 200)
+    session_call_action.assert_called_with("setImageViewDimensions", 100, 200)
 
 
 # COMPONENT TESTS

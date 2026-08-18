@@ -44,7 +44,7 @@ class SessionWCSOverlay(BasePathMixin):
 
     def __init__(self, session):
         self.session = session
-        self._base_path = "overlayStore"
+        self._base_path = "overlaySettings"
 
         self._components = {}
         for component in Overlay:
@@ -104,7 +104,7 @@ class SessionWCSOverlay(BasePathMixin):
         height : {1}
             The new height, in pixels, divided by the device pixel ratio.
         """
-        self.call_action("setViewDimension", width, height)
+        self.session.call_action("setImageViewDimensions", width, height)
 
 
 class OverlayComponent(BasePathMixin):
@@ -126,7 +126,7 @@ class OverlayComponent(BasePathMixin):
         OverlayComponent.CLASS[cls.COMPONENT] = cls
 
     def __init__(self, overlay):
-        self._base_path = f"overlayStore.{self.COMPONENT}"
+        self._base_path = f"overlaySettings.{self.COMPONENT}"
         self.session = overlay.session
 
 

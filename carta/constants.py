@@ -30,6 +30,13 @@ class ColormapSet(StrEnum):
     RAINBOW = "Rainbow"
 
 
+class ImageType(IntEnum):
+    """View item types, corresponding to the frontend ImageType enum."""
+    FRAME = 0
+    COLOR_BLENDING = 1
+    PV_PREVIEW = 2
+
+
 class VersionMismatchAction(StrEnum):
     """Action to take when a CARTA version check does not pass."""
     WARN = "warn"
@@ -37,13 +44,6 @@ class VersionMismatchAction(StrEnum):
 
 
 MINIMUM_CARTA_VERSION = "6.0.0"
-
-
-class ImageType(IntEnum):
-    """View item types, corresponding to the frontend ImageType enum."""
-    FRAME = 0
-    COLOR_BLENDING = 1
-    PV_PREVIEW = 2
 
 
 Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'), start=0)

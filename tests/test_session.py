@@ -96,7 +96,6 @@ def test_session_repr_omits_carta_version_when_lookup_fails(session, mocker):
 
     assert repr(session) == "Session(session_id=0, uri='http://localhost:3000')"
 
-
 def test_direct_session_construction_does_not_validate_session(mocker):
     validate_session = mocker.patch.object(Session, "_validate_session")
 
@@ -425,8 +424,6 @@ def test_start_and_create_passes_connection_check_options_to_browser(mocker):
         minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
-
-
 # PATHS
 
 
