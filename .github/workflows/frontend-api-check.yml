@@ -1,0 +1,56 @@
+name: Frontend API compatibility
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ dev ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout carta-python
+        uses: actions/checkout@v6
+
+      - name: Checkout carta-frontend API checker
+        uses: actions/checkout@v6
+        with:
+          repository: CARTAvis/carta-frontend
+          ref: zhenkai/api_check
+          path: carta-frontend
+
+      - name: Install uv and set Python version
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.10"
+          enable-cache: true
+
+      - name: Sync Python environment
+        run: uv sync --locked --no-group dev
+
+      - name: Generate API manifest
+        run: uv run --no-sync scripts/extract_frontend_api.py --write-manifest
+
+      - name: Check generated manifest is committed
+        run: git diff --exit-code -- frontend_api.json
+
+      - name: Install Node dependencies
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: carta-frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: carta-frontend
+        run: npm ci --ignore-scripts
+
+      - name: Check frontend APIs
+        working-directory: carta-frontend
+        run: npm run check-python-api -- --manifest "$GITHUB_WORKSPACE/frontend_api.json"
