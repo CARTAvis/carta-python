@@ -10,12 +10,13 @@ import base64
 import posixpath
 
 from .image import Image
-from .colorblending import ColorBlending
+from .view import View
+from .color_blending import ColorBlending
 from .constants import PanelMode, GridMode, ComplexComponent, ImageType, Polarization, ColormapSet
 from .backend import Backend
 from .protocol import Protocol
-from .util import Macro, split_action_path, CartaActionFailed, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaUnsupportedVersion, cached, carta_version_satisfies_requirement, _parse_carta_version_requirement, Point as Pt
-from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, MapOf, Union
+from .util import Macro, split_action_path, CartaActionFailed, CartaBadResponse, CartaBadID, CartaBadSession, CartaBadUrl, CartaScriptingException, CartaValidationFailed, CartaUnsupportedVersion, cached, deprecated, logger, carta_version_satisfies_requirement, _parse_carta_version_requirement, Point as Pt
+from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, InstanceOf, MapOf, Union
 
 from .wcs_overlay import SessionWCSOverlay
 from .raster import SessionRaster
@@ -358,10 +359,7 @@ class Session:
         except (AttributeError, CartaScriptingException):
             return f"Session(session_id={self.session_id}, uri={uri!r})"
 
-        return (
-            f"Session(session_id={self.session_id}, uri={uri!r}, "
-            f"carta_version={version!r})"
-        )
+        return f"Session(session_id={self.session_id}, uri={uri!r}, carta_version={version!r})"
 
     # METADATA
 
@@ -738,8 +736,8 @@ class Session:
         output_directory = self.pwd()
         output_hdu = ""
         command = "appendConcatFile" if append else "openConcatFile"
-        file_id = self.call_action(command, stokes_images, output_directory, output_hdu)
-        return Image(self, file_id)
+        image_id = self.call_action(command, stokes_images, output_directory, output_hdu)
+        return Image(self, image_id)
 
     @validate(IterableOf(String(), min_size=1))
     def open_as_color_blending(self, files):
@@ -758,7 +756,7 @@ class Session:
 
         Returns
         -------
-        :obj:`carta.colorblending.ColorBlending`
+        :obj:`carta.color_blending.ColorBlending`
             The new color blending object.
         """
         images = self.open_images(files, append=False)
@@ -768,88 +766,180 @@ class Session:
         cb = self.create_color_blending()
         return cb
 
-    # IMAGE-VIEW ITEMS
+    # VIEWS
 
-    def image_list(self):
-        """Return the list of currently open image-view items.
+    @validate(NoneOr(IterableOf(Number.ID)))
+    def views(self, view_indices=None):
+        """Return all or selected currently open views.
+
+        When no indices are supplied, all open views are returned. When
+        indices are supplied, the views at those positions are returned in
+        the requested order.
+
+        Unsupported view types are skipped when no indices are supplied.
 
         Returns
         -------
-        list of :obj:`carta.image_base.ImageBase`
-            The heterogeneous list of image-view items open in this session.
+        list of :obj:`carta.view.View`
+            The requested heterogeneous views open in this session.
+
+        Raises
+        ------
+        IndexError
+            If any requested view index is out of range.
+        NotImplementedError
+            If an explicitly requested view type is unsupported.
+        CartaValidationFailed
+            If ``view_indices`` contains an invalid value.
         """
         summary = self.get_value("imageViewConfigStore.imageListSummary")
-        result = []
-        for order, entry in enumerate(summary):
-            entry_type = entry["type"]
-            if entry_type == ImageType.FRAME:
-                result.append(Image(self, entry["id"]))
-            elif entry_type == ImageType.COLOR_BLENDING:
-                result.append(ColorBlending(self, entry["id"]))
-            else:
-                raise NotImplementedError(
-                    f"image_list encountered an unsupported image-view "
-                    f"entry at order {order} with type {entry_type!r}; "
-                    "only Image (FRAME) and ColorBlending (COLOR_BLENDING) "
-                    "entries are currently wrapped."
-                )
-        return result
+        remote_indices = range(len(summary))
 
-    def _find_image_view_order(self, image_type, stable_id):
-        """Return the image-view order of an item identified by a stable id.
+        if view_indices is None:
+            view_indices = remote_indices
+            skip_unsupported = True
+        else:
+            missing_indices = [i for i in view_indices if i not in remote_indices]
+            if missing_indices:
+                raise IndexError(f"No views with indices {missing_indices} are open.")
+            skip_unsupported = False
+
+        views = []
+        for index in view_indices:
+            entry = summary[index]
+            try:
+                views.append(View.view_class(entry["type"])(self, entry["id"]))
+            except (CartaValidationFailed, NotImplementedError):
+                if not skip_unsupported:
+                    raise
+                view_type = ImageType(entry["type"])
+                logger.warning(f"Skipping unsupported {view_type.name} view at index {index}.")
+        return views
+
+    @validate(NoneOr(IterableOf(Number.ID)))
+    def images(self, image_ids=None):
+        """Return images from the session.
+
+        When no IDs are supplied, all open images are returned. When IDs are
+        supplied, they are validated against the session's image map.
 
         Parameters
         ----------
-        image_type : :obj:`carta.constants.ImageType`
-            The image-view item type.
+        image_ids : {0}
+            The image IDs to return. By default, all open images are returned.
+
+        Returns
+        -------
+        list of :obj:`carta.image.Image`
+            The requested images.
+        """
+        remote_ids = [i["value"] for i in self.get_value("frameNames")]
+
+        if image_ids is None:
+            image_ids = remote_ids
+        elif missing_ids := [i for i in image_ids if i not in remote_ids]:
+            raise RuntimeError(f"No images with image_ids {missing_ids} are open.")
+        return [Image(self, i) for i in image_ids]
+
+    @deprecated(
+        "Session.image_list() is deprecated; use Session.images() for images, "
+        "Session.views() for all views, or Session.color_blendings() for color blendings."
+    )
+    def image_list(self):
+        """Return all open images.
+
+        .. warning::
+            Deprecated. Use :meth:`images` for images, :meth:`views` for all
+            views, or :meth:`color_blendings` for color blendings instead.
+
+        Returns
+        -------
+        list of :obj:`carta.image.Image`
+            The list of images open in this session.
+        """
+        return self.images()
+
+    @validate(NoneOr(IterableOf(Number.ID)))
+    def color_blendings(self, color_blending_ids=None):
+        """Return color blending images from the session.
+
+        When no IDs are supplied, all open color blending images are
+        returned. When IDs are supplied, they are validated against the
+        session's color blending map.
+
+        Parameters
+        ----------
+        color_blending_ids : {0}
+            The IDs of the color blending images to return. By default, all
+            open color blending images are returned.
+
+        Returns
+        -------
+        list of :obj:`carta.color_blending.ColorBlending`
+            The requested color blending images.
+        """
+        summary = self.get_value("imageViewConfigStore.imageListSummary")
+        remote_ids = [i["id"] for i in summary if i["type"] == ImageType.COLOR_BLENDING]
+
+        if color_blending_ids is None:
+            color_blending_ids = remote_ids
+        elif missing_ids := [i for i in color_blending_ids if i not in remote_ids]:
+            raise RuntimeError(f"No color blendings with color_blending_ids {missing_ids} are open.")
+        return [ColorBlending(self, i) for i in color_blending_ids]
+
+    def _find_view_index(self, view_type, stable_id):
+        """Return the view index of an item identified by a stable id.
+
+        Parameters
+        ----------
+        view_type : :obj:`carta.constants.ImageType`
+            The view type.
         stable_id : integer
-            The stable id for that type (``file_id`` for frames,
+            The stable id for that type (``image_id`` for images,
             ``color_blending_id`` for color blendings).
 
         Returns
         -------
         integer
-            The image-view order of the matching entry.
+            The view index of the matching entry.
 
         Raises
         ------
         RuntimeError
-            If no matching entry exists in the image list.
+            If no matching entry exists in the views.
         """
-        image_view_order = self.call_action(
+        view_index = self.call_action(
             "imageViewConfigStore.getImageListIndex",
-            image_type,
+            view_type,
             stable_id,
             response_expected=True,
         )
-        if image_view_order == -1:
-            raise RuntimeError(
-                f"Could not find an image of type {image_type!r} with id "
-                f"{stable_id} in the image list."
-            )
-        return image_view_order
+        if view_index == -1:
+            raise RuntimeError(f"Could not find a view of type {view_type!r} with id {stable_id} in the views.")
+        return view_index
 
-    def image_by_id(self, *, image_view_order=None, file_id=None, color_blending_id=None):
-        """Return the image-view item identified by exactly one of the supported identifiers.
+    @validate(NoneOr(Number.ID), NoneOr(Number.ID), NoneOr(Number.ID))
+    def view_by_id(self, *, view_index=None, image_id=None, color_blending_id=None):
+        """Return the view identified by exactly one supported identifier.
 
         Parameters
         ----------
-        image_view_order : integer, optional
-            The index of the item in the image list.
+        view_index : integer, optional
+            The index of the item in the views.
             Returns whichever concrete wrapper (:obj:`carta.image.Image`
-            or :obj:`carta.colorblending.ColorBlending`) matches the
+            or :obj:`carta.color_blending.ColorBlending`) matches the
             entry type at that position. Raises :obj:`NotImplementedError`
             for any future entry type that is not yet wrapped on the
             Python side.
-        file_id : integer, optional
-            The stable frontend file id of a normal frame-backed image.
+        image_id : integer, optional
+            The stable id of an image.
         color_blending_id : integer, optional
             The stable id of a color blending.
 
         Returns
         -------
-        :obj:`carta.image_base.ImageBase`
-            The matching image-view item.
+        :obj:`carta.view.View`
+            The matching view.
 
         Raises
         ------
@@ -858,127 +948,179 @@ class Session:
             The error message lists the three accepted keyword names so
             the API is discoverable from the exception alone.
         IndexError
-            If ``image_view_order`` is out of range.
+            If ``view_index`` is out of range.
         RuntimeError
-            If no matching entry exists for the given ``file_id`` or
+            If no matching entry exists for the given ``image_id`` or
             ``color_blending_id``. There is no cross-type fallback.
         """
-        provided = {
-            "image_view_order": image_view_order,
-            "file_id": file_id,
-            "color_blending_id": color_blending_id,
-        }
-        given = [key for key, val in provided.items() if val is not None]
-        if len(given) != 1:
-            given_values = {
-                key: val for key, val in provided.items() if val is not None
-            }
+        provided = {"view_index": view_index, "image_id": image_id, "color_blending_id": color_blending_id}
+        provided_values = {k: v for k, v in provided.items() if v is not None}
+
+        if len(provided_values) != 1:
             raise ValueError(
-                "image_by_id requires exactly one of the keyword arguments "
-                "`image_view_order`, `file_id`, or `color_blending_id`; "
-                f"got {len(given)} with values {given_values!r}."
+                "view_by_id requires exactly one of the keyword arguments "
+                "`view_index`, `image_id`, or `color_blending_id`; "
+                f"got {len(provided_values)} with values {provided_values!r}."
             )
 
-        summary = self.get_value("imageViewConfigStore.imageListSummary")
+        if view_index is not None:
+            try:
+                entry = self.get_value(f"imageViewConfigStore.imageListSummary[{view_index}]")
+            except (CartaActionFailed, CartaBadResponse) as e:
+                raise IndexError(f"view_index {view_index} is out of range for the views.") from e
+            return View.view_class(entry["type"])(self, entry["id"])
 
-        if image_view_order is not None:
-            if image_view_order < 0 or image_view_order >= len(summary):
-                raise IndexError(
-                    f"image_view_order {image_view_order} is out of range "
-                    f"for an image list of length {len(summary)}."
-                )
-            entry = summary[image_view_order]
-            entry_type = entry["type"]
-            entry_id = entry["id"]
-            if entry_type == ImageType.FRAME:
-                return Image(self, entry_id)
-            if entry_type == ImageType.COLOR_BLENDING:
-                return ColorBlending(self, entry_id)
-            raise NotImplementedError(
-                f"image_by_id encountered an unsupported image-view entry "
-                f"at order {image_view_order} with type {entry_type!r}; "
-                "only Image (FRAME) and ColorBlending (COLOR_BLENDING) "
-                "entries are currently wrapped."
-            )
-
-        if file_id is not None:
-            for entry in summary:
-                if entry["type"] == ImageType.FRAME and entry["id"] == file_id:
-                    return Image(self, file_id)
-            raise RuntimeError(
-                f"No frame-backed image with file_id={file_id} is open."
-            )
+        if image_id is not None:
+            try:
+                resolved_image_id = self.get_value(f"frameMap[{image_id}]", return_path="frameInfo.fileId")
+            except (CartaActionFailed, CartaBadResponse) as e:
+                raise RuntimeError(f"No image with image_id={image_id} is open.") from e
+            return Image(self, resolved_image_id)
 
         # color_blending_id is not None
-        for entry in summary:
-            if (
-                entry["type"] == ImageType.COLOR_BLENDING
-                and entry["id"] == color_blending_id
-            ):
-                return ColorBlending(self, color_blending_id)
-        raise RuntimeError(
-            f"No color blending with color_blending_id={color_blending_id} is open."
-        )
+        try:
+            resolved_color_blending_id = self.get_value(
+                f"imageViewConfigStore.colorBlendingImageMap[{color_blending_id}]", return_path="id"
+            )
+        except (CartaActionFailed, CartaBadResponse) as e:
+            raise RuntimeError(f"No color blending with color_blending_id={color_blending_id} is open.") from e
+        return ColorBlending(self, resolved_color_blending_id)
 
-    def active_image(self):
-        """Return the currently active image-view item.
+    @deprecated("Session.image_by_id() is deprecated; use Session.view_by_id(image_id=image_id) instead.")
+    @validate(Number.ID)
+    def image_by_id(self, image_id):
+        """Return an image object with the specified ID.
 
-        This is the frame-backed image or color blending image that is
-        currently active in the viewer.
+        .. warning::
+            Deprecated. Use :meth:`view_by_id` with ``image_id`` instead.
+
+        This is a helper function which returns the open image with the
+        specified ID.
+
+        Parameters
+        ----------
+        image_id : integer
+            The ID of the image to return.
 
         Returns
         -------
-        :obj:`carta.image.Image` or :obj:`carta.colorblending.ColorBlending`
-            The currently active image-view item.
+        :obj:`carta.image.Image`
+            The image with the specified ID.
+        """
+        return self.view_by_id(image_id=image_id)
+
+    def active_view(self):
+        """Return the currently active view.
+
+        This is the image or color blending image that is currently active.
+
+        Returns
+        -------
+        :obj:`carta.image.Image` or :obj:`carta.color_blending.ColorBlending`
+            The currently active view.
 
         Raises
         ------
         NotImplementedError
-            If the active image is of a type that is not yet wrapped on
+            If the active view is of a type that is not yet wrapped on
             the Python side.
         """
-        active = self.get_value("activeImage")
-        active_type = active["type"]
-        active_id = active["store"]["id"]
-        if active_type == ImageType.FRAME:
-            return Image(self, active_id)
-        if active_type == ImageType.COLOR_BLENDING:
-            return ColorBlending(self, active_id)
-        raise NotImplementedError(
-            f"active_image encountered an unsupported image-view type "
-            f"{active_type!r}; only Image (FRAME) and ColorBlending "
-            "(COLOR_BLENDING) entries are currently wrapped."
-        )
+        view_type = self.get_value("activeImage.type")
+        view_id = self.get_value("activeImage.store.id")
+        return View.view_class(view_type)(self, view_id)
 
-    # COLOR BLENDING
+    @deprecated("Session.active_frame() is deprecated; use Session.active_view() instead.")
+    def active_frame(self):
+        """Return the currently active image.
 
-    def create_color_blending(self):
-        """Create a new color blending from the current spatial reference
-        and its currently spatially matched frames.
+        .. warning::
+            Deprecated. Use :meth:`active_view` instead.
 
         Returns
         -------
-        :obj:`carta.colorblending.ColorBlending`
+        :obj:`carta.image.Image`
+            The currently active image.
+
+        Raises
+        ------
+        TypeError
+            If the currently active view is not an image.
+        """
+        active = self.active_view()
+        if not isinstance(active, Image):
+            raise TypeError("The currently active view is not an image.")
+        return active
+
+    # COLOR BLENDING
+
+    @validate(NoneOr(IterableOf(InstanceOf(Image), min_size=1)))
+    def create_color_blending(self, images=None):
+        """Create a color blending from open images.
+
+        There are two ways to choose the images for the new color blending:
+
+        * If ``images`` is provided, it must contain one or more
+          :obj:`carta.image.Image` objects from this session. The first image
+          becomes the base layer and spatial reference. The remaining images
+          become secondary layers in the same order as the input. The result
+          contains exactly these images; other open images are left open but
+          are not included.
+        * If ``images`` is omitted, the current spatial reference and all
+          currently spatially matched images are used.
+
+        This method creates a color blending from images that are already
+        open. It does not open files or close other open images.
+
+        Parameters
+        ----------
+        images : {0}
+            An iterable of open images to combine, in the desired layer order.
+            The first image is used as the base layer. By default, use the
+            current spatial reference and spatially matched images.
+
+        Returns
+        -------
+        :obj:`carta.color_blending.ColorBlending`
             The new color blending object.
 
         Raises
         ------
         CartaActionFailed
-            If no frames are open or the frontend could not create the
-            color blending image.
+            If no images are open, an image is no longer open, or the
+            frontend cannot create or update the color blending.
+        CartaValidationFailed
+            If ``images`` is empty, contains duplicates, or contains an image
+            from another session.
         """
-        frame_count = self.get_value("frames.length")
-        if frame_count <= 0:
-            raise CartaActionFailed("No frames are open.")
+        if images is not None:
+            if any(i.session is not self for i in images):
+                raise CartaValidationFailed("images must belong to the current session.")
 
-        color_blending_id = self.call_action(
-            "imageViewConfigStore.createColorBlending",
-            return_path="id",
-        )
+            image_ids = [i.image_id for i in images]
+            if len(set(image_ids)) != len(image_ids):
+                raise CartaValidationFailed("images must not contain duplicate images.")
+
+            images[0].make_spatial_reference()
+            for image in images[1:]:
+                image.set_spatial_matching(True)
+        else:
+            image_count = self.get_value("frames.length")
+            if image_count <= 0:
+                raise CartaActionFailed("No images are open.")
+
+        color_blending_id = self.call_action("imageViewConfigStore.createColorBlending", return_path="id")
         cb = ColorBlending(self, color_blending_id)
 
-        layer_count = cb.get_value("frames.length")
-        if layer_count <= 3:
+        if images is not None:
+            # The frontend action includes every currently spatially matched
+            # image, so normalize the created blending to the requested
+            # sequence before applying the final colormap set.
+            for layer_index in range(cb.depth - 1, 0, -1):
+                cb.delete_layer(layer_index)
+            for image in images[1:]:
+                cb.add_layer(image)
+
+        if cb.depth <= 3:
             cb.set_colormap_set(ColormapSet.RGB)
         else:
             cb.set_colormap_set(ColormapSet.RAINBOW)
@@ -1060,7 +1202,7 @@ class Session:
 
     @validate(NoneOr(Color()))
     def rendered_view_url(self, background_color=None):
-        """Get a data URL of the rendered active image.
+        """Get a data URL of the rendered active view.
 
         Parameters
         ----------
@@ -1081,7 +1223,7 @@ class Session:
 
     @validate(NoneOr(Color()))
     def rendered_view_data(self, background_color=None):
-        """Get the decoded data of the rendered active image.
+        """Get the decoded data of the rendered active view.
 
         Parameters
         ----------
@@ -1100,7 +1242,7 @@ class Session:
 
     @validate(String(), NoneOr(Color()))
     def save_rendered_view(self, file_name, background_color=None):
-        """Save the decoded data of the rendered active image to a file.
+        """Save the decoded data of the rendered active view to a file.
 
         Parameters
         ----------

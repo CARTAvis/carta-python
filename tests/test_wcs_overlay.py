@@ -1,7 +1,6 @@
 import pytest
 
 from carta.util import CartaValidationFailed
-from carta.wcs_overlay import ImageWCSConnector
 from carta.constants import NumberFormat as NF, Overlay as O, CoordinateSystem as CS, PaletteColor as PC, FontFamily as FF, FontStyle as FS, LabelType as LT, ColorbarPosition as CP, BeamType as BT
 
 
@@ -66,7 +65,7 @@ def image_beam_property(mock_property):
 
 @pytest.fixture
 def mock_images(image, mocker):
-    return mocker.patch.object(ImageWCSConnector, "_images", return_value=[image])
+    return mocker.patch.object(image.session, "images", return_value=[image])
 
 
 # TESTS

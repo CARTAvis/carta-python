@@ -1,6 +1,7 @@
 import pytest
 
-from carta.image import Image, ImageBase
+from carta.image import Image
+from carta.view import View
 from carta.util import CartaActionFailed, CartaValidationFailed, Point as Pt
 from carta.constants import ImageType, NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
 
@@ -77,7 +78,7 @@ def test_new(session, session_call_action, session_method, args, kwargs, expecte
 
     assert type(image_object) is Image
     assert image_object.session == session
-    assert image_object.file_id == 123
+    assert image_object.image_id == 123
 
 
 # SUBOBJECTS
@@ -115,156 +116,121 @@ def test_make_active(image, session_call_action):
     )
 
 
-def test_image_base_is_abstract(session):
+def test_make_spatial_reference_disables_color_blending_alert(
+    image, session_call_action
+):
+    image.make_spatial_reference()
+    session_call_action.assert_called_once_with(
+        "setSpatialReference", image._frame, False
+    )
+
+
+def test_view_is_abstract(session):
     with pytest.raises(TypeError, match=r"abstract method.*_stable_id"):
-        ImageBase(session)
+        View(session)
 
 
-def test_image_base_make_active_uses_subclass_ids(session, session_call_action):
-    # Verify the shared ImageBase.make_active dispatches setActiveImageById
-    # with the subclass's _image_type and _stable_id exactly once.
-    class Dummy(ImageBase):
-        _image_type = ImageType.FRAME
-
-        def __init__(self, session, id_):
-            super().__init__(session)
-            self._id = id_
-
-        @property
-        def _stable_id(self):
-            return self._id
-
-    Dummy(session, 42).make_active()
+def test_view_make_active_uses_subclass_ids(session, session_call_action):
+    # Verify the shared View.make_active dispatches setActiveImageById
+    # with Image.VIEW_TYPE and its stable ID exactly once.
+    Image(session, 42).make_active()
     session_call_action.assert_called_once_with(
         "setActiveImageById", ImageType.FRAME, 42
     )
 
 
-def test_image_base_image_view_order_uses_subclass_ids(session, mocker):
-    class Dummy(ImageBase):
-        _image_type = ImageType.COLOR_BLENDING
+def test_view_class_resolves_registered_subclasses():
+    from carta.color_blending import ColorBlending
 
-        def __init__(self, session, id_):
-            super().__init__(session)
-            self._id = id_
+    assert View.view_class(ImageType.FRAME) is Image
+    assert View.view_class(ImageType.COLOR_BLENDING) is ColorBlending
 
-        @property
-        def _stable_id(self):
-            return self._id
 
-    find = mocker.patch.object(session, "_find_image_view_order", return_value=5)
-    assert Dummy(session, 42).image_view_order == 5
+def test_view_index_uses_subclass_ids(session, mocker):
+    find = mocker.patch.object(session, "_find_view_index", return_value=5)
+    from carta.color_blending import ColorBlending
+
+    assert ColorBlending(session, 42).view_index == 5
     find.assert_called_once_with(ImageType.COLOR_BLENDING, 42)
 
 
-def test_image_base_image_type_required_for_make_active(
-    session, session_call_action
-):
-    class Dummy(ImageBase):
-        def __init__(self, session, id_):
-            super().__init__(session)
-            self._id = id_
-
-        @property
-        def _stable_id(self):
-            return self._id
-
+def test_view_subclass_requires_view_type():
     with pytest.raises(
-        NotImplementedError, match="Subclasses must define _image_type"
+        AttributeError, match="has no attribute 'VIEW_TYPE'"
     ):
-        Dummy(session, 42).make_active()
-
-    session_call_action.assert_not_called()
-
-
-def test_image_base_image_type_required_for_image_view_order(session, mocker):
-    class Dummy(ImageBase):
-        def __init__(self, session, id_):
-            super().__init__(session)
-            self._id = id_
-
-        @property
-        def _stable_id(self):
-            return self._id
-
-    find = mocker.patch.object(session, "_find_image_view_order")
-    with pytest.raises(
-        NotImplementedError, match="Subclasses must define _image_type"
-    ):
-        Dummy(session, 42).image_view_order
-
-    find.assert_not_called()
+        class Dummy(View):
+            pass
 
 
-def test_image_view_order_uses_find_image_view_order(session, mocker, image):
+def test_view_index_uses_find_view_index(session, mocker, image):
     find = mocker.patch.object(
-        session, "_find_image_view_order", return_value=3
+        session, "_find_view_index", return_value=3
     )
-    # Frame with file_id=0 at viewer order 3.
-    assert image.image_view_order == 3
+    # Image with image_id=0 at view index 3.
+    assert image.view_index == 3
     find.assert_called_once_with(ImageType.FRAME, 0)
 
 
-def test_image_view_order_raises_when_missing(session, mocker):
+def test_view_index_raises_when_missing(session, mocker):
     mocker.patch.object(
-        session, "_find_image_view_order", side_effect=RuntimeError
+        session, "_find_view_index", side_effect=RuntimeError
     )
     img = Image(session, 3)
     with pytest.raises(RuntimeError):
-        img.image_view_order
+        img.view_index
 
 
-def test_image_repr_cached_name_resolves_only_image_view_order(session, image, mocker):
-    mocker.patch.object(session, "_find_image_view_order", return_value=3)
+def test_image_repr_cached_name_resolves_only_view_index(session, image, mocker):
+    mocker.patch.object(session, "_find_view_index", return_value=3)
     get_value = mocker.patch.object(image, "get_value")
     image._cache = {"file_name": "cube.fits"}
     r = repr(image)
-    assert r == "Image(image_view_order=3, file_name='cube.fits', file_id=0)"
+    assert r == "Image(view_index=3, file_name='cube.fits', image_id=0)"
     get_value.assert_not_called()
 
 
-def test_image_repr_resolves_image_view_order_and_file_name(session, image, mocker):
-    mocker.patch.object(session, "_find_image_view_order", return_value=3)
+def test_image_repr_resolves_view_index_and_file_name(session, image, mocker):
+    mocker.patch.object(session, "_find_view_index", return_value=3)
     mocker.patch.object(image, "get_value", return_value="cube.fits")
     r = repr(image)
-    assert r == "Image(image_view_order=3, file_name='cube.fits', file_id=0)"
+    assert r == "Image(view_index=3, file_name='cube.fits', image_id=0)"
 
 
-def test_image_repr_closed_when_image_view_order_missing(session, image, mocker):
+def test_image_repr_closed_when_view_index_missing(session, image, mocker):
     mocker.patch.object(
         session,
-        "_find_image_view_order",
-        side_effect=RuntimeError("not in image list"),
+        "_find_view_index",
+        side_effect=RuntimeError("not in views"),
     )
     r = repr(image)
-    assert r == "[Closed] Image(image_view_order=None, file_id=0)"
+    assert r == "[Closed] Image(view_index=None, image_id=0)"
 
 
 def test_image_repr_closed_shows_cached_file_name(session, image, mocker):
-    # When the image-view-order lookup fails but file_name was previously
+    # When the view-index lookup fails but file_name was previously
     # cached, the closed repr still surfaces the cached name without
     # triggering any fresh round-trip.
     mocker.patch.object(
         session,
-        "_find_image_view_order",
-        side_effect=RuntimeError("not in image list"),
+        "_find_view_index",
+        side_effect=RuntimeError("not in views"),
     )
     get_value = mocker.patch.object(image, "get_value")
     image._cache = {"file_name": "cube.fits"}
     r = repr(image)
-    assert r == "[Closed] Image(image_view_order=None, file_name='cube.fits', file_id=0)"
+    assert r == "[Closed] Image(view_index=None, file_name='cube.fits', image_id=0)"
     get_value.assert_not_called()
 
 
-def test_image_repr_closed_when_frame_is_gone(session, image, mocker):
-    mocker.patch.object(session, "_find_image_view_order", return_value=3)
+def test_image_repr_closed_when_image_is_gone(session, image, mocker):
+    mocker.patch.object(session, "_find_view_index", return_value=3)
     mocker.patch.object(
         image,
         "get_value",
-        side_effect=CartaActionFailed("frameMap entry is missing"),
+        side_effect=CartaActionFailed("imageMap entry is missing"),
     )
     r = repr(image)
-    assert r == "[Closed] Image(image_view_order=3, file_id=0)"
+    assert r == "[Closed] Image(view_index=3, image_id=0)"
 
 
 @pytest.mark.parametrize("channel", [0, 10, 19])

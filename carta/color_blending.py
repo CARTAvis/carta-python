@@ -2,8 +2,13 @@
 
 from .constants import Colormap, ColormapSet, ImageType, SpatialAxis
 from .image import Image
-from .image_base import ImageBase
-from .util import BasePathMixin, CartaScriptingException, Macro
+from .view import View
+from .util import (
+    BasePathMixin,
+    CartaScriptingException,
+    CartaValidationFailed,
+    Macro,
+)
 from .validation import (
     Boolean,
     Constant,
@@ -11,7 +16,10 @@ from .validation import (
     InstanceOf,
     IterableOf,
     Number,
+    NoneOr,
     Size,
+    Attr,
+    Evaluate,
     validate,
 )
 
@@ -21,14 +29,14 @@ class Layer(BasePathMixin):
 
     Parameters
     ----------
-    colorblending : :obj:`carta.colorblending.ColorBlending`
+    color_blending : :obj:`carta.color_blending.ColorBlending`
         The color blending object.
     layer_id : integer
         The layer ID.
 
     Attributes
     ----------
-    colorblending : :obj:`carta.colorblending.ColorBlending`
+    color_blending : :obj:`carta.color_blending.ColorBlending`
         The color blending object.
     layer_id : integer
         The layer ID.
@@ -36,80 +44,82 @@ class Layer(BasePathMixin):
         The session object associated with this layer.
     """
 
-    def __init__(self, colorblending, layer_id):
-        self.colorblending = colorblending
+    def __init__(self, color_blending, layer_id):
+        self.color_blending = color_blending
         self.layer_id = layer_id
-        self.session = colorblending.session
+        self.session = color_blending.session
 
-        self._base_path = f"{self.colorblending._base_path}.frames[{layer_id}]"
+        self._base_path = f"{self.color_blending._base_path}.frames[{layer_id}]"
         self._frame = Macro("", self._base_path)
 
     @classmethod
-    def from_list(cls, colorblending, layer_ids):
-        """
-        Create a list of Layer objects from a list of layer IDs.
+    def from_list(cls, color_blending, layer_ids):
+        """Create a list of Layer objects from a list of layer IDs.
 
         Parameters
         ----------
-        colorblending : :obj:`carta.colorblending.ColorBlending`
+        color_blending : :obj:`carta.color_blending.ColorBlending`
             The color blending object.
         layer_ids : list of integer
             The layer IDs.
 
         Returns
         -------
-        list of :obj:`carta.colorblending.Layer`
+        list of :obj:`carta.color_blending.Layer`
             A list of new Layer objects.
         """
-        return [cls(colorblending, layer_id) for layer_id in layer_ids]
+        return [cls(color_blending, layer_id) for layer_id in layer_ids]
 
     @property
-    def image_view_order(self):
-        """The image-view order of this layer's underlying frame.
+    def view_index(self):
+        """The view index of this layer's underlying image.
 
-        This is the position of the underlying frame in the session's image
-        list. A layer does not occupy its own position in the image list;
-        its parent color blending does (see
-        :obj:`carta.colorblending.ColorBlending.image_view_order`).
+        This is the position of the underlying image in the session's views.
+        A layer does not occupy its own position in the views; its parent
+        color blending does (see
+        :obj:`carta.color_blending.ColorBlending.view_index`).
 
         Returns
         -------
         integer
-            The image-view order of the underlying frame.
+            The view index of the underlying image.
 
         Raises
         ------
         RuntimeError
-            If no matching frame entry exists in the image list.
+            If no matching image entry exists in the views.
         """
-        return self.session._find_image_view_order(
-            ImageType.FRAME, self.file_id
-        )
+        return self.session._find_view_index(ImageType.FRAME, self.image_id)
 
     def __repr__(self):
         """A human-readable representation of this layer."""
         cls = type(self).__name__
-        cb_id = self.colorblending.color_blending_id
+        cb_id = self.color_blending.color_blending_id
 
         try:
-            order = self.image_view_order
+            index = self.view_index
         except (CartaScriptingException, RuntimeError):
             return (
-                f"[Closed] {cls}(image_view_order=None, "
+                f"[Closed] {cls}(view_index=None, "
                 f"color_blending_id={cb_id}, layer_id={self.layer_id})"
             )
 
         try:
             name = self.file_name
+            colormap = self.colormap
+            inverted = self.inverted
+            alpha = self.alpha
         except CartaScriptingException:
             return (
-                f"[Closed] {cls}(image_view_order={order}, "
+                f"[Closed] {cls}(view_index={index}, "
                 f"color_blending_id={cb_id}, layer_id={self.layer_id})"
             )
 
         return (
-            f"{cls}(image_view_order={order}, color_blending_id={cb_id}, "
-            f"layer_id={self.layer_id}, file_name={name!r})"
+            f"{cls}(view_index={index}, color_blending_id={cb_id}, "
+            f"layer_id={self.layer_id}, file_name={name!r}, "
+            f"colormap={colormap!r}, inverted={inverted!r}, "
+            f"alpha={alpha!r})"
         )
 
     @property
@@ -124,15 +134,63 @@ class Layer(BasePathMixin):
         return self.get_value("frameInfo.fileInfo.name")
 
     @property
-    def file_id(self):
-        """The frontend file id of the layer's underlying image.
+    def image_id(self):
+        """The frontend image id of the layer's underlying image.
 
         Returns
         -------
         integer
-            The file id.
+            The image id.
         """
         return self.get_value("frameInfo.fileId")
+
+    @property
+    def colormap(self):
+        """The colormap used to render this layer.
+
+        Returns
+        -------
+        string
+            The colormap name.
+        """
+        return self.get_value("renderConfig.colorMap")
+
+    @property
+    def inverted(self):
+        """Whether the layer's colormap is inverted.
+
+        Returns
+        -------
+        boolean
+            Whether the colormap is inverted.
+        """
+        return self.get_value("renderConfig.isInverted")
+
+    @property
+    def alpha(self):
+        """The alpha value of this layer in the color blending.
+
+        Returns
+        -------
+        number
+            The alpha value, between 0 and 1.
+        """
+        return self.color_blending.get_value(f"alpha[{self.layer_id}]")
+
+    def delete(self):
+        """Delete this layer from its parent color blending."""
+        self.color_blending.delete_layer(self.layer_id)
+
+    @validate(InstanceOf(Image))
+    def set_image(self, image):
+        """Set the image for this layer.
+
+        Parameters
+        ----------
+        image : {0}
+            The image to set.
+        """
+        self.color_blending.set_layer_image(self.layer_id, image)
 
     @validate(Number(0, 1))
     def set_alpha(self, alpha):
@@ -143,7 +201,7 @@ class Layer(BasePathMixin):
         alpha : {0}
             The alpha value.
         """
-        self.colorblending.call_action("setAlpha", self.layer_id, alpha)
+        self.color_blending.call_action("setAlpha", self.layer_id, alpha)
 
     @validate(Constant(Colormap), Boolean())
     def set_colormap(self, colormap, invert=False):
@@ -160,7 +218,7 @@ class Layer(BasePathMixin):
         self.call_action("renderConfig.setInverted", invert)
 
 
-class ColorBlending(ImageBase, BasePathMixin):
+class ColorBlending(View, BasePathMixin):
     """This object represents a color blending image in a session.
 
     Parameters
@@ -178,7 +236,7 @@ class ColorBlending(ImageBase, BasePathMixin):
         The id of the backing ``ColorBlendingStore`` on the frontend.
     """
 
-    _image_type = ImageType.COLOR_BLENDING
+    VIEW_TYPE = ImageType.COLOR_BLENDING
 
     def __init__(self, session, color_blending_id):
         super().__init__(session)
@@ -197,10 +255,10 @@ class ColorBlending(ImageBase, BasePathMixin):
         cls = type(self).__name__
 
         try:
-            order = self.image_view_order
+            index = self.view_index
         except (CartaScriptingException, RuntimeError):
             return (
-                f"[Closed] {cls}(image_view_order=None, "
+                f"[Closed] {cls}(view_index=None, "
                 f"color_blending_id={self.color_blending_id})"
             )
 
@@ -208,12 +266,12 @@ class ColorBlending(ImageBase, BasePathMixin):
             name = self.file_name
         except CartaScriptingException:
             return (
-                f"[Closed] {cls}(image_view_order={order}, "
+                f"[Closed] {cls}(view_index={index}, "
                 f"color_blending_id={self.color_blending_id})"
             )
 
         return (
-            f"{cls}(image_view_order={order}, "
+            f"{cls}(view_index={index}, "
             f"color_blending_id={self.color_blending_id}, "
             f"file_name={name!r})"
         )
@@ -238,7 +296,7 @@ class ColorBlending(ImageBase, BasePathMixin):
     # LAYERS
 
     @property
-    def alpha(self):
+    def alphas(self):
         """The alpha value list for the color blending layers.
 
         Returns
@@ -248,8 +306,21 @@ class ColorBlending(ImageBase, BasePathMixin):
         """
         return self.get_value("alpha")
 
-    @validate(IterableOf(Number(0, 1)))
-    def set_alpha(self, alpha_list):
+    @property
+    def depth(self):
+        """The number of layers in the color blending.
+
+        Returns
+        -------
+        integer
+            The number of layers.
+        """
+        return self.get_value("frames.length")
+
+    @validate(
+        Evaluate(IterableOf, Number(0, 1), Attr("depth"), Attr("depth"))
+    )
+    def set_alphas(self, alpha_list):
         """Set the alpha value for the color blending layers.
 
         Parameters
@@ -257,28 +328,34 @@ class ColorBlending(ImageBase, BasePathMixin):
         alpha_list : {0}
             The alpha values.
         """
-        layer_list = self.layer_list()
-        if len(alpha_list) != len(layer_list):
-            raise ValueError(
-                f"alpha_list length ({len(alpha_list)}) does not match "
-                f"the number of layers ({len(layer_list)})."
-            )
-        for alpha, layer in zip(alpha_list, layer_list):
+        for alpha, layer in zip(alpha_list, self.layers()):
             layer.set_alpha(alpha)
 
-    def layer_list(self):
-        """
-        Returns a list of Layer objects, each representing a layer in
-        this color blending object.
+    @validate(
+        NoneOr(Evaluate(IterableOf, Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1)))
+    )
+    def layers(self, layer_ids=None):
+        """Return all or selected Layer objects for this color blending.
+
+        When no layer IDs are supplied, all layers are returned. When layer
+        IDs are supplied, the layers are returned in the requested order.
+        Duplicate layer IDs are preserved.
+
+        Parameters
+        ----------
+        layer_ids : {0}
+            The layer IDs to return. By default, all layers are returned.
 
         Returns
         -------
-        list of :obj:`carta.colorblending.Layer`
-            A list of Layer objects.
+        list of :obj:`carta.color_blending.Layer`
+            The requested layers.
         """
-        layer_count = self.get_value("frames.length")
-        return Layer.from_list(self, list(range(layer_count)))
+        if layer_ids is None:
+            layer_ids = range(self.depth)
+        return Layer.from_list(self, layer_ids)
 
+    @validate(InstanceOf(Image))
     def add_layer(self, image):
         """Add a new layer to the color blending.
 
@@ -289,110 +366,60 @@ class ColorBlending(ImageBase, BasePathMixin):
         """
         self.call_action("addSelectedFrame", image._frame)
 
-    @validate(Number(0, None))
+    @validate(Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1))
     def delete_layer(self, layer_index):
         """Delete a layer from the color blending.
 
         Parameters
         ----------
         layer_index : {0}
-            The layer index. The base layer (layer_index = 0) cannot
-            be deleted.
+            The layer index. If the base layer (layer_index = 0) is deleted,
+            the next layer becomes the spatial reference. If it is the only
+            layer, the color blending is closed.
         """
         if layer_index == 0:
-            raise ValueError("The base layer cannot be deleted.")
+            layers = self.layers()
+            if len(layers) == 1:
+                self.close()
+                return
+
+            Image(self.session, layers[1].image_id).make_spatial_reference()
+            return
         self.call_action("deleteSelectedFrame", layer_index - 1)
 
-    @validate(InstanceOf(Image), Number(1, None))
-    def set_layer(self, image, layer_index):
-        """Set a layer at a specified index in the color blending.
+    @validate(
+        Evaluate(Number, 0, Attr("depth"), Number.INCLUDE_MIN, step=1),
+        InstanceOf(Image),
+    )
+    def set_layer_image(self, layer_index, image):
+        """Set the image for a layer at a specified index in the color blending.
 
         Parameters
         ----------
-        image : {0}
+        layer_index : {0}
+            The layer index. If the base layer (layer_index = 0) is selected,
+            ``image`` becomes the new spatial reference. Otherwise, the
+            specified secondary layer is replaced.
+        image : {1}
             The image to set.
-        layer_index : {1}
-            The layer index. The base layer (layer_index = 0) cannot
-            be set.
+
+        Raises
+        ------
+        CartaValidationFailed
+            If ``image`` is already present in this color blending.
         """
-        self.call_action("setSelectedFrame", layer_index - 1, image._frame)
-
-    @validate(IterableOf(Number(0, None), min_size=1))
-    def set_layer_sequence(self, layer_indices):
-        """Set which layers are included in the color blending and in what
-        order.
-
-        Parameters
-        ----------
-        layer_indices : {0}
-            The layer indices to keep, in the desired order. The first index
-            must be the base layer (index = 0). Existing alpha values are
-            preserved.
-        """
-        layer_indices = list(layer_indices)
-        current_layers = self.layer_list()
-        max_current_layer_index = len(current_layers) - 1
-        invalid_layer_indices = [
-            layer_index
-            for layer_index in layer_indices
-            if layer_index > max_current_layer_index
-        ]
-        if invalid_layer_indices:
-            raise ValueError(
-                f"layer_indices {layer_indices!r} contains non-existent layer "
-                f"indices {invalid_layer_indices!r}; available layer indices "
-                f"are 0..{max_current_layer_index}."
+        image_id = image.image_id
+        if any(layer.image_id == image_id for layer in self.layers()):
+            raise CartaValidationFailed(
+                f"Image with image_id={image_id} is already in the "
+                "color blending layers."
             )
 
-        if layer_indices[0] != 0:
-            raise ValueError(
-                f"layer_indices {layer_indices!r} must start with the base "
-                "layer index 0."
-            )
-
-        if 0 in layer_indices[1:]:
-            raise ValueError(
-                f"layer_indices {layer_indices!r} must contain the base layer "
-                "index 0 only once, as the first index."
-            )
-
-        if len(layer_indices) != len(set(layer_indices)):
-            duplicate_layer_indices = sorted(
-                {
-                    layer_index
-                    for layer_index in layer_indices
-                    if layer_indices.count(layer_index) > 1
-                }
-            )
-            raise ValueError(
-                f"layer_indices {layer_indices!r} must not contain duplicate "
-                f"layer indices; duplicates were {duplicate_layer_indices!r}."
-            )
-
-        current_layer_indices = list(range(len(current_layers)))
-        if list(layer_indices) == current_layer_indices:
+        if layer_index == 0:
+            image.set_spatial_matching(True)
+            image.make_spatial_reference()
             return
-
-        current_alpha_values = self.alpha
-        target_layer_states = [
-            (
-                Image(self.session, current_layers[layer_index].file_id),
-                current_alpha_values[layer_index],
-            )
-            for layer_index in layer_indices[1:]
-        ]
-
-        # Delete all layers except the base layer
-        for _ in current_layers[1:]:
-            # Delete layer at index 1 (the first non-base layer);
-            # after deletion, the previous layer at index 2 shifts to index 1
-            self.delete_layer(1)
-
-        for target_layer_index, (image, alpha) in enumerate(
-            target_layer_states, start=1
-        ):
-            self.add_layer(image)
-            Layer(self, target_layer_index).set_alpha(alpha)
+        self.call_action("setSelectedFrame", layer_index - 1, image._frame)
 
     # NAVIGATION
 

@@ -31,7 +31,7 @@ class ColormapSet(StrEnum):
 
 
 class ImageType(IntEnum):
-    """Image view item types, corresponding to the frontend ImageType enum."""
+    """View item types, corresponding to the frontend ImageType enum."""
     FRAME = 0
     COLOR_BLENDING = 1
     PV_PREVIEW = 2
