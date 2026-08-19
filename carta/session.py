@@ -8,7 +8,6 @@ Alternatively, the user can create a new session which runs in a headless browse
 
 import base64
 import posixpath
-import warnings
 
 from .image import Image
 from .view import View
@@ -43,7 +42,6 @@ from .util import (
 )
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, InstanceOf, MapOf, Union
 from .version import (
-    validate_carta_version,
     version_mismatch_details,
 )
 
@@ -105,7 +103,7 @@ class Session:
         self.close()
 
     @classmethod
-    def interact(cls, frontend_url, session_id, token=None, debug_no_auth=False, backend=None, connection_check_timeout=10, minimum_carta_version=None, version_mismatch_action=VersionMismatchAction.WARN):
+    def interact(cls, frontend_url, session_id, token=None, debug_no_auth=False, backend=None, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Interact with an existing CARTA frontend session.
 
         Parameters
@@ -123,13 +121,9 @@ class Session:
         connection_check_timeout : number, optional
             Maximum time in seconds to wait for the startup validation action.
             Default: 10 seconds.
-        minimum_carta_version : string, optional
-            The minimum CARTA version known to support the script, for example
-            ``"6.1.0"``. Omit it temporarily to receive a deprecation
-            warning; it will be required in a future release.
         version_mismatch_action : :obj:`carta.constants.VersionMismatchAction`, optional
             Whether a version mismatch should produce a warning or raise an
-            exception. ``VersionMismatchAction.WARN`` is the default.
+            exception. ``VersionMismatchAction.ERROR`` is the default.
 
         Returns
         -------
@@ -147,10 +141,9 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the internal
-            minimum version requirement or the user-specified requirement.
-        CartaValidationFailed
-            If the user-specified requirement string cannot be parsed.
+            If the connected CARTA frontend does not satisfy the wrapper's
+            minimum version requirement and ``version_mismatch_action`` is
+            ``VersionMismatchAction.ERROR``.
         """
         try:
             session_id = int(session_id)
@@ -164,13 +157,12 @@ class Session:
         )
         session._validate_session(
             timeout=connection_check_timeout,
-            minimum_carta_version=minimum_carta_version,
             version_mismatch_action=version_mismatch_action,
         )
         return session
 
     @classmethod
-    def start_and_interact(cls, executable_path="carta", remote_host=None, params=tuple(), token=None, frontend_url_timeout=10, session_creation_timeout=10, connection_check_timeout=10, minimum_carta_version=None, version_mismatch_action=VersionMismatchAction.WARN):
+    def start_and_interact(cls, executable_path="carta", remote_host=None, params=tuple(), token=None, frontend_url_timeout=10, session_creation_timeout=10, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Start a new CARTA backend instance and interact with the default CARTA frontend session which is created automatically in the user's browser. This method cannot be used with a CARTA controller instance.
 
         Parameters
@@ -190,13 +182,9 @@ class Session:
         connection_check_timeout : number, optional
             Maximum time in seconds to wait for the startup validation action.
             Default: 10 seconds.
-        minimum_carta_version : string, optional
-            The minimum CARTA version known to support the script, for example
-            ``"6.1.0"``. Omit it temporarily to receive a deprecation
-            warning; it will be required in a future release.
         version_mismatch_action : :obj:`carta.constants.VersionMismatchAction`, optional
             Whether a version mismatch should produce a warning or raise an
-            exception. ``VersionMismatchAction.WARN`` is the default.
+            exception. ``VersionMismatchAction.ERROR`` is the default.
 
         Returns
         -------
@@ -214,10 +202,9 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the internal
-            minimum version requirement or the user-specified requirement.
-        CartaValidationFailed
-            If the user-specified requirement string cannot be parsed.
+            If the connected CARTA frontend does not satisfy the wrapper's
+            minimum version requirement and ``version_mismatch_action`` is
+            ``VersionMismatchAction.ERROR``.
         """
         backend = Backend(("--enable_scripting", *params), executable_path, remote_host, token, frontend_url_timeout, session_creation_timeout)
         if not backend.start():
@@ -239,7 +226,6 @@ class Session:
                 backend.debug_no_auth,
                 backend,
                 connection_check_timeout=connection_check_timeout,
-                minimum_carta_version=minimum_carta_version,
                 version_mismatch_action=version_mismatch_action,
             )
         except Exception:
@@ -250,7 +236,7 @@ class Session:
             raise
 
     @classmethod
-    def create(cls, browser, frontend_url, token=None, timeout=10, debug_no_auth=False, connection_check_timeout=10, minimum_carta_version=None, version_mismatch_action=VersionMismatchAction.WARN):
+    def create(cls, browser, frontend_url, token=None, timeout=10, debug_no_auth=False, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Connect to an existing CARTA backend or CARTA controller instance and create a new session.
 
         Parameters
@@ -268,13 +254,9 @@ class Session:
         connection_check_timeout : number, optional
             Maximum time in seconds to wait for the startup validation action.
             Default: 10 seconds.
-        minimum_carta_version : string, optional
-            The minimum CARTA version known to support the script, for example
-            ``"6.1.0"``. Omit it temporarily to receive a deprecation
-            warning; it will be required in a future release.
         version_mismatch_action : :obj:`carta.constants.VersionMismatchAction`, optional
             Whether a version mismatch should produce a warning or raise an
-            exception. ``VersionMismatchAction.WARN`` is the default.
+            exception. ``VersionMismatchAction.ERROR`` is the default.
 
         Returns
         -------
@@ -290,10 +272,9 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the internal
-            minimum version requirement or the user-specified requirement.
-        CartaValidationFailed
-            If the user-specified requirement string cannot be parsed.
+            If the connected CARTA frontend does not satisfy the wrapper's
+            minimum version requirement and ``version_mismatch_action`` is
+            ``VersionMismatchAction.ERROR``.
         """
         return browser.new_session_from_url(
             frontend_url,
@@ -302,12 +283,11 @@ class Session:
             timeout=timeout,
             debug_no_auth=debug_no_auth,
             connection_check_timeout=connection_check_timeout,
-            minimum_carta_version=minimum_carta_version,
             version_mismatch_action=version_mismatch_action,
         )
 
     @classmethod
-    def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10, connection_check_timeout=10, minimum_carta_version=None, version_mismatch_action=VersionMismatchAction.WARN):
+    def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Start a new CARTA backend instance and create a new session. This method cannot be used with a CARTA controller instance (which already starts and stops backend instances for the user on demand).
 
         Parameters
@@ -329,13 +309,9 @@ class Session:
         connection_check_timeout : number, optional
             Maximum time in seconds to wait for the startup validation action.
             Default: 10 seconds.
-        minimum_carta_version : string, optional
-            The minimum CARTA version known to support the script, for example
-            ``"6.1.0"``. Omit it temporarily to receive a deprecation
-            warning; it will be required in a future release.
         version_mismatch_action : :obj:`carta.constants.VersionMismatchAction`, optional
             Whether a version mismatch should produce a warning or raise an
-            exception. ``VersionMismatchAction.WARN`` is the default.
+            exception. ``VersionMismatchAction.ERROR`` is the default.
 
         Returns
         -------
@@ -351,10 +327,9 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the internal
-            minimum version requirement or the user-specified requirement.
-        CartaValidationFailed
-            If the user-specified requirement string cannot be parsed.
+            If the connected CARTA frontend does not satisfy the wrapper's
+            minimum version requirement and ``version_mismatch_action`` is
+            ``VersionMismatchAction.ERROR``.
         """
         return browser.new_session_with_backend(
             executable_path,
@@ -364,7 +339,6 @@ class Session:
             token,
             frontend_url_timeout,
             connection_check_timeout=connection_check_timeout,
-            minimum_carta_version=minimum_carta_version,
             version_mismatch_action=version_mismatch_action,
         )
 
@@ -408,21 +382,8 @@ class Session:
             self._cache = {}
         self._cache["carta_version"] = version
 
-    @validate(Number(min=0), NoneOr(String()), Constant(VersionMismatchAction))
-    def _validate_session(self, timeout=10, minimum_carta_version=None, version_mismatch_action=VersionMismatchAction.WARN):
-        if minimum_carta_version is None:
-            warnings.warn(
-                "minimum_carta_version will be required in a future release; "
-                "pass the CARTA version known to support this script.",
-                DeprecationWarning,
-                stacklevel=4,
-            )
-        else:
-            validate_carta_version(
-                minimum_carta_version,
-                parameter_name="minimum_carta_version",
-            )
-
+    @validate(Number(min=0), Constant(VersionMismatchAction))
+    def _validate_session(self, timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         version_mismatch_action = VersionMismatchAction(version_mismatch_action)
 
         try:
@@ -436,7 +397,6 @@ class Session:
         mismatches, suggestions = version_mismatch_details(
             version,
             MINIMUM_CARTA_VERSION,
-            minimum_carta_version,
         )
         if mismatches:
             message = "CARTA version validation failed:\n" + "\n".join(

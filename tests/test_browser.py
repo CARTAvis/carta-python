@@ -75,13 +75,12 @@ def test_new_session_from_url_runs_connection_check_after_parsing_session_id(
     session_class.assert_called_once_with(123, protocol, browser=browser, backend=None)
     session._validate_session.assert_called_once_with(
         timeout=5,
-        minimum_carta_version=None,
-        version_mismatch_action=VersionMismatchAction.WARN,
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
     assert browser.driver.closed is False
 
 
-def test_new_session_from_url_passes_minimum_and_mismatch_action(
+def test_new_session_from_url_passes_mismatch_action(
     mocker, browser_module
 ):
     browser = make_browser(browser_module.Browser)
@@ -92,13 +91,11 @@ def test_new_session_from_url_passes_minimum_and_mismatch_action(
 
     browser.new_session_from_url(
         "http://localhost:3000?token=x",
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
     session._validate_session.assert_called_once_with(
         timeout=10,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
@@ -167,8 +164,7 @@ def test_new_session_with_backend_stops_backend_when_session_creation_fails(
         timeout=10,
         debug_no_auth=False,
         connection_check_timeout=10,
-        minimum_carta_version=None,
-        version_mismatch_action=VersionMismatchAction.WARN,
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
 
@@ -211,7 +207,6 @@ def test_new_session_with_backend_passes_version_options(
 
     result = browser.new_session_with_backend(
         connection_check_timeout=4,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
@@ -223,7 +218,6 @@ def test_new_session_with_backend_passes_version_options(
         timeout=10,
         debug_no_auth=False,
         connection_check_timeout=4,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 

@@ -108,8 +108,7 @@ def test_direct_session_construction_does_not_validate_session(mocker):
 def test_validate_session_fetches_frontend_version_with_timeout(session, call_action):
     call_action.return_value = "6.0.0-dev"
 
-    with pytest.warns(DeprecationWarning, match="minimum_carta_version"):
-        assert session._validate_session(timeout=3) == "6.0.0-dev"
+    assert session._validate_session(timeout=3) == "6.0.0-dev"
 
     call_action.assert_called_once_with(
         "fetchParameter",
@@ -120,69 +119,46 @@ def test_validate_session_fetches_frontend_version_with_timeout(session, call_ac
     assert session.carta_version == "6.0.0-dev"
 
 
-def test_validate_session_applies_minimum_version(session, call_action):
-    call_action.return_value = "6.1.0"
-
-    assert (
-        session._validate_session(
-            timeout=3,
-            minimum_carta_version="6.1.0",
-        )
-        == "6.1.0"
-    )
-
-
-def test_validate_session_warns_for_unsatisfied_minimum_by_default(
+def test_validate_session_warns_for_unsupported_version_when_requested(
     session, call_action, caplog, mocker
 ):
     call_action.return_value = "6.0.0"
     mocker.patch("carta.session.MINIMUM_CARTA_VERSION", "6.1.0")
 
-    session._validate_session(timeout=3, minimum_carta_version="6.2.0")
+    session._validate_session(
+        timeout=3, version_mismatch_action=VersionMismatchAction.WARN
+    )
 
-    assert "script minimum" in caplog.text
+    assert "wrapper minimum" in caplog.text
     assert "Suggested actions:" in caplog.text
-    assert (
-        "Upgrade CARTA to at least '6.2.0' to satisfy both the carta-python "
-        "and script minimums."
-    ) in caplog.text
-    assert "Upgrade CARTA to at least '6.1.0'." not in caplog.text
+    assert "Upgrade CARTA to at least '6.1.0'." in caplog.text
     assert "version_mismatch_action=VersionMismatchAction.WARN" not in caplog.text
 
 
 def test_validate_session_raises_for_unsatisfied_minimum_in_error_mode(
     session, call_action
 ):
-    call_action.return_value = "6.1.0"
+    call_action.return_value = "5.9.0"
 
-    with pytest.raises(CartaUnsupportedVersion, match="script minimum"):
+    with pytest.raises(CartaUnsupportedVersion, match="wrapper minimum"):
         session._validate_session(
             timeout=3,
-            minimum_carta_version="6.2.0",
             version_mismatch_action=VersionMismatchAction.ERROR,
         )
 
 
-def test_validate_session_warns_for_newer_frontend_major_by_default(
+def test_validate_session_warns_for_newer_frontend_major_when_requested(
     session, call_action, caplog
 ):
     call_action.return_value = "7.0.0"
 
-    session._validate_session(timeout=3, minimum_carta_version="6.0.0")
+    session._validate_session(
+        timeout=3, version_mismatch_action=VersionMismatchAction.WARN
+    )
 
     assert "newer than the wrapper" in caplog.text
     assert "Upgrade carta-python to a version supporting CARTA major version 7." in caplog.text
-    assert "Update the script's `minimum_carta_version`" in caplog.text
-
-
-def test_validate_session_suggests_upgrading_carta_for_old_wrapper_minimum(
-    session, call_action, caplog
-):
-    call_action.return_value = "5.9.0"
-
-    session._validate_session(timeout=3, minimum_carta_version="5.9.0")
-
-    assert "Upgrade CARTA to at least '6.0.0'." in caplog.text
+    assert "script target major version" not in caplog.text
 
 
 def test_validate_session_raises_for_newer_frontend_major_in_error_mode(
@@ -193,7 +169,6 @@ def test_validate_session_raises_for_newer_frontend_major_in_error_mode(
     with pytest.raises(CartaUnsupportedVersion) as error:
         session._validate_session(
             timeout=3,
-            minimum_carta_version="6.0.0",
             version_mismatch_action=VersionMismatchAction.ERROR,
         )
 
@@ -201,23 +176,9 @@ def test_validate_session_raises_for_newer_frontend_major_in_error_mode(
     assert "version_mismatch_action=VersionMismatchAction.WARN" in str(error.value)
 
 
-def test_validate_session_validates_minimum_before_fetching_version(session, call_action):
-    with pytest.raises(CartaValidationFailed):
-        session._validate_session(
-            timeout=3,
-            minimum_carta_version=">=6.1.0",
-        )
-
-    call_action.assert_not_called()
-
-
 def test_validate_session_validates_action_before_fetching_version(session, call_action):
     with pytest.raises(CartaValidationFailed):
-        session._validate_session(
-            timeout=3,
-            minimum_carta_version="6.1.0",
-            version_mismatch_action="invalid",
-        )
+        session._validate_session(timeout=3, version_mismatch_action="invalid")
 
     call_action.assert_not_called()
 
@@ -229,9 +190,7 @@ def test_validate_session_reports_invalid_frontend_version_in_error_mode(
 
     with pytest.raises(CartaUnsupportedVersion, match="invalid CARTA version"):
         session._validate_session(
-            timeout=2,
-            minimum_carta_version="6.1.0",
-            version_mismatch_action=VersionMismatchAction.ERROR,
+            timeout=2, version_mismatch_action=VersionMismatchAction.ERROR
         )
 
 
@@ -240,10 +199,7 @@ def test_validate_session_wraps_frontend_version_failure(session, call_action, m
     call_action.side_effect = CartaActionFailed("frontendVersion unavailable")
 
     with pytest.raises(CartaBadSession) as e:
-        session._validate_session(
-            timeout=2,
-            minimum_carta_version="6.0.0",
-        )
+        session._validate_session(timeout=2)
 
     message = str(e.value)
     assert "Could not validate CARTA session 0" in message
@@ -266,8 +222,7 @@ def test_interact_checks_connection_by_default(mocker):
     assert session._protocol is protocol
     validate_session.assert_called_once_with(
         timeout=10,
-        minimum_carta_version=None,
-        version_mismatch_action=VersionMismatchAction.WARN,
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
 
@@ -284,8 +239,7 @@ def test_interact_passes_connection_check_timeout(mocker):
 
     validate_session.assert_called_once_with(
         timeout=4,
-        minimum_carta_version=None,
-        version_mismatch_action=VersionMismatchAction.WARN,
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
 
@@ -301,12 +255,11 @@ def test_interact_always_validates(mocker):
 
     validate_session.assert_called_once_with(
         timeout=10,
-        minimum_carta_version=None,
-        version_mismatch_action=VersionMismatchAction.WARN,
+        version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
 
-def test_interact_passes_minimum_and_mismatch_action(mocker):
+def test_interact_passes_mismatch_action(mocker):
     protocol = mocker.Mock(frontend_url="http://localhost:3000")
     mocker.patch("carta.session.Protocol", return_value=protocol)
     validate_session = mocker.patch.object(Session, "_validate_session")
@@ -314,13 +267,11 @@ def test_interact_passes_minimum_and_mismatch_action(mocker):
     Session.interact(
         "http://localhost:3000?token=x",
         123,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
     validate_session.assert_called_once_with(
         timeout=10,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
@@ -377,7 +328,6 @@ def test_create_passes_connection_check_options_to_browser(mocker):
         timeout=7,
         debug_no_auth=True,
         connection_check_timeout=4,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
@@ -389,7 +339,6 @@ def test_create_passes_connection_check_options_to_browser(mocker):
         timeout=7,
         debug_no_auth=True,
         connection_check_timeout=4,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
@@ -408,7 +357,6 @@ def test_start_and_create_passes_connection_check_options_to_browser(mocker):
         token="token",
         frontend_url_timeout=8,
         connection_check_timeout=4,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 
@@ -421,7 +369,6 @@ def test_start_and_create_passes_connection_check_options_to_browser(mocker):
         "token",
         8,
         connection_check_timeout=4,
-        minimum_carta_version="6.1.0",
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
 # PATHS
