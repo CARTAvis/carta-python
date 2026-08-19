@@ -427,9 +427,7 @@ class Session:
             "- CARTA backend/frontend is not running or not reachable.\n"
             "- The session ID is wrong or the session has closed.\n"
             "- The backend was not started with --enable_scripting.\n"
-            "- The token is missing, invalid, or expired.\n"
-            "- The CARTA frontend does not expose frontendVersion, which "
-            "can happen with unsupported versions such as 6.0.0-beta.1."
+            "- The token is missing, invalid, or expired."
         )
 
     def call_action(self, path, *args, **kwargs):
