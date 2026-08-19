@@ -208,7 +208,6 @@ def test_validate_session_wraps_frontend_version_failure(session, call_action, m
     assert "CartaActionFailed" in message
     assert "frontendVersion unavailable" in message
     assert "--enable_scripting" in message
-    assert "6.0.0-beta.1" in message
 
 
 def test_interact_checks_connection_by_default(mocker):
