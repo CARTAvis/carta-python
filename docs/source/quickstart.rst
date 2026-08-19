@@ -56,11 +56,7 @@ Use the ``interact`` method if you want to use scripting to control a CARTA sess
             from carta.session import Session
             from carta.token import BackendToken
 
-            session = Session.interact(
-                "FRONTEND URL",
-                123456,
-                BackendToken("SECURITY TOKEN"),
-            )
+            session = Session.interact("FRONTEND URL", 123456, BackendToken("SECURITY TOKEN"))
 
         If you have launched a backend directly, the frontend URL and security token must match your running backend process. You have the option of using an environment variable, ``CARTA_AUTH_TOKEN``, to run CARTA with a fixed security token. Otherwise, a randomly generated token will be printed by the backend when it starts. If you include the security token in the URL, you may omit the security token parameter (it will be parsed from the URL automatically):
 
@@ -92,11 +88,7 @@ Use the ``interact`` method if you want to use scripting to control a CARTA sess
             from carta.session import Session
             from carta.token import ControllerToken
 
-            session = Session.interact(
-                "FRONTEND URL",
-                123456,
-                ControllerToken.from_file("path/to/token"),
-            )
+            session = Session.interact("FRONTEND URL", 123456, ControllerToken.from_file("path/to/token"))
 
         The second parameter is the session ID, which must match the running frontend session: it's visible when you hover over the status indicator at the top right of the CARTA window in your browser. You can copy it by navigating to ``File > Server > Copy session ID to clipboard``.
 
@@ -129,11 +121,7 @@ Creating a new interactive session
 
         .. code-block:: python
 
-            session = Session.create(
-                Chrome(headless=False),
-                "FRONTEND URL",
-                ControllerToken.from_file("path/to/token"),
-            )
+            session = Session.create(Chrome(headless=False), "FRONTEND URL", ControllerToken.from_file("path/to/token"))
 
         You can also create a custom :obj:`carta.browser.Browser` object with any appropriate browser executable and driver and any commandline parameters.
 
@@ -158,11 +146,7 @@ Use the ``create`` method if you want to write a non-interactive script which st
             from carta.browser import Chrome
 
             # New session, connect to an existing backend
-            session = Session.create(
-                Chrome(),
-                "FRONTEND URL",
-                BackendToken("SECURITY TOKEN"),
-            )
+            session = Session.create(Chrome(), "FRONTEND URL", BackendToken("SECURITY TOKEN"))
 
             # New session, start local backend
             session = Session.start_and_create(Chrome())
@@ -194,11 +178,7 @@ Use the ``create`` method if you want to write a non-interactive script which st
             from carta.token import ControllerToken
 
             # New session, connect to an existing controller
-            session = Session.create(
-                Chrome(),
-                "FRONTEND URL",
-                ControllerToken.from_file("path/to/token"),
-            )
+            session = Session.create(Chrome(), "FRONTEND URL", ControllerToken.from_file("path/to/token"))
 
 These commands are further customisable with optional parameters. See :doc:`the API reference <carta>` for more information.
 
