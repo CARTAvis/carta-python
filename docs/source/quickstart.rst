@@ -66,10 +66,7 @@ Use the ``interact`` method if you want to use scripting to control a CARTA sess
 
         .. code-block:: python
 
-            session = Session.interact(
-                "http://HOSTNAME:PORT?token=SECURITY_TOKEN",
-                123456,
-            )
+            session = Session.interact("http://HOSTNAME:PORT?token=SECURITY_TOKEN", 123456)
 
         The second parameter is the session ID, which must match the running frontend session: it's visible when you hover over the status indicator at the top right of the CARTA window in your browser. You can copy it by navigating to ``File > Server > Copy session ID to clipboard``, or find it in the backend executable output.
 
@@ -124,9 +121,7 @@ Creating a new interactive session
             session = Session.start_and_interact()
 
             # New session, start remote backend
-            session = Session.start_and_interact(
-                remote_host="REMOTE HOSTNAME OR IP",
-            )
+            session = Session.start_and_interact(remote_host="REMOTE HOSTNAME OR IP")
 
     .. tab:: Controller access
 
@@ -170,15 +165,10 @@ Use the ``create`` method if you want to write a non-interactive script which st
             )
 
             # New session, start local backend
-            session = Session.start_and_create(
-                Chrome(),
-            )
+            session = Session.start_and_create(Chrome())
 
             # New session, start remote backend
-            session = Session.start_and_create(
-                Chrome(),
-                remote_host="REMOTE HOSTNAME OR IP",
-            )
+            session = Session.start_and_create(Chrome(), remote_host="REMOTE HOSTNAME OR IP")
 
     .. tab:: Controller access
 
