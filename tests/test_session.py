@@ -131,7 +131,7 @@ def test_validate_session_warns_for_unsupported_version_when_requested(
 
     assert "older than the minimum" in caplog.text
     assert "complete functionality with carta-python 2.0.x" in caplog.text
-    assert "Suggested actions:" in caplog.text
+    assert "\n\nSuggested actions:\n" in caplog.text
     assert "Upgrade CARTA to at least '6.1.0'." in caplog.text
     assert "version_mismatch_action=VersionMismatchAction.WARN" not in caplog.text
 
@@ -213,7 +213,7 @@ def test_call_action_adds_compatibility_suggestion_to_frontend_failure(
     message = str(error.value)
     assert error.value is original_error
     assert "newAction is unavailable" in message
-    assert "Compatibility suggestions:" in message
+    assert "\n\nCompatibility suggestions:\n" in message
     assert "verify that the frontend action, attribute, or response path exists" in message
     assert "upgrade carta-python to the latest available release" in message
 

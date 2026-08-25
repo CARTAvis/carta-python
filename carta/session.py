@@ -405,7 +405,7 @@ class Session:
                     "`version_mismatch_action=VersionMismatchAction.WARN`."
                 )
             if suggestions:
-                message += "\nSuggested actions:\n" + "\n".join(
+                message += "\n\nSuggested actions:\n" + "\n".join(
                     f"- {suggestion}" for suggestion in suggestions
                 )
             if version_mismatch_action is VersionMismatchAction.ERROR:
@@ -470,7 +470,7 @@ class Session:
             if not suggestions:
                 raise
 
-            message = f"{error}\nCompatibility suggestions:\n" + "\n".join(
+            message = f"{error}\n\nCompatibility suggestions:\n" + "\n".join(
                 f"- {suggestion}" for suggestion in suggestions
             )
             error.args = (message,)
