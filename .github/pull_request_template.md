@@ -1,9 +1,9 @@
-**Description**
+### Description
 
 Linked issues and companion PRs (if any), what is implemented or fixed, and
 how to test it.
 
-**Checklist**
+### Checklist
 
 For linked issues (if any):
 
