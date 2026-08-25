@@ -43,9 +43,6 @@ class VersionMismatchAction(StrEnum):
     ERROR = "error"
 
 
-MINIMUM_CARTA_VERSION = "6.0.0"
-
-
 Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'), start=0)
 Scaling.__doc__ = """Colormap scaling types."""
 

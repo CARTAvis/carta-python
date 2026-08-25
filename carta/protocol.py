@@ -293,7 +293,8 @@ class Protocol:
 
         request_data = json.dumps(request_kwargs, cls=CartaEncoder)
 
-        carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {args}"
+        action_path = f"{path}.{action}" if path else action
+        carta_action_description = f"CARTA scripting action {action_path} called with parameters {args}"
 
         headers = {
             'Content-Type': 'application/json',

@@ -1,6 +1,19 @@
+import pathlib
+
 import pytest
 
-from carta.version import parse_carta_version, version_mismatch_details
+from carta.version import (
+    COMPATIBILITY,
+    CompatibilityRange,
+    action_failure_compatibility_suggestions,
+    compatibility_for_carta,
+    latest_compatibility,
+    parse_carta_version,
+    parse_version_series,
+    version_mismatch_details,
+)
+
+VERSION_FILE = pathlib.Path(__file__).parent.parent / "VERSION.txt"
 
 
 @pytest.mark.parametrize(
@@ -31,24 +44,161 @@ def test_parse_carta_version_rejects_invalid_versions(version):
 
 
 def test_version_mismatch_details_reports_old_frontend_version():
-    assert version_mismatch_details("5.9.0", "6.0.0") == (
-        ["frontend version '5.9.0' is older than the wrapper minimum '6.0.0'."],
-        ["Upgrade CARTA to at least '6.0.0'."],
-    )
-
-
-def test_version_mismatch_details_reports_newer_frontend_major():
-    assert version_mismatch_details("7.0.0", "6.0.0") == (
+    assert version_mismatch_details("5.9.0") == (
         [
-            "frontend major version 7 is newer than the wrapper's "
-            "supported major version 6."
+            "CARTA version '5.9.0' is older than the minimum '6.1.0' required "
+            "for complete functionality with carta-python 2.0.x."
         ],
-        ["Upgrade carta-python to a version supporting CARTA major version 7."],
+        ["Upgrade CARTA to at least '6.1.0'."],
     )
+
+
+def test_version_mismatch_details_uses_table_for_downgrade_suggestion(mocker):
+    table = (
+        CompatibilityRange(carta_min="5.0", carta_max="5.9", wrapper="1.0"),
+        CompatibilityRange(carta_min="6.1", carta_max=None, wrapper="2.0"),
+    )
+    mocker.patch("carta.version.COMPATIBILITY", table)
+
+    assert version_mismatch_details("5.9.0") == (
+        [
+            "CARTA version '5.9.0' is older than the minimum '6.1.0' required "
+            "for complete functionality with carta-python 2.0.x."
+        ],
+        [
+            "Upgrade CARTA to at least '6.1.0'.",
+            "Alternatively, use carta-python 1.0.x, the recommended series "
+            "for CARTA 5.0 - 5.9.",
+        ],
+    )
+
+
+@pytest.mark.parametrize("version", ["6.1.0", "6.9.9", "7.0.0"])
+def test_version_mismatch_details_accepts_current_and_newer_carta(version):
+    assert version_mismatch_details(version) == ([], [])
 
 
 def test_version_mismatch_details_reports_invalid_frontend_version():
-    assert version_mismatch_details("bad.version", "6.0.0") == (
+    assert version_mismatch_details("bad.version") == (
         ["frontend reported invalid CARTA version 'bad.version'."],
         ["Verify that CARTA reports a valid MAJOR.MINOR.PATCH version."],
     )
+
+
+def test_action_failure_suggests_latest_carta_python_for_supported_carta():
+    assert action_failure_compatibility_suggestions("6.1.0") == [
+        "For direct scripting calls, verify that the frontend action, attribute, "
+        "or response path exists.",
+        "If this failure started after a CARTA upgrade, upgrade carta-python to "
+        "the latest available release and retry.",
+    ]
+
+
+def test_action_failure_suggests_latest_carta_python_for_newer_carta():
+    assert action_failure_compatibility_suggestions("7.0.0") == [
+        "For direct scripting calls, verify that the frontend action, attribute, "
+        "or response path exists.",
+        "If this failure started after a CARTA upgrade, upgrade carta-python to "
+        "the latest available release and retry.",
+    ]
+
+
+def test_action_failure_uses_table_for_older_carta(mocker):
+    table = (
+        CompatibilityRange(carta_min="5.0", carta_max="5.9", wrapper="1.0"),
+        CompatibilityRange(carta_min="6.1", carta_max=None, wrapper="2.0"),
+    )
+    mocker.patch("carta.version.COMPATIBILITY", table)
+
+    assert action_failure_compatibility_suggestions("5.9.0") == [
+        "Upgrade CARTA to at least '6.1.0'.",
+        "Alternatively, use carta-python 1.0.x, the recommended series for "
+        "CARTA 5.0 - 5.9.",
+    ]
+
+
+def test_action_failure_ignores_unknown_carta_version():
+    assert action_failure_compatibility_suggestions("bad.version") == []
+
+
+def assert_table_is_ordered(table):
+    for previous, current in zip(table, table[1:]):
+        previous_min = parse_version_series(previous.carta_min)
+        current_min = parse_version_series(current.carta_min)
+        if previous.carta_max is None:
+            assert current_min[0] > previous_min[0]
+        else:
+            assert parse_version_series(previous.carta_max) < current_min
+        assert parse_version_series(previous.wrapper) < parse_version_series(current.wrapper)
+
+
+def test_compatibility_table_is_ordered_and_does_not_overlap():
+    assert_table_is_ordered(COMPATIBILITY)
+
+
+def test_open_ended_range_may_precede_a_new_carta_major():
+    assert_table_is_ordered((
+        CompatibilityRange(carta_min="6.1", carta_max=None, wrapper="2.0"),
+        CompatibilityRange(carta_min="7.0", carta_max=None, wrapper="3.0"),
+    ))
+
+
+def test_open_ended_range_is_bounded_by_its_carta_major():
+    entry = CompatibilityRange(carta_min="6.1", carta_max=None, wrapper="2.0")
+
+    assert entry.covers_carta("6.9.0")
+    assert not entry.covers_carta("7.0.0")
+
+
+def test_compatibility_table_bounds_are_valid_series():
+    for entry in COMPATIBILITY:
+        for bound in (entry.carta_min, entry.wrapper):
+            assert parse_version_series(bound) is not None
+        assert entry.carta_max is None or parse_version_series(entry.carta_max) is not None
+
+
+def test_compatibility_ranges_do_not_span_carta_major_versions():
+    for entry in COMPATIBILITY:
+        if entry.carta_max is not None:
+            assert parse_version_series(entry.carta_min)[0] == parse_version_series(entry.carta_max)[0]
+
+
+def test_package_version_matches_latest_compatibility():
+    package_version = parse_carta_version(VERSION_FILE.read_text().strip())
+    recommended_series = parse_version_series(latest_compatibility().wrapper)
+
+    assert package_version[:2] == recommended_series
+
+
+@pytest.mark.parametrize("version", ["6.1.0", "6.1.0-dev", "6.9.9"])
+def test_compatibility_for_carta_finds_supported_versions(version):
+    assert compatibility_for_carta(version) is latest_compatibility()
+
+
+@pytest.mark.parametrize("version", ["6.0.0", "5.9.0", "7.0.0", "bad.version"])
+def test_compatibility_for_carta_rejects_unsupported_versions(version):
+    assert compatibility_for_carta(version) is None
+
+
+def test_compatibility_labels():
+    entry = latest_compatibility()
+
+    assert entry.carta_label == "6.1 - 6.x"
+    assert entry.wrapper_label == "2.0.x"
+
+
+def test_compatibility_label_with_explicit_maximum():
+    entry = CompatibilityRange(carta_min="6.0", carta_max="6.2", wrapper="1.2")
+
+    assert entry.carta_label == "6.0 - 6.2"
+    assert entry.wrapper_label == "1.2.x"
+    assert entry.covers_carta("6.2.5")
+    assert not entry.covers_carta("6.3.0")
+
+
+@pytest.mark.parametrize(
+    "series",
+    ["", "6", "6.1.0", "6.x", "bad.series"],
+)
+def test_parse_version_series_rejects_invalid_series(series):
+    assert parse_version_series(series) is None

@@ -10,6 +10,7 @@ from carta.util import (
     CartaActionFailed,
     CartaBadResponse,
     CartaBadSession,
+    CartaRequestFailed,
     CartaUnsupportedVersion,
     CartaValidationFailed,
     Macro,
@@ -106,9 +107,9 @@ def test_direct_session_construction_does_not_validate_session(mocker):
 
 
 def test_validate_session_fetches_frontend_version_with_timeout(session, call_action):
-    call_action.return_value = "6.0.0-dev"
+    call_action.return_value = "6.1.0-dev"
 
-    assert session._validate_session(timeout=3) == "6.0.0-dev"
+    assert session._validate_session(timeout=3) == "6.1.0-dev"
 
     call_action.assert_called_once_with(
         "fetchParameter",
@@ -116,20 +117,20 @@ def test_validate_session_fetches_frontend_version_with_timeout(session, call_ac
         response_expected=True,
         timeout=3,
     )
-    assert session.carta_version == "6.0.0-dev"
+    assert session.carta_version == "6.1.0-dev"
 
 
 def test_validate_session_warns_for_unsupported_version_when_requested(
-    session, call_action, caplog, mocker
+    session, call_action, caplog
 ):
     call_action.return_value = "6.0.0"
-    mocker.patch("carta.session.MINIMUM_CARTA_VERSION", "6.1.0")
 
     session._validate_session(
         timeout=3, version_mismatch_action=VersionMismatchAction.WARN
     )
 
-    assert "wrapper minimum" in caplog.text
+    assert "older than the minimum" in caplog.text
+    assert "complete functionality with carta-python 2.0.x" in caplog.text
     assert "Suggested actions:" in caplog.text
     assert "Upgrade CARTA to at least '6.1.0'." in caplog.text
     assert "version_mismatch_action=VersionMismatchAction.WARN" not in caplog.text
@@ -140,40 +141,28 @@ def test_validate_session_raises_for_unsatisfied_minimum_in_error_mode(
 ):
     call_action.return_value = "5.9.0"
 
-    with pytest.raises(CartaUnsupportedVersion, match="wrapper minimum"):
+    with pytest.raises(CartaUnsupportedVersion, match="older than the minimum"):
         session._validate_session(
             timeout=3,
             version_mismatch_action=VersionMismatchAction.ERROR,
         )
 
 
-def test_validate_session_warns_for_newer_frontend_major_when_requested(
-    session, call_action, caplog
+@pytest.mark.parametrize(
+    "version_mismatch_action",
+    [VersionMismatchAction.WARN, VersionMismatchAction.ERROR],
+)
+def test_validate_session_accepts_newer_frontend_major(
+    session, call_action, caplog, version_mismatch_action
 ):
     call_action.return_value = "7.0.0"
 
-    session._validate_session(
-        timeout=3, version_mismatch_action=VersionMismatchAction.WARN
-    )
+    assert session._validate_session(
+        timeout=3,
+        version_mismatch_action=version_mismatch_action,
+    ) == "7.0.0"
 
-    assert "newer than the wrapper" in caplog.text
-    assert "Upgrade carta-python to a version supporting CARTA major version 7." in caplog.text
-    assert "script target major version" not in caplog.text
-
-
-def test_validate_session_raises_for_newer_frontend_major_in_error_mode(
-    session, call_action
-):
-    call_action.return_value = "7.0.0"
-
-    with pytest.raises(CartaUnsupportedVersion) as error:
-        session._validate_session(
-            timeout=3,
-            version_mismatch_action=VersionMismatchAction.ERROR,
-        )
-
-    assert "newer than the wrapper" in str(error.value)
-    assert "version_mismatch_action=VersionMismatchAction.WARN" in str(error.value)
+    assert not caplog.text
 
 
 def test_validate_session_validates_action_before_fetching_version(session, call_action):
@@ -208,6 +197,52 @@ def test_validate_session_wraps_frontend_version_failure(session, call_action, m
     assert "CartaActionFailed" in message
     assert "frontendVersion unavailable" in message
     assert "--enable_scripting" in message
+
+
+def test_call_action_adds_compatibility_suggestion_to_frontend_failure(
+    session, mocker
+):
+    original_error = CartaActionFailed("newAction is unavailable")
+    session._cache = {"carta_version": "7.0.0"}
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaActionFailed) as error:
+        session.call_action("newAction")
+
+    message = str(error.value)
+    assert error.value is original_error
+    assert "newAction is unavailable" in message
+    assert "Compatibility suggestions:" in message
+    assert "verify that the frontend action, attribute, or response path exists" in message
+    assert "upgrade carta-python to the latest available release" in message
+
+
+def test_call_action_preserves_frontend_failure_without_cached_version(
+    session, mocker
+):
+    original_error = CartaActionFailed("newAction is unavailable")
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaActionFailed) as error:
+        session.call_action("newAction")
+
+    assert error.value is original_error
+
+
+def test_call_action_does_not_add_compatibility_suggestion_to_request_failure(
+    session, mocker
+):
+    original_error = CartaRequestFailed("session is unavailable")
+    session._cache = {"carta_version": "7.0.0"}
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaRequestFailed) as error:
+        session.call_action("newAction")
+
+    assert error.value is original_error
 
 
 def test_interact_checks_connection_by_default(mocker):
