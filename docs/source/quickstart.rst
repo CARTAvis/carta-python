@@ -4,21 +4,53 @@ CARTA scripting quick start
 Installation
 ------------
 
-This package is not yet published on PyPi, but can be installed from a local checkout of the repository.
+Start with the latest available ``carta-python`` release. The latest release
+contains the newest compatibility table, so it can inspect the CARTA version
+reported by a session and recommend the best ``carta-python`` series when the
+latest series is not suitable.
+
+The recommended installation workflow is:
+
+#. Install the latest available ``carta-python`` release.
+#. Connect to the desired CARTA session as described in
+   `Connecting to an existing interactive session`_.
+#. If session creation reports a version mismatch, follow its suggestion to
+   upgrade CARTA or install the recommended ``carta-python`` ``MAJOR.MINOR``
+   series.
+#. Pin the selected release in the script or project so future installations
+   use the same compatible version.
+
+A version mismatch with a known recommendation looks like this (the exact
+versions depend on the compatibility table):
+
+.. code-block:: text
+
+    CartaUnsupportedVersion: CARTA version validation failed:
+    - CARTA version '6.0.0' is older than the minimum '6.1.0' required for complete functionality with carta-python 2.0.x.
+
+    Suggested actions:
+    - Upgrade CARTA to at least '6.1.0'.
+    - Alternatively, use carta-python 1.2.x, the recommended series for CARTA 6.0 - 6.0.
+    - If this combination is known to work, set `version_mismatch_action=VersionMismatchAction.WARN`.
 
 Requires **Python 3.10** or later. Install with ``pip``:
 
 .. code-block:: shell
 
-    git clone https://github.com/CARTAvis/carta-python.git
-    cd carta-python
-    pip install .
+    pip install --upgrade carta-python
+
+If the compatibility error recommends an older series, install the latest
+release in that series. For example, for a recommendation of ``1.2.x``:
+
+.. code-block:: shell
+
+    pip install --upgrade "carta-python~=1.2.0"
 
 The required Python library dependencies should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the optional browser dependencies:
 
 .. code-block:: shell
 
-    pip install ".[browser]"
+    pip install --upgrade "carta-python[browser]"
 
 You need access either to a CARTA backend executable, on the local host or on a remote host which you can access through SSH, or to a CARTA controller instance (a multi-user system with web-based authentication). You must be able to access the frontend served by this CARTA instance. If you are using your own backend executable, you must start it with the ``--enable_scripting`` commandline parameter to enable the scripting interface.
 
