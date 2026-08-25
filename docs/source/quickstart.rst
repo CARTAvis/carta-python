@@ -4,10 +4,11 @@ CARTA scripting quick start
 Installation
 ------------
 
-Start with the latest available ``carta-python`` release. The latest release
-contains the newest compatibility table, so it can inspect the CARTA version
-reported by a session and recommend the best ``carta-python`` series when the
-latest series is not suitable.
+The initial PyPI release, ``carta-python`` 2.0.0, supports CARTA 6.1.0 or
+later. Session creation inspects the CARTA version reported by the frontend
+and reports a version mismatch when this requirement is not met. As new
+``carta-python`` series are published, the compatibility table retains the
+recommended series for older CARTA releases.
 
 The recommended installation workflow is:
 
@@ -15,22 +16,24 @@ The recommended installation workflow is:
 #. Connect to the desired CARTA session as described in
    `Connecting to an existing interactive session`_.
 #. If session creation reports a version mismatch, follow its suggestion to
-   upgrade CARTA or install the recommended ``carta-python`` ``MAJOR.MINOR``
-   series.
+   upgrade CARTA or install the recommended older ``carta-python`` series.
 #. Pin the selected release in the script or project so future installations
    use the same compatible version.
 
-A version mismatch with a known recommendation looks like this (the exact
-versions depend on the compatibility table):
+For the initial 2.0.0 release, a version mismatch only recommends upgrading
+CARTA because no older ``carta-python`` releases exist on PyPI. Once multiple
+series have been published, a mismatch may also recommend an older series.
+For example, the following hypothetical future compatibility table response
+shows ``carta-python`` 3.0.x recommending 2.0.x for CARTA 6.1:
 
 .. code-block:: text
 
     CartaUnsupportedVersion: CARTA version validation failed:
-    - CARTA version '6.0.0' is older than the minimum '6.1.0' required for complete functionality with carta-python 2.0.x.
+    - CARTA version '6.1.0' is older than the minimum '7.1.0' required for complete functionality with carta-python 3.0.x.
 
     Suggested actions:
-    - Upgrade CARTA to at least '6.1.0'.
-    - Alternatively, use carta-python 1.2.x, the recommended series for CARTA 6.0 - 6.0.
+    - Upgrade CARTA to at least '7.1.0'.
+    - Alternatively, use carta-python 2.0.x, the recommended series for CARTA 6.1 - 6.x.
     - If this combination is known to work, set `version_mismatch_action=VersionMismatchAction.WARN`.
 
 Requires **Python 3.10** or later. Install with ``pip``:
@@ -39,12 +42,13 @@ Requires **Python 3.10** or later. Install with ``pip``:
 
     pip install --upgrade carta-python
 
-If the compatibility error recommends an older series, install the latest
-release in that series. For example, for a recommendation of ``1.2.x``:
+If the compatibility error recommends an older published series, install the
+latest release in that series. For example, for a recommendation of
+``2.0.x``:
 
 .. code-block:: shell
 
-    pip install --upgrade "carta-python~=1.2.0"
+    pip install --upgrade "carta-python~=2.0.0"
 
 The required Python library dependencies should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the optional browser dependencies:
 
