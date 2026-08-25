@@ -28,6 +28,7 @@ from .util import (
     split_action_path,
     CartaActionFailed,
     CartaBadResponse,
+    CartaMissingResponse,
     CartaBadID,
     CartaBadSession,
     CartaBadUrl,
@@ -42,6 +43,7 @@ from .util import (
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, InstanceOf, MapOf, Union
 from .version import (
     action_failure_compatibility_suggestions,
+    latest_compatibility,
     version_mismatch_details,
 )
 
@@ -141,9 +143,9 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the wrapper's
-            minimum version requirement and ``version_mismatch_action`` is
-            ``VersionMismatchAction.ERROR``.
+            If the wrapper cannot verify the connected CARTA version or it
+            does not satisfy the minimum requirement, and
+            ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
         try:
             session_id = int(session_id)
@@ -202,9 +204,9 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the wrapper's
-            minimum version requirement and ``version_mismatch_action`` is
-            ``VersionMismatchAction.ERROR``.
+            If the wrapper cannot verify the connected CARTA version or it
+            does not satisfy the minimum requirement, and
+            ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
         backend = Backend(("--enable_scripting", *params), executable_path, remote_host, token, frontend_url_timeout, session_creation_timeout)
         if not backend.start():
@@ -272,9 +274,9 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the wrapper's
-            minimum version requirement and ``version_mismatch_action`` is
-            ``VersionMismatchAction.ERROR``.
+            If the wrapper cannot verify the connected CARTA version or it
+            does not satisfy the minimum requirement, and
+            ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
         return browser.new_session_from_url(
             frontend_url,
@@ -327,9 +329,9 @@ class Session:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the wrapper's
-            minimum version requirement and ``version_mismatch_action`` is
-            ``VersionMismatchAction.ERROR``.
+            If the wrapper cannot verify the connected CARTA version or it
+            does not satisfy the minimum requirement, and
+            ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
         return browser.new_session_with_backend(
             executable_path,
@@ -388,6 +390,33 @@ class Session:
 
         try:
             version = self._fetch_frontend_version(timeout=timeout)
+        except (CartaActionFailed, CartaMissingResponse) as e:
+            current = latest_compatibility()
+            suggestions = [
+                f"Upgrade CARTA to at least {current.carta_minimum_version!r}.",
+                "If CARTA is already '6.0.0' or newer, wait until the frontend "
+                "is fully loaded and retry.",
+            ]
+            if version_mismatch_action is VersionMismatchAction.ERROR:
+                suggestions.append(
+                    "If this combination is known to work, set "
+                    "`version_mismatch_action=VersionMismatchAction.WARN`."
+                )
+
+            message = (
+                "CARTA version validation failed:\n"
+                "- Could not retrieve `frontendVersion` from the CARTA frontend.\n"
+                "- CARTA versions earlier than '6.0.0' do not expose "
+                "`frontendVersion`.\n"
+                f"- carta-python {current.wrapper_label} requires CARTA "
+                f"{current.carta_minimum_version!r} or later.\n\n"
+                "Suggested actions:\n"
+                + "\n".join(f"- {suggestion}" for suggestion in suggestions)
+            )
+            if version_mismatch_action is VersionMismatchAction.ERROR:
+                raise CartaUnsupportedVersion(message) from e
+            logger.warning(message)
+            return None
         except CartaScriptingException as e:
             raise CartaBadSession(
                 self._connection_check_error_message(e, timeout)

@@ -73,9 +73,9 @@ class Browser:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the wrapper's
-            minimum version requirement and ``version_mismatch_action`` is
-            ``VersionMismatchAction.ERROR``.
+            If the wrapper cannot verify the connected CARTA version or it
+            does not satisfy the minimum requirement, and
+            ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
 
         protocol = Protocol(frontend_url, token, debug_no_auth=debug_no_auth)
@@ -159,9 +159,9 @@ class Browser:
         CartaBadSession
             If the session object could not be created.
         CartaUnsupportedVersion
-            If the connected CARTA frontend does not satisfy the wrapper's
-            minimum version requirement and ``version_mismatch_action`` is
-            ``VersionMismatchAction.ERROR``.
+            If the wrapper cannot verify the connected CARTA version or it
+            does not satisfy the minimum requirement, and
+            ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
 
         backend = Backend(("--no_browser", "--enable_scripting", *params), executable_path, remote_host, token, frontend_url_timeout=frontend_url_timeout, session_creation_timeout=0)

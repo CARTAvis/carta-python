@@ -8,7 +8,7 @@ import urllib.parse
 import json
 
 from .token import BackendToken, ControllerToken
-from .util import logger, CartaBadRequest, CartaRequestFailed, CartaActionFailed, CartaBadResponse, CartaBadToken, CartaBadUrl, CartaEncoder, split_action_path
+from .util import logger, CartaBadRequest, CartaRequestFailed, CartaActionFailed, CartaBadResponse, CartaMissingResponse, CartaBadToken, CartaBadUrl, CartaEncoder, split_action_path
 
 
 class AuthType:
@@ -337,7 +337,7 @@ class Protocol:
 
         if 'response' not in response_data:
             if response_expected:
-                raise CartaBadResponse(f"{carta_action_description} expected a response, but did not receive one.")
+                raise CartaMissingResponse(f"{carta_action_description} expected a response, but did not receive one.")
             return None
 
         return response_data['response']

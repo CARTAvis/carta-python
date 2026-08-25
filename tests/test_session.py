@@ -10,6 +10,7 @@ from carta.util import (
     CartaActionFailed,
     CartaBadResponse,
     CartaBadSession,
+    CartaMissingResponse,
     CartaRequestFailed,
     CartaUnsupportedVersion,
     CartaValidationFailed,
@@ -183,9 +184,55 @@ def test_validate_session_reports_invalid_frontend_version_in_error_mode(
         )
 
 
-def test_validate_session_wraps_frontend_version_failure(session, call_action, mocker):
+@pytest.mark.parametrize(
+    "error",
+    [
+        CartaActionFailed("frontendVersion unavailable"),
+        CartaMissingResponse("frontendVersion returned no response"),
+    ],
+)
+def test_validate_session_reports_unavailable_frontend_version_in_error_mode(
+    session, call_action, error
+):
+    call_action.side_effect = error
+
+    with pytest.raises(CartaUnsupportedVersion) as e:
+        session._validate_session(timeout=2)
+
+    message = str(e.value)
+    assert "Could not retrieve `frontendVersion`" in message
+    assert "earlier than '6.0.0'" in message
+    assert "carta-python 2.0.x requires CARTA '6.1.0' or later" in message
+    assert "\n\nSuggested actions:\n" in message
+    assert "Upgrade CARTA to at least '6.1.0'." in message
+    assert "CARTA is already '6.0.0' or newer" in message
+    assert "version_mismatch_action=VersionMismatchAction.WARN" in message
+    assert "Original error" not in message
+    assert e.value.__cause__ is error
+
+
+def test_validate_session_warns_when_frontend_version_is_unavailable(
+    session, call_action, caplog
+):
+    call_action.side_effect = CartaMissingResponse(
+        "frontendVersion returned no response"
+    )
+
+    assert session._validate_session(
+        timeout=2,
+        version_mismatch_action=VersionMismatchAction.WARN,
+    ) is None
+
+    assert "Could not retrieve `frontendVersion`" in caplog.text
+    assert "\n\nSuggested actions:\n" in caplog.text
+    assert "Original error" not in caplog.text
+    assert "version_mismatch_action=VersionMismatchAction.WARN" not in caplog.text
+    assert not hasattr(session, "_cache")
+
+
+def test_validate_session_wraps_connection_failure(session, call_action, mocker):
     session._protocol = mocker.Mock(frontend_url="http://localhost:3000")
-    call_action.side_effect = CartaActionFailed("frontendVersion unavailable")
+    call_action.side_effect = CartaRequestFailed("session unavailable")
 
     with pytest.raises(CartaBadSession) as e:
         session._validate_session(timeout=2)
@@ -194,8 +241,8 @@ def test_validate_session_wraps_frontend_version_failure(session, call_action, m
     assert "Could not validate CARTA session 0" in message
     assert "http://localhost:3000" in message
     assert "2" in message
-    assert "CartaActionFailed" in message
-    assert "frontendVersion unavailable" in message
+    assert "CartaRequestFailed" in message
+    assert "session unavailable" in message
     assert "--enable_scripting" in message
 
 

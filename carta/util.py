@@ -69,6 +69,11 @@ class CartaBadResponse(CartaScriptingException):
     pass
 
 
+class CartaMissingResponse(CartaBadResponse):
+    """An action request expected a response but received none."""
+    pass
+
+
 class Macro:
     """A placeholder for a target and a variable which will be evaluated dynamically by the frontend.
 
