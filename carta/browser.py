@@ -2,16 +2,44 @@
 
 import time
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException
+try:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.by import By
+    from selenium.common.exceptions import NoSuchElementException
+except ModuleNotFoundError as error:
+    if error.name != "selenium":
+        raise
+    webdriver = None
+    Options = None
+    By = None
+    NoSuchElementException = None
+    _SELENIUM_IMPORT_ERROR = error
+else:
+    _SELENIUM_IMPORT_ERROR = None
 
 from .backend import Backend
 from .constants import VersionMismatchAction
 from .util import CartaBadSession, logger
 from .protocol import Protocol
 from .session import Session
+
+
+def _require_selenium():
+    if _SELENIUM_IMPORT_ERROR is not None:
+        raise CartaBadSession(
+            "Browser automation requires the optional Selenium dependency.\n\n"
+            "Install it with pip:\n"
+            "  python -m pip install --upgrade \"carta-python[browser]\"\n\n"
+            "For a uv-managed script:\n"
+            "  uv add --script your_script.py \"carta-python[browser]\"\n"
+            "  uv run your_script.py\n\n"
+            "If your script already pins carta-python, include the same "
+            "version constraint when adding the browser extra, for example:\n"
+            "  uv add --script your_script.py "
+            "\"carta-python[browser]~=2.0.0\" --upgrade-package carta-python\n"
+            "  uv run your_script.py"
+        ) from _SELENIUM_IMPORT_ERROR
 
 
 class Browser:
@@ -78,6 +106,7 @@ class Browser:
             ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
 
+        _require_selenium()
         protocol = Protocol(frontend_url, token, debug_no_auth=debug_no_auth)
 
         if protocol.controller_auth:
@@ -110,10 +139,7 @@ class Browser:
 
         session = Session(session_id, protocol, browser=self, backend=backend)
         try:
-            session._validate_session(
-                timeout=connection_check_timeout,
-                version_mismatch_action=version_mismatch_action,
-            )
+            session._validate_session(timeout=connection_check_timeout, version_mismatch_action=version_mismatch_action)
         except Exception:
             self._close_after_error()
             raise
@@ -221,6 +247,7 @@ class Chrome(Browser):
     """
 
     def __init__(self, headless=True, browser_path=None, driver_path=None, options=tuple()):
+        _require_selenium()
         chrome_options = Options()
         if headless:
             chrome_options.add_argument("--headless")

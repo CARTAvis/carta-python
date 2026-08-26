@@ -22,6 +22,11 @@ from .constants import (
     VersionMismatchAction,
 )
 from .backend import Backend
+from .error_messages import (
+    format_frontend_version_unavailable_error,
+    format_session_validation_error,
+    format_version_mismatch_error,
+)
 from .protocol import Protocol
 from .util import (
     Macro,
@@ -152,15 +157,8 @@ class Session:
         except ValueError:
             raise CartaBadID(f"Session ID '{session_id}' is not a number.")
 
-        session = cls(
-            session_id,
-            Protocol(frontend_url, token, debug_no_auth=debug_no_auth),
-            backend=backend,
-        )
-        session._validate_session(
-            timeout=connection_check_timeout,
-            version_mismatch_action=version_mismatch_action,
-        )
+        session = cls(session_id, Protocol(frontend_url, token, debug_no_auth=debug_no_auth), backend=backend)
+        session._validate_session(timeout=connection_check_timeout, version_mismatch_action=version_mismatch_action)
         return session
 
     @classmethod
@@ -373,11 +371,7 @@ class Session:
         if timeout is not None:
             kwargs["timeout"] = timeout
 
-        return self.call_action(
-            "fetchParameter",
-            Macro("", "frontendVersion"),
-            **kwargs,
-        )
+        return self.call_action("fetchParameter", Macro("", "frontendVersion"), **kwargs)
 
     def _cache_carta_version(self, version):
         if not hasattr(self, "_cache"):
@@ -392,26 +386,9 @@ class Session:
             version = self._fetch_frontend_version(timeout=timeout)
         except (CartaActionFailed, CartaMissingResponse) as e:
             current = latest_compatibility()
-            suggestions = [
-                f"Upgrade CARTA to at least {current.carta_minimum_version!r}.",
-                "If CARTA is already '6.0.0' or newer, wait until the frontend "
-                "is fully loaded and retry.",
-            ]
-            if version_mismatch_action is VersionMismatchAction.ERROR:
-                suggestions.append(
-                    "If this combination is known to work, set "
-                    "`version_mismatch_action=VersionMismatchAction.WARN`."
-                )
-
-            message = (
-                "CARTA version validation failed:\n"
-                "- Could not retrieve `frontendVersion` from the CARTA frontend.\n"
-                "- CARTA versions earlier than '6.0.0' do not expose "
-                "`frontendVersion`.\n"
-                f"- carta-python {current.wrapper_label} requires CARTA "
-                f"{current.carta_minimum_version!r} or later.\n\n"
-                "Suggested actions:\n"
-                + "\n".join(f"- {suggestion}" for suggestion in suggestions)
+            message = format_frontend_version_unavailable_error(
+                current,
+                include_warn_suggestion=version_mismatch_action is VersionMismatchAction.ERROR,
             )
             if version_mismatch_action is VersionMismatchAction.ERROR:
                 raise CartaUnsupportedVersion(message) from e
@@ -419,42 +396,26 @@ class Session:
             return None
         except CartaScriptingException as e:
             raise CartaBadSession(
-                self._connection_check_error_message(e, timeout)
+                format_session_validation_error(
+                    session_id=self.session_id,
+                    uri=self._protocol.frontend_url if self._protocol else None,
+                    timeout=timeout,
+                    error=e,
+                )
             ) from e
 
         self._cache_carta_version(version)
         mismatches, suggestions = version_mismatch_details(version)
         if mismatches:
-            message = "CARTA version validation failed:\n" + "\n".join(
-                f"- {mismatch}" for mismatch in mismatches
+            message = format_version_mismatch_error(
+                mismatches,
+                suggestions,
+                include_warn_suggestion=version_mismatch_action is VersionMismatchAction.ERROR,
             )
-            if version_mismatch_action is VersionMismatchAction.ERROR:
-                suggestions.append(
-                    "If this combination is known to work, set "
-                    "`version_mismatch_action=VersionMismatchAction.WARN`."
-                )
-            if suggestions:
-                message += "\n\nSuggested actions:\n" + "\n".join(
-                    f"- {suggestion}" for suggestion in suggestions
-                )
             if version_mismatch_action is VersionMismatchAction.ERROR:
                 raise CartaUnsupportedVersion(message)
             logger.warning(message)
         return version
-
-
-    def _connection_check_error_message(self, error, timeout):
-        uri = self._protocol.frontend_url if self._protocol else None
-        return (
-            f"Could not validate CARTA session {self.session_id} at {uri!r} "
-            f"within {timeout} seconds. "
-            f"Original error ({error.__class__.__name__}): {error}\n"
-            "Possible causes:\n"
-            "- CARTA backend/frontend is not running or not reachable.\n"
-            "- The session ID is wrong or the session has closed.\n"
-            "- The backend was not started with --enable_scripting.\n"
-            "- The token is missing, invalid, or expired."
-        )
 
     def call_action(self, path, *args, **kwargs):
         """Call an action on the frontend through the backend's scripting interface.
@@ -487,21 +448,14 @@ class Session:
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
         try:
-            return self._protocol.request_scripting_action(
-                self.session_id,
-                path,
-                *args,
-                **kwargs,
-            )
+            return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
         except CartaActionFailed as error:
             version = getattr(self, "_cache", {}).get("carta_version")
             suggestions = action_failure_compatibility_suggestions(version)
             if not suggestions:
                 raise
 
-            message = f"{error}\n\nCompatibility suggestions:\n" + "\n".join(
-                f"- {suggestion}" for suggestion in suggestions
-            )
+            message = f"{error}\n\nCompatibility suggestions:\n" + "\n".join(f"- {suggestion}" for suggestion in suggestions)
             error.args = (message,)
             raise
 

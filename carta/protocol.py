@@ -323,7 +323,12 @@ class Protocol:
 
         if response.status_code != 200:
             backend_message = known_errors.get(response.status_code, "Unknown error.")
-            raise CartaRequestFailed(f"{carta_action_description} failed with status {response.status_code}. {backend_message}")
+            error = CartaRequestFailed(
+                f"{carta_action_description} failed with status {response.status_code}. {backend_message}"
+            )
+            error.status_code = response.status_code
+            error.backend_message = backend_message
+            raise error
 
         try:
             response_data = response.json()

@@ -243,7 +243,7 @@ def test_validate_session_wraps_connection_failure(session, call_action, mocker)
     assert "2" in message
     assert "CartaRequestFailed" in message
     assert "session unavailable" in message
-    assert "--enable_scripting" in message
+    assert "Possible causes:" not in message
 
 
 def test_call_action_adds_compatibility_suggestion_to_frontend_failure(

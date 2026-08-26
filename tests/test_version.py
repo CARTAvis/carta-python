@@ -67,8 +67,13 @@ def test_version_mismatch_details_uses_table_for_downgrade_suggestion(mocker):
         ],
         [
             "Upgrade CARTA to at least '6.1.0'.",
-            "Alternatively, use carta-python 1.0.x, the recommended series "
-            "for CARTA 5.0 - 5.9.",
+            "If CARTA cannot be upgraded, use carta-python 1.0.x, the recommended series "
+            "for CARTA 5.0 - 5.9:\n"
+            "  python -m pip install --upgrade \"carta-python~=1.0.0\"\n"
+            "  or, for a uv-managed script:\n"
+            "  uv add --script your_script.py \"carta-python~=1.0.0\" "
+            "--upgrade-package carta-python\n"
+            "  uv run your_script.py.",
         ],
     )
 
@@ -90,7 +95,15 @@ def test_action_failure_suggests_latest_carta_python_for_supported_carta():
         "For direct scripting calls, verify that the frontend action, attribute, "
         "or response path exists.",
         "If this failure started after a CARTA upgrade, upgrade carta-python to "
-        "the latest available release and retry.",
+        "the latest available release and retry. For a regular Python environment:\n"
+        "  python -m pip install --upgrade carta-python\n"
+        "For a uv-managed script:\n"
+        "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
+        "  uv run your_script.py",
+        "If the failure persists after upgrading, check whether your script uses "
+        "a renamed carta-python function or argument, a direct `call_action()` "
+        "API path, or a changed response structure. Updating carta-python does "
+        "not rewrite hard-coded API paths in your script.",
     ]
 
 
@@ -99,7 +112,15 @@ def test_action_failure_suggests_latest_carta_python_for_newer_carta():
         "For direct scripting calls, verify that the frontend action, attribute, "
         "or response path exists.",
         "If this failure started after a CARTA upgrade, upgrade carta-python to "
-        "the latest available release and retry.",
+        "the latest available release and retry. For a regular Python environment:\n"
+        "  python -m pip install --upgrade carta-python\n"
+        "For a uv-managed script:\n"
+        "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
+        "  uv run your_script.py",
+        "If the failure persists after upgrading, check whether your script uses "
+        "a renamed carta-python function or argument, a direct `call_action()` "
+        "API path, or a changed response structure. Updating carta-python does "
+        "not rewrite hard-coded API paths in your script.",
     ]
 
 
@@ -112,8 +133,13 @@ def test_action_failure_uses_table_for_older_carta(mocker):
 
     assert action_failure_compatibility_suggestions("5.9.0") == [
         "Upgrade CARTA to at least '6.1.0'.",
-        "Alternatively, use carta-python 1.0.x, the recommended series for "
-        "CARTA 5.0 - 5.9.",
+        "If CARTA cannot be upgraded, use carta-python 1.0.x, the recommended series for "
+        "CARTA 5.0 - 5.9:\n"
+        "  python -m pip install --upgrade \"carta-python~=1.0.0\"\n"
+        "  or, for a uv-managed script:\n"
+        "  uv add --script your_script.py \"carta-python~=1.0.0\" "
+        "--upgrade-package carta-python\n"
+        "  uv run your_script.py.",
     ]
 
 

@@ -33,7 +33,7 @@ shows ``carta-python`` 3.0.x recommending 2.0.x for CARTA 6.1:
 
     Suggested actions:
     - Upgrade CARTA to at least '7.1.0'.
-    - Alternatively, use carta-python 2.0.x, the recommended series for CARTA 6.1 - 7.0.
+    - If CARTA cannot be upgraded, use carta-python 2.0.x, the recommended series for CARTA 6.1 - 7.0.
     - If this combination is known to work, set `version_mismatch_action=VersionMismatchAction.WARN`.
 
 Requires **Python 3.10** or later. Install with ``pip``:
@@ -50,11 +50,66 @@ latest release in that series. For example, for a recommendation of
 
     pip install --upgrade "carta-python~=2.0.0"
 
+If your script is managed with ``uv``, add the pinned dependency to the
+script's inline metadata and run the script with ``uv run``. The following
+example selects the latest release in the ``2.0.x`` series:
+
+.. code-block:: shell
+
+    uv add --script your_script.py "carta-python~=2.0.0" --upgrade-package carta-python
+    uv run your_script.py
+
+This updates the PEP 723 dependency metadata at the top of
+``your_script.py``. It will look similar to:
+
+.. code-block:: python
+
+    # /// script
+    # dependencies = [
+    #   "carta-python~=2.0.0",
+    # ]
+    # ///
+
+To add the latest ``carta-python`` release without selecting a specific
+series, use:
+
+.. code-block:: shell
+
+    uv add --script your_script.py carta-python --upgrade-package carta-python
+    uv run your_script.py
+
+If the script already contains an exact pin such as
+``carta-python==1.0.0``, specify the new requirement explicitly with
+``uv add --script``. Updating a package in the system Python environment with
+``pip`` does not change the isolated environment used by ``uv run``.
+
 The required Python library dependencies should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the optional browser dependencies:
 
 .. code-block:: shell
 
     pip install --upgrade "carta-python[browser]"
+
+For a script managed with ``uv``, add the optional extra to the script's inline
+metadata:
+
+.. code-block:: shell
+
+    uv add --script your_script.py "carta-python[browser]"
+    uv run your_script.py
+
+To pin a browser-enabled release series, combine the extra with a version
+constraint, for example:
+
+.. code-block:: shell
+
+    uv add --script your_script.py "carta-python[browser]~=2.0.0" --upgrade-package carta-python
+    uv run your_script.py
+
+If ``your_script.py`` already pins ``carta-python``, include the existing
+version constraint when adding the ``browser`` extra. For example, replace
+``carta-python~=2.0.0`` with ``carta-python[browser]~=2.0.0`` in one command.
+Adding ``carta-python[browser]`` without a version constraint can replace the
+existing requirement and remove its version restriction.
 
 You need access either to a CARTA backend executable, on the local host or on a remote host which you can access through SSH, or to a CARTA controller instance (a multi-user system with web-based authentication). You must be able to access the frontend served by this CARTA instance. If you are using your own backend executable, you must start it with the ``--enable_scripting`` commandline parameter to enable the scripting interface.
 
