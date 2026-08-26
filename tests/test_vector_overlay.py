@@ -2,7 +2,7 @@ import pytest
 
 from carta.vector_overlay import VectorOverlay
 from carta.util import Macro
-from carta.constants import VectorOverlaySource as VOS, Auto, Colormap as CM
+from carta.constants import VectorOverlaySource as VOS, Polarization as Pol, Auto, Colormap as CM
 
 # FIXTURES
 
@@ -34,31 +34,28 @@ def image_call_action(image, mock_call_action):
     # Nothing
     ((), {}, None),
     # Everything
-    ((VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5), {}, (VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5)),
-    # Deduce pixel averaging flag
+    ((VOS.CURRENT, VOS.CURRENT, 1, 2, True, Pol.I, 3, True, 4, 5), {}, (VOS.CURRENT, VOS.CURRENT, 1, 2, True, 3, True, 4, 5, Pol.I)),
+    # Pixel averaging is passed directly to the frontend
     ((), {"pixel_averaging": 1},
-     ("M(angularSource)", "M(intensitySource)", True, 1, "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", "M(debiasing)", "M(qError)", "M(uError)")),
-    # Don't deduce pixel averaging flag
-    ((), {"pixel_averaging": 1, "pixel_averaging_enabled": False},
-     ("M(angularSource)", "M(intensitySource)", False, 1, "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", "M(debiasing)", "M(qError)", "M(uError)")),
+     ("M(angularSource)", "M(intensitySource)", 1, "M(isFractionalIntensity)", "M(isThresholdEnabled)", "M(threshold)", "M(isDebiasing)", "M(qError)", "M(uError)", "M(thresholdOption)")),
     # Deduce threshold flag
     ((), {"threshold": 2},
-     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", True, 2, "M(debiasing)", "M(qError)", "M(uError)")),
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveraging)", "M(isFractionalIntensity)", True, 2, "M(isDebiasing)", "M(qError)", "M(uError)", "M(thresholdOption)")),
     # Don't deduce threshold flag
     ((), {"threshold": 2, "threshold_enabled": False},
-     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", False, 2, "M(debiasing)", "M(qError)", "M(uError)")),
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveraging)", "M(isFractionalIntensity)", False, 2, "M(isDebiasing)", "M(qError)", "M(uError)", "M(thresholdOption)")),
     # Deduce debiasing flag
     ((), {"q_error": 3, "u_error": 4},
-     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", True, 3, 4)),
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveraging)", "M(isFractionalIntensity)", "M(isThresholdEnabled)", "M(threshold)", True, 3, 4, "M(thresholdOption)")),
     # Don't deduce debiasing flag
     ((), {"q_error": 3, "u_error": 4, "debiasing": False},
-     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", False, 3, 4)),
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveraging)", "M(isFractionalIntensity)", "M(isThresholdEnabled)", "M(threshold)", False, 3, 4, "M(thresholdOption)")),
     # Disable debiasing (no q_error)
     ((), {"u_error": 4, "debiasing": True},
-     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", False, "M(qError)", 4)),
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveraging)", "M(isFractionalIntensity)", "M(isThresholdEnabled)", "M(threshold)", False, "M(qError)", 4, "M(thresholdOption)")),
     # Disable debiasing (no u_error)
     ((), {"q_error": 3, "debiasing": True},
-     ("M(angularSource)", "M(intensitySource)", "M(pixelAveragingEnabled)", "M(pixelAveraging)", "M(fractionalIntensity)", "M(thresholdEnabled)", "M(threshold)", False, 3, "M(uError)")),
+     ("M(angularSource)", "M(intensitySource)", "M(pixelAveraging)", "M(isFractionalIntensity)", "M(isThresholdEnabled)", "M(threshold)", False, 3, "M(uError)", "M(thresholdOption)")),
 ])
 def test_configure(vector_overlay, call_action, method, args, kwargs, expected_args):
     method("macro", lambda _, v: f"M({v})")
@@ -142,8 +139,8 @@ def test_clear(vector_overlay, image_call_action):
 
 @pytest.mark.parametrize("args,kwargs,expected_calls", [
     ([], {}, []),
-    ([VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5, 1, 2, 3, 4, 5, 6, "blue", CM.VIRIDIS, 0.5, 1.5], {}, [("configure", VOS.CURRENT, VOS.CURRENT, True, 1, 2, True, 3, True, 4, 5), ("set_thickness", 1), ("set_intensity_range", 2, 3), ("set_length_range", 4, 5), ("set_rotation_offset", 6), ("set_color", "blue"), ("set_colormap", CM.VIRIDIS), ("set_bias_and_contrast", 0.5, 1.5), ("apply",)]),
-    ([], {"pixel_averaging": 1, "thickness": 2, "color": "blue", "bias": 0.5}, [("configure", None, None, None, 1, None, None, None, None, None, None), ("set_thickness", 2), ("set_color", "blue"), ("set_bias_and_contrast", 0.5, None), ("apply",)]),
+    ([VOS.CURRENT, VOS.CURRENT, 1, 2, True, Pol.I, 3, True, 4, 5, 1, 2, 3, 4, 5, 6, "blue", CM.VIRIDIS, 0.5, 1.5], {}, [("configure", VOS.CURRENT, VOS.CURRENT, 1, 2, True, Pol.I, 3, True, 4, 5), ("set_thickness", 1), ("set_intensity_range", 2, 3), ("set_length_range", 4, 5), ("set_rotation_offset", 6), ("set_color", "blue"), ("set_colormap", CM.VIRIDIS), ("set_bias_and_contrast", 0.5, 1.5), ("apply",)]),
+    ([], {"pixel_averaging": 1, "thickness": 2, "color": "blue", "bias": 0.5}, [("configure", None, None, 1, None, None, None, None, None, None, None), ("set_thickness", 2), ("set_color", "blue"), ("set_bias_and_contrast", 0.5, None), ("apply",)]),
     ([], {"thickness": 2}, [("set_thickness", 2), ("apply",)]),
 ])
 def test_plot(vector_overlay, method, args, kwargs, expected_calls):

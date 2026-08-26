@@ -669,15 +669,15 @@ def test_color_blending_set_alphas_length_mismatch(color_blending, mocker, vals)
 @pytest.mark.parametrize(
     "getter,method,action,state",
     [
-        ("rasterVisible", "set_raster_visible", "toggleRasterVisible", True),
+        ("isRasterVisible", "set_raster_visible", "toggleRasterVisible", True),
         (
-            "contourVisible",
+            "isContourVisible",
             "set_contour_visible",
             "toggleContourVisible",
             True,
         ),
         (
-            "vectorOverlayVisible",
+            "isVectorOverlayVisible",
             "set_vector_overlay_visible",
             "toggleVectorOverlayVisible",
             False,
@@ -696,15 +696,15 @@ def test_color_blending_toggle_visibility_when_needed(
 @pytest.mark.parametrize(
     "getter,method,action,state",
     [
-        ("rasterVisible", "set_raster_visible", "toggleRasterVisible", True),
+        ("isRasterVisible", "set_raster_visible", "toggleRasterVisible", True),
         (
-            "contourVisible",
+            "isContourVisible",
             "set_contour_visible",
             "toggleContourVisible",
             False,
         ),
         (
-            "vectorOverlayVisible",
+            "isVectorOverlayVisible",
             "set_vector_overlay_visible",
             "toggleVectorOverlayVisible",
             True,

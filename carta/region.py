@@ -12,6 +12,17 @@ from .validation import validate, Constant, IterableOf, Number, String, Point, N
 from .units import AngularSize
 
 
+UNSUPPORTED_REGION_TYPES = frozenset({RegionType.ANNULUS})
+
+
+def _ensure_region_type_supported(region_type):
+    """Reject region types whose creation workflow is not implemented."""
+    region_type = RegionType(region_type)
+    if region_type in UNSUPPORTED_REGION_TYPES:
+        raise CartaValidationFailed(f"Region type {region_type.name} is not supported for creation")
+    return region_type
+
+
 class RegionSet(BasePathMixin):
     """Utility object for collecting region-related image functions.
 
@@ -137,7 +148,7 @@ class RegionSet(BasePathMixin):
         name : {3}
             The name of the region. Defaults to the empty string.
         """
-        return Region.new(self, region_type, points, rotation, name)
+        return Region.new(self, _ensure_region_type_supported(region_type), points, rotation, name)
 
     def _from_world_coordinates(self, points):
         """Internal utility function for coercing world or image coordinates to image coordinates. This is used in various region functions to simplify accepting both world and image coordinates.
@@ -546,6 +557,9 @@ class Region(BasePathMixin):
     CUSTOM_CLASS = {}
     """Mapping of :obj:`carta.constants.RegionType` types to region and annotation classes. This mapping is used to select the appropriate subclass when a region or annotation object is constructed in the wrapper."""
 
+    FRONTEND_RUNTIME_TYPE = "RegionStore"
+    """The frontend runtime class which receives requests for this region."""
+
     def __init_subclass__(cls, **kwargs):
         """Automatically register subclasses in mapping from region types to classes."""
         super().__init_subclass__(**kwargs)
@@ -635,6 +649,7 @@ class Region(BasePathMixin):
         :obj:`carta.region.Region` object
             The region object.
         """
+        region_type = _ensure_region_type_supported(region_type)
         points = [Pt(*point) for point in points]
         region_id = region_set.call_action("addRegionAsync", region_type, points, rotation, name, return_path="regionId")
         return cls.existing(region_type, region_set, region_id)
@@ -1827,6 +1842,7 @@ class PointAnnotation(Region):
     """A point annotation."""
     REGION_TYPES = (RegionType.ANNPOINT,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "PointAnnotationStore"
 
     # GET PROPERTIES
 
@@ -1877,6 +1893,7 @@ class TextAnnotation(HasFontMixin, HasRotationMixin, HasSizeMixin, Region):
     """A text annotation."""
     REGION_TYPES = (RegionType.ANNTEXT,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "TextAnnotationStore"
 
     # GET PROPERTIES
 
@@ -1931,12 +1948,14 @@ class VectorAnnotation(HasPointerMixin, HasEndpointsMixin, HasRotationMixin, Has
     """A vector annotation."""
     REGION_TYPES = (RegionType.ANNVECTOR,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "VectorAnnotationStore"
 
 
 class CompassAnnotation(HasFontMixin, HasPointerMixin, HasSizeMixin, Region):
     """A compass annotation."""
     REGION_TYPES = (RegionType.ANNCOMPASS,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "CompassAnnotationStore"
 
     # GET PROPERTIES
 
@@ -1988,7 +2007,7 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, HasSizeMixin, Region):
         boolean
             Whether the east arrowhead is visible.
         """
-        return self.get_value("northArrowhead"), self.get_value("eastArrowhead")
+        return self.get_value("hasNorthArrowhead"), self.get_value("hasEastArrowhead")
 
     # SET PROPERTIES
 
@@ -2097,6 +2116,7 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, HasRotationMixin, HasSize
     """A ruler annotation."""
     REGION_TYPES = (RegionType.ANNRULER,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "RulerAnnotationStore"
 
     # GET PROPERTIES
 
@@ -2109,7 +2129,7 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, HasRotationMixin, HasSize
         boolean
             Whether the auxiliary lines are visible.
         """
-        return self.get_value("auxiliaryLineVisible")
+        return self.get_value("isAuxiliaryLineVisible")
 
     @property
     def auxiliary_lines_dash_length(self):

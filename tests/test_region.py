@@ -3,7 +3,7 @@ import math
 
 from carta.region import Region, HasSizeMixin
 from carta.constants import RegionType as RT, FileType as FT, CoordinateType as CT, AnnotationFontStyle as AFS, AnnotationFont as AF, PointShape as PS, TextPosition as TP, SpatialAxis as SA
-from carta.util import Point as Pt, Macro
+from carta.util import Point as Pt, Macro, CartaValidationFailed
 
 # FIXTURES
 
@@ -153,6 +153,11 @@ def test_regionset_add_region(mocker, image):
     mock_new = mocker.patch.object(Region, "new")
     image.regions.add_region(RT.RECTANGLE, [(10, 10), (100, 100)], 90, "name")
     mock_new.assert_called_with(image.regions, RT.RECTANGLE, [(10, 10), (100, 100)], 90, "name")
+
+
+def test_regionset_add_annulus_is_rejected(image):
+    with pytest.raises(CartaValidationFailed, match="ANNULUS"):
+        image.regions.add_region(RT.ANNULUS, [(10, 10), (100, 100)])
 
 
 @pytest.mark.parametrize("func,args,kwargs,expected_args,expected_kwargs", [
@@ -443,7 +448,7 @@ def test_wcs_center(region, property_, mock_to_world, region_type):
     assert wcs_center == ("20", "30")
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.ANNULUS})
 def test_size(region, get_value, region_type):
     reg = region(region_type)
     reg_get_value = get_value(reg, {"x": 20, "y": 30})
@@ -457,7 +462,7 @@ def test_size(region, get_value, region_type):
         assert size == (20, 30)
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.ANNULUS})
 def test_wcs_size(region, get_value, property_, mock_to_angular, region_type):
     reg = region(region_type)
 
@@ -496,7 +501,7 @@ def test_common_properties(region, get_value, method_name, value_name):
     assert value == "dummy"
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.ANNULUS})
 @pytest.mark.parametrize("method_name,value_name", [
     ("line_width", "lineWidth"),
     ("dash_length", "dashLength"),
@@ -552,7 +557,7 @@ def test_translate(region, mock_from_world, mock_from_angular, method, property_
     mock_set_center.assert_called_with(expected_value)
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.ANNULUS, RT.POLYGON, RT.POLYLINE, RT.ANNPOLYGON, RT.ANNPOLYLINE})
 @pytest.mark.parametrize("value,expected_value", [
     ((20, 30), Pt(20, 30)),
     ((-20, -30), Pt(20, 30)),
@@ -591,7 +596,7 @@ def test_set_size_poly(region, mock_from_angular, method, property_, region_type
     mock_set_vertices.assert_called_with(expected_value)
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.ANNULUS})
 def test_scale(region, method, property_, region_type):
     reg = region(region_type)
     property_(reg)("size", (20, 30))
@@ -630,7 +635,7 @@ def test_set_color(region, call_action):
     mock_call.assert_called_with("setColor", "blue")
 
 
-@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT})
+@pytest.mark.parametrize("region_type", {t for t in RT} - {RT.POINT, RT.ANNPOINT, RT.ANNULUS})
 @pytest.mark.parametrize("args,kwargs,expected_calls", [
     ([], {}, []),
     ([2, 3], {}, [("setLineWidth", 2), ("setDashLength", 3)]),
@@ -1014,7 +1019,7 @@ def test_set_text_position(region, call_action):
     ("labels", ["northLabel", "eastLabel"], ["N", "E"], ("N", "E")),
     ("point_length", ["length"], [100], 100),
     ("label_offsets", ["northTextOffset", "eastTextOffset"], [{"x": 1, "y": 2}, {"x": 3, "y": 4}], ((1, 2), (3, 4))),
-    ("arrowheads_visible", ["northArrowhead", "eastArrowhead"], [True, False], (True, False)),
+    ("arrowheads_visible", ["hasNorthArrowhead", "hasEastArrowhead"], [True, False], (True, False)),
 ])
 def test_compass_properties(region, mocker, method_name, value_names, mocked_values, expected_value):
     reg = region(RT.ANNCOMPASS)
@@ -1084,7 +1089,7 @@ def test_set_arrowhead_visible(mocker, region, call_action, args, kwargs, expect
 
 
 @pytest.mark.parametrize("method_name,value_name,mocked_value,expected_value", [
-    ("auxiliary_lines_visible", "auxiliaryLineVisible", True, True),
+    ("auxiliary_lines_visible", "isAuxiliaryLineVisible", True, True),
     ("auxiliary_lines_dash_length", "auxiliaryLineDashLength", 5, 5),
     ("text_offset", "textOffset", {"x": 1, "y": 2}, (1, 2)),
 ])
