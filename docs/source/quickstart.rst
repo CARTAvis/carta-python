@@ -33,7 +33,7 @@ shows ``carta-python`` 3.0.x recommending 2.0.x for CARTA 6.1:
 
     Suggested actions:
     - Upgrade CARTA to at least '7.1.0'.
-    - Alternatively, use carta-python 2.0.x, the recommended series for CARTA 6.1 - 6.x.
+    - Alternatively, use carta-python 2.0.x, the recommended series for CARTA 6.1 - 7.0.
     - If this combination is known to work, set `version_mismatch_action=VersionMismatchAction.WARN`.
 
 Requires **Python 3.10** or later. Install with ``pip``:

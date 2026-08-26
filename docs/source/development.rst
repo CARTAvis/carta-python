@@ -27,11 +27,18 @@ The final entry determines the requirements for the version under development:
 * ``carta_min`` defines the minimum CARTA series that provides complete
   functionality.
 * ``wrapper`` must match the major and minor components in ``VERSION.txt``.
-* ``carta_max=None`` covers the remaining minor releases in the same CARTA
-  major version.
+* ``carta_max=None`` covers every later CARTA series until a known breaking
+  change closes the range.
 
-Keep all ranges ordered from oldest to newest, non-overlapping, and within a
-single CARTA major version.
+Keep all ranges ordered from oldest to newest and non-overlapping. Only the
+final range may use ``carta_max=None``. Explicit ranges may span CARTA major
+versions.
+
+Compatibility is forward-looking: a new CARTA major version does not by itself
+require a table update or a new ``carta-python`` release. If the frontend APIs
+used by the wrapper remain compatible, the existing open-ended range continues
+to apply. Update the table only when a known frontend incompatibility or a new
+wrapper feature changes the supported range.
 
 Starting a new development cycle
 --------------------------------
@@ -100,10 +107,10 @@ to:
    )
 
 This preserves the recommendation for older CARTA releases while making 6.2
-the minimum for the version under development. If the new minimum starts a new
-CARTA major version, append the new range without closing the previous
-open-ended range: an open-ended range stops automatically at the end of its
-CARTA major version.
+the minimum for the version under development. The same procedure applies
+across CARTA major versions: close the previous range at the last compatible
+``MAJOR.MINOR`` series, then append the new open-ended range. Do not split a
+range merely because CARTA increments its major version.
 
 Finishing a development cycle
 -----------------------------

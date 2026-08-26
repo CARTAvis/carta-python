@@ -73,7 +73,7 @@ def test_version_mismatch_details_uses_table_for_downgrade_suggestion(mocker):
     )
 
 
-@pytest.mark.parametrize("version", ["6.1.0", "6.9.9", "7.0.0"])
+@pytest.mark.parametrize("version", ["6.1.0", "6.9.9", "7.0.0", "8.1.0"])
 def test_version_mismatch_details_accepts_current_and_newer_carta(version):
     assert version_mismatch_details(version) == ([], [])
 
@@ -123,12 +123,9 @@ def test_action_failure_ignores_unknown_carta_version():
 
 def assert_table_is_ordered(table):
     for previous, current in zip(table, table[1:]):
-        previous_min = parse_version_series(previous.carta_min)
         current_min = parse_version_series(current.carta_min)
-        if previous.carta_max is None:
-            assert current_min[0] > previous_min[0]
-        else:
-            assert parse_version_series(previous.carta_max) < current_min
+        assert previous.carta_max is not None
+        assert parse_version_series(previous.carta_max) < current_min
         assert parse_version_series(previous.wrapper) < parse_version_series(current.wrapper)
 
 
@@ -136,18 +133,22 @@ def test_compatibility_table_is_ordered_and_does_not_overlap():
     assert_table_is_ordered(COMPATIBILITY)
 
 
-def test_open_ended_range_may_precede_a_new_carta_major():
-    assert_table_is_ordered((
+def test_open_ended_range_must_be_the_final_entry():
+    table = (
         CompatibilityRange(carta_min="6.1", carta_max=None, wrapper="2.0"),
         CompatibilityRange(carta_min="7.0", carta_max=None, wrapper="3.0"),
-    ))
+    )
+
+    with pytest.raises(AssertionError):
+        assert_table_is_ordered(table)
 
 
-def test_open_ended_range_is_bounded_by_its_carta_major():
+def test_open_ended_range_covers_later_carta_major_versions():
     entry = CompatibilityRange(carta_min="6.1", carta_max=None, wrapper="2.0")
 
     assert entry.covers_carta("6.9.0")
-    assert not entry.covers_carta("7.0.0")
+    assert entry.covers_carta("7.0.0")
+    assert entry.covers_carta("8.1.0")
 
 
 def test_compatibility_table_bounds_are_valid_series():
@@ -157,10 +158,11 @@ def test_compatibility_table_bounds_are_valid_series():
         assert entry.carta_max is None or parse_version_series(entry.carta_max) is not None
 
 
-def test_compatibility_ranges_do_not_span_carta_major_versions():
-    for entry in COMPATIBILITY:
-        if entry.carta_max is not None:
-            assert parse_version_series(entry.carta_min)[0] == parse_version_series(entry.carta_max)[0]
+def test_explicit_compatibility_range_may_span_carta_major_versions():
+    entry = CompatibilityRange(carta_min="6.1", carta_max="7.2", wrapper="2.0")
+
+    assert entry.covers_carta("7.2.9")
+    assert not entry.covers_carta("7.3.0")
 
 
 def test_package_version_matches_latest_compatibility():
@@ -170,12 +172,14 @@ def test_package_version_matches_latest_compatibility():
     assert package_version[:2] == recommended_series
 
 
-@pytest.mark.parametrize("version", ["6.1.0", "6.1.0-dev", "6.9.9"])
+@pytest.mark.parametrize(
+    "version", ["6.1.0", "6.1.0-dev", "6.9.9", "7.0.0", "8.1.0"]
+)
 def test_compatibility_for_carta_finds_supported_versions(version):
     assert compatibility_for_carta(version) is latest_compatibility()
 
 
-@pytest.mark.parametrize("version", ["6.0.0", "5.9.0", "7.0.0", "bad.version"])
+@pytest.mark.parametrize("version", ["6.0.0", "5.9.0", "bad.version"])
 def test_compatibility_for_carta_rejects_unsupported_versions(version):
     assert compatibility_for_carta(version) is None
 
@@ -183,17 +187,17 @@ def test_compatibility_for_carta_rejects_unsupported_versions(version):
 def test_compatibility_labels():
     entry = latest_compatibility()
 
-    assert entry.carta_label == "6.1 - 6.x"
+    assert entry.carta_label == "6.1+"
     assert entry.wrapper_label == "2.0.x"
 
 
-def test_compatibility_label_with_explicit_maximum():
-    entry = CompatibilityRange(carta_min="6.0", carta_max="6.2", wrapper="1.2")
+def test_compatibility_label_with_explicit_cross_major_maximum():
+    entry = CompatibilityRange(carta_min="6.0", carta_max="7.2", wrapper="1.2")
 
-    assert entry.carta_label == "6.0 - 6.2"
+    assert entry.carta_label == "6.0 - 7.2"
     assert entry.wrapper_label == "1.2.x"
-    assert entry.covers_carta("6.2.5")
-    assert not entry.covers_carta("6.3.0")
+    assert entry.covers_carta("7.2.5")
+    assert not entry.covers_carta("7.3.0")
 
 
 @pytest.mark.parametrize(

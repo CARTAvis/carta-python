@@ -45,7 +45,8 @@ class CompatibilityRange:
     """CARTA version range and its recommended carta-python series.
 
     Bounds use ``MAJOR.MINOR`` granularity and are inclusive. An omitted upper
-    bound covers the rest of the lower bound's CARTA major version.
+    bound covers every later CARTA series until a known incompatibility closes
+    the range.
     """
 
     carta_min: str
@@ -64,13 +65,8 @@ class CompatibilityRange:
         )
         _require_series("wrapper", self.wrapper)
 
-        if maximum is not None:
-            if maximum[0] != minimum[0]:
-                raise ValueError(
-                    "a compatibility range cannot span CARTA major versions"
-                )
-            if maximum < minimum:
-                raise ValueError("carta_max must not be earlier than carta_min")
+        if maximum is not None and maximum < minimum:
+            raise ValueError("carta_max must not be earlier than carta_min")
 
         object.__setattr__(self, "_minimum", minimum)
         object.__setattr__(self, "_maximum", maximum)
@@ -84,15 +80,14 @@ class CompatibilityRange:
         series = parsed_version[:2]
         if series < self._minimum:
             return False
-        if self._maximum is None:
-            return series[0] == self._minimum[0]
-        return series <= self._maximum
+        return self._maximum is None or series <= self._maximum
 
     @property
     def carta_label(self) -> str:
         """Return a human-readable CARTA version range."""
-        maximum = self.carta_max or f"{self._minimum[0]}.x"
-        return f"{self.carta_min} - {maximum}"
+        if self.carta_max is None:
+            return f"{self.carta_min}+"
+        return f"{self.carta_min} - {self.carta_max}"
 
     @property
     def wrapper_label(self) -> str:
