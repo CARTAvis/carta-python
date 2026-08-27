@@ -270,7 +270,7 @@ class Session:
         *args
             A variable-length list of parameters to pass to the action. :obj:`carta.util.Macro` objects may be used to refer to frontend objects which will be evaluated dynamically. This parameter list will be serialized into a JSON string with :obj:`carta.util.CartaEncoder`.
         **kwargs
-            Arbitrary keyword arguments. At present only three are used: *async* (boolean) is passed to indicate that the request should return a response as soon as the action is called, without waiting for the action to complete. *response_expected* (boolean) indicates that the action should return a JSON object. This is set automatically if *return_path* is set. *return_path* specifies a subobject of the action's response which should be returned instead of the whole response. *timeout* (boolean) is the maximum time in seconds to wait for an action request to complete (the default is 10).
+            Arbitrary keyword arguments. At present only three are used: *async* (boolean) is passed to indicate that the request should return a response as soon as the action is called, without waiting for the action to complete. *response_expected* (boolean) indicates that the action should return a JSON object. This is set automatically if *return_path* is set. *return_path* specifies a subobject of the action's response which should be returned instead of the whole response. It may be a string path, a list of paths to select from each returned object, or a mapping of output names to paths. *timeout* (boolean) is the maximum time in seconds to wait for an action request to complete (the default is 10).
 
         Returns
         -------
@@ -299,8 +299,8 @@ class Session:
         ----------
         path : string
             The full path to the attribute.
-        return_path : string, optional
-            Specifies a subobject of the attribute value which should be returned instead of the whole object.
+        return_path : string, list of strings, or dictionary, optional
+            Specifies a subobject of the attribute value which should be returned instead of the whole object. A list or dictionary is applied to every element of a returned list or every value of a returned map.
 
         Returns
         -------
@@ -628,7 +628,7 @@ class Session:
         list of :obj:`carta.image.Image`
             The requested images.
         """
-        remote_ids = [i["value"] for i in self.get_value("frameNames")]
+        remote_ids = self.get_value("frameNames", return_path="value")
 
         if image_ids is None:
             image_ids = remote_ids
@@ -673,8 +673,7 @@ class Session:
         list of :obj:`carta.color_blending.ColorBlending`
             The requested color blending images.
         """
-        summary = self.get_value("imageViewConfigStore.imageListSummary")
-        remote_ids = [i["id"] for i in summary if i["type"] == ImageType.COLOR_BLENDING]
+        remote_ids = self.call_action("imageViewConfigStore.getImageIdsByType", ImageType.COLOR_BLENDING, response_expected=True)
 
         if color_blending_ids is None:
             color_blending_ids = remote_ids
@@ -820,9 +819,8 @@ class Session:
             If the active view is of a type that is not yet wrapped on
             the Python side.
         """
-        view_type = self.get_value("activeImage.type")
-        view_id = self.get_value("activeImage.store.id")
-        return View.view_class(view_type)(self, view_id)
+        active_view = self.get_value("activeImage", return_path={"type": "type", "id": "store.id"})
+        return View.view_class(active_view["type"])(self, active_view["id"])
 
     @deprecated("Session.active_frame() is deprecated; use Session.active_view() instead.")
     def active_frame(self):

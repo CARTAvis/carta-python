@@ -116,7 +116,7 @@ class RegionSet(BasePathMixin):
         directory = self.session.resolve_file_path(directory)
 
         if region_ids is None:
-            region_ids = [r["id"] for r in self.get_value("regionList")[1:]]
+            region_ids = self.get_value("regionList", return_path="id")[1:]
 
         self.session.call_action("exportRegions", directory, file_name, coordinate_type, file_type, region_ids, self.image._frame)
 

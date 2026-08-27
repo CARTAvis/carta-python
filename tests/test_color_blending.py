@@ -482,8 +482,8 @@ def test_color_blending_delete_layer_rejects_out_of_range(
 
 
 @pytest.mark.parametrize("idx,expected_param", [(1, 0), (5, 4)])
-def test_color_blending_set_layer_image(
-    color_blending, cb_call_action, image, idx, expected_param, mocker
+def test_color_blending_set_layer_image_projects_layer_ids(
+    color_blending, cb_call_action, cb_get_value, image, idx, expected_param, mocker
 ):
     mocker.patch.object(
         ColorBlending,
@@ -491,8 +491,9 @@ def test_color_blending_set_layer_image(
         new_callable=mocker.PropertyMock,
         return_value=6,
     )
-    mocker.patch.object(color_blending, "layers", return_value=[])
+    cb_get_value.return_value = []
     color_blending.set_layer_image(idx, image)
+    cb_get_value.assert_called_once_with("frames", return_path="frameInfo.fileId")
     cb_call_action.assert_called_with(
         "setSelectedFrame", expected_param, image._frame
     )
@@ -517,7 +518,7 @@ def test_color_blending_set_layer_image_rejects_out_of_range(
 
 @pytest.mark.parametrize("idx", [0, 2])
 def test_color_blending_set_layer_image_rejects_existing_image(
-    color_blending, cb_call_action, image, idx, mocker
+    color_blending, cb_call_action, cb_get_value, image, idx, mocker
 ):
     mocker.patch.object(
         ColorBlending,
@@ -525,13 +526,7 @@ def test_color_blending_set_layer_image_rejects_existing_image(
         new_callable=mocker.PropertyMock,
         return_value=3,
     )
-    mocker.patch.object(color_blending, "layers", return_value=[Layer(color_blending, 1)])
-    mocker.patch.object(
-        Layer,
-        "image_id",
-        new_callable=mocker.PropertyMock,
-        return_value=image.image_id,
-    )
+    cb_get_value.return_value = [image.image_id]
     set_spatial_matching = mocker.patch.object(image, "set_spatial_matching")
     make_spatial_reference = mocker.patch.object(image, "make_spatial_reference")
 
@@ -544,7 +539,7 @@ def test_color_blending_set_layer_image_rejects_existing_image(
 
 
 def test_color_blending_set_base_layer_image(
-    color_blending, cb_call_action, image, mocker
+    color_blending, cb_call_action, cb_get_value, image, mocker
 ):
     mocker.patch.object(
         ColorBlending,
@@ -552,7 +547,7 @@ def test_color_blending_set_base_layer_image(
         new_callable=mocker.PropertyMock,
         return_value=1,
     )
-    mocker.patch.object(color_blending, "layers", return_value=[])
+    cb_get_value.return_value = []
     set_spatial_matching = mocker.patch.object(image, "set_spatial_matching")
     make_spatial_reference = mocker.patch.object(image, "make_spatial_reference")
 
