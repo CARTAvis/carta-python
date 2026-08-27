@@ -95,7 +95,8 @@ def test_action_failure_suggests_latest_carta_python_for_supported_carta():
         "For direct scripting calls, verify that the frontend action, attribute, "
         "or response path exists.",
         "If this failure started after a CARTA upgrade, upgrade carta-python to "
-        "the latest available release and retry. For a regular Python environment:\n"
+        "the latest available release and retry.\n"
+        "For a regular Python environment:\n"
         "  python -m pip install --upgrade carta-python\n"
         "For a uv-managed script:\n"
         "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
@@ -112,7 +113,8 @@ def test_action_failure_suggests_latest_carta_python_for_newer_carta():
         "For direct scripting calls, verify that the frontend action, attribute, "
         "or response path exists.",
         "If this failure started after a CARTA upgrade, upgrade carta-python to "
-        "the latest available release and retry. For a regular Python environment:\n"
+        "the latest available release and retry.\n"
+        "For a regular Python environment:\n"
         "  python -m pip install --upgrade carta-python\n"
         "For a uv-managed script:\n"
         "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"

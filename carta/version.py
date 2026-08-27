@@ -172,7 +172,8 @@ def action_failure_compatibility_suggestions(version: object) -> list[str]:
         "For direct scripting calls, verify that the frontend action, attribute, "
         "or response path exists.",
         "If this failure started after a CARTA upgrade, upgrade carta-python to "
-        "the latest available release and retry. For a regular Python environment:\n"
+        "the latest available release and retry.\n"
+        "For a regular Python environment:\n"
         "  python -m pip install --upgrade carta-python\n"
         "For a uv-managed script:\n"
         "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
