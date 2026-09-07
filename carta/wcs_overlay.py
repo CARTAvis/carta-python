@@ -943,8 +943,8 @@ class ColorbarComponent:
         ----------
         path : string
             The path to an attribute relative to the colorbar object's store, with this subcomponent's name prefix omitted.
-        return_path : string, optional
-            Specifies a subobject of the attribute value which should be returned instead of the whole object.
+        return_path : string, list of strings, or dictionary, optional
+            Specifies a subobject of the attribute value which should be returned instead of the whole object. A list or dictionary is applied to every element of a returned list or every value of a returned map.
 
         Returns
         -------
