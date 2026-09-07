@@ -252,51 +252,37 @@ def test_views_rejects_invalid_indices(session, get_value, view_indices):
     get_value.assert_not_called()
 
 
-def test_images_uses_frontend_frame_names(session, get_value):
-    get_value.return_value = [
-        {"value": 10, "label": "Image 10"},
-        {"value": 20, "label": "Image 20"},
-    ]
+def test_images_uses_projected_frame_names(session, get_value):
+    get_value.return_value = [10, 20]
 
     images = session.images()
 
     assert [image.image_id for image in images] == [10, 20]
-    get_value.assert_called_once_with(
-        "frameNames"
-    )
+    get_value.assert_called_once_with("frameNames", return_path="value")
 
 
 def test_images_uses_frame_names_for_explicit_ids(session, get_value):
-    get_value.return_value = [
-        {"value": 10, "label": "Image 10"},
-        {"value": 20, "label": "Image 20"},
-    ]
+    get_value.return_value = [10, 20]
 
     images = session.images(image_ids=[20, 10, 20])
 
     assert [image.image_id for image in images] == [20, 10, 20]
-    get_value.assert_called_once_with("frameNames")
+    get_value.assert_called_once_with("frameNames", return_path="value")
 
 
 def test_images_list_all_closed_explicit_ids(session, get_value):
-    get_value.return_value = [{"value": 10, "label": "Image 10"}]
+    get_value.return_value = [10]
 
     with pytest.raises(RuntimeError) as exc_info:
         session.images(image_ids=[30, 10, 20])
 
     assert str(exc_info.value) == "No images with image_ids [30, 20] are open."
 
-    get_value.assert_called_once_with("frameNames")
+    get_value.assert_called_once_with("frameNames", return_path="value")
 
 
-def test_color_blendings_uses_frontend_image_list_summary(
-    session, get_value
-):
-    get_value.return_value = [
-        {"type": ImageType.FRAME, "id": 10},
-        {"type": ImageType.COLOR_BLENDING, "id": 3},
-        {"type": ImageType.COLOR_BLENDING, "id": 7},
-    ]
+def test_color_blendings_uses_frontend_type_helper(session, call_action):
+    call_action.return_value = [3, 7]
 
     color_blendings = session.color_blendings()
 
@@ -304,19 +290,15 @@ def test_color_blendings_uses_frontend_image_list_summary(
         color_blending.color_blending_id
         for color_blending in color_blendings
     ] == [3, 7]
-    get_value.assert_called_once_with(
-        "imageViewConfigStore.imageListSummary"
+    call_action.assert_called_once_with(
+        "imageViewConfigStore.getImageIdsByType",
+        ImageType.COLOR_BLENDING,
+        response_expected=True,
     )
 
 
-def test_color_blendings_uses_image_list_summary_for_explicit_ids(
-    session, get_value
-):
-    get_value.return_value = [
-        {"type": ImageType.FRAME, "id": 10},
-        {"type": ImageType.COLOR_BLENDING, "id": 3},
-        {"type": ImageType.COLOR_BLENDING, "id": 7},
-    ]
+def test_color_blendings_uses_type_helper_for_explicit_ids(session, call_action):
+    call_action.return_value = [3, 7]
 
     color_blendings = session.color_blendings([7, 3, 7])
 
@@ -324,15 +306,15 @@ def test_color_blendings_uses_image_list_summary_for_explicit_ids(
         color_blending.color_blending_id
         for color_blending in color_blendings
     ] == [7, 3, 7]
-    get_value.assert_called_once_with(
-        "imageViewConfigStore.imageListSummary"
+    call_action.assert_called_once_with(
+        "imageViewConfigStore.getImageIdsByType",
+        ImageType.COLOR_BLENDING,
+        response_expected=True,
     )
 
 
-def test_color_blendings_list_all_closed_explicit_ids(session, get_value):
-    get_value.return_value = [
-        {"type": ImageType.COLOR_BLENDING, "id": 3}
-    ]
+def test_color_blendings_type_helper_rejects_closed_explicit_ids(session, call_action):
+    call_action.return_value = [3]
 
     with pytest.raises(RuntimeError) as exc_info:
         session.color_blendings([7, 3, 5])
@@ -342,8 +324,10 @@ def test_color_blendings_list_all_closed_explicit_ids(session, get_value):
         == "No color blendings with color_blending_ids [7, 5] are open."
     )
 
-    get_value.assert_called_once_with(
-        "imageViewConfigStore.imageListSummary"
+    call_action.assert_called_once_with(
+        "imageViewConfigStore.getImageIdsByType",
+        ImageType.COLOR_BLENDING,
+        response_expected=True,
     )
 
 
@@ -523,41 +507,32 @@ def test_view_by_id_uses_targeted_frontend_lookups(session, get_value):
 # session.active_view
 
 
-def test_active_view_returns_image_when_image_active(session, get_value):
-    get_value.side_effect = [
-        ImageType.FRAME,
-        12,
-    ]
+def test_active_view_uses_structured_lookup_for_image(session, get_value):
+    get_value.return_value = {"type": ImageType.FRAME, "id": 12}
     active = session.active_view()
     assert isinstance(active, Image)
     assert active.image_id == 12
-    assert [call.args for call in get_value.call_args_list] == [
-        ("activeImage.type",),
-        ("activeImage.store.id",),
-    ]
+    get_value.assert_called_once_with(
+        "activeImage",
+        return_path={"type": "type", "id": "store.id"},
+    )
 
 
-def test_active_view_returns_color_blending_when_color_blending_active(
+def test_active_view_uses_structured_lookup_for_color_blending(
     session, get_value
 ):
-    get_value.side_effect = [
-        ImageType.COLOR_BLENDING,
-        3,
-    ]
+    get_value.return_value = {"type": ImageType.COLOR_BLENDING, "id": 3}
     active = session.active_view()
     assert isinstance(active, ColorBlending)
     assert active.color_blending_id == 3
-    assert [call.args for call in get_value.call_args_list] == [
-        ("activeImage.type",),
-        ("activeImage.store.id",),
-    ]
+    get_value.assert_called_once_with(
+        "activeImage",
+        return_path={"type": "type", "id": "store.id"},
+    )
 
 
 def test_active_view_raises_on_unsupported_type(session, get_value):
-    get_value.side_effect = [
-        ImageType.PV_PREVIEW,
-        -2,
-    ]
+    get_value.return_value = {"type": ImageType.PV_PREVIEW, "id": -2}
     with pytest.raises(NotImplementedError):
         session.active_view()
 
