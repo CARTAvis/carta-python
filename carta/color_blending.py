@@ -515,7 +515,7 @@ class ColorBlending(View, BasePathMixin):
         state : {0}
             The desired visibility state.
         """
-        is_visible = self.get_value("rasterVisible")
+        is_visible = self.get_value("isRasterVisible")
         if is_visible != state:
             self.call_action("toggleRasterVisible")
 
@@ -528,7 +528,7 @@ class ColorBlending(View, BasePathMixin):
         state : {0}
             The desired visibility state.
         """
-        is_visible = self.get_value("contourVisible")
+        is_visible = self.get_value("isContourVisible")
         if is_visible != state:
             self.call_action("toggleContourVisible")
 
@@ -541,7 +541,7 @@ class ColorBlending(View, BasePathMixin):
         state : {0}
             The desired visibility state.
         """
-        is_visible = self.get_value("vectorOverlayVisible")
+        is_visible = self.get_value("isVectorOverlayVisible")
         if is_visible != state:
             self.call_action("toggleVectorOverlayVisible")
 

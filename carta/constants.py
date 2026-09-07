@@ -11,7 +11,61 @@ except ImportError:
         pass
 
 
-class ComplexComponent(StrEnum):
+class _RegisteredEnum:
+    """Mixin implementation shared by externally defined enum registries."""
+
+    ENUMS = {}
+
+    def __init_subclass__(cls, *, external_name=None, **kwargs):
+        """Register an enum subclass by its external name."""
+        super().__init_subclass__(**kwargs)
+        if _RegisteredEnum in cls.__bases__:
+            return
+        external_name = external_name or cls.__name__
+        if external_name in cls.ENUMS:
+            raise ValueError(f"Duplicate enum external name {external_name!r} in {cls.__mro__[1].__name__}")
+        cls.EXTERNAL_NAME = external_name
+        cls.ENUMS[external_name] = cls
+
+
+class FrontendEnum(_RegisteredEnum):
+    """Mixin for enums defined and validated by the CARTA frontend."""
+
+    ENUMS = {}
+
+
+class ProtobufEnum(_RegisteredEnum):
+    """Mixin for enums defined and validated by CARTA protobuf messages."""
+
+    ENUMS = {}
+
+
+class CartaPythonEnum(_RegisteredEnum):
+    """Mixin for enums defined and used only by carta-python."""
+
+    ENUMS = {}
+
+
+def _registered_enum(registry, enum_type, enum_name, names, external_name=None, **kwargs):
+    """Create a functional enum and register it with the requested mixin."""
+    enum_ = enum_type(enum_name, names, type=registry, **kwargs)
+    if external_name is not None:
+        _set_external_name(enum_, registry, external_name)
+    return enum_
+
+
+def _set_external_name(enum_, registry, external_name):
+    """Set a custom name after EnumMeta has constructed an enum class."""
+    existing = registry.ENUMS.get(external_name)
+    if existing is not None and existing is not enum_:
+        del registry.ENUMS[enum_.__name__]
+        raise ValueError(f"Duplicate enum external name {external_name!r} in {registry.__name__}")
+    del registry.ENUMS[enum_.__name__]
+    enum_.EXTERNAL_NAME = external_name
+    registry.ENUMS[external_name] = enum_
+
+
+class ComplexComponent(CartaPythonEnum, StrEnum):
     """Complex component."""
     AMPLITUDE = "AMPLITUDE"
     PHASE = "PHASE"
@@ -19,52 +73,50 @@ class ComplexComponent(StrEnum):
     IMAG = "IMAG"
 
 
-Colormap = StrEnum('Colormap', {c.upper(): c for c in ('copper', 'paired', 'gist_heat', 'brg', 'cool', 'summer', 'OrRd', 'tab20c', 'purples', 'gray', 'terrain', 'RdPu', 'set2', 'spring', 'gist_yarg', 'RdYlBu', 'reds', 'winter', 'Wistia', 'rainbow', 'dark2', 'oranges', 'BuPu', 'gist_earth', 'PuBu', 'pink', 'PuOr', 'pastel2', 'PiYG', 'gist_ncar', 'PuRd', 'plasma', 'gist_stern', 'hot', 'PuBuGn', 'YlOrRd', 'accent', 'magma', 'set1', 'GnBu', 'greens', 'CMRmap', 'gist_rainbow', 'prism', 'hsv', 'Blues', 'viridis', 'YlGn', 'spectral', 'RdBu', 'tab20', 'greys', 'flag', 'jet', 'seismic', 'PRGn', 'coolwarm', 'YlOrBr', 'RdYlGn', 'bone', 'autumn', 'BrBG', 'gnuplot2', 'RdGy', 'binary', 'gnuplot', 'BuGn', 'gist_gray', 'nipy_spectral', 'set3', 'tab20b', 'pastel1', 'afmhot', 'cubehelix', 'YlGnBu', 'ocean', 'tab10', 'bwr', 'inferno')})
+Colormap = _registered_enum(FrontendEnum, StrEnum, 'Colormap', {c.upper(): c for c in ('copper', 'paired', 'gist_heat', 'brg', 'cool', 'summer', 'OrRd', 'tab20c', 'purples', 'gray', 'terrain', 'RdPu', 'set2', 'spring', 'gist_yarg', 'RdYlBu', 'reds', 'winter', 'Wistia', 'rainbow', 'dark2', 'oranges', 'BuPu', 'gist_earth', 'PuBu', 'pink', 'PuOr', 'pastel2', 'PiYG', 'gist_ncar', 'PuRd', 'plasma', 'gist_stern', 'hot', 'PuBuGn', 'YlOrRd', 'accent', 'magma', 'set1', 'GnBu', 'greens', 'CMRmap', 'gist_rainbow', 'prism', 'hsv', 'Blues', 'viridis', 'YlGn', 'spectral', 'RdBu', 'tab20', 'greys', 'flag', 'jet', 'seismic', 'PRGn', 'coolwarm', 'YlOrBr', 'RdYlGn', 'bone', 'autumn', 'BrBG', 'gnuplot2', 'RdGy', 'binary', 'gnuplot', 'BuGn', 'gist_gray', 'nipy_spectral', 'set3', 'tab20b', 'pastel1', 'afmhot', 'cubehelix', 'YlGnBu', 'ocean', 'tab10', 'bwr', 'inferno', 'Blue', 'Cyan', 'Green', 'Magenta', 'Orange', 'Red', 'Violet', 'Yellow')}, external_name="ColorMap")
 Colormap.__doc__ = """All available colormaps."""
 
 
-class ColormapSet(StrEnum):
+class ColormapSet(FrontendEnum, StrEnum):
     """Colormap sets for color blending."""
     RGB = "RGB"
     CMY = "CMY"
     RAINBOW = "Rainbow"
 
 
-class ImageType(IntEnum):
-    """View item types, corresponding to the frontend ImageType enum."""
+class ImageType(FrontendEnum, IntEnum):
+    """Image view item types, corresponding to the frontend ImageType enum."""
     FRAME = 0
     COLOR_BLENDING = 1
     PV_PREVIEW = 2
 
 
-Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'), start=0)
+Scaling = _registered_enum(FrontendEnum, IntEnum, 'Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA', 'EXP', 'CUSTOM', 'SINH', 'ASINH'), external_name="FrameScaling", start=0)
 Scaling.__doc__ = """Colormap scaling types."""
-
-
-CoordinateSystem = StrEnum('CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")})
+CoordinateSystem = _registered_enum(FrontendEnum, StrEnum, 'CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")} | {"IMAGE": "CARTESIAN"}, external_name="SystemType")
 CoordinateSystem.__doc__ = """Coordinate systems."""
 
 
-class NumberFormat(StrEnum):
+class NumberFormat(FrontendEnum, StrEnum, external_name="NumberFormatType"):
     """Number formats."""
     DEGREES = "d"
     HMS = "hms"
     DMS = "dms"
 
 
-class SpatialAxis(StrEnum):
+class SpatialAxis(CartaPythonEnum, StrEnum):
     """Spatial axes."""
     X = "x"
     Y = "y"
 
 
-class LabelType(StrEnum):
+class LabelType(FrontendEnum, StrEnum):
     """Label types."""
     INTERIOR = "Interior"
     EXTERIOR = "Exterior"
 
 
-class BeamType(StrEnum):
+class BeamType(FrontendEnum, StrEnum):
     """Beam types."""
     OPEN = "open"
     SOLID = "solid"
@@ -116,7 +168,7 @@ DARK_THEME = {
 }
 
 
-class PaletteColor(StrEnum):
+class PaletteColor(CartaPythonEnum, StrEnum):
     """Palette colours used for WCS overlay elements.
 
     Members of this enum class have additional attributes.
@@ -142,34 +194,32 @@ class PaletteColor(StrEnum):
         PaletteColor[c] = f"auto-{c.lower()}"
 
 
-Overlay = StrEnum('Overlay', [(c.upper(), c) for c in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar")] + [('BEAM', 'beam.settingsForDisplay')])
+Overlay = _registered_enum(CartaPythonEnum, StrEnum, 'Overlay', [(c.upper(), c) for c in ("global", "title", "grid", "border", "ticks", "axes", "numbers", "labels", "colorbar")] + [('BEAM', 'beam.settingsForDisplay')])
 Overlay.__doc__ = """WCS overlay elements.
 
     Member values are paths to stores corresponding to these elements, relative to the WCS overlay store.
     """
-
-
-class SmoothingMode(IntEnum):
+class SmoothingMode(ProtobufEnum, IntEnum, external_name="SmoothingMode"):
     """Contour smoothing modes."""
     NO_SMOOTHING = 0
     BLOCK_AVERAGE = 1
     GAUSSIAN_BLUR = 2
 
 
-VectorOverlaySource = Enum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), type=int, start=-1)
+VectorOverlaySource = _registered_enum(FrontendEnum, Enum, 'VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), start=-1)
 VectorOverlaySource.__doc__ = """Vector overlay source."""
 
 
-class Auto(StrEnum):
+class Auto(CartaPythonEnum, StrEnum):
     """Special value for parameters to be calculated automatically."""
     AUTO = "Auto"
 
 
-class ContourDashMode(StrEnum):
+class ContourDashMode(FrontendEnum, StrEnum):
     """Contour dash modes."""
     NONE = "None"
     DASHED = "Dashed"
-    NEGATIVE_ONLY = "NegativeOnly"
+    NEGATIVE_ONLY = "Negative only"
 
 
 PROTO_POLARIZATION = {
@@ -193,9 +243,8 @@ PROTO_POLARIZATION = {
 }
 
 
-class Polarization(IntEnum):
-    """Polarizations, corresponding to the POLARIZATIONS enum in the frontend."""
-
+class Polarization(FrontendEnum, IntEnum, external_name="Polarizations"):
+    """Polarizations."""
     def __init__(self, value):
         self.proto_index = PROTO_POLARIZATION[self.name]
 
@@ -218,19 +267,20 @@ class Polarization(IntEnum):
     PANGLE = 17
 
 
-class PanelMode(IntEnum):
+class PanelMode(CartaPythonEnum, IntEnum):
     """Panel modes."""
     SINGLE = 0
     MULTIPLE = 1
 
 
-class GridMode(StrEnum):
+class GridMode(FrontendEnum, StrEnum, external_name="ImagePanelMode"):
     """Grid modes."""
     DYNAMIC = "dynamic"
     FIXED = "fixed"
+    NONE = "none"
 
 
-class FileType(IntEnum):
+class FileType(ProtobufEnum, IntEnum, external_name="FileType"):
     """File types corresponding to the protobuf enum."""
     CASA = 0
     CRTF = 1
@@ -241,9 +291,8 @@ class FileType(IntEnum):
     UNKNOWN = 6
 
 
-class RegionType(IntEnum):
+class RegionType(ProtobufEnum, IntEnum, external_name="RegionType"):
     """Region types corresponding to the protobuf enum."""
-
     def __init__(self, value):
         self.is_annotation = self.name.startswith("ANN")
         self.label = f"{self.name[3:].title()} - Ann" if self.is_annotation else self.name.title()
@@ -253,7 +302,7 @@ class RegionType(IntEnum):
     POLYLINE = 2
     RECTANGLE = 3
     ELLIPSE = 4
-    # ANNULUS = 5 is not actually implemented
+    ANNULUS = 5
     POLYGON = 6
     ANNPOINT = 7
     ANNLINE = 8
@@ -267,13 +316,13 @@ class RegionType(IntEnum):
     ANNCOMPASS = 16
 
 
-class CoordinateType(IntEnum):
+class CoordinateType(ProtobufEnum, IntEnum, external_name="CoordinateType"):
     """Coordinate types corresponding to the protobuf enum."""
     PIXEL = 0
     WORLD = 1
 
 
-class PointShape(IntEnum):
+class PointShape(ProtobufEnum, IntEnum, external_name="PointAnnotationShape"):
     """Point annotation shapes corresponding to the protobuf enum."""
     SQUARE = 0
     BOX = 1
@@ -285,7 +334,7 @@ class PointShape(IntEnum):
     X = 7
 
 
-class TextPosition(IntEnum):
+class TextPosition(ProtobufEnum, IntEnum, external_name="TextAnnotationPosition"):
     """Text annotation positions corresponding to the protobuf enum."""
     CENTER = 0
     UPPER_LEFT = 1
@@ -298,7 +347,7 @@ class TextPosition(IntEnum):
     RIGHT = 8
 
 
-class AnnotationFontStyle(StrEnum):
+class AnnotationFontStyle(FrontendEnum, StrEnum, external_name="FontStyle"):
     """Font styles which may be used in annotations."""
     NORMAL = "Normal"
     BOLD = "Bold"
@@ -306,14 +355,14 @@ class AnnotationFontStyle(StrEnum):
     BOLD_ITALIC = "Italic Bold"
 
 
-class AnnotationFont(StrEnum):
+class AnnotationFont(FrontendEnum, StrEnum, external_name="Font"):
     """Fonts which may be used in annotations."""
     HELVETICA = "Helvetica"
     TIMES = "Times"
     COURIER = "Courier"
 
 
-class FontFamily(IntEnum):
+class FontFamily(CartaPythonEnum, IntEnum):
     """Font family used in WCS overlay components."""
     SANS_SERIF = 0
     TIMES = 1
@@ -322,7 +371,7 @@ class FontFamily(IntEnum):
     COURIER_NEW = 4
 
 
-class FontStyle(IntEnum):
+class FontStyle(CartaPythonEnum, IntEnum):
     """Font style used in WCS overlay components."""
     NORMAL = 0
     ITALIC = 1
@@ -330,14 +379,14 @@ class FontStyle(IntEnum):
     BOLD_ITALIC = 3
 
 
-class ColorbarPosition(StrEnum):
+class ColorbarPosition(CartaPythonEnum, StrEnum):
     """Colorbar positions."""
     RIGHT = "right"
     TOP = "top"
     BOTTOM = "bottom"
 
 
-class SpectralSystem(StrEnum):
+class SpectralSystem(FrontendEnum, StrEnum):
     """Spectral systems."""
     LSRK = "LSRK"
     LSRD = "LSRD"
@@ -345,7 +394,7 @@ class SpectralSystem(StrEnum):
     TOPO = "TOPOCENT"
 
 
-class SpectralUnit(StrEnum):
+class SpectralUnit(FrontendEnum, StrEnum):
     """Spectral units."""
     KMS = "km/s"
     MS = "m/s"
@@ -358,9 +407,16 @@ class SpectralUnit(StrEnum):
     UM = "um"
     NM = "nm"
     ANGSTROM = "Angstrom"
+    M_SQUARE = "m^2"
+    MM_SQUARE = "mm^2"
+    UM_SQUARE = "um^2"
+    NM_SQUARE = "nm^2"
+    ANGSTROM_SQUARE = "Angstrom^2"
 
 
 SPECTRAL_TYPE_DESCRIPTION = {
+    "CHANNEL": "Channel",
+    "NATIVE": "Native",
     "VRAD": "Radio velocity",
     "VOPT": "Optical velocity",
     "FREQ": "Frequency",
@@ -370,6 +426,8 @@ SPECTRAL_TYPE_DESCRIPTION = {
 
 
 SPECTRAL_TYPE_UNITS = {
+    "CHANNEL": tuple(),
+    "NATIVE": tuple(),
     "VRAD": (SpectralUnit.KMS, SpectralUnit.MS),
     "VOPT": (SpectralUnit.KMS, SpectralUnit.MS),
     "FREQ": (SpectralUnit.GHZ, SpectralUnit.MHZ, SpectralUnit.KHZ, SpectralUnit.HZ),
@@ -378,7 +436,7 @@ SPECTRAL_TYPE_UNITS = {
 }
 
 
-class SpectralType(StrEnum):
+class SpectralType(FrontendEnum, StrEnum):
     """Spectral types.
 
     Members of this enum class have additional attributes.
@@ -394,10 +452,13 @@ class SpectralType(StrEnum):
     """
 
     def __init__(self, value):
+        units = SPECTRAL_TYPE_UNITS[self.name]
         self.description = SPECTRAL_TYPE_DESCRIPTION[self.name]
-        self.units = set(SPECTRAL_TYPE_UNITS[self.name])
-        self.default_unit = SPECTRAL_TYPE_UNITS[self.name][0]
+        self.units = set(units)
+        self.default_unit = units[0] if units else None
 
+    CHANNEL = "CHANNEL",
+    NATIVE = "NATIVE",
     VRAD = "VRAD",
     VOPT = "VOPT",
     FREQ = "FREQ",

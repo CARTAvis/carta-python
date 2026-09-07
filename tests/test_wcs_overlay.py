@@ -158,7 +158,7 @@ def test_custom_color(overlay, component_get_value, comp_enum):
     comp_get_value = component_get_value(comp_enum, True)
     comp = overlay.get(comp_enum)
     custom_color = comp.custom_color
-    comp_get_value.assert_called_with("customColor")
+    comp_get_value.assert_called_with("hasCustomColor")
     assert custom_color is True
 
 
@@ -175,7 +175,7 @@ def test_custom_text(overlay, component_get_value, comp_enum):
     comp_get_value = component_get_value(comp_enum, True)
     comp = overlay.get(comp_enum)
     custom_text = comp.custom_text
-    comp_get_value.assert_called_with("customText")
+    comp_get_value.assert_called_with("hasCustomText")
     assert custom_text is True
 
 
@@ -258,7 +258,7 @@ def test_visible(overlay, component_get_value, comp_enum):
     comp = overlay.get(comp_enum)
     comp_get_value = component_get_value(comp_enum, True)
     visible = comp.visible
-    comp_get_value.assert_called_with("visible")
+    comp_get_value.assert_called_with("isVisible")
     assert visible is True
 
 
@@ -353,7 +353,7 @@ def test_grid_gap(mocker, overlay, component_get_value):
 def test_grid_custom_gap(overlay, component_get_value):
     grid_get_value = component_get_value(O.GRID, True)
     custom_gap = overlay.grid.custom_gap
-    grid_get_value.assert_called_with("customGap")
+    grid_get_value.assert_called_with("hasCustomGap")
     assert custom_gap is True
 
 
@@ -425,7 +425,7 @@ def test_numbers_custom_precision(overlay, component_get_value):
     numbers_get_value = component_get_value(O.NUMBERS)
     numbers_get_value.side_effect = [True]
     custom_precision = overlay.numbers.custom_precision
-    numbers_get_value.assert_called_with("customPrecision")
+    numbers_get_value.assert_called_with("hasCustomPrecision")
     assert custom_precision is True
 
 
@@ -476,7 +476,7 @@ def test_ticks_density(mocker, overlay, component_get_value):
 def test_ticks_custom_density(overlay, component_get_value):
     ticks_get_value = component_get_value(O.TICKS, True)
     custom_density = overlay.ticks.custom_density
-    ticks_get_value.assert_called_with("customDensity")
+    ticks_get_value.assert_called_with("hasCustomDensity")
     assert custom_density is True
 
 
@@ -489,7 +489,7 @@ def test_ticks_set_draw_on_all_edges(overlay, component_call_action):
 def test_ticks_draw_on_all_edges(overlay, component_get_value):
     ticks_get_value = component_get_value(O.TICKS, True)
     draw_on_all_edges = overlay.ticks.draw_on_all_edges
-    ticks_get_value.assert_called_with("drawAll")
+    ticks_get_value.assert_called_with("shouldDrawAll")
     assert draw_on_all_edges is True
 
 
@@ -528,7 +528,7 @@ def test_colorbar_set_interactive(overlay, component_call_action):
 def test_colorbar_interactive(overlay, component_get_value):
     colorbar_get_value = component_get_value(O.COLORBAR, True)
     interactive = overlay.colorbar.interactive
-    colorbar_get_value.assert_called_with("interactive")
+    colorbar_get_value.assert_called_with("isInteractive")
     assert interactive is True
 
 
@@ -585,10 +585,10 @@ def test_colorbar_get_border_properties(mocker, overlay, component_get_value):
     custom_color = overlay.colorbar.border.custom_color
 
     colorbar_get_value.assert_has_calls([
-        mocker.call("borderVisible", return_path=None),
+        mocker.call("isBorderVisible", return_path=None),
         mocker.call("borderWidth", return_path=None),
         mocker.call("borderColor", return_path=None),
-        mocker.call("borderCustomColor", return_path=None),
+        mocker.call("hasBorderCustomColor", return_path=None),
     ])
 
     assert visible is True
@@ -630,10 +630,10 @@ def test_colorbar_get_ticks_properties(mocker, overlay, component_get_value):
     length = overlay.colorbar.ticks.length
 
     colorbar_get_value.assert_has_calls([
-        mocker.call("tickVisible", return_path=None),
+        mocker.call("isTickVisible", return_path=None),
         mocker.call("tickWidth", return_path=None),
         mocker.call("tickColor", return_path=None),
-        mocker.call("tickCustomColor", return_path=None),
+        mocker.call("hasTickCustomColor", return_path=None),
         mocker.call("tickDensity", return_path=None),
         mocker.call("tickLen", return_path=None),
     ])
@@ -686,11 +686,11 @@ def test_colorbar_get_numbers_properties(mocker, overlay, component_get_value):
     rotation = overlay.colorbar.numbers.rotation
 
     colorbar_get_value.assert_has_calls([
-        mocker.call("numberVisible", return_path=None),
+        mocker.call("isNumberVisible", return_path=None),
         mocker.call("numberPrecision", return_path=None),
-        mocker.call("numberCustomPrecision", return_path=None),
+        mocker.call("hasNumberCustomPrecision", return_path=None),
         mocker.call("numberColor", return_path=None),
-        mocker.call("numberCustomColor", return_path=None),
+        mocker.call("hasNumberCustomColor", return_path=None),
         mocker.call("numberFont", return_path=None),
         mocker.call("numberFontSize", return_path=None),
         mocker.call("numberRotation", return_path=None),
@@ -743,10 +743,10 @@ def test_colorbar_get_label_properties(mocker, overlay, component_get_value):
     rotation = overlay.colorbar.label.rotation
 
     colorbar_get_value.assert_has_calls([
-        mocker.call("labelVisible", return_path=None),
+        mocker.call("isLabelVisible", return_path=None),
         mocker.call("labelColor", return_path=None),
-        mocker.call("labelCustomColor", return_path=None),
-        mocker.call("labelCustomText", return_path=None),
+        mocker.call("hasLabelCustomColor", return_path=None),
+        mocker.call("hasLabelCustomText", return_path=None),
         mocker.call("labelFont", return_path=None),
         mocker.call("labelFontSize", return_path=None),
         mocker.call("labelRotation", return_path=None),
@@ -775,7 +775,7 @@ def test_colorbar_get_gradient_properties(mocker, overlay, component_get_value):
     colorbar_get_value.side_effect = [True]
     visible = overlay.colorbar.gradient.visible
     colorbar_get_value.assert_has_calls([
-        mocker.call("gradientVisible", return_path=None),
+        mocker.call("isGradientVisible", return_path=None),
     ])
     assert visible is True
 
