@@ -37,7 +37,6 @@ jobs:
 
       - name: Generate carta-python manifests
         run: |
-          set -euo pipefail
           uv run --no-sync python scripts/extract_api.py \
             --check \
             --write-manifest \
