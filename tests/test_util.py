@@ -2,7 +2,10 @@ import warnings
 
 import pytest
 
-from carta.util import Point as Pt, deprecated
+from carta.util import (
+    Point as Pt,
+    deprecated,
+)
 
 
 def test_deprecated_warns_and_preserves_function_metadata():

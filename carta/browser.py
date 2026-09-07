@@ -2,15 +2,44 @@
 
 import time
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException
+try:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.by import By
+    from selenium.common.exceptions import NoSuchElementException
+except ModuleNotFoundError as error:
+    if error.name != "selenium":
+        raise
+    webdriver = None
+    Options = None
+    By = None
+    NoSuchElementException = None
+    _SELENIUM_IMPORT_ERROR = error
+else:
+    _SELENIUM_IMPORT_ERROR = None
 
 from .backend import Backend
-from .util import CartaBadSession
+from .constants import VersionMismatchAction
+from .util import CartaBadSession, logger
 from .protocol import Protocol
 from .session import Session
+
+
+def _require_selenium():
+    if _SELENIUM_IMPORT_ERROR is not None:
+        raise CartaBadSession(
+            "Browser automation requires the optional Selenium dependency.\n\n"
+            "Install it with pip:\n"
+            "  python -m pip install --upgrade \"carta-python[browser]\"\n\n"
+            "For a uv-managed script:\n"
+            "  uv add --script your_script.py \"carta-python[browser]\"\n"
+            "  uv run your_script.py\n\n"
+            "If your script already pins carta-python, include the same "
+            "version constraint when adding the browser extra, for example:\n"
+            "  uv add --script your_script.py "
+            "\"carta-python[browser]~=2.0.0\" --upgrade-package carta-python\n"
+            "  uv run your_script.py"
+        ) from _SELENIUM_IMPORT_ERROR
 
 
 class Browser:
@@ -34,7 +63,7 @@ class Browser:
     def __init__(self, driver_class, **kwargs):
         self.driver = driver_class(**kwargs)
 
-    def new_session_from_url(self, frontend_url, token=None, backend=None, timeout=10, debug_no_auth=False):
+    def new_session_from_url(self, frontend_url, token=None, backend=None, timeout=10, debug_no_auth=False, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Create a new session by connecting to an existing backend.
 
         You can use :obj:`carta.session.Session.create`, which wraps this method.
@@ -51,6 +80,12 @@ class Browser:
             The number of seconds to spend parsing the frontend for connection information. 10 seconds by default.
         debug_no_auth : boolean
             Disable authentication. This should be set if the backend has been started with the ``--debug_no_auth`` option. This is provided for debugging purposes only and should not be used under normal circumstances.
+        connection_check_timeout : number, optional
+            Maximum time in seconds to wait for the startup validation action.
+            Default: 10 seconds.
+        version_mismatch_action : :obj:`carta.constants.VersionMismatchAction`, optional
+            Whether a version mismatch should produce a warning or raise an
+            exception. ``VersionMismatchAction.ERROR`` is the default.
 
         Returns
         -------
@@ -65,8 +100,13 @@ class Browser:
             If an invalid URL was provided.
         CartaBadSession
             If the session object could not be created.
+        CartaUnsupportedVersion
+            If the wrapper cannot verify the connected CARTA version or it
+            does not satisfy the minimum requirement, and
+            ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
 
+        _require_selenium()
         protocol = Protocol(frontend_url, token, debug_no_auth=debug_no_auth)
 
         if protocol.controller_auth:
@@ -97,9 +137,15 @@ class Browser:
         if not session_id:
             self.exit(f"Could not parse session ID from frontend. Last error: {last_error}")
 
-        return Session(session_id, protocol, browser=self, backend=backend)
+        session = Session(session_id, protocol, browser=self, backend=backend)
+        try:
+            session._validate_session(timeout=connection_check_timeout, version_mismatch_action=version_mismatch_action)
+        except Exception:
+            self._close_after_error()
+            raise
+        return session
 
-    def new_session_with_backend(self, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10):
+    def new_session_with_backend(self, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Create a new session after launching a new backend process.
 
         You can use :obj:`carta.session.Session.start_and_create`, which wraps this method. This method starts a backend process, parses the frontend URL from the output, and calls :obj:`carta.browser.Browser.new_session_from_url`.
@@ -118,6 +164,12 @@ class Browser:
             The security token to use. Parsed from the backend output by default.
         frontend_url_timeout : integer
             How long to keep checking the backend output for the frontend URL. Default: 10 seconds.
+        connection_check_timeout : number, optional
+            Maximum time in seconds to wait for the startup validation action.
+            Default: 10 seconds.
+        version_mismatch_action : :obj:`carta.constants.VersionMismatchAction`, optional
+            Whether a version mismatch should produce a warning or raise an
+            exception. ``VersionMismatchAction.ERROR`` is the default.
 
         Returns
         -------
@@ -132,6 +184,10 @@ class Browser:
             If an invalid URL was provided.
         CartaBadSession
             If the session object could not be created.
+        CartaUnsupportedVersion
+            If the wrapper cannot verify the connected CARTA version or it
+            does not satisfy the minimum requirement, and
+            ``version_mismatch_action`` is ``VersionMismatchAction.ERROR``.
         """
 
         backend = Backend(("--no_browser", "--enable_scripting", *params), executable_path, remote_host, token, frontend_url_timeout=frontend_url_timeout, session_creation_timeout=0)
@@ -139,18 +195,40 @@ class Browser:
             self.exit(f"CARTA backend exited unexpectedly:\n{''.join(backend.errors)}")
 
         if backend.frontend_url is None:
+            backend.stop()
             self.exit("Could not parse CARTA frontend URL from backend output.")
 
-        return self.new_session_from_url(backend.frontend_url, backend.token, backend=backend, timeout=timeout, debug_no_auth=backend.debug_no_auth)
+        try:
+            return self.new_session_from_url(
+                backend.frontend_url,
+                backend.token,
+                backend=backend,
+                timeout=timeout,
+                debug_no_auth=backend.debug_no_auth,
+                connection_check_timeout=connection_check_timeout,
+                version_mismatch_action=version_mismatch_action,
+            )
+        except Exception:
+            try:
+                backend.stop()
+            except Exception:
+                logger.exception("Failed to stop CARTA backend after session creation failed.")
+            raise
 
     def exit(self, msg):
         """Exit the browser with an error."""
-        self.close()
+        self._close_after_error()
         raise CartaBadSession(msg)
 
     def close(self):
         """Shut down the browser driver."""
         self.driver.quit()
+
+    def _close_after_error(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
 class Chrome(Browser):
@@ -169,6 +247,7 @@ class Chrome(Browser):
     """
 
     def __init__(self, headless=True, browser_path=None, driver_path=None, options=tuple()):
+        _require_selenium()
         chrome_options = Options()
         if headless:
             chrome_options.add_argument("--headless")

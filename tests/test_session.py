@@ -6,8 +6,24 @@ import pytest
 from carta.image import Image
 from carta.color_blending import ColorBlending
 from carta.session import Session
-from carta.util import CartaActionFailed, CartaBadResponse, CartaValidationFailed, Macro, Point as Pt
-from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
+from carta.util import (
+    CartaActionFailed,
+    CartaBadResponse,
+    CartaBadSession,
+    CartaMissingResponse,
+    CartaRequestFailed,
+    CartaUnsupportedVersion,
+    CartaValidationFailed,
+    Macro,
+    Point as Pt,
+)
+from carta.constants import (
+    ColormapSet,
+    ComplexComponent as CC,
+    ImageType,
+    Polarization as Pol,
+    VersionMismatchAction,
+)
 
 # FIXTURES
 
@@ -35,6 +51,7 @@ def method(session, mock_method):
     ("wcs", "SessionWCSOverlay"),
 ])
 def test_subobjects(session, name, classname):
+    assert isinstance(session, Session)
     assert getattr(session, name).__class__.__name__ == classname
 
 
@@ -81,6 +98,360 @@ def test_session_repr_omits_carta_version_when_lookup_fails(session, mocker):
 
     assert repr(session) == "Session(session_id=0, uri='http://localhost:3000')"
 
+def test_direct_session_construction_does_not_validate_session(mocker):
+    validate_session = mocker.patch.object(Session, "_validate_session")
+
+    session = Session(0, None)
+
+    assert session.session_id == 0
+    validate_session.assert_not_called()
+
+
+def test_validate_session_fetches_frontend_version_with_timeout(session, call_action):
+    call_action.return_value = "6.1.0-dev"
+
+    assert session._validate_session(timeout=3) == "6.1.0-dev"
+
+    call_action.assert_called_once_with(
+        "fetchParameter",
+        Macro("", "frontendVersion"),
+        response_expected=True,
+        timeout=3,
+    )
+    assert session.carta_version == "6.1.0-dev"
+
+
+def test_validate_session_warns_for_unsupported_version_when_requested(
+    session, call_action, caplog
+):
+    call_action.return_value = "6.0.0"
+
+    session._validate_session(
+        timeout=3, version_mismatch_action=VersionMismatchAction.WARN
+    )
+
+    assert "older than the minimum" in caplog.text
+    assert "complete functionality with carta-python 2.0.x" in caplog.text
+    assert "\n\nSuggested actions:\n" in caplog.text
+    assert "Upgrade CARTA to at least '6.1.0'." in caplog.text
+    assert "version_mismatch_action=VersionMismatchAction.WARN" not in caplog.text
+
+
+def test_validate_session_raises_for_unsatisfied_minimum_in_error_mode(
+    session, call_action
+):
+    call_action.return_value = "5.9.0"
+
+    with pytest.raises(CartaUnsupportedVersion, match="older than the minimum"):
+        session._validate_session(
+            timeout=3,
+            version_mismatch_action=VersionMismatchAction.ERROR,
+        )
+
+
+@pytest.mark.parametrize(
+    "version_mismatch_action",
+    [VersionMismatchAction.WARN, VersionMismatchAction.ERROR],
+)
+def test_validate_session_accepts_newer_frontend_major(
+    session, call_action, caplog, version_mismatch_action
+):
+    call_action.return_value = "7.0.0"
+
+    assert session._validate_session(
+        timeout=3,
+        version_mismatch_action=version_mismatch_action,
+    ) == "7.0.0"
+
+    assert not caplog.text
+
+
+def test_validate_session_validates_action_before_fetching_version(session, call_action):
+    with pytest.raises(CartaValidationFailed):
+        session._validate_session(timeout=3, version_mismatch_action="invalid")
+
+    call_action.assert_not_called()
+
+
+def test_validate_session_reports_invalid_frontend_version_in_error_mode(
+    session, call_action
+):
+    call_action.return_value = "bad.version"
+
+    with pytest.raises(CartaUnsupportedVersion, match="invalid CARTA version"):
+        session._validate_session(
+            timeout=2, version_mismatch_action=VersionMismatchAction.ERROR
+        )
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        CartaActionFailed("frontendVersion unavailable"),
+        CartaMissingResponse("frontendVersion returned no response"),
+    ],
+)
+def test_validate_session_reports_unavailable_frontend_version_in_error_mode(
+    session, call_action, error
+):
+    call_action.side_effect = error
+
+    with pytest.raises(CartaUnsupportedVersion) as e:
+        session._validate_session(timeout=2)
+
+    message = str(e.value)
+    assert "Could not retrieve `frontendVersion`" in message
+    assert "earlier than '6.0.0'" in message
+    assert "carta-python 2.0.x requires CARTA '6.1.0' or later" in message
+    assert "\n\nSuggested actions:\n" in message
+    assert "Upgrade CARTA to at least '6.1.0'." in message
+    assert "CARTA is already '6.0.0' or newer" in message
+    assert "version_mismatch_action=VersionMismatchAction.WARN" in message
+    assert "Original error" not in message
+    assert e.value.__cause__ is error
+
+
+def test_validate_session_warns_when_frontend_version_is_unavailable(
+    session, call_action, caplog
+):
+    call_action.side_effect = CartaMissingResponse(
+        "frontendVersion returned no response"
+    )
+
+    assert session._validate_session(
+        timeout=2,
+        version_mismatch_action=VersionMismatchAction.WARN,
+    ) is None
+
+    assert "Could not retrieve `frontendVersion`" in caplog.text
+    assert "\n\nSuggested actions:\n" in caplog.text
+    assert "Original error" not in caplog.text
+    assert "version_mismatch_action=VersionMismatchAction.WARN" not in caplog.text
+    assert not hasattr(session, "_cache")
+
+
+def test_validate_session_wraps_connection_failure(session, call_action, mocker):
+    session._protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    call_action.side_effect = CartaRequestFailed("session unavailable")
+
+    with pytest.raises(CartaBadSession) as e:
+        session._validate_session(timeout=2)
+
+    message = str(e.value)
+    assert "Could not validate CARTA session 0" in message
+    assert "http://localhost:3000" in message
+    assert "2" in message
+    assert "CartaRequestFailed" in message
+    assert "session unavailable" in message
+    assert "Possible causes:" not in message
+
+
+def test_call_action_adds_compatibility_suggestion_to_frontend_failure(
+    session, mocker
+):
+    original_error = CartaActionFailed("newAction is unavailable")
+    session._cache = {"carta_version": "7.0.0"}
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaActionFailed) as error:
+        session.call_action("newAction")
+
+    message = str(error.value)
+    assert error.value is original_error
+    assert "newAction is unavailable" in message
+    assert "\n\nCompatibility suggestions:\n" in message
+    assert "verify that the frontend action, attribute, or response path exists" in message
+    assert "upgrade carta-python to the latest available release" in message
+
+
+def test_call_action_preserves_frontend_failure_without_cached_version(
+    session, mocker
+):
+    original_error = CartaActionFailed("newAction is unavailable")
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaActionFailed) as error:
+        session.call_action("newAction")
+
+    assert error.value is original_error
+
+
+def test_call_action_does_not_add_compatibility_suggestion_to_request_failure(
+    session, mocker
+):
+    original_error = CartaRequestFailed("session is unavailable")
+    session._cache = {"carta_version": "7.0.0"}
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaRequestFailed) as error:
+        session.call_action("newAction")
+
+    assert error.value is original_error
+
+
+def test_interact_checks_connection_by_default(mocker):
+    protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    mocker.patch("carta.session.Protocol", return_value=protocol)
+    validate_session = mocker.patch.object(Session, "_validate_session")
+
+    session = Session.interact("http://localhost:3000?token=x", "123")
+
+    assert session.session_id == 123
+    assert session._protocol is protocol
+    validate_session.assert_called_once_with(
+        timeout=10,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
+
+
+def test_interact_passes_connection_check_timeout(mocker):
+    protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    mocker.patch("carta.session.Protocol", return_value=protocol)
+    validate_session = mocker.patch.object(Session, "_validate_session")
+
+    Session.interact(
+        "http://localhost:3000?token=x",
+        123,
+        connection_check_timeout=4,
+    )
+
+    validate_session.assert_called_once_with(
+        timeout=4,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
+
+
+def test_interact_always_validates(mocker):
+    protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    mocker.patch("carta.session.Protocol", return_value=protocol)
+    validate_session = mocker.patch.object(Session, "_validate_session")
+
+    Session.interact(
+        "http://localhost:3000?token=x",
+        123,
+    )
+
+    validate_session.assert_called_once_with(
+        timeout=10,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
+
+
+def test_interact_passes_mismatch_action(mocker):
+    protocol = mocker.Mock(frontend_url="http://localhost:3000")
+    mocker.patch("carta.session.Protocol", return_value=protocol)
+    validate_session = mocker.patch.object(Session, "_validate_session")
+
+    Session.interact(
+        "http://localhost:3000?token=x",
+        123,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
+
+    validate_session.assert_called_once_with(
+        timeout=10,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
+
+
+def test_start_and_interact_stops_backend_when_connection_check_fails(mocker):
+    backend = mocker.Mock(
+        frontend_url="http://localhost:3000",
+        last_session_id=123,
+        debug_no_auth=False,
+        errors=[],
+    )
+    backend.start.return_value = True
+    mocker.patch("carta.session.Backend", return_value=backend)
+    mocker.patch.object(
+        Session,
+        "interact",
+        side_effect=CartaBadSession("startup check failed"),
+    )
+
+    with pytest.raises(CartaBadSession):
+        Session.start_and_interact()
+
+    backend.stop.assert_called_once_with()
+
+
+def test_start_and_interact_preserves_error_when_backend_stop_fails(mocker):
+    backend = mocker.Mock(
+        frontend_url="http://localhost:3000",
+        last_session_id=123,
+        debug_no_auth=False,
+        errors=[],
+    )
+    backend.start.return_value = True
+    backend.stop.side_effect = RuntimeError("stop failed")
+    mocker.patch("carta.session.Backend", return_value=backend)
+    startup_error = CartaBadSession("startup check failed")
+    mocker.patch.object(Session, "interact", side_effect=startup_error)
+
+    with pytest.raises(CartaBadSession, match="startup check failed"):
+        Session.start_and_interact()
+
+    backend.stop.assert_called_once_with()
+
+
+def test_create_passes_connection_check_options_to_browser(mocker):
+    browser = mocker.Mock()
+    expected_session = mocker.Mock()
+    browser.new_session_from_url.return_value = expected_session
+
+    result = Session.create(
+        browser,
+        "http://localhost:3000?token=x",
+        token="token",
+        timeout=7,
+        debug_no_auth=True,
+        connection_check_timeout=4,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
+
+    assert result is expected_session
+    browser.new_session_from_url.assert_called_once_with(
+        "http://localhost:3000?token=x",
+        "token",
+        backend=None,
+        timeout=7,
+        debug_no_auth=True,
+        connection_check_timeout=4,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
+
+
+def test_start_and_create_passes_connection_check_options_to_browser(mocker):
+    browser = mocker.Mock()
+    expected_session = mocker.Mock()
+    browser.new_session_with_backend.return_value = expected_session
+
+    result = Session.start_and_create(
+        browser,
+        executable_path="carta-custom",
+        remote_host="remote",
+        params=("--verbosity", "5"),
+        timeout=7,
+        token="token",
+        frontend_url_timeout=8,
+        connection_check_timeout=4,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
+
+    assert result is expected_session
+    browser.new_session_with_backend.assert_called_once_with(
+        "carta-custom",
+        "remote",
+        ("--verbosity", "5"),
+        7,
+        "token",
+        8,
+        connection_check_timeout=4,
+        version_mismatch_action=VersionMismatchAction.ERROR,
+    )
 # PATHS
 
 

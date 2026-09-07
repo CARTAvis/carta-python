@@ -40,7 +40,7 @@ class CartaBadUrl(CartaScriptingException):
 
 
 class CartaValidationFailed(CartaScriptingException):
-    """Invalid parameters were passed to a function with a :obj:`carta.validation.validate` decorator."""
+    """A user-supplied parameter or requirement is invalid."""
     pass
 
 
@@ -59,8 +59,18 @@ class CartaActionFailed(CartaScriptingException):
     pass
 
 
+class CartaUnsupportedVersion(CartaScriptingException):
+    """The connected CARTA version is not supported."""
+    pass
+
+
 class CartaBadResponse(CartaScriptingException):
     """An action request received an unexpected response from the CARTA frontend."""
+    pass
+
+
+class CartaMissingResponse(CartaBadResponse):
+    """An action request expected a response but received none."""
     pass
 
 

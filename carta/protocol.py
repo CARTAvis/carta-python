@@ -8,7 +8,7 @@ import urllib.parse
 import json
 
 from .token import BackendToken, ControllerToken
-from .util import logger, CartaBadRequest, CartaRequestFailed, CartaActionFailed, CartaBadResponse, CartaBadToken, CartaBadUrl, CartaEncoder, split_action_path
+from .util import logger, CartaBadRequest, CartaRequestFailed, CartaActionFailed, CartaBadResponse, CartaMissingResponse, CartaBadToken, CartaBadUrl, CartaEncoder, split_action_path
 
 
 class AuthType:
@@ -293,7 +293,8 @@ class Protocol:
 
         request_data = json.dumps(request_kwargs, cls=CartaEncoder)
 
-        carta_action_description = f"CARTA scripting action {path}.{action} called with parameters {args}"
+        action_path = f"{path}.{action}" if path else action
+        carta_action_description = f"CARTA scripting action {action_path} called with parameters {args}"
 
         headers = {
             'Content-Type': 'application/json',
@@ -322,7 +323,12 @@ class Protocol:
 
         if response.status_code != 200:
             backend_message = known_errors.get(response.status_code, "Unknown error.")
-            raise CartaRequestFailed(f"{carta_action_description} failed with status {response.status_code}. {backend_message}")
+            error = CartaRequestFailed(
+                f"{carta_action_description} failed with status {response.status_code}. {backend_message}"
+            )
+            error.status_code = response.status_code
+            error.backend_message = backend_message
+            raise error
 
         try:
             response_data = response.json()
@@ -336,7 +342,7 @@ class Protocol:
 
         if 'response' not in response_data:
             if response_expected:
-                raise CartaBadResponse(f"{carta_action_description} expected a response, but did not receive one.")
+                raise CartaMissingResponse(f"{carta_action_description} expected a response, but did not receive one.")
             return None
 
         return response_data['response']
