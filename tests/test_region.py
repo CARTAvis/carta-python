@@ -142,11 +142,15 @@ def test_regionset_import_from(mocker, image, session_method, session_call_actio
 @pytest.mark.parametrize("coordinate_type", [CT.PIXEL, CT.WORLD])
 @pytest.mark.parametrize("file_type", [FT.CRTF, FT.DS9_REG])
 @pytest.mark.parametrize("region_ids,expected_region_ids", [(None, [2, 3, 4]), ([2, 3], [2, 3]), ([4], [4])])
-def test_regionset_export_to(mocker, image, session_method, session_call_action, regionset_get_value, coordinate_type, file_type, region_ids, expected_region_ids):
+def test_regionset_export_to_projects_region_ids(mocker, image, session_method, session_call_action, regionset_get_value, coordinate_type, file_type, region_ids, expected_region_ids):
     session_method("resolve_file_path", ["/path/to/directory/"])
-    regionset_get_value.side_effect = [[{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}]]
+    regionset_get_value.side_effect = [[1, 2, 3, 4]]
     image.regions.export_to("output_region_file", coordinate_type, file_type, region_ids)
     session_call_action.assert_called_with("exportRegions", "/path/to/directory/", "output_region_file", coordinate_type, file_type, expected_region_ids, image._frame)
+    if region_ids is None:
+        regionset_get_value.assert_called_once_with("regionList", return_path="id")
+    else:
+        regionset_get_value.assert_not_called()
 
 
 def test_regionset_add_region(mocker, image):

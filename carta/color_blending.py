@@ -409,7 +409,8 @@ class ColorBlending(View, BasePathMixin):
             If ``image`` is already present in this color blending.
         """
         image_id = image.image_id
-        if any(layer.image_id == image_id for layer in self.layers()):
+        layer_image_ids = self.get_value("frames", return_path="frameInfo.fileId")
+        if image_id in layer_image_ids:
             raise CartaValidationFailed(
                 f"Image with image_id={image_id} is already in the "
                 "color blending layers."
