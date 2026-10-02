@@ -6,9 +6,88 @@ import os
 import subprocess
 import pathlib
 import signal
+import shutil
+import shlex
+import sys
 
 from .token import BackendToken
 from .util import logger
+
+
+_MACOS_APP_EXECUTABLE = pathlib.Path("/Applications/CARTA.app/Contents/MacOS/CARTA")
+
+
+def _shell_config_files(home):
+    """Return alias configuration files in a fixed search order."""
+    configs = [home / ".zshrc"]
+    for filename in (".bash_profile", ".bash_login", ".profile"):
+        profile = home / filename
+        if profile.is_file() and os.access(profile, os.R_OK):
+            configs.append(profile)
+            break
+    configs.append(home / ".bashrc")
+    return tuple(configs)
+
+
+def _read_carta_alias(config_file, home):
+    """Read a literal carta alias without executing the shell configuration."""
+    try:
+        source = config_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+
+    alias = None
+    for line in source.splitlines():
+        lexer = shlex.shlex(line, posix=True, punctuation_chars=";")
+        lexer.whitespace_split = True
+        try:
+            words = list(lexer)
+        except ValueError:
+            continue
+        command = []
+        for word in (*words, ";"):
+            if word != ";":
+                command.append(word)
+                continue
+            if command[:1] == ["alias"]:
+                for definition in command[1:]:
+                    if definition.startswith("carta="):
+                        alias = definition.split("=", 1)[1]
+            elif command[:1] == ["unalias"] and ("carta" in command[1:] or "-a" in command[1:]):
+                alias = None
+            command = []
+
+    if alias and alias.startswith("~/"):
+        return home / alias[2:]
+    if alias and pathlib.Path(alias).is_absolute():
+        return pathlib.Path(alias)
+    return None
+
+
+def _is_executable_file(path):
+    """Check whether a path is an existing file with execute permission."""
+    return path is not None and path.is_file() and os.access(path, os.X_OK)
+
+
+def _resolve_local_executable(executable_path, cwd):
+    """Find a local macOS executable and resolve its symlinks."""
+    if executable_path == "carta":
+        for config in _shell_config_files(cwd):
+            alias = _read_carta_alias(config, cwd)
+            if _is_executable_file(alias):
+                return str(alias.resolve())
+        if _is_executable_file(_MACOS_APP_EXECUTABLE):
+            return str(_MACOS_APP_EXECUTABLE.resolve())
+
+    if os.path.dirname(executable_path):
+        executable = cwd / executable_path
+    else:
+        search_path = os.pathsep.join(str(cwd / directory) for directory in os.get_exec_path())
+        executable = shutil.which(executable_path, path=search_path)
+        if executable is None:
+            return executable_path
+
+    return str(pathlib.Path(executable).resolve())
 
 
 class Backend:
@@ -21,7 +100,12 @@ class Backend:
     params : iterable
         Parameters to pass to the CARTA backend process. Example: ``["--verbosity", 5, "--port", 3010]``
     executable_path : string
-        The path to the backend executable. Default: ``"carta"``.
+        The path to the backend executable. Default: ``"carta"``. For local
+        macOS launches, the default first checks a literal ``carta`` alias in
+        ~/.zshrc, the first readable bash login profile, then ~/.bashrc.
+        If no valid alias is found, it checks CARTA.app in /Applications,
+        then PATH. Executable symlinks are resolved before starting the
+        process so an Electron app can locate its bundled helpers.
     remote_host : string
         If this is set, an attempt will be made to start the backend over ``ssh`` on this host.
     token : :obj:`carta.token.BackendToken`
@@ -71,6 +155,7 @@ class Backend:
         self.last_session_id = None
         self.frontend_url_timeout = frontend_url_timeout
         self.session_creation_timeout = session_creation_timeout
+        self._remote_host = remote_host
 
         ssh_cmd = ("ssh", "-tt", remote_host) if remote_host is not None else tuple()
         self.cmd = tuple(str(p) for p in (*ssh_cmd, executable_path, *params))
@@ -92,7 +177,11 @@ class Backend:
         This method creates the subprocess object and parses the backend host and the frontend URL from the process output.
         """
         # TODO currently we log everything to stdout, but maybe we shouldn't
-        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, cwd=pathlib.Path.home(), preexec_fn=os.setpgrp)
+        cwd = pathlib.Path.home()
+        cmd = self.cmd
+        if sys.platform == "darwin" and self._remote_host is None:
+            cmd = (_resolve_local_executable(cmd[0], cwd), *cmd[1:])
+        self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=cwd, preexec_fn=os.setpgrp)
         os.set_blocking(self.proc.stdout.fileno(), False)
 
         start = time.time()

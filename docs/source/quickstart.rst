@@ -100,6 +100,94 @@ Creating a new interactive session
             # New session, start remote backend
             session = Session.start_and_interact(remote_host="REMOTE HOSTNAME OR IP")
 
+        On macOS, ``Session.start_and_interact()`` checks these locations in
+        order:
+
+        #. The executable specified by a ``carta`` alias in your shell's
+           configuration files, as described below.
+        #. ``/Applications/CARTA.app/Contents/MacOS/CARTA``.
+        #. A ``carta`` executable on ``PATH``.
+
+        Only existing files with execute permission are selected. ``PATH`` is
+        searched last, so an older ``carta`` left on ``PATH`` by a previous
+        Homebrew installation does not take precedence over the desktop app.
+
+        Alias configuration files are searched in this fixed order:
+
+        #. ``~/.zshrc``.
+        #. The first readable login file among ``~/.bash_profile``,
+           ``~/.bash_login``, and ``~/.profile``.
+        #. ``~/.bashrc``.
+
+        The first valid alias wins. This search is independent of ``SHELL``
+        and CPU architecture.
+
+        The alias can point to a custom app name, for example:
+
+        .. code-block:: shell
+
+            alias carta='/Applications/CARTA2.app/Contents/MacOS/CARTA'
+
+        The Intel and Apple Silicon desktop apps use the same bundle path.
+        No shell alias is required for ``/Applications/CARTA.app``. For an app
+        with a different name, such as a specific version kept alongside
+        another installation, add an alias or specify the executable inside
+        the app bundle explicitly:
+
+        .. code-block:: python
+
+            session = Session.start_and_interact(
+                executable_path="/Applications/CARTA-6.1.app/Contents/MacOS/CARTA"
+            )
+
+        The wrapper reads direct alias declarations containing a literal
+        absolute executable path, or a path starting with ``~/``. It does not
+        execute shell profiles or evaluate variables, shell commands,
+        conditional definitions, or aliases loaded from other files. For those
+        configurations, pass ``executable_path``
+        explicitly. For local macOS launches, the wrapper resolves executable
+        symlinks before starting CARTA. An explicit custom executable is used
+        as supplied, without falling back to another CARTA installation if it
+        cannot be found.
+
+        If you store the path in an environment variable such as
+        ``CARTA_EXECUTABLE``, pass it explicitly:
+
+        .. code-block:: python
+
+            import os
+
+            session = Session.start_and_interact(
+                executable_path=os.environ["CARTA_EXECUTABLE"]
+            )
+
+        ``start_and_interact`` returns a connected session; it does not start a
+        Python interactive prompt or wait for you to close the CARTA window.
+        To run setup code and then continue issuing Python commands, save the
+        following as ``setup_carta.py`` and run ``python -i setup_carta.py``:
+
+        .. code-block:: python
+
+            from carta.session import Session
+
+            session = Session.start_and_interact()
+            # Add setup actions here, such as session.open_image(...).
+
+        Keep ``session`` at module scope so it remains available at the prompt.
+        Call ``session.close()`` when you have finished. The session owns the
+        backend it started and stops it when cleaned up, including when a
+        normal script finishes. To keep a normal script running until you
+        explicitly finish, use a blocking step and close the session afterward:
+
+        .. code-block:: python
+
+            session = Session.start_and_interact()
+            try:
+                # Add setup actions here.
+                input("Press Enter to stop CARTA: ")
+            finally:
+                session.close()
+
     .. tab:: Controller access
 
         It isn't possible to create a new CARTA session automatically in your default browser using a controller instance. However, you can adapt the instructions below for `creating a new non-interactive session`_ in a browser controlled by the wrapper, and use a custom browser which isn't headless. For example, you can disable the headless option in the built-in Chrome browser configuration with a parameter:

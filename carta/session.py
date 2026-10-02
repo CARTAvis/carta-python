@@ -122,7 +122,7 @@ class Session:
         Parameters
         ----------
         executable_path : string, optional
-            A custom path to the CARTA backend executable. The default is ``"carta"``.
+            A custom path to the CARTA backend executable. The default is ``"carta"``. On macOS, the default also finds a ``carta`` shell alias or the CARTA desktop app; see :obj:`carta.backend.Backend`.
         remote_host : string, optional
             A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
         params : iterable, optional
@@ -206,7 +206,7 @@ class Session:
         browser : :obj:`carta.browser.Browser`
             The browser to use to open the frontend.
         executable_path : string, optional
-            A custom path to the CARTA backend executable. The default is ``"carta"``.
+            A custom path to the CARTA backend executable. The default is ``"carta"``. On macOS, the default also finds a ``carta`` shell alias or the CARTA desktop app; see :obj:`carta.backend.Backend`.
         remote_host : string, optional
             A remote host where the backend process should be launched, which must be accessible through passwordless ssh. By default the backend process is launched on the local host.
         params : iterable, optional
