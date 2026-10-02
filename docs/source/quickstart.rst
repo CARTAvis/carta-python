@@ -100,39 +100,15 @@ Creating a new interactive session
             # New session, start remote backend
             session = Session.start_and_interact(remote_host="REMOTE HOSTNAME OR IP")
 
-        On macOS, ``Session.start_and_interact()`` checks these locations in
-        order:
+        For local macOS launches with the default ``executable_path="carta"``,
+        the wrapper checks these locations in order:
 
-        #. The executable specified by a ``carta`` alias in your shell's
-           configuration files, as described below.
+        #. A valid ``carta`` alias in your shell configuration files.
         #. ``/Applications/CARTA.app/Contents/MacOS/CARTA``.
         #. A ``carta`` executable on ``PATH``.
 
-        Only existing files with execute permission are selected. ``PATH`` is
-        searched last, so an older ``carta`` left on ``PATH`` by a previous
-        Homebrew installation does not take precedence over the desktop app.
-
-        Alias configuration files are searched in this fixed order:
-
-        #. ``~/.zshrc``.
-        #. The first readable login file among ``~/.bash_profile``,
-           ``~/.bash_login``, and ``~/.profile``.
-        #. ``~/.bashrc``.
-
-        The first valid alias wins. This search is independent of ``SHELL``
-        and CPU architecture.
-
-        The alias can point to a custom app name, for example:
-
-        .. code-block:: shell
-
-            alias carta='/Applications/CARTA2.app/Contents/MacOS/CARTA'
-
-        The Intel and Apple Silicon desktop apps use the same bundle path.
-        No shell alias is required for ``/Applications/CARTA.app``. For an app
-        with a different name, such as a specific version kept alongside
-        another installation, add an alias or specify the executable inside
-        the app bundle explicitly:
+        No alias is needed for the standard desktop app installation. For a
+        custom app name or location, specify its executable explicitly:
 
         .. code-block:: python
 
@@ -140,53 +116,29 @@ Creating a new interactive session
                 executable_path="/Applications/CARTA-6.1.app/Contents/MacOS/CARTA"
             )
 
-        The wrapper reads direct alias declarations containing a literal
-        absolute executable path, or a path starting with ``~/``. It does not
-        execute shell profiles or evaluate variables, shell commands,
-        conditional definitions, or aliases loaded from other files. For those
-        configurations, pass ``executable_path``
-        explicitly. For local macOS launches, the wrapper resolves executable
-        symlinks before starting CARTA. An explicit custom executable is used
-        as supplied, without falling back to another CARTA installation if it
-        cannot be found.
+        Aliases support literal absolute paths or paths starting with ``~/``,
+        optionally followed by literal arguments. The wrapper does not execute
+        shell configuration files or expand shell variables. For more complex
+        configurations, pass ``executable_path`` and ``params`` explicitly.
+        See :obj:`carta.backend.Backend` for the alias search order and
+        executable resolution details.
 
-        If you store the path in an environment variable such as
-        ``CARTA_EXECUTABLE``, pass it explicitly:
-
-        .. code-block:: python
-
-            import os
-
-            session = Session.start_and_interact(
-                executable_path=os.environ["CARTA_EXECUTABLE"]
-            )
-
-        ``start_and_interact`` returns a connected session; it does not start a
-        Python interactive prompt or wait for you to close the CARTA window.
-        To run setup code and then continue issuing Python commands, save the
-        following as ``setup_carta.py`` and run ``python -i setup_carta.py``:
+        ``start_and_interact`` returns once connected, without waiting for
+        the CARTA window to close.
+        To start CARTA and then continue at a Python prompt, save the
+        following as ``start_carta.py``:
 
         .. code-block:: python
 
             from carta.session import Session
 
             session = Session.start_and_interact()
-            # Add setup actions here, such as session.open_image(...).
+            # Open an image here with session.open_image(...), if needed.
 
-        Keep ``session`` at module scope so it remains available at the prompt.
-        Call ``session.close()`` when you have finished. The session owns the
-        backend it started and stops it when cleaned up, including when a
-        normal script finishes. To keep a normal script running until you
-        explicitly finish, use a blocking step and close the session afterward:
-
-        .. code-block:: python
-
-            session = Session.start_and_interact()
-            try:
-                # Add setup actions here.
-                input("Press Enter to stop CARTA: ")
-            finally:
-                session.close()
+        Run it with ``python -i start_carta.py``. Keep ``session`` at module
+        scope so it remains available at the prompt, and call
+        ``session.close()`` when finished. The session stops the backend it
+        started when cleaned up, including when a normal script finishes.
 
     .. tab:: Controller access
 

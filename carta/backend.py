@@ -15,6 +15,7 @@ from .util import logger
 
 
 _MACOS_APP_EXECUTABLE = pathlib.Path("/Applications/CARTA.app/Contents/MacOS/CARTA")
+_ALIAS_SHELL_SYNTAX = "$`;|&<>()*?"
 
 
 def _shell_config_files(home):
@@ -29,14 +30,21 @@ def _shell_config_files(home):
     return tuple(configs)
 
 
-def _read_carta_alias(config_file, home):
-    """Read a literal carta alias without executing the shell configuration."""
-    try:
-        source = config_file.read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        return None
+def _alias_path(word, home):
+    """Return an absolute path from an alias word, expanding a leading ``~/``."""
+    if word.startswith("~/"):
+        return home / word[2:]
+    path = pathlib.Path(word)
+    return path if path.is_absolute() else None
 
-    alias = None
+
+def _is_executable_file(path):
+    """Check whether a path is an existing file with execute permission."""
+    return path is not None and path.is_file() and os.access(path, os.X_OK)
+
+
+def _shell_commands(source):
+    """Yield nonempty semicolon-separated commands, skipping malformed lines."""
     for line in source.splitlines():
         lexer = shlex.shlex(line, posix=True, punctuation_chars=";")
         lexer.whitespace_split = True
@@ -49,35 +57,65 @@ def _read_carta_alias(config_file, home):
             if word != ";":
                 command.append(word)
                 continue
-            if command[:1] == ["alias"]:
-                for definition in command[1:]:
-                    if definition.startswith("carta="):
-                        alias = definition.split("=", 1)[1]
-            elif command[:1] == ["unalias"] and ("carta" in command[1:] or "-a" in command[1:]):
-                alias = None
+            if command:
+                yield command
             command = []
 
-    if alias and alias.startswith("~/"):
-        return home / alias[2:]
-    if alias and pathlib.Path(alias).is_absolute():
-        return pathlib.Path(alias)
-    return None
 
+def _read_carta_alias(config_file, home):
+    """Read a literal carta alias without executing the shell configuration.
 
-def _is_executable_file(path):
-    """Check whether a path is an existing file with execute permission."""
-    return path is not None and path.is_file() and os.access(path, os.X_OK)
+    Return the alias executable and its arguments, or ``None`` if the
+    configuration file has no usable alias.
+    """
+    try:
+        source = config_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+
+    alias = None
+    for name, *arguments in _shell_commands(source):
+        if name == "alias":
+            for definition in arguments:
+                if definition.startswith("carta="):
+                    alias = definition.removeprefix("carta=")
+        elif name == "unalias" and ("carta" in arguments or "-a" in arguments):
+            alias = None
+
+    if not alias:
+        return None
+
+    # Check the whole alias first to support executable paths containing spaces.
+    executable = _alias_path(alias, home)
+    if _is_executable_file(executable):
+        return executable, ()
+
+    if any(character in alias for character in _ALIAS_SHELL_SYNTAX):
+        return None
+    try:
+        words = shlex.split(alias)
+    except ValueError:
+        return None
+    if not words:
+        return None
+
+    executable = _alias_path(words[0], home)
+    if not _is_executable_file(executable):
+        return None
+    args = tuple(str(home) + word[1:] if word.startswith("~/") else word for word in words[1:])
+    return executable, args
 
 
 def _resolve_local_executable(executable_path, cwd):
-    """Find a local macOS executable and resolve its symlinks."""
+    """Return the local macOS launch command prefix with executable symlinks resolved."""
     if executable_path == "carta":
         for config in _shell_config_files(cwd):
             alias = _read_carta_alias(config, cwd)
-            if _is_executable_file(alias):
-                return str(alias.resolve())
+            if alias is not None:
+                executable, args = alias
+                return (str(executable.resolve()), *args)
         if _is_executable_file(_MACOS_APP_EXECUTABLE):
-            return str(_MACOS_APP_EXECUTABLE.resolve())
+            return (str(_MACOS_APP_EXECUTABLE.resolve()),)
 
     if os.path.dirname(executable_path):
         executable = cwd / executable_path
@@ -85,9 +123,9 @@ def _resolve_local_executable(executable_path, cwd):
         search_path = os.pathsep.join(str(cwd / directory) for directory in os.get_exec_path())
         executable = shutil.which(executable_path, path=search_path)
         if executable is None:
-            return executable_path
+            return (executable_path,)
 
-    return str(pathlib.Path(executable).resolve())
+    return (str(pathlib.Path(executable).resolve()),)
 
 
 class Backend:
@@ -103,6 +141,7 @@ class Backend:
         The path to the backend executable. Default: ``"carta"``. For local
         macOS launches, the default first checks a literal ``carta`` alias in
         ~/.zshrc, the first readable bash login profile, then ~/.bashrc.
+        Literal arguments in the alias are passed before ``params``.
         If no valid alias is found, it checks CARTA.app in /Applications,
         then PATH. Executable symlinks are resolved before starting the
         process so an Electron app can locate its bundled helpers.
@@ -180,7 +219,7 @@ class Backend:
         cwd = pathlib.Path.home()
         cmd = self.cmd
         if sys.platform == "darwin" and self._remote_host is None:
-            cmd = (_resolve_local_executable(cmd[0], cwd), *cmd[1:])
+            cmd = (*_resolve_local_executable(cmd[0], cwd), *cmd[1:])
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=cwd, preexec_fn=os.setpgrp)
         os.set_blocking(self.proc.stdout.fileno(), False)
 
