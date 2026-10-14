@@ -221,6 +221,7 @@ class Backend:
         cmd = self.cmd
         if sys.platform == "darwin" and self._remote_host is None:
             cmd = (*_resolve_local_executable(cmd[0], cwd), *cmd[1:])
+        self.debug_no_auth = "--debug_no_auth" in cmd[self._executable_index + 1:]
         executable = cmd[self._executable_index]
         if self._remote_host is None:
             logger.debug(f"Starting CARTA backend with executable: {executable}")

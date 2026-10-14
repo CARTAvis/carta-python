@@ -5,6 +5,7 @@ import pytest
 
 from carta.backend import Backend
 from carta import backend as backend_module
+from carta.protocol import AuthType, Protocol
 
 
 @pytest.fixture
@@ -209,6 +210,36 @@ def test_start_resolves_alias_executable_with_arguments(launch_home, popen):
     Backend(()).start()
 
     assert popen.call_args.args[0] == (str(executable), "--debug")
+
+
+@pytest.mark.parametrize("flag_source", ["alias", "params", "neither"])
+def test_start_uses_resolved_authentication_mode(flag_source, launch_home, popen, mocker):
+    executable = make_executable(launch_home / "CARTA.app/Contents/MacOS/CARTA")
+    alias_args = ("--debug_no_auth",) if flag_source == "alias" else ()
+    params = ("--debug_no_auth",) if flag_source == "params" else ()
+    (launch_home / ".zshrc").write_text(
+        f"alias carta='{executable} {' '.join(alias_args)}'\n"
+    )
+    no_auth = flag_source != "neither"
+    frontend_url = "http://localhost:3000" + ("" if no_auth else "?token=test-token")
+    process = popen.return_value
+    process.poll.return_value = None
+    process.stdout.readline.side_effect = [
+        f"CARTA is accessible at {frontend_url}\n".encode(), b"",
+    ]
+    mocker.patch("carta.backend.time.sleep")
+    backend = Backend(("--enable_scripting", *params))
+
+    assert backend.start() is True
+
+    assert popen.call_args.args[0] == (str(executable), *alias_args, "--enable_scripting", *params)
+    assert backend.debug_no_auth is no_auth
+    protocol = Protocol(backend.frontend_url, backend.token, debug_no_auth=backend.debug_no_auth)
+    assert protocol.auth == (AuthType.NONE if no_auth else AuthType.BACKEND)
+    if no_auth:
+        assert backend.token is None
+    else:
+        assert protocol.backend_token.string == "test-token"
 
 
 @pytest.mark.parametrize("executable", ["missing", "relative"])
