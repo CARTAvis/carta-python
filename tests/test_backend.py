@@ -420,3 +420,19 @@ def test_start_preserves_other_launch_commands(platform, remote_host, expected, 
 
     resolve.assert_not_called()
     popen.assert_called_once_with(expected, stdout=subprocess.PIPE, cwd=launch_home, preexec_fn=os.setpgrp)
+
+
+def test_start_logs_resolved_executable(launch_home, popen, caplog):
+    executable = make_executable(launch_home / "bin/carta")
+
+    with caplog.at_level("DEBUG", logger="carta_scripting"):
+        Backend((), executable_path=str(executable)).start()
+
+    assert f"Starting CARTA backend with executable: {executable}" in caplog.text
+
+
+def test_start_logs_remote_executable(launch_home, popen, caplog):
+    with caplog.at_level("DEBUG", logger="carta_scripting"):
+        Backend((), executable_path="/remote/carta", remote_host="server").start()
+
+    assert "Starting CARTA backend on server with executable: /remote/carta" in caplog.text

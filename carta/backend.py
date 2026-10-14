@@ -197,6 +197,7 @@ class Backend:
         self._remote_host = remote_host
 
         ssh_cmd = ("ssh", "-tt", remote_host) if remote_host is not None else tuple()
+        self._executable_index = len(ssh_cmd)
         self.cmd = tuple(str(p) for p in (*ssh_cmd, executable_path, *params))
 
     def _update_output(self):
@@ -220,6 +221,11 @@ class Backend:
         cmd = self.cmd
         if sys.platform == "darwin" and self._remote_host is None:
             cmd = (*_resolve_local_executable(cmd[0], cwd), *cmd[1:])
+        executable = cmd[self._executable_index]
+        if self._remote_host is None:
+            logger.debug(f"Starting CARTA backend with executable: {executable}")
+        else:
+            logger.debug(f"Starting CARTA backend on {self._remote_host} with executable: {executable}")
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=cwd, preexec_fn=os.setpgrp)
         os.set_blocking(self.proc.stdout.fileno(), False)
 
