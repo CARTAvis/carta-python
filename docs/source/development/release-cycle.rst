@@ -19,8 +19,13 @@ The final entry determines the requirements for the version under development:
 
 Keep all ranges ordered from oldest to newest and contiguous: each range must
 start at the CARTA series right after the previous range's ``carta_max``
-(``6.2`` after ``6.1``, or ``7.0`` after ``6.x``), so no supported series is
-left without a recommendation. The final range must use ``carta_max=None`` and
+(``6.2`` after ``6.1``, or ``7.0`` after ``6.x``). The check cannot know
+which minor version was the last of a major series, so a table that jumps from
+``6.1`` to ``7.0`` passes even if CARTA 6.2 exists. When a range ends before a
+major boundary, confirm by hand that its ``carta_max`` is the last minor
+version of that major series. Because every series must be covered, a CARTA
+series with no compatible wrapper release yet stays in the previous range;
+note the limitation in the release notes. The final range must use ``carta_max=None`` and
 every earlier range must set ``carta_max``. Explicit ranges may span CARTA
 major versions.
 

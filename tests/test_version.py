@@ -165,6 +165,15 @@ def test_compatibility_table_validation_accepts_contiguous_table(table):
     _validate_compatibility_table(table)
 
 
+def test_compatibility_table_validation_cannot_detect_gap_at_major_boundary():
+    # Known limitation: the validator cannot tell whether 6.1 was the last 6.x
+    # series, so a jump to 7.0 is accepted even if CARTA 6.2 exists.
+    _validate_compatibility_table((
+        CompatibilityRange(carta_min="6.0", carta_max="6.1", wrapper="1.0"),
+        CompatibilityRange(carta_min="7.0", carta_max=None, wrapper="2.0"),
+    ))
+
+
 def test_open_ended_range_must_be_the_final_entry():
     table = (
         CompatibilityRange(carta_min="6.1", carta_max=None, wrapper="2.0"),
