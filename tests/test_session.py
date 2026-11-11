@@ -7,7 +7,7 @@ from carta.image import Image
 from carta.color_blending import ColorBlending
 from carta.session import Session
 from carta.util import CartaActionFailed, CartaBadResponse, CartaValidationFailed, Macro, Point as Pt
-from carta.constants import ColormapSet, ComplexComponent as CC, ImageType, Polarization as Pol
+from carta.constants import ColormapSet, ComplexComponent as CC, GridMode, ImageType, Polarization as Pol
 
 # FIXTURES
 
@@ -922,3 +922,20 @@ def test_open_hypercube_bad(mocker, session, call_action, method, paths, expecte
     with pytest.raises(Exception) as e:
         session.open_hypercube(paths, append)
     assert expected_error in str(e.value)
+
+
+def test_set_viewer_grid(session, call_action):
+    session.set_viewer_grid(2, 3, GridMode.DYNAMIC)
+    call_action.assert_has_calls([
+        call("widgetsStore.setImageMultiPanelEnabled", True),
+        call("preferenceStore.setPreference", "imagePanelRows", 2),
+        call("preferenceStore.setPreference", "imagePanelColumns", 3),
+        call("preferenceStore.setPreference", "imagePanelMode", GridMode.DYNAMIC),
+    ])
+
+
+def test_set_viewer_grid_rejects_contract_only_mode(session, call_action):
+    with pytest.raises(CartaValidationFailed) as e:
+        session.set_viewer_grid(2, 3, GridMode.NONE)
+    assert "NONE" in str(e.value)
+    call_action.assert_not_called()

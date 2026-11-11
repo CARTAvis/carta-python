@@ -120,7 +120,7 @@ class RegionSet(BasePathMixin):
 
         self.session.call_action("exportRegions", directory, file_name, coordinate_type, file_type, region_ids, self.image._frame)
 
-    @validate(Constant(RegionType), IterableOf(Point.NumericPoint()), Number(), String())
+    @validate(Constant(RegionType, exclude=(RegionType.ANNULUS,)), IterableOf(Point.NumericPoint()), Number(), String())
     def add_region(self, region_type, points, rotation=0, name=""):
         """Add a new region or annotation to this image.
 
@@ -611,7 +611,7 @@ class Region(BasePathMixin):
         return cls.region_class(region_type)(region_set, region_id)
 
     @classmethod
-    @validate(InstanceOf(RegionSet), Constant(RegionType), IterableOf(Point.NumericPoint()), Number(), String())
+    @validate(InstanceOf(RegionSet), Constant(RegionType, exclude=(RegionType.ANNULUS,)), IterableOf(Point.NumericPoint()), Number(), String())
     def new(cls, region_set, region_type, points, rotation=0, name=""):
         """Create a new region.
 
@@ -635,6 +635,7 @@ class Region(BasePathMixin):
         :obj:`carta.region.Region` object
             The region object.
         """
+        region_type = RegionType(region_type)
         points = [Pt(*point) for point in points]
         region_id = region_set.call_action("addRegionAsync", region_type, points, rotation, name, return_path="regionId")
         return cls.existing(region_type, region_set, region_id)
@@ -1988,7 +1989,7 @@ class CompassAnnotation(HasFontMixin, HasPointerMixin, HasSizeMixin, Region):
         boolean
             Whether the east arrowhead is visible.
         """
-        return self.get_value("northArrowhead"), self.get_value("eastArrowhead")
+        return self.get_value("hasNorthArrowhead"), self.get_value("hasEastArrowhead")
 
     # SET PROPERTIES
 
@@ -2109,7 +2110,7 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, HasRotationMixin, HasSize
         boolean
             Whether the auxiliary lines are visible.
         """
-        return self.get_value("auxiliaryLineVisible")
+        return self.get_value("isAuxiliaryLineVisible")
 
     @property
     def auxiliary_lines_dash_length(self):

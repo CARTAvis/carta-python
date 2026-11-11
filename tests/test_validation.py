@@ -1,6 +1,6 @@
 import pytest
 
-from carta.validation import Size, Coordinate, Point
+from carta.validation import Size, Coordinate, Point, validate, Number, Boolean
 
 
 @pytest.mark.parametrize('val', [123, "123arcmin", "123arcsec", "123deg", "123degree", "123degrees", "123 arcmin", "123 arcsec", "123 deg", "123 degree", "123 degrees", "123", "123\"", "123'"])
@@ -61,3 +61,41 @@ def test_point_invalid(clazz, val, error_contains):
     with pytest.raises(ValueError) as e:
         clazz().validate(val, None)
     assert error_contains in str(e.value)
+
+
+class KeywordOnlyExample:
+    @validate(Number(), Boolean())
+    def method(self, width, *, enabled=False):
+        return width, enabled
+
+
+class AllKeywordOnlyExample:
+    @validate(Number())
+    def method(self, *, width=None):
+        return width
+
+
+class PositionalExample:
+    @validate(Number(), Number())
+    def method(self, a, b=None):
+        return a, b
+
+
+def test_validate_rejects_surplus_positional_arguments_before_validation():
+    with pytest.raises(TypeError, match="takes at most 1 positional argument but 2 were given; pass the remaining parameters by keyword"):
+        KeywordOnlyExample().method(1, True)
+
+
+def test_validate_rejects_positional_arguments_when_all_are_keyword_only():
+    with pytest.raises(TypeError, match="takes no positional arguments but 1 were given; pass"):
+        AllKeywordOnlyExample().method(1)
+
+
+def test_validate_omits_keyword_hint_without_keyword_only_parameters():
+    with pytest.raises(TypeError) as e:
+        PositionalExample().method(1, 2, 3)
+    assert str(e.value) == "method() takes at most 2 positional arguments but 3 were given"
+
+
+def test_validate_accepts_keyword_only_arguments():
+    assert KeywordOnlyExample().method(1, enabled=True) == (1, True)

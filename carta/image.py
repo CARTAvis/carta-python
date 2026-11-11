@@ -17,6 +17,12 @@ from .wcs_overlay import ImageWCSOverlay
 from .region import RegionSet
 
 
+# These members exist to match the frontend contract, but setting them through
+# the wrapper is not supported yet.
+UNSUPPORTED_SPECTRAL_TYPES = (SpectralType.CHANNEL, SpectralType.NATIVE)
+UNSUPPORTED_SPECTRAL_UNITS = (SpectralUnit.M_SQUARE, SpectralUnit.MM_SQUARE, SpectralUnit.UM_SQUARE, SpectralUnit.NM_SQUARE, SpectralUnit.ANGSTROM_SQUARE)
+
+
 class Image(View, BasePathMixin):
     """This object corresponds to an image open in a CARTA frontend session.
 
@@ -352,7 +358,7 @@ class Image(View, BasePathMixin):
         boolean
             Whether the image has WCS information.
         """
-        return self.get_value("validWcs")
+        return self.get_value("isValidWcs")
 
     @validate(Coordinate(), Coordinate())
     def set_center(self, x, y):
@@ -469,7 +475,7 @@ class Image(View, BasePathMixin):
         set of :obj:`carta.constants.SpectralType`
             The supported spectral coordinate types.
         """
-        types = {v['type'] for v in self.get_value("spectralCoordsSupported").values()} - {"CHANNEL"}
+        types = {v['type'] for v in self.get_value("spectralCoordsSupported").values()} - {"CHANNEL", "NATIVE", None}
         return {SpectralType(t) for t in types}
 
     @validate(Constant(SpectralSystem))
@@ -495,7 +501,7 @@ class Image(View, BasePathMixin):
             raise ValueError(f"Cannot set spectral system. Unsupported system: {spectral_system}.")
         self.call_action("setSpectralSystem", spectral_system)
 
-    @validate(Constant(SpectralType), NoneOr(Constant(SpectralUnit)))
+    @validate(Constant(SpectralType, exclude=UNSUPPORTED_SPECTRAL_TYPES), NoneOr(Constant(SpectralUnit, exclude=UNSUPPORTED_SPECTRAL_UNITS)))
     def set_spectral_coordinate(self, spectral_type, spectral_unit=None):
         """Set the coordinate type and unit used for the spectral axis in the image viewer.
 

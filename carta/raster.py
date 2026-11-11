@@ -4,6 +4,9 @@ from .util import BasePathMixin
 from .constants import Colormap, Scaling, Auto, PaletteColor
 from .validation import validate, Number, Constant, Boolean, all_optional, Union
 
+# The frontend does not implement these scaling types; setScaling ignores them.
+UNSUPPORTED_SCALINGS = (Scaling.EXP, Scaling.CUSTOM)
+
 
 class Raster(BasePathMixin):
     """Utility object for collecting image functions related to the raster component.
@@ -40,7 +43,7 @@ class Raster(BasePathMixin):
         self.call_action("setColorMap", colormap)
         self.call_action("setInverted", invert)
 
-    @validate(*all_optional(Constant(Scaling), Number(0.1, 1000000), Number(0.1, 2)))
+    @validate(*all_optional(Constant(Scaling, exclude=UNSUPPORTED_SCALINGS), Number(0.1, 1000000), Number(0.1, 2)))
     def set_scaling(self, scaling=None, alpha=None, gamma=None):
         """Set the raster colormap scaling options.
 

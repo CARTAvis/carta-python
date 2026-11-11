@@ -19,7 +19,7 @@ class ComplexComponent(StrEnum):
     IMAG = "IMAG"
 
 
-Colormap = StrEnum('Colormap', {c.upper(): c for c in ('copper', 'paired', 'gist_heat', 'brg', 'cool', 'summer', 'OrRd', 'tab20c', 'purples', 'gray', 'terrain', 'RdPu', 'set2', 'spring', 'gist_yarg', 'RdYlBu', 'reds', 'winter', 'Wistia', 'rainbow', 'dark2', 'oranges', 'BuPu', 'gist_earth', 'PuBu', 'pink', 'PuOr', 'pastel2', 'PiYG', 'gist_ncar', 'PuRd', 'plasma', 'gist_stern', 'hot', 'PuBuGn', 'YlOrRd', 'accent', 'magma', 'set1', 'GnBu', 'greens', 'CMRmap', 'gist_rainbow', 'prism', 'hsv', 'Blues', 'viridis', 'YlGn', 'spectral', 'RdBu', 'tab20', 'greys', 'flag', 'jet', 'seismic', 'PRGn', 'coolwarm', 'YlOrBr', 'RdYlGn', 'bone', 'autumn', 'BrBG', 'gnuplot2', 'RdGy', 'binary', 'gnuplot', 'BuGn', 'gist_gray', 'nipy_spectral', 'set3', 'tab20b', 'pastel1', 'afmhot', 'cubehelix', 'YlGnBu', 'ocean', 'tab10', 'bwr', 'inferno')})
+Colormap = StrEnum('Colormap', {c.upper(): c for c in ('copper', 'paired', 'gist_heat', 'brg', 'cool', 'summer', 'OrRd', 'tab20c', 'purples', 'gray', 'terrain', 'RdPu', 'set2', 'spring', 'gist_yarg', 'RdYlBu', 'reds', 'winter', 'Wistia', 'rainbow', 'dark2', 'oranges', 'BuPu', 'gist_earth', 'PuBu', 'pink', 'PuOr', 'pastel2', 'PiYG', 'gist_ncar', 'PuRd', 'plasma', 'gist_stern', 'hot', 'PuBuGn', 'YlOrRd', 'accent', 'magma', 'set1', 'GnBu', 'greens', 'CMRmap', 'gist_rainbow', 'prism', 'hsv', 'Blues', 'viridis', 'YlGn', 'spectral', 'RdBu', 'tab20', 'greys', 'flag', 'jet', 'seismic', 'PRGn', 'coolwarm', 'YlOrBr', 'RdYlGn', 'bone', 'autumn', 'BrBG', 'gnuplot2', 'RdGy', 'binary', 'gnuplot', 'BuGn', 'gist_gray', 'nipy_spectral', 'set3', 'tab20b', 'pastel1', 'afmhot', 'cubehelix', 'YlGnBu', 'ocean', 'tab10', 'bwr', 'inferno', 'Blue', 'Cyan', 'Green', 'Magenta', 'Orange', 'Red', 'Violet', 'Yellow')})
 Colormap.__doc__ = """All available colormaps."""
 
 
@@ -37,11 +37,11 @@ class ImageType(IntEnum):
     PV_PREVIEW = 2
 
 
-Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'), start=0)
+Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA', 'EXP', 'CUSTOM', 'SINH', 'ASINH'), start=0)
 Scaling.__doc__ = """Colormap scaling types."""
 
 
-CoordinateSystem = StrEnum('CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")})
+CoordinateSystem = StrEnum('CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")} | {"IMAGE": "CARTESIAN"})
 CoordinateSystem.__doc__ = """Coordinate systems."""
 
 
@@ -156,7 +156,7 @@ class SmoothingMode(IntEnum):
     GAUSSIAN_BLUR = 2
 
 
-VectorOverlaySource = Enum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), type=int, start=-1)
+VectorOverlaySource = IntEnum('VectorOverlaySource', ('NONE', 'CURRENT', 'COMPUTED'), start=-1)
 VectorOverlaySource.__doc__ = """Vector overlay source."""
 
 
@@ -169,7 +169,7 @@ class ContourDashMode(StrEnum):
     """Contour dash modes."""
     NONE = "None"
     DASHED = "Dashed"
-    NEGATIVE_ONLY = "NegativeOnly"
+    NEGATIVE_ONLY = "Negative only"
 
 
 PROTO_POLARIZATION = {
@@ -228,6 +228,7 @@ class GridMode(StrEnum):
     """Grid modes."""
     DYNAMIC = "dynamic"
     FIXED = "fixed"
+    NONE = "none"
 
 
 class FileType(IntEnum):
@@ -253,7 +254,7 @@ class RegionType(IntEnum):
     POLYLINE = 2
     RECTANGLE = 3
     ELLIPSE = 4
-    # ANNULUS = 5 is not actually implemented
+    ANNULUS = 5
     POLYGON = 6
     ANNPOINT = 7
     ANNLINE = 8
@@ -358,9 +359,16 @@ class SpectralUnit(StrEnum):
     UM = "um"
     NM = "nm"
     ANGSTROM = "Angstrom"
+    M_SQUARE = "m^2"
+    MM_SQUARE = "mm^2"
+    UM_SQUARE = "um^2"
+    NM_SQUARE = "nm^2"
+    ANGSTROM_SQUARE = "Angstrom^2"
 
 
 SPECTRAL_TYPE_DESCRIPTION = {
+    "CHANNEL": "Channel",
+    "NATIVE": "Native",
     "VRAD": "Radio velocity",
     "VOPT": "Optical velocity",
     "FREQ": "Frequency",
@@ -370,6 +378,8 @@ SPECTRAL_TYPE_DESCRIPTION = {
 
 
 SPECTRAL_TYPE_UNITS = {
+    "CHANNEL": tuple(),
+    "NATIVE": tuple(),
     "VRAD": (SpectralUnit.KMS, SpectralUnit.MS),
     "VOPT": (SpectralUnit.KMS, SpectralUnit.MS),
     "FREQ": (SpectralUnit.GHZ, SpectralUnit.MHZ, SpectralUnit.KHZ, SpectralUnit.HZ),
@@ -394,10 +404,13 @@ class SpectralType(StrEnum):
     """
 
     def __init__(self, value):
+        units = SPECTRAL_TYPE_UNITS[self.name]
         self.description = SPECTRAL_TYPE_DESCRIPTION[self.name]
-        self.units = set(SPECTRAL_TYPE_UNITS[self.name])
-        self.default_unit = SPECTRAL_TYPE_UNITS[self.name][0]
+        self.units = set(units)
+        self.default_unit = units[0] if units else None
 
+    CHANNEL = "CHANNEL",
+    NATIVE = "NATIVE",
     VRAD = "VRAD",
     VOPT = "VOPT",
     FREQ = "FREQ",

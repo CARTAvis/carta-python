@@ -935,13 +935,23 @@ def validate(*vargs):
         spec = inspect.getfullargspec(func)
         parameter_names = spec.args[1:] + spec.kwonlyargs
         kwvargs = {k: v for (k, v) in zip(parameter_names, vargs)}
-        STRIP_OBJ = re.compile(":obj:`(.*)`")
-        STRIP_CODE = re.compile("``(.*)``")
+        STRIP_OBJ = re.compile(":obj:`(.*?)`")
+        STRIP_CODE = re.compile("``(.*?)``")
         PRESERVE = re.compile("(:obj:`.+?`|``.+?``)")
         ITALICISE = re.compile(r"^([\s.,]*)(.+?)([\s.,]*)$")
 
+        positional_count = len(spec.args) - 1
+
         @functools.wraps(func)
         def newfunc(self, *args, **kwargs):
+            if len(args) > positional_count:
+                # Check this before validation, which would otherwise match surplus positional values against keyword-only descriptors.
+                if positional_count == 0:
+                    limit = "takes no positional arguments"
+                else:
+                    limit = f"takes at most {positional_count} positional argument{'s' if positional_count > 1 else ''}"
+                hint = "; pass the remaining parameters by keyword" if spec.kwonlyargs else ""
+                raise TypeError(f"{func.__name__}() {limit} but {len(args)} were given{hint}")
             try:
                 for param, value in zip(vargs, args):
                     param.validate(value, self)

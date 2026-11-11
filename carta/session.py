@@ -956,7 +956,7 @@ class Session:
         """Go to next page in viewer."""
         self.call_action("widgetsStore.onNextPageClick")
 
-    @validate(Number(1, 10, step=1), Number(1, 10, step=1), Constant(GridMode))
+    @validate(Number(1, 10, step=1), Number(1, 10, step=1), Constant(GridMode, exclude=(GridMode.NONE,)))
     def set_viewer_grid(self, rows, columns, grid_mode=GridMode.FIXED):
         """
         Set number of columns and rows in viewer grid.
