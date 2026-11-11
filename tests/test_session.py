@@ -285,7 +285,7 @@ def test_validate_session_reports_status_from_chained_request_failure(
 def test_call_action_adds_compatibility_suggestion_to_frontend_failure(
     session, mocker
 ):
-    original_error = CartaActionFailed("newAction is unavailable")
+    original_error = CartaActionFailed("Error: Missing action function: newAction")
     session._cache = {"carta_version": "7.0.0"}
     session._protocol = mocker.Mock()
     session._protocol.request_scripting_action.side_effect = original_error
@@ -295,7 +295,7 @@ def test_call_action_adds_compatibility_suggestion_to_frontend_failure(
 
     message = str(error.value)
     assert error.value is original_error
-    assert "newAction is unavailable" in message
+    assert "Missing action function: newAction" in message
     assert "\n\nCompatibility suggestions:\n" in message
     assert "verify that the frontend action, attribute, or response path exists" in message
     assert "upgrade carta-python to the latest available release" in message
@@ -304,7 +304,7 @@ def test_call_action_adds_compatibility_suggestion_to_frontend_failure(
 def test_call_action_does_not_duplicate_compatibility_suggestions(
     session, mocker
 ):
-    original_error = CartaActionFailed("newAction is unavailable")
+    original_error = CartaActionFailed("Error: Missing action function: newAction")
     session._cache = {"carta_version": "7.0.0"}
     session._protocol = mocker.Mock()
     session._protocol.request_scripting_action.side_effect = original_error
@@ -320,10 +320,22 @@ def test_call_action_does_not_duplicate_compatibility_suggestions(
     assert str(original_error).count("\n\nCompatibility suggestions:\n") == 1
 
 
+def test_call_action_does_not_add_suggestions_to_ordinary_failure(session, mocker):
+    original_error = CartaActionFailed("Error: File not found")
+    session._cache = {"carta_version": "7.0.0"}
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaActionFailed) as error:
+        session.call_action("openFile", "missing.fits")
+
+    assert str(error.value) == "Error: File not found"
+
+
 def test_call_action_preserves_frontend_failure_without_cached_version(
     session, mocker
 ):
-    original_error = CartaActionFailed("newAction is unavailable")
+    original_error = CartaActionFailed("Error: Missing action function: newAction")
     session._protocol = mocker.Mock()
     session._protocol.request_scripting_action.side_effect = original_error
 

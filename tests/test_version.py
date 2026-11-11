@@ -99,40 +99,40 @@ def test_version_mismatch_details_reports_invalid_frontend_version():
     )
 
 
-def test_action_failure_suggests_latest_carta_python_for_supported_carta():
-    assert action_failure_compatibility_suggestions("6.1.0") == [
-        "For direct scripting calls, verify that the frontend action, attribute, "
-        "or response path exists.",
-        "If this failure started after a CARTA upgrade, upgrade carta-python to "
-        "the latest available release and retry.\n"
-        "For a regular Python environment:\n"
-        "  python -m pip install --upgrade carta-python\n"
-        "For a uv-managed script:\n"
-        "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
-        "  uv run your_script.py",
-        "If the failure persists after upgrading, check whether your script uses "
-        "a renamed carta-python function or argument, a direct `call_action()` "
-        "API path, or a changed response structure. Updating carta-python does "
-        "not rewrite hard-coded API paths in your script.",
-    ]
+SUPPORTED_CARTA_SUGGESTIONS = [
+    "For direct scripting calls, verify that the frontend action, attribute, "
+    "or response path exists.",
+    "If this failure started after a CARTA upgrade, upgrade carta-python to "
+    "the latest available release and retry:\n"
+    "  python -m pip install --upgrade carta-python\n"
+    "  or, for a uv-managed script:\n"
+    "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
+    "  uv run your_script.py",
+    "If the failure persists after upgrading, check whether your script uses "
+    "a renamed carta-python function or argument, a direct `call_action()` "
+    "API path, or a changed response structure. Updating carta-python does "
+    "not rewrite hard-coded API paths in your script.",
+]
 
 
-def test_action_failure_suggests_latest_carta_python_for_newer_carta():
-    assert action_failure_compatibility_suggestions("7.0.0") == [
-        "For direct scripting calls, verify that the frontend action, attribute, "
-        "or response path exists.",
-        "If this failure started after a CARTA upgrade, upgrade carta-python to "
-        "the latest available release and retry.\n"
-        "For a regular Python environment:\n"
-        "  python -m pip install --upgrade carta-python\n"
-        "For a uv-managed script:\n"
-        "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
-        "  uv run your_script.py",
-        "If the failure persists after upgrading, check whether your script uses "
-        "a renamed carta-python function or argument, a direct `call_action()` "
-        "API path, or a changed response structure. Updating carta-python does "
-        "not rewrite hard-coded API paths in your script.",
-    ]
+@pytest.mark.parametrize("version", ["6.1.0", "7.0.0"])
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Error: Missing action function: newAction",
+        "Error: Missing target object: frameMap[3]",
+        "Error: Missing macro target: activeFrame.missing",
+        "Error: Response path not found: frameInfo.bogus",
+        "Error: Cannot read response path from a non-object response: id",
+    ],
+)
+def test_action_failure_suggests_api_fixes_for_missing_targets(version, message):
+    assert action_failure_compatibility_suggestions(version, message) == SUPPORTED_CARTA_SUGGESTIONS
+
+
+@pytest.mark.parametrize("version", ["6.1.0", "7.0.0"])
+def test_action_failure_has_no_suggestions_for_ordinary_failures(version):
+    assert action_failure_compatibility_suggestions(version, "Error: File not found") == []
 
 
 def test_action_failure_uses_table_for_older_carta(mocker):
@@ -142,7 +142,7 @@ def test_action_failure_uses_table_for_older_carta(mocker):
     )
     mocker.patch("carta.version.COMPATIBILITY", table)
 
-    assert action_failure_compatibility_suggestions("5.9.0") == [
+    assert action_failure_compatibility_suggestions("5.9.0", "Error: File not found") == [
         "Upgrade CARTA to at least '6.1.0'.",
         "If CARTA cannot be upgraded, use carta-python 1.0.x, the recommended series for "
         "CARTA 5.0 - 5.9:\n"
@@ -155,7 +155,7 @@ def test_action_failure_uses_table_for_older_carta(mocker):
 
 
 def test_action_failure_ignores_unknown_carta_version():
-    assert action_failure_compatibility_suggestions("bad.version") == []
+    assert action_failure_compatibility_suggestions("bad.version", "Error: Missing action function: x") == []
 
 
 def assert_table_is_ordered(table):

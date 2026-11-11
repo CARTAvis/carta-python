@@ -472,7 +472,7 @@ class Session:
         CartaRequestFailed
             If the backend could not send the request to the frontend.
         CartaActionFailed
-            If the action failed.
+            If the action failed. If the session was created with a CARTA version older than the supported minimum, the error message includes suggestions for upgrading. If the version is supported and the frontend reports a missing action, target or response path, it includes suggestions for resolving an API mismatch.
         CartaBadResponse
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
@@ -480,7 +480,7 @@ class Session:
             return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
         except CartaActionFailed as error:
             version = getattr(self, "_cache", {}).get("carta_version")
-            suggestions = action_failure_compatibility_suggestions(version)
+            suggestions = action_failure_compatibility_suggestions(version, str(error))
             if not suggestions:
                 raise
 
