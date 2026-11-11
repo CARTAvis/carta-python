@@ -31,6 +31,15 @@ projection from either the ``return_path`` keyword or its second positional
 argument. For ``call_action(*args)``, the path is the first element of the
 list assigned to ``args``; values appended to it later are action arguments.
 
+Wrappers must be called directly as ``obj.call_action(...)`` or
+``obj.get_value(...)``. Referencing either method without calling it, for
+example ``f = self.get_value`` or ``functools.partial(self.call_action, ...)``,
+or naming it in a string, for example ``getattr(obj, "get_value")`` or
+``operator.methodcaller("call_action", ...)``, hides the call site, so
+``--check`` reports it as unresolved. ``carta-api`` annotations do not apply to
+these uses; rewrite them as direct calls. This also applies inside the plumbing
+methods which implement the wrappers.
+
 Compatibility policy
 --------------------
 

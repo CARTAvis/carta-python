@@ -21,6 +21,9 @@ fail ``--check``. Resolution is all-or-nothing: if any value a path, projection
 or macro argument may take is not a constant, the whole call site is
 unresolved. A call site with a path which is genuinely dynamic, because it
 is provided by the user, must be annotated with ``# carta-api:dynamic``.
+Wrappers used indirectly, through an alias such as ``f = self.get_value`` or
+by name as a string such as ``getattr(obj, "get_value")``, are reported in the
+same way, because their call sites cannot be found.
 
 The extracted APIs are the two repositories' shared contract. CI generates
 ``carta-python-api.json`` from this repository and passes it to carta-frontend's
@@ -177,6 +180,7 @@ class Scanner(ast.NodeVisitor):
         self.source_lines = source.splitlines()
         self.sites = []
         self.unresolved = []
+        self.called = set()
         self.classes = []
         self.functions = []
         self.assignments = [{}]
@@ -290,8 +294,36 @@ class Scanner(ast.NodeVisitor):
 
         return assignments
 
+    def report_indirect(self, node, description):
+        """Report a wrapper used indirectly, whose call sites cannot be found."""
+        self.unresolved.append((f"carta/{self.module}:{node.lineno}", self.clazz, self.method, f"{ast.unparse(node)}  # {description}"))
+
+    def visit_Attribute(self, node):
+        """Report a wrapper method referenced without being called directly.
+
+        A call through an alias, such as ``f = self.get_value`` followed by
+        ``f(path)``, is not a wrapper call site, so its path would be missing
+        from the manifest without any error.
+        """
+        self.generic_visit(node)
+        # PLUMBING is deliberately not honoured here: plumbing may call another
+        # wrapper directly, but an alias would hide that call as well.
+        if node.attr in WRAPPERS and isinstance(node.ctx, ast.Load) and id(node) not in self.called:
+            self.report_indirect(node, "referenced without being called; call it directly")
+
+    def visit_Constant(self, node):
+        """Report a wrapper named by a string, which hides its call sites.
+
+        This covers ``getattr(obj, "get_value")``, ``operator.methodcaller``,
+        ``operator.attrgetter`` and names stored in variables, whatever
+        function eventually uses the string.
+        """
+        if isinstance(node.value, str) and node.value in WRAPPERS:
+            self.report_indirect(node, "wrapper named by a string; call it directly")
+
     def visit_Call(self, node):
         """Scan a call, and record it if it is a wrapper call."""
+        self.called.add(id(node.func))
         self.generic_visit(node)
 
         if not isinstance(node.func, ast.Attribute) or node.func.attr not in WRAPPERS:

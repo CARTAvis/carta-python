@@ -216,6 +216,129 @@ def test_scanner_reports_partially_resolved_call_sites(source):
     assert len(scanner.unresolved) == 1
 
 
+REFERENCED = "referenced without being called"
+NAMED = "wrapper named by a string"
+
+
+@pytest.mark.parametrize("source,description", [
+    # An alias called later
+    ("""\
+class Example:
+    def get(self):
+        f = self.get_value
+        return f("isVisible")
+""", REFERENCED),
+    # A partial application
+    ("""\
+class Example:
+    def set(self):
+        return functools.partial(self.call_action, "setFoo")
+""", REFERENCED),
+    # An alias defined in the class body
+    ("""\
+class Example:
+    fetch = BasePathMixin.get_value
+""", REFERENCED),
+    # An alias inside a plumbing method, whose direct calls are exempt
+    ("""\
+class BasePathMixin:
+    def call_action(self, path):
+        send = self.session.call_action
+        return send(path)
+""", REFERENCED),
+    # getattr with a constant name, with or without a default
+    ("""\
+class Example:
+    def get(self):
+        return getattr(self, "get_value")("isVisible")
+""", NAMED),
+    ("""\
+class Example:
+    def get(self):
+        return getattr(self, "get_value", None)("isVisible")
+""", NAMED),
+    # A nested getattr is reported once
+    ("""\
+class Example:
+    def set(self):
+        return getattr(self.session, "call_action")("setFoo")
+""", NAMED),
+    # A name stored in a variable
+    ("""\
+class Example:
+    def get(self):
+        name = "get_value"
+        return getattr(self, name)("isVisible")
+""", NAMED),
+    # operator helpers
+    ("""\
+class Example:
+    def get(self):
+        return operator.methodcaller("get_value", "isVisible")(self)
+""", NAMED),
+    ("""\
+class Example:
+    def set(self):
+        return attrgetter("call_action")(self)("setFoo")
+""", NAMED),
+    # Annotations do not apply to indirect use
+    ("""\
+class Example:
+    def get(self):
+        f = self.get_value  # carta-api:dynamic
+        return f("isVisible")
+""", REFERENCED),
+])
+def test_scanner_reports_wrappers_used_indirectly(source, description):
+    # Scan as util.py so that BasePathMixin.call_action is a plumbing method.
+    scanner = extract.Scanner("util.py", source)
+    scanner.visit(extract.ast.parse(source))
+
+    assert scanner.sites == []
+    assert len(scanner.unresolved) == 1
+    location, _, _, text = scanner.unresolved[0]
+    assert location.startswith("carta/util.py:")
+    assert description in text
+
+
+def test_scanner_accepts_direct_calls_and_other_lookups():
+    scanner = scan_source("""\
+class Example:
+    def get(self):
+        self.call_action("setFoo", 1)
+        value = self.get_value("isVisible")
+        return getattr(self, "width"), value
+""")
+
+    assert scanner.unresolved == []
+    assert [site.path for site in scanner.sites] == ["setFoo", "isVisible"]
+
+
+def test_scanner_ignores_assigning_or_deleting_wrapper_attributes():
+    scanner = scan_source("""\
+class Example:
+    def patch(self, recorder):
+        self.get_value = recorder
+        del self.call_action
+""")
+
+    assert scanner.unresolved == []
+    assert scanner.sites == []
+
+
+def test_scanner_exempts_direct_calls_in_plumbing_methods():
+    source = """\
+class BasePathMixin:
+    def call_action(self, path, *args):
+        return self.session.call_action(f"{self._base_path}.{path}", *args)
+"""
+    scanner = extract.Scanner("util.py", source)
+    scanner.visit(extract.ast.parse(source))
+
+    assert scanner.unresolved == []
+    assert scanner.sites == []
+
+
 def test_scanner_reads_positional_get_value_projection():
     scanner = scan_source("""\
 class Example:
