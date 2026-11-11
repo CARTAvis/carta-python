@@ -908,7 +908,6 @@ class ColorbarComponent:
         The session object associated with this colorbar component.
     """
 
-
     def __init__(self, colorbar):
         self.colorbar = colorbar
         self.session = colorbar.session

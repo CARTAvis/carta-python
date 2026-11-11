@@ -31,7 +31,7 @@ class ColormapSet(StrEnum):
 
 
 class ImageType(IntEnum):
-    """Image view item types, corresponding to the frontend ImageType enum."""
+    """View item types, corresponding to the frontend ImageType enum."""
     FRAME = 0
     COLOR_BLENDING = 1
     PV_PREVIEW = 2
@@ -39,6 +39,8 @@ class ImageType(IntEnum):
 
 Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA', 'EXP', 'CUSTOM', 'SINH', 'ASINH'), start=0)
 Scaling.__doc__ = """Colormap scaling types."""
+
+
 CoordinateSystem = StrEnum('CoordinateSystem', {c: c for c in ("AUTO", "ECLIPTIC", "FK4", "FK5", "GALACTIC", "ICRS")} | {"IMAGE": "CARTESIAN"})
 CoordinateSystem.__doc__ = """Coordinate systems."""
 
@@ -145,6 +147,8 @@ Overlay.__doc__ = """WCS overlay elements.
 
     Member values are paths to stores corresponding to these elements, relative to the WCS overlay store.
     """
+
+
 class SmoothingMode(IntEnum):
     """Contour smoothing modes."""
     NO_SMOOTHING = 0
@@ -190,7 +194,8 @@ PROTO_POLARIZATION = {
 
 
 class Polarization(IntEnum):
-    """Polarizations."""
+    """Polarizations, corresponding to the POLARIZATIONS enum in the frontend."""
+
     def __init__(self, value):
         self.proto_index = PROTO_POLARIZATION[self.name]
 
@@ -239,6 +244,7 @@ class FileType(IntEnum):
 
 class RegionType(IntEnum):
     """Region types corresponding to the protobuf enum."""
+
     def __init__(self, value):
         self.is_annotation = self.name.startswith("ANN")
         self.label = f"{self.name[3:].title()} - Ann" if self.is_annotation else self.name.title()
