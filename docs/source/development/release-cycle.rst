@@ -17,9 +17,12 @@ The final entry determines the requirements for the version under development:
 * ``carta_max`` must be ``None``; the open-ended range covers every later
   CARTA series until a known breaking change closes it.
 
-Keep all ranges ordered from oldest to newest and non-overlapping. The final
-range must use ``carta_max=None`` and every earlier range must set
-``carta_max``. Explicit ranges may span CARTA major versions.
+Keep all ranges ordered from oldest to newest and contiguous: each range must
+start at the CARTA series right after the previous range's ``carta_max``
+(``6.2`` after ``6.1``, or ``7.0`` after ``6.x``), so no supported series is
+left without a recommendation. The final range must use ``carta_max=None`` and
+every earlier range must set ``carta_max``. Explicit ranges may span CARTA
+major versions.
 
 Compatibility is forward-looking: a new CARTA major version does not by itself
 require a table update or a new ``carta-python`` release. If the frontend APIs

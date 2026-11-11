@@ -23,6 +23,10 @@ VERSION_FILE = pathlib.Path(__file__).parent.parent / "VERSION.txt"
         "6.1.0-dev",
         "6.1.0-beta.1",
         "6.1.0-rc.1",
+        "6.1.0-rc-1",
+        "v6.1.0",
+        "6.1.0+abc123",
+        "6.1.0-beta.1+abc.123",
     ],
 )
 def test_parse_carta_version_accepts_single_versions(version):
@@ -37,6 +41,10 @@ def test_parse_carta_version_accepts_single_versions(version):
         ">=6.1.0",
         "6.1.0,<7.0.0",
         "bad.version",
+        "6.1.0-",
+        "6.1.0+",
+        "V6.1.0",
+        "\uff16.1.0",
     ],
 )
 def test_parse_carta_version_rejects_invalid_versions(version):
@@ -123,11 +131,38 @@ def test_compatibility_table_is_ordered_and_does_not_overlap():
             CompatibilityRange(carta_min="7.0", carta_max=None, wrapper="1.0"),
         ),
         (CompatibilityRange(carta_min="6.1", carta_max="7.9", wrapper="2.0"),),
+        # A gap leaves CARTA 6.2 without a recommendation
+        (
+            CompatibilityRange(carta_min="6.0", carta_max="6.1", wrapper="1.0"),
+            CompatibilityRange(carta_min="6.3", carta_max=None, wrapper="2.0"),
+        ),
+        # A gap across a major version leaves CARTA 7.0 without a recommendation
+        (
+            CompatibilityRange(carta_min="6.0", carta_max="6.9", wrapper="1.0"),
+            CompatibilityRange(carta_min="7.1", carta_max=None, wrapper="2.0"),
+        ),
     ],
 )
 def test_compatibility_table_validation_rejects_invalid_table(table):
     with pytest.raises(ValueError):
         _validate_compatibility_table(table)
+
+
+@pytest.mark.parametrize(
+    "table",
+    [
+        (
+            CompatibilityRange(carta_min="6.0", carta_max="6.1", wrapper="1.0"),
+            CompatibilityRange(carta_min="6.2", carta_max=None, wrapper="2.0"),
+        ),
+        (
+            CompatibilityRange(carta_min="6.0", carta_max="6.9", wrapper="1.0"),
+            CompatibilityRange(carta_min="7.0", carta_max=None, wrapper="2.0"),
+        ),
+    ],
+)
+def test_compatibility_table_validation_accepts_contiguous_table(table):
+    _validate_compatibility_table(table)
 
 
 def test_open_ended_range_must_be_the_final_entry():

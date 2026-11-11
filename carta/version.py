@@ -6,11 +6,20 @@ from dataclasses import dataclass, field
 from .compatibility import COMPATIBILITY_DATA
 
 
-_VERSION_PATTERN = re.compile(r"(\d+)\.(\d+)\.(\d+)(?:-[A-Za-z0-9.]+)?")
-_SERIES_PATTERN = re.compile(r"(\d+)\.(\d+)")
+# An optional leading "v", MAJOR.MINOR.PATCH, and optional semver pre-release and build suffixes.
+_VERSION_PATTERN = re.compile(r"v?([0-9]+)\.([0-9]+)\.([0-9]+)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?")
+_SERIES_PATTERN = re.compile(r"([0-9]+)\.([0-9]+)")
+
 
 def parse_carta_version(version):
-    """Parse a CARTA version, ignoring any prerelease suffix."""
+    """Parse a CARTA version into ``(major, minor, patch)``.
+
+    A leading ``v`` and any pre-release or build suffix are ignored. This is
+    intentional: frontend development builds report versions such as
+    ``6.1.0-dev``, which must count as 6.1 so that ``dev`` can be checked
+    against the upcoming release. As a consequence, every 6.1 pre-release is
+    treated as 6.1.0.
+    """
     match = _VERSION_PATTERN.fullmatch(str(version))
     if match is None:
         return None
@@ -98,6 +107,16 @@ class CompatibilityRange:
         return f"{self.carta_min}.0"
 
 
+def _next_series(series):
+    """Return the series which may directly follow ``series``.
+
+    This is the next minor version in the same major series, or the first minor
+    version of the next major series when ``series`` was the last of its major.
+    """
+    major, minor = series
+    return ((major, minor + 1), (major + 1, 0))
+
+
 def _validate_compatibility_table(table):
     """Validate ordering and coverage invariants for a compatibility table."""
     if not table:
@@ -112,6 +131,10 @@ def _validate_compatibility_table(table):
             raise ValueError("only the final compatibility range may be open-ended")
         if previous._maximum >= current._minimum:
             raise ValueError("compatibility ranges must not overlap")
+        if current._minimum not in _next_series(previous._maximum):
+            raise ValueError(
+                f"compatibility ranges must be contiguous: {current.carta_min} does not follow {previous.carta_max}"
+            )
         if _require_series("wrapper", previous.wrapper) >= _require_series(
             "wrapper", current.wrapper
         ):
