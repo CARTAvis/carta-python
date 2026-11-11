@@ -12,17 +12,6 @@ from .validation import validate, Constant, IterableOf, Number, String, Point, N
 from .units import AngularSize
 
 
-UNSUPPORTED_REGION_TYPES = frozenset({RegionType.ANNULUS})
-
-
-def _ensure_region_type_supported(region_type):
-    """Reject region types whose creation workflow is not implemented."""
-    region_type = RegionType(region_type)
-    if region_type in UNSUPPORTED_REGION_TYPES:
-        raise CartaValidationFailed(f"Region type {region_type.name} is not supported for creation")
-    return region_type
-
-
 class RegionSet(BasePathMixin):
     """Utility object for collecting region-related image functions.
 
@@ -131,7 +120,7 @@ class RegionSet(BasePathMixin):
 
         self.session.call_action("exportRegions", directory, file_name, coordinate_type, file_type, region_ids, self.image._frame)
 
-    @validate(Constant(RegionType), IterableOf(Point.NumericPoint()), Number(), String())
+    @validate(Constant(RegionType, exclude=(RegionType.ANNULUS,)), IterableOf(Point.NumericPoint()), Number(), String())
     def add_region(self, region_type, points, rotation=0, name=""):
         """Add a new region or annotation to this image.
 
@@ -148,7 +137,7 @@ class RegionSet(BasePathMixin):
         name : {3}
             The name of the region. Defaults to the empty string.
         """
-        return Region.new(self, _ensure_region_type_supported(region_type), points, rotation, name)
+        return Region.new(self, region_type, points, rotation, name)
 
     def _from_world_coordinates(self, points):
         """Internal utility function for coercing world or image coordinates to image coordinates. This is used in various region functions to simplify accepting both world and image coordinates.
@@ -622,7 +611,7 @@ class Region(BasePathMixin):
         return cls.region_class(region_type)(region_set, region_id)
 
     @classmethod
-    @validate(InstanceOf(RegionSet), Constant(RegionType), IterableOf(Point.NumericPoint()), Number(), String())
+    @validate(InstanceOf(RegionSet), Constant(RegionType, exclude=(RegionType.ANNULUS,)), IterableOf(Point.NumericPoint()), Number(), String())
     def new(cls, region_set, region_type, points, rotation=0, name=""):
         """Create a new region.
 
@@ -646,7 +635,7 @@ class Region(BasePathMixin):
         :obj:`carta.region.Region` object
             The region object.
         """
-        region_type = _ensure_region_type_supported(region_type)
+        region_type = RegionType(region_type)
         points = [Pt(*point) for point in points]
         region_id = region_set.call_action("addRegionAsync", region_type, points, rotation, name, return_path="regionId")
         return cls.existing(region_type, region_set, region_id)

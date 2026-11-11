@@ -516,6 +516,11 @@ def test_spectral_coordinate_types_supported(image, get_value):
     assert types == {ST.AWAV, ST.FREQ}
 
 
+def test_spectral_coordinate_types_supported_ignores_unsupported_types(image, get_value):
+    get_value.side_effect = [{"one": {'type': 'CHANNEL', 'unit': ''}, "two": {'type': None, 'unit': ''}, "three": {'type': 'NATIVE', 'unit': ''}, "four": {'type': 'FREQ', 'unit': 'GHz'}}]
+    assert image.spectral_coordinate_types_supported == {ST.FREQ}
+
+
 def test_set_spectral_system(image, property_, call_action):
     property_("is_pv", True)
     property_("spectral_systems_supported", {SS.LSRK, SS.LSRD})
@@ -573,3 +578,21 @@ def test_set_spectral_coordinate_bad_unit(image, property_):
     with pytest.raises(ValueError) as e:
         image.set_spectral_coordinate(ST.VRAD, SU.HZ)
     assert "Unsupported unit: Hz" in str(e.value)
+
+
+@pytest.mark.parametrize("spectral_type", [ST.CHANNEL, ST.NATIVE])
+def test_set_spectral_coordinate_rejects_contract_only_types(image, property_, call_action, spectral_type):
+    property_("is_pv", True)
+    with pytest.raises(CartaValidationFailed) as e:
+        image.set_spectral_coordinate(spectral_type)
+    assert spectral_type.name in str(e.value)
+    call_action.assert_not_called()
+
+
+@pytest.mark.parametrize("spectral_unit", [SU.M_SQUARE, SU.MM_SQUARE, SU.UM_SQUARE, SU.NM_SQUARE, SU.ANGSTROM_SQUARE])
+def test_set_spectral_coordinate_rejects_contract_only_units(image, property_, call_action, spectral_unit):
+    property_("is_pv", True)
+    with pytest.raises(CartaValidationFailed) as e:
+        image.set_spectral_coordinate(ST.WAVE, spectral_unit)
+    assert spectral_unit.name in str(e.value)
+    call_action.assert_not_called()
