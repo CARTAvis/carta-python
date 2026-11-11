@@ -3,17 +3,19 @@ carta-python
 
 This is a prototype of a scripting interface which uses a generic HTTP interface in the CARTA backend as a proxy to call actions on the CARTA frontend.
 
-This package is not yet published on PyPi, but can be installed from the local repository directory with `pip`. Requires Python 3.10 or later. Ensure that you're using the corresponding `pip`, either using a `virtualenv` or the appropriate system executable, which may be called `pip3`. Required dependencies should be installed automatically:
+Requires Python 3.10 or later. Required dependencies are installed automatically.
+
+Once `carta-python` 2.0 is published on PyPI, install the latest release with:
+
+    pip install --upgrade carta-python
+
+Until then, install from a local checkout of this repository:
 
     pip install .
 
-To create a new frontend session which is controlled by the wrapper instead of connecting to an existing frontend session, you also need to install the `selenium` Python library:
+The distribution was previously installed as `carta`. Both distributions provide the `carta` import package, so uninstall the old one first with `pip uninstall carta`.
 
-    pip install selenium
-
-If you prefer installing the optional browser dependencies via package extras, the equivalent command is:
-
-    pip install ".[browser]"
+To create a new frontend session which is controlled by the wrapper instead of connecting to an existing frontend session, install the optional browser dependencies with `pip install --upgrade "carta-python[browser]"`, or `pip install ".[browser]"` from a local checkout.
 
 You also need to make sure that your desired browser is installed, together with a corresponding web driver.
 
@@ -53,7 +55,7 @@ Alternative contributor setup with uv
 If you prefer a synced local development environment, `uv` is also supported:
 
 ```
-uv sync
+uv sync --all-extras
 ```
 
 This creates a local virtual environment, installs the package in editable mode, and syncs the default development groups.

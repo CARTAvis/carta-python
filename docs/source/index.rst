@@ -7,4 +7,5 @@ carta-python: a scripting wrapper for CARTA
 
    introduction
    quickstart
+   development
    carta

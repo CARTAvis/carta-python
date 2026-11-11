@@ -1,0 +1,125 @@
+Version compatibility and release cycle
+=======================================
+
+Version compatibility data
+--------------------------
+
+CARTA and ``carta-python`` compatibility is defined by
+``COMPATIBILITY_DATA`` in ``carta/compatibility.py``. Each entry maps an
+inclusive range of CARTA ``MAJOR.MINOR`` series to the latest recommended
+``carta-python`` series.
+
+The final entry determines the requirements for the version under development:
+
+* ``carta_min`` defines the minimum CARTA series that provides complete
+  functionality.
+* ``wrapper`` must match the major and minor components in ``VERSION.txt``.
+* ``carta_max`` must be ``None``; the open-ended range covers every later
+  CARTA series until a known breaking change closes it.
+
+Keep all ranges ordered from oldest to newest and contiguous: each range must
+start at the CARTA series right after the previous range's ``carta_max``
+(``6.2`` after ``6.1``, or ``7.0`` after ``6.x``). The check cannot know
+which minor version was the last of a major series, so a table that jumps from
+``6.1`` to ``7.0`` passes even if CARTA 6.2 exists. When a range ends before a
+major boundary, confirm by hand that its ``carta_max`` is the last minor
+version of that major series. Because every series must be covered, a CARTA
+series with no compatible wrapper release yet stays in the previous range;
+note the limitation in the release notes. The final range must use ``carta_max=None`` and
+every earlier range must set ``carta_max``. Explicit ranges may span CARTA
+major versions.
+
+Compatibility is forward-looking: a new CARTA major version does not by itself
+require a table update or a new ``carta-python`` release. If the frontend APIs
+used by the wrapper remain compatible, the existing open-ended range continues
+to apply. Update the table only when a known frontend incompatibility or a new
+wrapper feature changes the supported range.
+
+Starting a new development cycle
+---------------------------------
+
+After a release, prepare ``dev`` for the next release before merging feature
+work:
+
+#. Choose the next version and add a ``-dev`` suffix in ``VERSION.txt``. For
+   example, start 2.1 development with ``2.1.0-dev``.
+#. If the major/minor series changes, update ``wrapper`` in the final
+   compatibility entry to match. If the CARTA minimum is unchanged, update the
+   existing entry rather than adding an overlapping range.
+#. For a patch cycle, such as ``2.0.0`` to ``2.0.1-dev``, leave ``wrapper`` as
+   ``"2.0"`` because the compatibility table tracks major/minor series.
+#. Run the focused version tests.
+
+For example, starting 2.1 development while retaining CARTA 6.1 as the minimum
+uses:
+
+.. code-block:: text
+
+   2.1.0-dev
+
+in ``VERSION.txt`` and:
+
+.. code-block:: python
+
+   COMPATIBILITY_DATA = (
+       {"carta_min": "6.1", "carta_max": None, "wrapper": "2.1"},
+   )
+
+If the next release is already known to require a newer CARTA series, apply the
+range update described below in the same cycle-preparation pull request.
+
+Pull requests during a development cycle
+-----------------------------------------
+
+Ordinary feature and fix pull requests target ``dev``. They should not change
+``VERSION.txt`` or the compatibility table unless they alter CARTA version
+requirements.
+
+When a pull request introduces a dependency on a newer CARTA series, update the
+compatibility table, its tests, and its documentation in that same pull
+request. Do not defer the compatibility change to the release pull request.
+Increasing the minimum requires a new ``carta-python`` major/minor series; if
+the current cycle is a patch cycle, start an appropriate major/minor cycle
+first.
+
+Close the previous range and append a range for the new minimum. For example,
+if the version under development is 2.1 and a pull request raises the minimum
+CARTA series from 6.1 to 6.2, change the table from:
+
+.. code-block:: python
+
+   COMPATIBILITY_DATA = (
+       {"carta_min": "6.1", "carta_max": None, "wrapper": "2.1"},
+   )
+
+to:
+
+.. code-block:: python
+
+   COMPATIBILITY_DATA = (
+       {"carta_min": "6.1", "carta_max": "6.1", "wrapper": "2.0"},
+       {"carta_min": "6.2", "carta_max": None, "wrapper": "2.1"},
+   )
+
+This preserves the recommendation for older CARTA releases while making 6.2
+the minimum for the version under development. The same procedure applies
+across CARTA major versions: close the previous range at the last compatible
+``MAJOR.MINOR`` series, then append the new open-ended range. Do not split a
+range merely because CARTA increments its major version.
+
+Finishing a development cycle
+-----------------------------
+
+The release pull request from ``dev`` to ``main`` finalizes ``VERSION.txt`` by
+removing the ``-dev`` suffix, for example from ``2.1.0-dev`` to ``2.1.0``. It
+must verify that the final compatibility entry already matches the release
+major/minor version and minimum CARTA series. It should not be the first place
+where a compatibility change is recorded.
+
+Run the full test suite and documentation build before merging the release. If
+the compatibility table changed during the cycle, also run its focused tests:
+
+.. code-block:: shell
+
+   uv run pytest
+   uv run sphinx-build -W -b html docs/source docs/build/html
