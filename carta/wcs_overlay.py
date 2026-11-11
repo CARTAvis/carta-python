@@ -456,6 +456,7 @@ class Global(HasColor, OverlayComponent):
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.GLOBAL
+    FRONTEND_RUNTIME_TYPE = "OverlayGlobalSettings"
 
     @property
     def tolerance(self):
@@ -533,6 +534,7 @@ class Title(HasCustomColor, HasCustomText, HasFont, HasVisibility, ImageWCSConne
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.TITLE
+    FRONTEND_RUNTIME_TYPE = "OverlayTitleSettings"
 
     @validate(ImageWCSConnector.ANY_IDS)
     def text(self, image_ids=None):
@@ -575,6 +577,7 @@ class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.GRID
+    FRONTEND_RUNTIME_TYPE = "OverlayGridSettings"
 
     @property
     def gap(self):
@@ -641,6 +644,7 @@ class Border(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.BORDER
+    FRONTEND_RUNTIME_TYPE = "OverlayBorderSettings"
 
 
 class Axes(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
@@ -652,6 +656,7 @@ class Axes(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.AXES
+    FRONTEND_RUNTIME_TYPE = "OverlayAxisSettings"
 
 
 class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, OverlayComponent):
@@ -663,6 +668,7 @@ class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, Overla
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.NUMBERS
+    FRONTEND_RUNTIME_TYPE = "OverlayNumberSettings"
 
     @property
     def format(self):
@@ -735,6 +741,7 @@ class Labels(HasCustomColor, HasCustomText, HasFont, HasVisibility, OverlayCompo
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.LABELS
+    FRONTEND_RUNTIME_TYPE = "OverlayLabelSettings"
 
     @property
     def text(self):
@@ -781,6 +788,7 @@ class Ticks(HasCustomColor, HasWidth, OverlayComponent):
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.TICKS
+    FRONTEND_RUNTIME_TYPE = "OverlayTickSettings"
 
     @property
     def density(self):
@@ -907,6 +915,8 @@ class ColorbarComponent:
     session : :obj:`carta.session.Session` object
         The session object associated with this colorbar component.
     """
+
+    FRONTEND_RUNTIME_TYPE = "OverlayColorbarSettings"
 
     def __init__(self, colorbar):
         self.colorbar = colorbar
@@ -1130,6 +1140,7 @@ class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         The gradient subcomponent.
     """
     COMPONENT = Overlay.COLORBAR
+    FRONTEND_RUNTIME_TYPE = "OverlayColorbarSettings"
 
     def __init__(self, overlay):
         super().__init__(overlay)
@@ -1217,6 +1228,7 @@ class Beam(ImageWCSConnector, OverlayComponent):
         The session object associated with this overlay component.
     """
     COMPONENT = Overlay.BEAM
+    FRONTEND_RUNTIME_TYPE = "OverlayBeamSettings"
 
     @validate(ImageWCSConnector.ANY_IDS)
     def position(self, image_ids=None):

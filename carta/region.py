@@ -546,6 +546,9 @@ class Region(BasePathMixin):
     CUSTOM_CLASS = {}
     """Mapping of :obj:`carta.constants.RegionType` types to region and annotation classes. This mapping is used to select the appropriate subclass when a region or annotation object is constructed in the wrapper."""
 
+    FRONTEND_RUNTIME_TYPE = "RegionStore"
+    """The frontend runtime class which receives requests for this region."""
+
     def __init_subclass__(cls, **kwargs):
         """Automatically register subclasses in mapping from region types to classes."""
         super().__init_subclass__(**kwargs)
@@ -1828,6 +1831,7 @@ class PointAnnotation(Region):
     """A point annotation."""
     REGION_TYPES = (RegionType.ANNPOINT,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "PointAnnotationStore"
 
     # GET PROPERTIES
 
@@ -1878,6 +1882,7 @@ class TextAnnotation(HasFontMixin, HasRotationMixin, HasSizeMixin, Region):
     """A text annotation."""
     REGION_TYPES = (RegionType.ANNTEXT,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "TextAnnotationStore"
 
     # GET PROPERTIES
 
@@ -1932,12 +1937,14 @@ class VectorAnnotation(HasPointerMixin, HasEndpointsMixin, HasRotationMixin, Has
     """A vector annotation."""
     REGION_TYPES = (RegionType.ANNVECTOR,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "VectorAnnotationStore"
 
 
 class CompassAnnotation(HasFontMixin, HasPointerMixin, HasSizeMixin, Region):
     """A compass annotation."""
     REGION_TYPES = (RegionType.ANNCOMPASS,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "CompassAnnotationStore"
 
     # GET PROPERTIES
 
@@ -2098,6 +2105,7 @@ class RulerAnnotation(HasFontMixin, HasEndpointsMixin, HasRotationMixin, HasSize
     """A ruler annotation."""
     REGION_TYPES = (RegionType.ANNRULER,)
     """The region types corresponding to this class."""
+    FRONTEND_RUNTIME_TYPE = "RulerAnnotationStore"
 
     # GET PROPERTIES
 
