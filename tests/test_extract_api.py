@@ -38,13 +38,17 @@ def test_manifest_contains_expected_api_entries():
     assert [(api["kind"], api["path"]) for api in data["apis"]] == sorted(
         (api["kind"], api["path"]) for api in data["apis"]
     )
+    assert all("return_paths" not in api for api in data["apis"])
     assert any(api["path"] == "getImageDataUrl" for api in data["apis"])
     assert next(api for api in data["apis"] if api["path"] == "activeImage")["return_path"] == {
         "type": "type",
         "id": "store.id",
     }
-    region_list_api = next(api for api in data["apis"] if api["path"] == "frameMap[*].regionSet.regionList")
-    assert region_list_api["return_paths"] == ["", "id"]
+    region_list_apis = [api for api in data["apis"] if api["path"] == "frameMap[*].regionSet.regionList"]
+    assert [(api["return_path"], api["wrappers"]) for api in region_list_apis] == [
+        ("", ["RegionSet.list"]),
+        ("id", ["RegionSet.export_to"]),
+    ]
     assert all("MINIMUM_CARTA_VERSION" not in api for api in data["apis"])
 
 
@@ -143,6 +147,115 @@ class Example:
     assert scanner.sites[0].dynamic is True
 
 
+def scan_source(source):
+    scanner = extract.Scanner("example.py", source)
+    scanner.visit(extract.ast.parse(source))
+    return scanner
+
+
+@pytest.mark.parametrize("source", [
+    # Only one of the candidates is a constant.
+    """\
+class Example:
+    def get(self, flag):
+        path = "isValidWcs" if flag else self._compute()
+        return self.get_value(path)
+""",
+    # A loop over a tuple with a computed element.
+    """\
+class Example:
+    def get(self):
+        for path in ("isValidWcs", self.name()):
+            self.get_value(path)
+""",
+    # A loop over a computed iterable.
+    """\
+class Example:
+    def get(self):
+        for path in self.paths():
+            self.get_value(path)
+""",
+    # A parameter with a default assigned in the body can still be passed by the caller.
+    """\
+class Example:
+    def get(self, path=None):
+        if path is None:
+            path = "isValidWcs"
+        return self.get_value(path)
+""",
+    # A projection which is not a literal.
+    """\
+class Example:
+    def get(self, field):
+        return self.get_value("frameInfo", field)
+""",
+    # A macro with a computed variable name.
+    """\
+class Example:
+    def get(self, name):
+        self.call_action("setFoo", Macro("", name))
+""",
+    # A macro built with keyword arguments.
+    """\
+class Example:
+    def get(self):
+        self.call_action("setFoo", Macro(target="", variable="bar"))
+""",
+    # A starred argument list which does not start with a constant path.
+    """\
+class Example:
+    def get(self, action):
+        args = [action]
+        return self.call_action(*args)
+""",
+])
+def test_scanner_reports_partially_resolved_call_sites(source):
+    scanner = scan_source(source)
+
+    assert scanner.sites == []
+    assert len(scanner.unresolved) == 1
+
+
+def test_scanner_reads_positional_get_value_projection():
+    scanner = scan_source("""\
+class Example:
+    def get(self):
+        return self.get_value("frameInfo", "fileInfo")
+""")
+
+    assert scanner.unresolved == []
+    assert [(site.path, site.return_path, site.args) for site in scanner.sites] == [("frameInfo", "fileInfo", ())]
+
+
+def test_scanner_resolves_starred_path_with_appended_arguments():
+    scanner = scan_source("""\
+class Example:
+    def get(self, color=None):
+        args = ["getImageDataUrl"]
+        if color:
+            args.append(color)
+        return self.call_action(*args)
+""")
+
+    assert scanner.unresolved == []
+    assert [site.path for site in scanner.sites] == ["getImageDataUrl"]
+
+
+@pytest.mark.parametrize("annotation", ["legacy", "dynamic"])
+def test_trailing_annotation_does_not_apply_to_the_next_call(annotation):
+    scanner = scan_source(f"""\
+class Example:
+    def update(self):
+        self.call_action("oldStore.setFoo")  # carta-api:{annotation}
+        self.call_action("newStore.setBar")
+""")
+
+    assert scanner.unresolved == []
+    first, second = scanner.sites
+    assert (first.legacy or first.dynamic) is True
+    assert (second.path, second.legacy, second.dynamic) == ("newStore.setBar", False, False)
+
+
 def test_manifest_serialisation_is_canonical():
     data = {"apis": [{"kind": "action", "path": "setFoo"}]}
     dumped = extract.dump_manifest(data)
@@ -161,10 +274,13 @@ def test_manifest_preserves_multiple_return_paths_for_one_api(projection):
     for site in sites:
         api.add(site)
 
-    entry = extract.manifest([api])["apis"][0]
+    entries = extract.manifest([api])["apis"]
 
-    assert "return_path" not in entry
-    assert entry["return_paths"] == ["", projection]
+    assert [(entry["return_path"], entry["wrappers"]) for entry in entries] == [
+        ("", ["Example.get"]),
+        (projection, ["Example.get_ids"]),
+    ]
+    assert all("return_paths" not in entry for entry in entries)
 
 
 def test_manifest_keeps_single_return_path_compatible():
@@ -174,10 +290,10 @@ def test_manifest_keeps_single_return_path_compatible():
     # Repeated use of the same projection must retain the single-field format.
     api.add(site)
 
-    entry = extract.manifest([api])["apis"][0]
+    entries = extract.manifest([api])["apis"]
 
-    assert entry["return_path"] == "id"
-    assert "return_paths" not in entry
+    assert len(entries) == 1
+    assert entries[0]["return_path"] == "id"
 
 
 def test_manifest_projection_serialisation_is_independent_of_scan_order():
@@ -193,7 +309,7 @@ def test_manifest_projection_serialisation_is_independent_of_scan_order():
         manifests.append(extract.dump_manifest(extract.manifest([api])))
 
     assert manifests[0] == manifests[1]
-    assert json.loads(manifests[0])["apis"][0]["return_paths"] == [
+    assert [entry["return_path"] for entry in json.loads(manifests[0])["apis"]] == [
         "", "id", ["id", "name"], {"name": "name", "region_id": "id"},
     ]
 

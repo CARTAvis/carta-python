@@ -17,7 +17,9 @@ The extraction has two stages:
    logic has to be reimplemented here. No frontend or backend is needed.
 
 Call sites which the static stage cannot resolve are reported separately, and
-fail ``--check``. A call site with a path which is genuinely dynamic, because it
+fail ``--check``. Resolution is all-or-nothing: if any value a path, projection
+or macro argument may take is not a constant, the whole call site is
+unresolved. A call site with a path which is genuinely dynamic, because it
 is provided by the user, must be annotated with ``# carta-api:dynamic``.
 
 The extracted APIs are the two repositories' shared contract. CI generates
@@ -91,6 +93,18 @@ FRONTEND_ROOT_TYPES = {
     "preferenceStore": "PreferenceStore",
     "widgetsStore": "WidgetsStore",
 }
+
+# Marks a value which the static scan cannot reduce to a constant, such as a
+# function parameter or a loop over a computed iterable.
+UNKNOWN = object()
+
+
+@dataclasses.dataclass(frozen=True)
+class Appended:
+    """A value added to a local list with ``append`` or ``extend``."""
+
+    node: ast.AST
+
 
 @dataclasses.dataclass
 class Site:
@@ -177,27 +191,30 @@ class Scanner(ast.NodeVisitor):
         """The function currently being scanned."""
         return self.functions[-1] if self.functions else ""
 
+    def annotation(self, node, pattern):
+        """Return the ``carta-api`` annotation attached to a call site, if any.
+
+        The annotation may be a trailing comment on the first line of the call,
+        or a comment on its own on the line immediately before it. A trailing
+        comment on the previous line belongs to that line's code, so it does not
+        apply to this call.
+        """
+        match = pattern.search(self.source_lines[node.lineno - 1])
+        if match is None and node.lineno > 1:
+            previous = self.source_lines[node.lineno - 2]
+            if previous.lstrip().startswith("#"):
+                match = pattern.search(previous)
+        return match
+
     def legacy_annotation(self, node):
         """Return legacy compatibility metadata attached to a call site."""
-        line_numbers = [node.lineno]
-        if node.lineno > 1:
-            line_numbers.append(node.lineno - 1)
-        for line_number in line_numbers:
-            match = LEGACY_ANNOTATION.search(self.source_lines[line_number - 1])
-            if match:
-                return True, match.group(1) or ""
-        return False, ""
+        match = self.annotation(node, LEGACY_ANNOTATION)
+        return (True, match.group(1) or "") if match else (False, "")
 
     def dynamic_annotation(self, node):
         """Return the dynamic path attached to a call site, if any."""
-        line_numbers = [node.lineno]
-        if node.lineno > 1:
-            line_numbers.append(node.lineno - 1)
-        for line_number in line_numbers:
-            match = DYNAMIC_ANNOTATION.search(self.source_lines[line_number - 1])
-            if match:
-                return match.group(1) or "*"
-        return None
+        match = self.annotation(node, DYNAMIC_ANNOTATION)
+        return (match.group(1) or "*") if match else None
 
     def visit_ClassDef(self, node):
         """Scan a class definition."""
@@ -223,19 +240,53 @@ class Scanner(ast.NodeVisitor):
         """
         assignments = collections.defaultdict(list)
 
+        # A parameter can be bound to anything by the caller, even if the
+        # function also assigns a default to it.
+        arguments = node.args
+        for arg in (*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs, arguments.vararg, arguments.kwarg):
+            if arg is not None:
+                assignments[arg.arg].append(UNKNOWN)
+
+        def bind_unknown(target):
+            for name in ast.walk(target):
+                if isinstance(name, ast.Name):
+                    assignments[name.id].append(UNKNOWN)
+
         for child in ast.walk(node):
-            if isinstance(child, ast.Assign) and len(child.targets) == 1 and isinstance(child.targets[0], ast.Name):
-                values = [child.value.body, child.value.orelse] if isinstance(child.value, ast.IfExp) else [child.value]
-                assignments[child.targets[0].id].extend(values)
+            if isinstance(child, ast.Assign):
+                for target in child.targets:
+                    if isinstance(target, ast.Name):
+                        assignments[target.id].append(child.value)
+                    else:
+                        bind_unknown(target)
+            elif isinstance(child, (ast.AugAssign, ast.AnnAssign)):
+                bind_unknown(child.target)
+            elif isinstance(child, ast.NamedExpr):
+                assignments[child.target.id].append(child.value)
             elif isinstance(child, ast.Call) and getattr(child.func, "attr", "") in ("append", "extend") and isinstance(child.func.value, ast.Name):
-                assignments[child.func.value.id].extend(child.args)
-            elif isinstance(child, ast.For):
+                assignments[child.func.value.id].extend(Appended(arg) for arg in child.args)
+            elif isinstance(child, (ast.For, ast.comprehension)):
                 targets = child.target.elts if isinstance(child.target, ast.Tuple) else [child.target]
-                for item in getattr(child.iter, "elts", []):
+                items = child.iter.elts if isinstance(child.iter, (ast.List, ast.Tuple, ast.Set)) else None
+                if items is None:
+                    for target in targets:
+                        bind_unknown(target)
+                    continue
+                for item in items:
                     values = item.elts if isinstance(item, ast.Tuple) else [item]
-                    for target, value in zip(targets, values) if len(targets) == len(values) else ():
+                    if len(targets) != len(values):
+                        for target in targets:
+                            bind_unknown(target)
+                        continue
+                    for target, value in zip(targets, values):
                         if isinstance(target, ast.Name):
                             assignments[target.id].append(value)
+                        else:
+                            bind_unknown(target)
+            elif isinstance(child, (ast.With, ast.AsyncWith)):
+                for item in child.items:
+                    if item.optional_vars is not None:
+                        bind_unknown(item.optional_vars)
 
         return assignments
 
@@ -249,30 +300,25 @@ class Scanner(ast.NodeVisitor):
             return
 
         receiver = ast.unparse(node.func.value)
-        return_path = ""
-        return_path_resolved = True
-        for keyword in node.keywords:
-            if keyword.arg == "return_path":
-                try:
-                    value = ast.literal_eval(keyword.value)
-                except (ValueError, TypeError):
-                    return_path_resolved = False
-                else:
-                    if value is None:
-                        return_path = ""
-                    elif isinstance(value, (str, list, dict)):
-                        return_path = value
-                    else:
-                        return_path_resolved = False
 
-        args = tuple(self.macro_args(node.args[1:]))
+        # get_value(path, return_path) takes the projection as its second
+        # positional argument; call_action passes its remaining positional
+        # arguments to the frontend action.
+        return_path_nodes = [keyword.value for keyword in node.keywords if keyword.arg == "return_path"]
+        action_args = node.args[1:]
+        if node.func.attr == "get_value":
+            return_path_nodes.extend(node.args[1:2])
+            action_args = []
+        return_path, return_path_resolved = self.return_path(return_path_nodes)
+
+        args, macros_resolved = self.macro_args(action_args)
         paths, exact = self.paths(node.args[0] if node.args else None)
 
         dynamic = self.dynamic_annotation(node)
         if dynamic is not None:
             paths, exact = [dynamic], False
 
-        if not paths or receiver not in RECEIVERS or not return_path_resolved:
+        if not paths or receiver not in RECEIVERS or not return_path_resolved or not macros_resolved:
             self.unresolved.append((f"carta/{self.module}:{node.lineno}", self.clazz, self.method, ast.unparse(node)))
             return
 
@@ -296,6 +342,23 @@ class Scanner(ast.NodeVisitor):
                 )
             )
 
+    @staticmethod
+    def return_path(nodes):
+        """The literal response projection of a call site, and whether it is literal."""
+        if not nodes:
+            return "", True
+        if len(nodes) > 1:
+            return "", False
+        try:
+            value = ast.literal_eval(nodes[0])
+        except (ValueError, TypeError, SyntaxError):
+            return "", False
+        if value is None:
+            return "", True
+        if isinstance(value, (str, list, dict)):
+            return value, True
+        return "", False
+
     def values(self, node):
         """The expressions an argument may evaluate to.
 
@@ -304,21 +367,44 @@ class Scanner(ast.NodeVisitor):
         returned unchanged.
         """
         node = node.value if isinstance(node, ast.Starred) else node
-        return self.assignments[-1].get(node.id, []) if isinstance(node, ast.Name) else [node]
+        if isinstance(node, ast.Name):
+            values = self.assignments[-1].get(node.id, [UNKNOWN])
+            return [value.node if isinstance(value, Appended) else value for value in values]
+        if isinstance(node, ast.IfExp):
+            return [node.body, node.orelse]
+        return [node]
 
-    def strings(self, node):
-        """The string constants an argument may evaluate to."""
-        strings = []
+    def strings(self, node, *, allow_globs=False, depth=0):
+        """The string constants an argument may evaluate to.
+
+        Returns the strings, whether they are all exact, and whether every
+        candidate value was resolved. Resolution is all-or-nothing: if any
+        candidate is not a string constant (or, with ``allow_globs``, an
+        f-string), the call site is reported as unresolved instead of being
+        recorded with only the candidates which happen to be constants.
+        """
+        strings, exact = [], True
+        if depth > 10:
+            return [], True, False
         for value in self.values(node):
+            if value is UNKNOWN:
+                return [], True, False
             if isinstance(value, ast.Constant) and isinstance(value.value, str):
                 strings.append(value.value)
-            elif isinstance(value, (ast.List, ast.Tuple)):
-                strings.extend(
-                    element.value
-                    for element in value.elts
-                    if isinstance(element, ast.Constant) and isinstance(element.value, str)
-                )
-        return strings
+            elif allow_globs and isinstance(value, ast.JoinedStr):
+                strings.append("".join(v.value if isinstance(v, ast.Constant) else "*" for v in value.values))
+                exact = False
+            elif isinstance(value, (ast.List, ast.Tuple, ast.Name, ast.IfExp)):
+                elements = value.elts if isinstance(value, (ast.List, ast.Tuple)) else [value]
+                for element in elements:
+                    nested, nested_exact, resolved = self.strings(element, allow_globs=allow_globs, depth=depth + 1)
+                    if not resolved:
+                        return [], True, False
+                    strings.extend(nested)
+                    exact &= nested_exact
+            else:
+                return [], True, False
+        return strings, exact, True
 
     def macro_args(self, nodes):
         """Descriptors for the arguments of a call site which are frontend macros.
@@ -326,21 +412,33 @@ class Scanner(ast.NodeVisitor):
         A macro is either an attribute such as ``self._frame``, a call to the
         ``macro`` method of a wrapper object, or a :obj:`carta.util.Macro`
         constructed directly.
+
+        Returns the descriptors and whether every macro was resolved. A macro
+        whose target or variable is not a string constant, or which is built
+        with keyword arguments, is unresolved.
         """
+        descriptors = []
         for node in nodes:
             for value in self.values(node):
                 if isinstance(value, ast.Attribute) and value.attr in ("_frame", "_region"):
-                    yield ("attr", ast.unparse(value))
+                    descriptors.append(("attr", ast.unparse(value)))
                     continue
-                if not isinstance(value, ast.Call) or len(value.args) != 2:
+                if not isinstance(value, ast.Call):
                     continue
                 name = getattr(value.func, "attr", getattr(value.func, "id", ""))
                 if name not in ("macro", "Macro"):
                     continue
+                if len(value.args) != 2 or value.keywords:
+                    return descriptors, False
                 owner = "" if name == "Macro" else ast.unparse(value.func.value)
-                for target in self.strings(value.args[0]):
-                    for variable in self.strings(value.args[1]):
-                        yield ("macro", owner, target, variable)
+                targets, _, targets_resolved = self.strings(value.args[0])
+                variables, _, variables_resolved = self.strings(value.args[1])
+                if not (targets_resolved and variables_resolved and targets and variables):
+                    return descriptors, False
+                for target in targets:
+                    for variable in variables:
+                        descriptors.append(("macro", owner, target, variable))
+        return tuple(descriptors), True
 
     def paths(self, node):
         """The possible paths for the first argument of a call site.
@@ -348,9 +446,25 @@ class Scanner(ast.NodeVisitor):
         Returns the paths and whether they are exact. An inexact path is a glob
         in which each interpolated value has been replaced by ``*``.
         """
-        if isinstance(node, ast.JoinedStr):
-            return ["".join(v.value if isinstance(v, ast.Constant) else "*" for v in node.values)], False
-        return self.strings(node) if node is not None else [], True
+        if node is None:
+            return [], True
+        if isinstance(node, ast.Starred):
+            # call_action(*args): the path is the first element of the list,
+            # and values appended to it later are action arguments.
+            if not isinstance(node.value, ast.Name):
+                return [], True
+            heads = []
+            for value in self.assignments[-1].get(node.value.id, [UNKNOWN]):
+                if isinstance(value, Appended):
+                    continue
+                if not isinstance(value, (ast.List, ast.Tuple)) or not value.elts or isinstance(value.elts[0], ast.Starred):
+                    return [], True
+                heads.append(value.elts[0])
+            if not heads:
+                return [], True
+            node = ast.Tuple(elts=heads, ctx=ast.Load())
+        strings, exact, resolved = self.strings(node, allow_globs=True)
+        return (strings, exact) if resolved else ([], True)
 
 
 class Registry:
@@ -547,25 +661,23 @@ def manifest(apis):
     """
     entries = []
     for api in apis:
-        entry = {
+        # A frontend API can be used with several response projections. Each
+        # projection gets its own entry, so that a checker which validates the
+        # single ``return_path`` of each entry validates all of them.
+        for projection in sorted(api.return_paths, key=lambda projection: json.dumps(projection, sort_keys=True)):
+            entry = {
                 "kind": api.kind,
                 "path": api.path,
                 "exact": api.exact,
                 "runtime_types": sorted(api.runtime_types),
-                "wrappers": sorted({s.qualname for s in api.sites}),
-        }
-        if len(api.return_paths) == 1:
-            entry["return_path"] = api.return_paths[0]
-        else:
-            # A single frontend parameter/action can legitimately be used with
-            # different response projections. Preserve all of them instead of
-            # silently retaining the first call site's projection.
-            entry["return_paths"] = sorted(api.return_paths, key=lambda projection: json.dumps(projection, sort_keys=True))
-        if not api.required:
-            entry["compatibility"] = "legacy"
-            if api.legacy_until:
-                entry["until"] = api.legacy_until
-        entries.append(entry)
+                "wrappers": sorted({s.qualname for s in api.sites if api.kind == "reference" or s.return_path == projection}),
+                "return_path": projection,
+            }
+            if not api.required:
+                entry["compatibility"] = "legacy"
+                if api.legacy_until:
+                    entry["until"] = api.legacy_until
+            entries.append(entry)
     return {"apis": entries}
 
 

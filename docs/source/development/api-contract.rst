@@ -17,21 +17,32 @@ The manifest can be regenerated explicitly with:
 
 Most API paths should be statically discoverable from the source. Special
 cases are marked at the call site with a ``carta-api`` comment. The comment
-may be placed on the call itself or on the line immediately before it.
+may be a trailing comment on the first line of the call, or a comment on its
+own on the line immediately before it. A trailing comment on the previous line
+belongs to that line's code and does not apply to the next call.
+
+Resolution is all-or-nothing. A path, response projection or macro argument is
+recorded only if every value it may take is a string constant (or, for a path,
+an f-string, which becomes a glob). Function parameters, values computed by a
+call, and loops over computed iterables are unresolved, even when another
+branch assigns a constant, and ``--check`` fails until the call site is
+rewritten with explicit values or annotated. ``get_value`` reads its response
+projection from either the ``return_path`` keyword or its second positional
+argument. For ``call_action(*args)``, the path is the first element of the
+list assigned to ``args``; values appended to it later are action arguments.
 
 Response projections
 --------------------
 
-An API used with one response projection has a ``return_path`` field in the
-manifest. If call sites use different projections for the same API, the
-manifest instead contains ``return_paths``, a list of all distinct projections.
-Each projection can be a string, a list, or a dictionary; an empty string means
-the complete response is used. The frontend checker must validate every
-projection in ``return_paths`` as well as the older ``return_path`` format.
-The two fields are mutually exclusive, and ``return_paths`` must be nonempty.
-Projections are sorted by their canonical JSON representation, and JSON object
-keys are sorted when serialising the manifest, so scan order does not affect
-the generated projection contract.
+Each manifest entry has a single ``return_path`` field. If call sites use
+different projections for the same API, the manifest contains one entry per
+distinct projection, each listing the wrapper methods which use that
+projection, so the frontend checker validates every projection without special
+handling. Each projection can be a string, a list, or a dictionary; an empty
+string means the complete response is used. Entries for the same API are
+sorted by the canonical JSON representation of their projections, and JSON
+object keys are sorted when serialising the manifest, so scan order does not
+affect the generated contract.
 
 Legacy APIs
 -----------
