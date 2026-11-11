@@ -3,13 +3,19 @@ carta-python
 
 This is a prototype of a scripting interface which uses a generic HTTP interface in the CARTA backend as a proxy to call actions on the CARTA frontend.
 
-Install the latest release from PyPI. Requires Python 3.10 or later. Required dependencies are installed automatically:
+Requires Python 3.10 or later. Required dependencies are installed automatically.
+
+Once `carta-python` 2.0 is published on PyPI, install the latest release with:
 
     pip install --upgrade carta-python
 
-To create a new frontend session which is controlled by the wrapper instead of connecting to an existing frontend session, install the optional browser dependencies:
+Until then, install from a local checkout of this repository:
 
-    pip install --upgrade "carta-python[browser]"
+    pip install .
+
+The distribution was previously installed as `carta`. Both distributions provide the `carta` import package, so uninstall the old one first with `pip uninstall carta`.
+
+To create a new frontend session which is controlled by the wrapper instead of connecting to an existing frontend session, install the optional browser dependencies with `pip install --upgrade "carta-python[browser]"`, or `pip install ".[browser]"` from a local checkout.
 
 You also need to make sure that your desired browser is installed, together with a corresponding web driver.
 
