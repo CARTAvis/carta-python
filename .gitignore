@@ -3,6 +3,7 @@ __pycache__
 build
 dist
 carta.egg-info
+carta_python.egg-info
 .DS_Store
 .coverage
 .coverage.*
