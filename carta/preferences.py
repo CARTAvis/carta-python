@@ -38,6 +38,7 @@ class Preferences(BasePathMixin):
         any value
             The value of the preference.
         """
+        # carta-api:dynamic path=*
         return self.get_value(name)
 
     @validate(String(), Any())

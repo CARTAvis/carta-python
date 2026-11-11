@@ -9,3 +9,5 @@ carta.egg-info
 .pytest_cache
 .ruff_cache
 .venv
+carta-python-api.json
+carta-python-enum.json
