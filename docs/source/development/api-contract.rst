@@ -31,6 +31,25 @@ projection from either the ``return_path`` keyword or its second positional
 argument. For ``call_action(*args)``, the path is the first element of the
 list assigned to ``args``; values appended to it later are action arguments.
 
+Compatibility policy
+--------------------
+
+The ``carta-frontend compatibility`` workflow checks the generated manifests
+against the current ``dev`` branch of carta-frontend: carta-python ``dev``
+tracks carta-frontend ``dev``, not a released version. The workflow runs on
+every pull request, whatever its base branch, on pushes to ``dev``, and daily,
+so a frontend change which breaks the contract is reported even when no
+carta-python pull request is open. It can also be started manually against
+another frontend branch, tag or commit.
+
+The enum check is bidirectional. A frontend or protobuf enum member which is
+missing from carta-python fails the check as well as a carta-python member
+which the frontend no longer defines, so a new frontend enum member turns
+carta-python pull requests red until carta-python adds it. Members added only
+for contract parity, which the wrapper cannot use yet, are kept in
+:obj:`carta.constants` but excluded by the validators of the functions which
+would accept them.
+
 Response projections
 --------------------
 

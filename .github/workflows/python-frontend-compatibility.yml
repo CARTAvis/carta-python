@@ -1,11 +1,20 @@
 name: carta-frontend compatibility
 
+# carta-python dev tracks carta-frontend dev. Pull requests are checked
+# whatever their base branch, so that every PR in a stack is covered, and a
+# daily run reports frontend changes which break the contract even when no
+# carta-python PR is open.
 on:
   push:
     branches: [ dev ]
   pull_request:
-    branches: [ dev ]
+  schedule:
+    - cron: "17 23 * * *"
   workflow_dispatch:
+    inputs:
+      frontend-ref:
+        description: carta-frontend branch, tag or commit to check against
+        default: dev
 
 permissions:
   contents: read
@@ -13,6 +22,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout carta-python
@@ -22,8 +32,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: CARTAvis/carta-frontend
-          ref: dev
+          ref: ${{ inputs.frontend-ref || 'dev' }}
           path: carta-frontend
+          # protobuf is needed for the generated types, and schemas for the
+          # preference types which the checker resolves.
           submodules: recursive
 
       - name: Install uv and set Python version
