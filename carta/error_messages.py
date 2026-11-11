@@ -1,6 +1,7 @@
 """Formatting helpers for user-facing CARTA error messages."""
 
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+import re
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -103,14 +104,25 @@ def format_session_validation_error(session_id, uri, timeout, error):
     return message.rstrip()
 
 
+_TOKEN_PARAMETER = re.compile(r"(^|[&;])((?:access_)?token)=[^&;]*", re.IGNORECASE)
+
+
 def _redact_url(uri):
-    """Remove authentication tokens from URLs included in error messages."""
+    """Remove credentials and authentication tokens from URLs included in error messages.
+
+    Token values in the query string and fragment are replaced with ``<redacted>``, and
+    any user information before the host is removed. The rest of the URL is left
+    exactly as supplied.
+    """
     if uri is None:
         return None
 
     parsed = urlsplit(uri)
-    query = [
-        (key, "<redacted>" if key.lower() in {"token", "access_token"} else value)
-        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
-    ]
-    return urlunsplit(parsed._replace(query=urlencode(query)))
+    netloc = parsed.netloc
+    if "@" in netloc:
+        netloc = "<redacted>@" + netloc.rsplit("@", 1)[1]
+
+    def redact(part):
+        return _TOKEN_PARAMETER.sub(lambda m: f"{m.group(1)}{m.group(2)}=<redacted>", part)
+
+    return urlunsplit(parsed._replace(netloc=netloc, query=redact(parsed.query), fragment=redact(parsed.fragment)))
