@@ -79,6 +79,13 @@ def test_set_scaling_invalid(raster, kwargs):
         raster.set_scaling(**kwargs)
 
 
+@pytest.mark.parametrize("scaling", [SC.EXP, SC.CUSTOM])
+def test_set_scaling_rejects_unsupported_scaling(raster, call_action, scaling):
+    with pytest.raises(CartaValidationFailed):
+        raster.set_scaling(scaling)
+    call_action.assert_not_called()
+
+
 @pytest.mark.parametrize("args,kwargs,expected_calls", [
     ([], {}, []),
     ((99, 10, 1000), {}, [("setPercentileRank", 99)]),
