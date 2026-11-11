@@ -251,7 +251,7 @@ class Session:
                 connection_check_timeout=connection_check_timeout,
                 version_mismatch_action=version_mismatch_action,
             )
-        except Exception:
+        except BaseException:
             try:
                 backend.stop()
             except Exception:

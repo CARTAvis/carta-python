@@ -156,6 +156,34 @@ def test_new_session_from_url_closes_browser_and_preserves_validation_error(
     assert browser.driver.closed is True
 
 
+def test_new_session_from_url_closes_browser_on_keyboard_interrupt(
+    mocker, browser_module
+):
+    browser = make_browser(browser_module.Browser)
+    protocol = mocker.Mock(controller_auth=False, frontend_url="http://localhost:3000")
+    mocker.patch("carta.browser.Protocol", return_value=protocol)
+    session = mocker.Mock()
+    session._validate_session.side_effect = KeyboardInterrupt
+    mocker.patch("carta.browser.Session", return_value=session)
+
+    with pytest.raises(KeyboardInterrupt):
+        browser.new_session_from_url("http://localhost:3000")
+
+    assert browser.driver.closed is True
+
+
+def test_new_session_from_url_closes_browser_when_protocol_fails(
+    mocker, browser_module, util_module
+):
+    browser = make_browser(browser_module.Browser)
+    mocker.patch("carta.browser.Protocol", side_effect=util_module.CartaBadToken("bad token"))
+
+    with pytest.raises(util_module.CartaBadToken):
+        browser.new_session_from_url("http://localhost:3000")
+
+    assert browser.driver.closed is True
+
+
 def test_new_session_from_url_preserves_validation_error_when_close_fails(
     mocker, browser_module, util_module
 ):
@@ -205,6 +233,27 @@ def test_new_session_with_backend_stops_backend_when_session_creation_fails(
         connection_check_timeout=10,
         version_mismatch_action=VersionMismatchAction.ERROR,
     )
+
+
+def test_new_session_with_backend_stops_backend_on_keyboard_interrupt(
+    mocker, browser_module
+):
+    browser = make_browser(browser_module.Browser)
+    backend = mocker.Mock(
+        spec=Backend,
+        frontend_url="http://localhost:3000",
+        token=BackendToken("token"),
+        debug_no_auth=False,
+        errors=[],
+    )
+    backend.start.return_value = True
+    mocker.patch("carta.browser.Backend", return_value=backend)
+    mocker.patch.object(browser, "new_session_from_url", side_effect=KeyboardInterrupt)
+
+    with pytest.raises(KeyboardInterrupt):
+        browser.new_session_with_backend()
+
+    backend.stop.assert_called_once_with()
 
 
 def test_new_session_with_backend_preserves_error_when_backend_stop_fails(

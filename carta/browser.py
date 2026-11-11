@@ -113,40 +113,41 @@ class Browser:
         """
 
         _require_selenium()
-        protocol = Protocol(frontend_url, token, debug_no_auth=debug_no_auth)
-
-        if protocol.controller_auth:
-            # A limitation of Selenium is that to add cookies for a domain you have to be at that domain already.
-            self.driver.get(protocol.frontend_url)
-            self.driver.add_cookie(protocol.cookie())
-
-        self.driver.get(protocol.frontend_url)
-
-        session_id = None
-
-        start = time.time()
-        last_error = ""
-
-        # Keep trying until the displayed ID is not 0
-        while not session_id:
-            if time.time() - start > timeout:
-                break
-
-            try:
-                # We can't use .text because Selenium is too clever to return the text of invisible elements.
-                session_id = int(self.driver.find_element(By.ID, "info-session-id").get_attribute("textContent"))
-            except (NoSuchElementException, ValueError) as e:
-                last_error = str(e)
-                time.sleep(1)
-                continue  # retry
-
-        if not session_id:
-            self.exit(f"Could not parse session ID from frontend. Last error: {last_error}")
-
-        session = Session(session_id, protocol)
         try:
+            protocol = Protocol(frontend_url, token, debug_no_auth=debug_no_auth)
+
+            if protocol.controller_auth:
+                # A limitation of Selenium is that to add cookies for a domain you have to be at that domain already.
+                self.driver.get(protocol.frontend_url)
+                self.driver.add_cookie(protocol.cookie())
+
+            self.driver.get(protocol.frontend_url)
+
+            session_id = None
+
+            start = time.time()
+            last_error = ""
+
+            # Keep trying until the displayed ID is not 0
+            while not session_id:
+                if time.time() - start > timeout:
+                    break
+
+                try:
+                    # We can't use .text because Selenium is too clever to return the text of invisible elements.
+                    session_id = int(self.driver.find_element(By.ID, "info-session-id").get_attribute("textContent"))
+                except (NoSuchElementException, ValueError) as e:
+                    last_error = str(e)
+                    time.sleep(1)
+                    continue  # retry
+
+            if not session_id:
+                raise CartaBadSession(f"Could not parse session ID from frontend. Last error: {last_error}")
+
+            session = Session(session_id, protocol)
             session._validate_session(timeout=connection_check_timeout, version_mismatch_action=version_mismatch_action)
-        except Exception:
+        except BaseException:
+            # Close the browser on any failure, including KeyboardInterrupt, so no driver process is left behind.
             self._close_after_error()
             raise
         session._attach_resources(browser=self, backend=backend)
@@ -221,7 +222,7 @@ class Browser:
                 connection_check_timeout=connection_check_timeout,
                 version_mismatch_action=version_mismatch_action,
             )
-        except Exception:
+        except BaseException:
             try:
                 backend.stop()
             except Exception:

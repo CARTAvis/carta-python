@@ -369,6 +369,24 @@ def test_start_and_interact_stops_backend_when_connection_check_fails(mocker):
     backend.stop.assert_called_once_with()
 
 
+def test_start_and_interact_stops_backend_on_keyboard_interrupt(mocker):
+    backend = mocker.Mock(
+        spec=Backend,
+        frontend_url="http://localhost:3000",
+        last_session_id=123,
+        debug_no_auth=False,
+        errors=[],
+    )
+    backend.start.return_value = True
+    mocker.patch("carta.session.Backend", return_value=backend)
+    mocker.patch.object(Session, "interact", side_effect=KeyboardInterrupt)
+
+    with pytest.raises(KeyboardInterrupt):
+        Session.start_and_interact()
+
+    backend.stop.assert_called_once_with()
+
+
 def test_start_and_interact_preserves_error_when_backend_stop_fails(mocker):
     backend = mocker.Mock(
         spec=Backend,
