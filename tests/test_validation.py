@@ -69,9 +69,32 @@ class KeywordOnlyExample:
         return width, enabled
 
 
+class AllKeywordOnlyExample:
+    @validate(Number())
+    def method(self, *, width=None):
+        return width
+
+
+class PositionalExample:
+    @validate(Number(), Number())
+    def method(self, a, b=None):
+        return a, b
+
+
 def test_validate_rejects_surplus_positional_arguments_before_validation():
-    with pytest.raises(TypeError, match="takes at most 1 positional arguments but 2 were given"):
+    with pytest.raises(TypeError, match="takes at most 1 positional argument but 2 were given; pass the remaining parameters by keyword"):
         KeywordOnlyExample().method(1, True)
+
+
+def test_validate_rejects_positional_arguments_when_all_are_keyword_only():
+    with pytest.raises(TypeError, match="takes no positional arguments but 1 were given; pass"):
+        AllKeywordOnlyExample().method(1)
+
+
+def test_validate_omits_keyword_hint_without_keyword_only_parameters():
+    with pytest.raises(TypeError) as e:
+        PositionalExample().method(1, 2, 3)
+    assert str(e.value) == "method() takes at most 2 positional arguments but 3 were given"
 
 
 def test_validate_accepts_keyword_only_arguments():

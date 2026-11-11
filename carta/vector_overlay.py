@@ -27,12 +27,12 @@ class VectorOverlay(BasePathMixin):
         self._base_path = f"{image._base_path}.vectorOverlayConfig"
 
     @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Number(min=1, step=1), Boolean(), Boolean(), Number(), OneOf(Polarization.I, Polarization.PLINEAR), Boolean(), Number(), Number()))
-    def configure(self, angular_source=None, intensity_source=None, *, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, threshold_option=None, debiasing=None, q_error=None, u_error=None):
+    def configure(self, *, angular_source=None, intensity_source=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, threshold_option=None, debiasing=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
         All parameters are optional. For each option that is not provided, the value currently set in the frontend will be preserved. Initial frontend settings are noted below.
 
-        All parameters except **angular_source** and **intensity_source** are keyword-only.
+        All parameters are keyword-only.
 
         We deduce some boolean options. For example, providing an explicit threshold will automatically enable thresholding unless **threshold_enabled** is also explicitly set to ``False``. Providing both Stokes error values will automatically enable debiasing unless **debiasing** is explicitly set to ``False``.
 
@@ -203,10 +203,10 @@ class VectorOverlay(BasePathMixin):
         self.image.call_action("applyVectorOverlay")
 
     @validate(*all_optional(*configure.VARGS, *vargs(set_thickness, set_intensity_range, set_length_range, set_rotation_offset, set_color, set_colormap, set_bias_and_contrast)))
-    def plot(self, angular_source=None, intensity_source=None, *, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, threshold_option=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None):
+    def plot(self, *, angular_source=None, intensity_source=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, threshold_option=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None):
         """Configure, style, and apply the vector overlay in a single step.
 
-        If both a color and a colormap are provided, the colormap will be enabled. All parameters except **angular_source** and **intensity_source** are keyword-only.
+        If both a color and a colormap are provided, the colormap will be enabled. All parameters are keyword-only.
 
         Parameters
         ----------
@@ -264,7 +264,7 @@ class VectorOverlay(BasePathMixin):
             "u_error": u_error,
         }
         if angular_source is not None or intensity_source is not None or any(v is not None for v in configuration.values()):
-            self.configure(angular_source, intensity_source, **configuration)
+            self.configure(angular_source=angular_source, intensity_source=intensity_source, **configuration)
             changes_made = True
 
         for method, args in [

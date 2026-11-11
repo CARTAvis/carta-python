@@ -946,7 +946,12 @@ def validate(*vargs):
         def newfunc(self, *args, **kwargs):
             if len(args) > positional_count:
                 # Check this before validation, which would otherwise match surplus positional values against keyword-only descriptors.
-                raise TypeError(f"{func.__name__}() takes at most {positional_count} positional arguments but {len(args)} were given; pass the remaining parameters by keyword")
+                if positional_count == 0:
+                    limit = "takes no positional arguments"
+                else:
+                    limit = f"takes at most {positional_count} positional argument{'s' if positional_count > 1 else ''}"
+                hint = "; pass the remaining parameters by keyword" if spec.kwonlyargs else ""
+                raise TypeError(f"{func.__name__}() {limit} but {len(args)} were given{hint}")
             try:
                 for param, value in zip(vargs, args):
                     param.validate(value, self)
