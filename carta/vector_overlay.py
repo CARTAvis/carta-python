@@ -1,8 +1,8 @@
 """This module contains functionality for interacting with the vector overlay of an image. The class in this module should not be instantiated directly. When an image object is created, a vector overlay object is automatically created as a property."""
 
 from .util import logger, Macro, BasePathMixin
-from .constants import Colormap, VectorOverlaySource, Auto
-from .validation import validate, Number, Color, Constant, Boolean, all_optional, Union, vargs
+from .constants import Colormap, VectorOverlaySource, Polarization, Auto
+from .validation import validate, Number, Color, Constant, Boolean, OneOf, all_optional, Union, vargs
 
 
 class VectorOverlay(BasePathMixin):
@@ -26,13 +26,15 @@ class VectorOverlay(BasePathMixin):
         self.session = image.session
         self._base_path = f"{image._base_path}.vectorOverlayConfig"
 
-    @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Number(), Boolean(), Number(), Boolean(), Number(), Number()))
-    def configure(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None):
+    @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Boolean(), Number(), Boolean(), Boolean(), Number(), Boolean(), Number(), Number(), OneOf(Polarization.I, Polarization.PLINEAR)))
+    def configure(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None, *, threshold_option=None):
         """Configure vector overlay.
 
         All parameters are optional. For each option that is not provided, the value currently set in the frontend will be preserved. Initial frontend settings are noted below.
 
-        We deduce some boolean options. For example, providing an explicit pixel averaging width with the **pixel_averaging** parameter will automatically enable pixel averaging unless **pixel_averaging_enabled** is also explicitly set to ``False``. To disable pixel averaging, explicitly set **pixel_averaging_enabled** to ``False``.
+        The legacy **pixel_averaging_enabled** parameter is still accepted. Setting it to ``False`` disables averaging by setting the width to ``1``. Setting it to ``True`` uses the provided width, or preserves the current width when omitted.
+
+        We deduce some boolean options. For example, providing an explicit threshold will automatically enable thresholding unless **threshold_enabled** is also explicitly set to ``False``. Providing both Stokes error values will automatically enable debiasing unless **debiasing** is explicitly set to ``False``.
 
         Parameters
         ----------
@@ -41,7 +43,7 @@ class VectorOverlay(BasePathMixin):
         intensity_source : {1}
             The intensity source. This is initially set to computed PI if the image contains Stokes information, otherwise to the current image.
         pixel_averaging_enabled : {2}
-            Enable pixel averaging. This is initially enabled if the pixel averaging width is positive.
+            Legacy averaging flag. ``False`` sets the averaging width to ``1``; ``True`` preserves the supplied or current width.
         pixel_averaging : {3}
             The pixel averaging width in pixels. The initial value can be configured in the frontend preferences (the default is ``4``).
         fractional_intensity : {4}
@@ -56,13 +58,17 @@ class VectorOverlay(BasePathMixin):
             The Stokes Q error in Jy/beam. Set both this and ``u_error`` to enable debiasing. Initially set to zero.
         u_error : {9}
             The Stokes U error in Jy/beam. Set both this and ``q_error`` to enable debiasing. Initially set to zero.
+        threshold_option : {10}, keyword-only
+            Select whether the threshold applies to Stokes I or computed linear polarization. If omitted, the current frontend setting is preserved.
         """
 
         # Avoid doing a lot of needless work for a no-op
-        args = (angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
+        args = (angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error, threshold_option)
         if any(a is not None for a in args):
-            if pixel_averaging is not None and pixel_averaging_enabled is None:
-                pixel_averaging_enabled = True
+            if pixel_averaging_enabled is False:
+                pixel_averaging = 1
+            if fractional_intensity is not None:
+                fractional_intensity = bool(fractional_intensity)
             if threshold is not None and threshold_enabled is None:
                 threshold_enabled = True
             if q_error is not None and u_error is not None and debiasing is None:
@@ -77,14 +83,14 @@ class VectorOverlay(BasePathMixin):
             for value, attr_name in (
                 (angular_source, "angularSource"),
                 (intensity_source, "intensitySource"),
-                (pixel_averaging_enabled, "pixelAveragingEnabled"),
                 (pixel_averaging, "pixelAveraging"),
-                (fractional_intensity, "fractionalIntensity"),
-                (threshold_enabled, "thresholdEnabled"),
+                (fractional_intensity, "isFractionalIntensity"),
+                (threshold_enabled, "isThresholdEnabled"),
                 (threshold, "threshold"),
-                (debiasing, "debiasing"),
+                (debiasing, "isDebiasing"),
                 (q_error, "qError"),
                 (u_error, "uError"),
+                (threshold_option, "thresholdOption"),
             ):
                 if value is None:
                     args.append(self.macro("", attr_name))
@@ -200,8 +206,8 @@ class VectorOverlay(BasePathMixin):
         """Apply the vector overlay configuration."""
         self.image.call_action("applyVectorOverlay")
 
-    @validate(*all_optional(*vargs(configure, set_thickness, set_intensity_range, set_length_range, set_rotation_offset, set_color, set_colormap, set_bias_and_contrast)))
-    def plot(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None):
+    @validate(*all_optional(*configure.VARGS[:-1], *vargs(set_thickness, set_intensity_range, set_length_range, set_rotation_offset, set_color, set_colormap, set_bias_and_contrast), configure.VARGS[-1]))
+    def plot(self, angular_source=None, intensity_source=None, pixel_averaging_enabled=None, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, debiasing=None, q_error=None, u_error=None, thickness=None, intensity_min=None, intensity_max=None, length_min=None, length_max=None, rotation_offset=None, color=None, colormap=None, bias=None, contrast=None, *, threshold_option=None):
         """Configure, style, and apply the vector overlay in a single step.
 
         If both a color and a colormap are provided, the colormap will be enabled.
@@ -213,7 +219,7 @@ class VectorOverlay(BasePathMixin):
         intensity_source : {1}
             The intensity source. This is initially set to computed PI if the image contains Stokes information, otherwise to the current image.
         pixel_averaging_enabled : {2}
-            Enable pixel averaging. This is initially enabled if the pixel averaging width is positive.
+            Legacy averaging flag. ``False`` sets the averaging width to ``1``; ``True`` preserves the supplied or current width.
         pixel_averaging : {3}
             The pixel averaging width in pixels. The initial value can be configured in the frontend preferences (the default is ``4``).
         fractional_intensity : {4}
@@ -248,11 +254,17 @@ class VectorOverlay(BasePathMixin):
             The colormap bias. The initial value is ``0``.
         contrast : {19}
             The colormap contrast. The initial value is ``1``.
+        threshold_option : {20}, keyword-only
+            Select whether the threshold applies to Stokes I or computed linear polarization. If omitted, the current frontend setting is preserved.
         """
         changes_made = False
 
+        configuration = (angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)
+        if any(a is not None for a in configuration) or threshold_option is not None:
+            self.configure(*configuration, threshold_option=threshold_option)
+            changes_made = True
+
         for method, args in [
-            (self.configure, (angular_source, intensity_source, pixel_averaging_enabled, pixel_averaging, fractional_intensity, threshold_enabled, threshold, debiasing, q_error, u_error)),
             (self.set_thickness, (thickness,)),
             (self.set_intensity_range, (intensity_min, intensity_max)),
             (self.set_length_range, (length_min, length_max)),

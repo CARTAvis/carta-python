@@ -486,7 +486,7 @@ def test_beam_show_hide(mocker, image, session_call_action):
 def test_beam_visible(image, session_get_value):
     session_get_value.side_effect = [True]
     visible = image.wcs.beam.visible
-    session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.visible", return_path=None)
+    session_get_value.assert_called_with("frameMap[0].overlayBeamSettings.isVisible", return_path=None)
     assert visible
 
 

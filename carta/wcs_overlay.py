@@ -89,7 +89,7 @@ class SessionWCSOverlay(BasePathMixin):
             The RGB value of the palette colour in the session's current theme, as a 6-digit hexadecimal with a leading ``#``.
         """
         color = PaletteColor(color)
-        if self.session.get_value("darkTheme"):
+        if self.session.get_value("isDarkTheme"):
             return color.rgb_dark
         return color.rgb_light
 
@@ -168,7 +168,7 @@ class HasCustomColor(HasColor):
         boolean
             Whether a custom color is applied.
         """
-        return self.get_value("customColor")
+        return self.get_value("hasCustomColor")
 
     @validate(Constant(PaletteColor))
     def set_color(self, color):
@@ -208,7 +208,7 @@ class HasCustomText:
         boolean
             Whether custom text is applied.
         """
-        return self.get_value("customText")
+        return self.get_value("hasCustomText")
 
     @validate(Boolean())
     def set_custom_text(self, state):
@@ -305,7 +305,7 @@ class HasVisibility:
         boolean
             Whether this component is visible.
         """
-        return self.get_value("visible")
+        return self.get_value("isVisible")
 
     @validate(Boolean())
     def set_visible(self, state):
@@ -402,7 +402,7 @@ class HasCustomPrecision:
         boolean
             Whether a custom precision is applied.
         """
-        return self.get_value("customPrecision")
+        return self.get_value("hasCustomPrecision")
 
     @validate(Number(min=0))
     def set_precision(self, precision):
@@ -598,7 +598,7 @@ class Grid(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         boolean
             Whether a custom gap is applied.
         """
-        return self.get_value("customGap")
+        return self.get_value("hasCustomGap")
 
     @validate(*all_optional(Number.POSITIVE, Number.POSITIVE))
     def set_gap(self, gap_x, gap_y):
@@ -692,7 +692,7 @@ class Numbers(HasCustomColor, HasFont, HasVisibility, HasCustomPrecision, Overla
         boolean
             Whether a custom format is applied.
         """
-        return self.get_value("customFormat")
+        return self.get_value("hasCustomFormat")
 
     @validate(*all_optional(Constant(NumberFormat), Constant(NumberFormat)))
     def set_format(self, format_x=None, format_y=None):
@@ -804,7 +804,7 @@ class Ticks(HasCustomColor, HasWidth, OverlayComponent):
         boolean
             Whether a custom density is applied.
         """
-        return self.get_value("customDensity")
+        return self.get_value("hasCustomDensity")
 
     @property
     def draw_on_all_edges(self):
@@ -815,7 +815,7 @@ class Ticks(HasCustomColor, HasWidth, OverlayComponent):
         boolean
             Whether the ticks are drawn on all edges.
         """
-        return self.get_value("drawAll")
+        return self.get_value("shouldDrawAll")
 
     @property
     def minor_length(self):
@@ -908,6 +908,7 @@ class ColorbarComponent:
         The session object associated with this colorbar component.
     """
 
+
     def __init__(self, colorbar):
         self.colorbar = colorbar
         self.session = colorbar.session
@@ -937,7 +938,9 @@ class ColorbarComponent:
     def get_value(self, path, return_path=None):
         """Convenience wrapper for the colorbar object's generic method for retrieving attribute values.
 
-        This method calls :obj:`carta.wcs_overlay.Colorbar.get_value` after inserting this subcomponent's name prefix into the path parameter. It assumes that the attribute name starts with a lowercase letter, that the prefix should be inserted before it, and that the first letter of the original name should be capitalised.
+        This method calls :obj:`carta.wcs_overlay.Colorbar.get_value` after inserting this subcomponent's name into the attribute name. For simple names, the prefix is prepended and the first letter of the attribute is capitalised, for example ``width`` becomes ``borderWidth`` for the border subcomponent.
+
+        If the path starts with ``is`` or ``has`` followed by an uppercase letter, the capitalised prefix is inserted after it: ``isVisible`` becomes ``isBorderVisible`` and ``hasCustomColor`` becomes ``hasBorderCustomColor``. For these paths, any suffix after the initial attribute is preserved, for example ``isVisible.value`` becomes ``isBorderVisible.value``. The special ``is``/``has`` rule applies only at the start of the path.
 
         Parameters
         ----------
@@ -951,11 +954,16 @@ class ColorbarComponent:
         object
             The unmodified return value of the colorbar method.
         """
-        def rewrite(m):
-            before, first, rest = m.groups()
-            return f"{before}{self.PREFIX}{first.upper()}{rest}"
+        prefix = self.PREFIX.title()
+        match = re.match(r"^(is|has)([A-Z].*)", path)
+        if match:
+            path = f"{match.group(1)}{prefix}{match.group(2)}"
+        else:
+            def rewrite(m):
+                before, first, rest = m.groups()
+                return f"{before}{self.PREFIX}{first.upper()}{rest}"
 
-        path = re.sub(r"((?:.*\.)?.*?)(.)(.*)", rewrite, path)
+            path = re.sub(r"((?:.*\.)?.*?)(.)(.*)", rewrite, path)
         return self.colorbar.get_value(path, return_path=return_path)
 
 
@@ -1129,7 +1137,7 @@ class Colorbar(HasCustomColor, HasVisibility, HasWidth, OverlayComponent):
         boolean
             Whether the colorbar is interactive.
         """
-        return self.get_value("interactive")
+        return self.get_value("isInteractive")
 
     @property
     def offset(self):

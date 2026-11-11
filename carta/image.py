@@ -352,7 +352,7 @@ class Image(View, BasePathMixin):
         boolean
             Whether the image has WCS information.
         """
-        return self.get_value("validWcs")
+        return self.get_value("isValidWcs")
 
     @validate(Coordinate(), Coordinate())
     def set_center(self, x, y):
