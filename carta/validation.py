@@ -935,8 +935,8 @@ def validate(*vargs):
         spec = inspect.getfullargspec(func)
         parameter_names = spec.args[1:] + spec.kwonlyargs
         kwvargs = {k: v for (k, v) in zip(parameter_names, vargs)}
-        STRIP_OBJ = re.compile(":obj:`(.*)`")
-        STRIP_CODE = re.compile("``(.*)``")
+        STRIP_OBJ = re.compile(":obj:`(.*?)`")
+        STRIP_CODE = re.compile("``(.*?)``")
         PRESERVE = re.compile("(:obj:`.+?`|``.+?``)")
         ITALICISE = re.compile(r"^([\s.,]*)(.+?)([\s.,]*)$")
 
