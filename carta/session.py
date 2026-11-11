@@ -8,6 +8,7 @@ Alternatively, the user can create a new session which runs in a headless browse
 
 import base64
 from collections.abc import Iterable
+import os
 import posixpath
 
 from .image import Image
@@ -73,6 +74,42 @@ class _BrowserInstance(Parameter):
         return "an instance of :obj:`carta.browser.Browser`"
 
 
+class _OptionalToken(Parameter):
+    """Validate an optional token without including its value in error messages."""
+
+    def __init__(self, types):
+        self._instance_of = InstanceOf(types)
+
+    def validate(self, value, parent):
+        """Check the token type, reporting only the type of an invalid value."""
+        if value is not None and not isinstance(value, self._instance_of.types):
+            raise TypeError(f"a value of type {type(value).__name__} was provided, but {self.description} was expected.")
+
+    @property
+    def description(self):
+        """Describe the accepted token types."""
+        return f"{self._instance_of.description} or ``None``"
+
+
+class _BackendParams(Parameter):
+    """Validate additional backend command-line parameters."""
+
+    def validate(self, value, parent):
+        """Accept any iterable except a single string, which would be split into characters."""
+        if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
+            raise TypeError(f"{value!r} was provided, but {self.description} was expected.")
+
+    @property
+    def description(self):
+        """Describe the accepted backend parameters."""
+        return "an iterable of command-line parameters (not a single string)"
+
+
+_EXECUTABLE_PATH = Union(String(), InstanceOf(os.PathLike))
+_BACKEND_TOKEN = _OptionalToken(BackendToken)
+_ANY_TOKEN = _OptionalToken((BackendToken, ControllerToken))
+
+
 class Session:
     """This object corresponds to a CARTA frontend session.
 
@@ -130,7 +167,7 @@ class Session:
         self.close()
 
     @classmethod
-    @validate(String(), Union(Number.ID, String(regex=r"^[0-9]+$")), NoneOr(InstanceOf((BackendToken, ControllerToken))), Boolean(), NoneOr(InstanceOf(Backend)), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
+    @validate(String(), Union(Number.ID, String(regex=r"^[0-9]+$")), _ANY_TOKEN, Boolean(), NoneOr(InstanceOf(Backend)), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
     def interact(cls, frontend_url, session_id, token=None, debug_no_auth=False, backend=None, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Interact with an existing CARTA frontend session.
 
@@ -182,7 +219,7 @@ class Session:
         return session
 
     @classmethod
-    @validate(String(), NoneOr(String()), InstanceOf(Iterable), NoneOr(InstanceOf(BackendToken)), Number(min=0), Number(min=0), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
+    @validate(_EXECUTABLE_PATH, NoneOr(String()), _BackendParams(), _BACKEND_TOKEN, Number(min=0), Number(min=0), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
     def start_and_interact(cls, executable_path="carta", remote_host=None, params=tuple(), token=None, frontend_url_timeout=10, session_creation_timeout=10, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Start a new CARTA backend instance and interact with the default CARTA frontend session which is created automatically in the user's browser. This method cannot be used with a CARTA controller instance.
 
@@ -259,7 +296,7 @@ class Session:
             raise
 
     @classmethod
-    @validate(_BrowserInstance(), String(), NoneOr(InstanceOf((BackendToken, ControllerToken))), Number(min=0), Boolean(), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
+    @validate(_BrowserInstance(), String(), _ANY_TOKEN, Number(min=0), Boolean(), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
     def create(cls, browser, frontend_url, token=None, timeout=10, debug_no_auth=False, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Connect to an existing CARTA backend or CARTA controller instance and create a new session.
 
@@ -313,7 +350,7 @@ class Session:
         )
 
     @classmethod
-    @validate(_BrowserInstance(), String(), NoneOr(String()), InstanceOf(Iterable), Number(min=0), NoneOr(InstanceOf(BackendToken)), Number(min=0), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
+    @validate(_BrowserInstance(), _EXECUTABLE_PATH, NoneOr(String()), _BackendParams(), Number(min=0), _BACKEND_TOKEN, Number(min=0), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
     def start_and_create(cls, browser, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Start a new CARTA backend instance and create a new session. This method cannot be used with a CARTA controller instance (which already starts and stops backend instances for the user on demand).
 

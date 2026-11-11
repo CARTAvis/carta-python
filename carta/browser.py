@@ -1,7 +1,6 @@
 """This module provides browser objects which can be used to create new sessions. It depends on the ``selenium`` library. The desired browser and its corresponding web driver also have to be installed."""
 
 import time
-from collections.abc import Iterable
 
 try:
     from selenium import webdriver
@@ -20,11 +19,10 @@ else:
     _SELENIUM_IMPORT_ERROR = None
 
 from .backend import Backend
-from .token import BackendToken, ControllerToken
 from .constants import VersionMismatchAction
 from .util import CartaBadSession, logger
 from .protocol import Protocol
-from .session import Session
+from .session import Session, _ANY_TOKEN, _BACKEND_TOKEN, _EXECUTABLE_PATH, _BackendParams
 from .validation import validate, String, Number, Constant, Boolean, NoneOr, InstanceOf
 
 
@@ -66,7 +64,7 @@ class Browser:
     def __init__(self, driver_class, **kwargs):
         self.driver = driver_class(**kwargs)
 
-    @validate(String(), NoneOr(InstanceOf((BackendToken, ControllerToken))), NoneOr(InstanceOf(Backend)), Number(min=0), Boolean(), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
+    @validate(String(), _ANY_TOKEN, NoneOr(InstanceOf(Backend)), Number(min=0), Boolean(), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
     def new_session_from_url(self, frontend_url, token=None, backend=None, timeout=10, debug_no_auth=False, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Create a new session by connecting to an existing backend.
 
@@ -153,7 +151,7 @@ class Browser:
         session._attach_resources(browser=self, backend=backend)
         return session
 
-    @validate(String(), NoneOr(String()), InstanceOf(Iterable), Number(min=0), NoneOr(InstanceOf(BackendToken)), Number(min=0), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
+    @validate(_EXECUTABLE_PATH, NoneOr(String()), _BackendParams(), Number(min=0), _BACKEND_TOKEN, Number(min=0), Number(min=0, interval=Number.EXCLUDE), Constant(VersionMismatchAction))
     def new_session_with_backend(self, executable_path="carta", remote_host=None, params=tuple(), timeout=10, token=None, frontend_url_timeout=10, connection_check_timeout=10, version_mismatch_action=VersionMismatchAction.ERROR):
         """Create a new session after launching a new backend process.
 

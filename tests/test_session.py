@@ -1455,3 +1455,35 @@ def test_session_startup_accepts_numeric_params_and_zero_waits(method, params_ki
         assert tuple(browser.new_session_with_backend.call_args.args[2]) == ("--verbosity", 5)
         assert browser.new_session_with_backend.call_args.args[3:6] == (0, token, 0)
     assert result == "session"
+
+
+def test_session_creation_rejects_string_token_without_echoing_it(mocker):
+    protocol = mocker.patch("carta.session.Protocol")
+
+    with pytest.raises(CartaValidationFailed) as error:
+        Session.interact("http://localhost:3000", 123, token="secret-token-value")
+
+    assert "secret-token-value" not in str(error.value)
+    assert "a value of type str was provided, but an instance of carta.token.BackendToken or carta.token.ControllerToken or None was expected." in str(error.value)
+    protocol.assert_not_called()
+
+
+def test_start_and_interact_rejects_single_string_params(mocker):
+    backend_class = mocker.patch("carta.session.Backend")
+
+    with pytest.raises(CartaValidationFailed, match="not a single string"):
+        Session.start_and_interact(params="--verbosity 5")
+
+    backend_class.assert_not_called()
+
+
+def test_start_and_interact_accepts_path_executable(mocker, tmp_path):
+    executable = tmp_path / "carta"
+    backend = mocker.Mock(spec=Backend, frontend_url="http://localhost:3000", last_session_id=123, debug_no_auth=False, errors=[])
+    backend.start.return_value = True
+    backend_class = mocker.patch("carta.session.Backend", return_value=backend)
+    mocker.patch.object(Session, "interact")
+
+    Session.start_and_interact(executable_path=executable)
+
+    assert backend_class.call_args.args[1] == executable
