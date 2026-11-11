@@ -597,6 +597,20 @@ def test_colorbar_get_border_properties(mocker, overlay, component_get_value):
     assert custom_color is True
 
 
+@pytest.mark.parametrize("method_name", ["call_action", "get_value"])
+@pytest.mark.parametrize("path", ["isVisible.value", "setFoo.bar", "a.b"])
+def test_colorbar_component_rejects_dotted_paths(overlay, component_call_action, component_get_value, method_name, path):
+    colorbar_call_action = component_call_action(O.COLORBAR)
+    colorbar_get_value = component_get_value(O.COLORBAR)
+
+    with pytest.raises(ValueError) as e:
+        getattr(overlay.colorbar.border, method_name)(path)
+
+    assert "dotted path" in str(e.value)
+    colorbar_call_action.assert_not_called()
+    colorbar_get_value.assert_not_called()
+
+
 def test_colorbar_set_ticks_properties(mocker, overlay, component_call_action):
     colorbar_call_action = component_call_action(O.COLORBAR)
 

@@ -920,7 +920,7 @@ class ColorbarComponent:
         Parameters
         ----------
         path : string
-            The path to an action relative to the colorbar object's store, with this subcomponent's name prefix omitted.
+            The name of an action on the colorbar object's store, with this subcomponent's name prefix omitted. Dotted paths are not supported.
         *args
             A variable-length list of parameters. These are passed unmodified to the colorbar method.
         **kwargs
@@ -930,8 +930,14 @@ class ColorbarComponent:
         -------
         object or None
             The unmodified return value of the colorbar method.
+
+        Raises
+        ------
+        ValueError
+            If the path contains a ``.``.
         """
-        path = re.sub(r"(?:.*\.)*(.*?)([A-Z].*)", rf"\1{self.PREFIX.title()}\2", path)
+        self._check_path(path)
+        path = re.sub(r"^(.*?)([A-Z].*)", rf"\1{self.PREFIX.title()}\2", path)
         self.colorbar.call_action(path, *args, **kwargs)
 
     def get_value(self, path, return_path=None):
@@ -939,12 +945,12 @@ class ColorbarComponent:
 
         This method calls :obj:`carta.wcs_overlay.Colorbar.get_value` after inserting this subcomponent's name into the attribute name. For simple names, the prefix is prepended and the first letter of the attribute is capitalised, for example ``width`` becomes ``borderWidth`` for the border subcomponent.
 
-        If the path starts with ``is`` or ``has`` followed by an uppercase letter, the capitalised prefix is inserted after it: ``isVisible`` becomes ``isBorderVisible`` and ``hasCustomColor`` becomes ``hasBorderCustomColor``. For these paths, any suffix after the initial attribute is preserved, for example ``isVisible.value`` becomes ``isBorderVisible.value``. The special ``is``/``has`` rule applies only at the start of the path.
+        If the path starts with ``is`` or ``has`` followed by an uppercase letter, the capitalised prefix is inserted after it: ``isVisible`` becomes ``isBorderVisible`` and ``hasCustomColor`` becomes ``hasBorderCustomColor``.
 
         Parameters
         ----------
         path : string
-            The path to an attribute relative to the colorbar object's store, with this subcomponent's name prefix omitted.
+            The name of an attribute on the colorbar object's store, with this subcomponent's name prefix omitted. Dotted paths are not supported; use ``return_path`` to select a subobject of the value.
         return_path : string, list of strings, or dictionary, optional
             Specifies a subobject of the attribute value which should be returned instead of the whole object. A list or dictionary is applied to every element of a returned list or every value of a returned map.
 
@@ -952,18 +958,24 @@ class ColorbarComponent:
         -------
         object
             The unmodified return value of the colorbar method.
+
+        Raises
+        ------
+        ValueError
+            If the path contains a ``.``.
         """
-        prefix = self.PREFIX.title()
+        self._check_path(path)
         match = re.match(r"^(is|has)([A-Z].*)", path)
         if match:
-            path = f"{match.group(1)}{prefix}{match.group(2)}"
+            path = f"{match.group(1)}{self.PREFIX.title()}{match.group(2)}"
         else:
-            def rewrite(m):
-                before, first, rest = m.groups()
-                return f"{before}{self.PREFIX}{first.upper()}{rest}"
-
-            path = re.sub(r"((?:.*\.)?.*?)(.)(.*)", rewrite, path)
+            path = f"{self.PREFIX}{path[:1].upper()}{path[1:]}"
         return self.colorbar.get_value(path, return_path=return_path)
+
+    @staticmethod
+    def _check_path(path):
+        if "." in path:
+            raise ValueError(f"Colorbar component paths must be a single name, not a dotted path: {path!r}.")
 
 
 class ColorbarBorder(HasVisibility, HasWidth, HasCustomColor, ColorbarComponent):
