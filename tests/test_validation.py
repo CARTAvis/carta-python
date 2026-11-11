@@ -1,6 +1,6 @@
 import pytest
 
-from carta.validation import Size, Coordinate, Point
+from carta.validation import Size, Coordinate, Point, validate, Number, Boolean
 
 
 @pytest.mark.parametrize('val', [123, "123arcmin", "123arcsec", "123deg", "123degree", "123degrees", "123 arcmin", "123 arcsec", "123 deg", "123 degree", "123 degrees", "123", "123\"", "123'"])
@@ -61,3 +61,18 @@ def test_point_invalid(clazz, val, error_contains):
     with pytest.raises(ValueError) as e:
         clazz().validate(val, None)
     assert error_contains in str(e.value)
+
+
+class KeywordOnlyExample:
+    @validate(Number(), Boolean())
+    def method(self, width, *, enabled=False):
+        return width, enabled
+
+
+def test_validate_rejects_surplus_positional_arguments_before_validation():
+    with pytest.raises(TypeError, match="takes at most 1 positional arguments but 2 were given"):
+        KeywordOnlyExample().method(1, True)
+
+
+def test_validate_accepts_keyword_only_arguments():
+    assert KeywordOnlyExample().method(1, enabled=True) == (1, True)

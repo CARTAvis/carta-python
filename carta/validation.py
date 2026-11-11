@@ -940,8 +940,13 @@ def validate(*vargs):
         PRESERVE = re.compile("(:obj:`.+?`|``.+?``)")
         ITALICISE = re.compile(r"^([\s.,]*)(.+?)([\s.,]*)$")
 
+        positional_count = len(spec.args) - 1
+
         @functools.wraps(func)
         def newfunc(self, *args, **kwargs):
+            if len(args) > positional_count:
+                # Check this before validation, which would otherwise match surplus positional values against keyword-only descriptors.
+                raise TypeError(f"{func.__name__}() takes at most {positional_count} positional arguments but {len(args)} were given; pass the remaining parameters by keyword")
             try:
                 for param, value in zip(vargs, args):
                     param.validate(value, self)
