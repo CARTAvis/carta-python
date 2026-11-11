@@ -21,6 +21,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
       - name: Sync test environment
-        run: uv sync --locked --no-group dev --group test
+        run: uv sync --locked --no-group dev --group test --extra browser
       - name: Test with pytest
         run: uv run --no-sync pytest -v tests/
