@@ -108,6 +108,15 @@ def test_options_after_sources_are_keyword_only(name, args, vector_overlay, call
 
 
 @pytest.mark.parametrize("name", ["configure", "plot"])
+@pytest.mark.parametrize("value", [0, -3, 2.5])
+def test_pixel_averaging_must_be_positive_integer(name, vector_overlay, call_action, image_call_action, value):
+    with pytest.raises(CartaValidationFailed):
+        getattr(vector_overlay, name)(pixel_averaging=value)
+    call_action.assert_not_called()
+    image_call_action.assert_not_called()
+
+
+@pytest.mark.parametrize("name", ["configure", "plot"])
 def test_pixel_averaging_enabled_is_removed(name, vector_overlay, call_action, image_call_action):
     with pytest.raises(CartaValidationFailed, match="pixel_averaging_enabled"):
         getattr(vector_overlay, name)(pixel_averaging_enabled=False)

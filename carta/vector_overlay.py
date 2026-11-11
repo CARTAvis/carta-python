@@ -26,7 +26,7 @@ class VectorOverlay(BasePathMixin):
         self.session = image.session
         self._base_path = f"{image._base_path}.vectorOverlayConfig"
 
-    @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Number(), Boolean(), Boolean(), Number(), OneOf(Polarization.I, Polarization.PLINEAR), Boolean(), Number(), Number()))
+    @validate(*all_optional(Constant(VectorOverlaySource), Constant(VectorOverlaySource), Number(min=1, step=1), Boolean(), Boolean(), Number(), OneOf(Polarization.I, Polarization.PLINEAR), Boolean(), Number(), Number()))
     def configure(self, angular_source=None, intensity_source=None, *, pixel_averaging=None, fractional_intensity=None, threshold_enabled=None, threshold=None, threshold_option=None, debiasing=None, q_error=None, u_error=None):
         """Configure vector overlay.
 
