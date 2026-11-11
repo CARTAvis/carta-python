@@ -198,3 +198,30 @@ def version_mismatch_details(version):
         f"functionality with carta-python {current.wrapper_label}."
     ]
     return mismatches, _older_carta_suggestions(version, current)
+
+
+def action_failure_compatibility_suggestions(version):
+    """Return compatibility suggestions after a frontend action failure."""
+    parsed_version = parse_carta_version(version)
+    if parsed_version is None:
+        return []
+
+    current = latest_compatibility()
+    if parsed_version[:2] < current._minimum:
+        return _older_carta_suggestions(version, current)
+
+    return [
+        "For direct scripting calls, verify that the frontend action, attribute, "
+        "or response path exists.",
+        "If this failure started after a CARTA upgrade, upgrade carta-python to "
+        "the latest available release and retry.\n"
+        "For a regular Python environment:\n"
+        "  python -m pip install --upgrade carta-python\n"
+        "For a uv-managed script:\n"
+        "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
+        "  uv run your_script.py",
+        "If the failure persists after upgrading, check whether your script uses "
+        "a renamed carta-python function or argument, a direct `call_action()` "
+        "API path, or a changed response structure. Updating carta-python does "
+        "not rewrite hard-coded API paths in your script.",
+    ]

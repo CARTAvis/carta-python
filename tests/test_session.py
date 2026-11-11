@@ -282,6 +282,71 @@ def test_validate_session_reports_status_from_chained_request_failure(
     assert "Original error" not in message
 
 
+def test_call_action_adds_compatibility_suggestion_to_frontend_failure(
+    session, mocker
+):
+    original_error = CartaActionFailed("newAction is unavailable")
+    session._cache = {"carta_version": "7.0.0"}
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaActionFailed) as error:
+        session.call_action("newAction")
+
+    message = str(error.value)
+    assert error.value is original_error
+    assert "newAction is unavailable" in message
+    assert "\n\nCompatibility suggestions:\n" in message
+    assert "verify that the frontend action, attribute, or response path exists" in message
+    assert "upgrade carta-python to the latest available release" in message
+
+
+def test_call_action_does_not_duplicate_compatibility_suggestions(
+    session, mocker
+):
+    original_error = CartaActionFailed("newAction is unavailable")
+    session._cache = {"carta_version": "7.0.0"}
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaActionFailed):
+        session.call_action("newAction")
+    first_message = str(original_error)
+
+    with pytest.raises(CartaActionFailed):
+        session.call_action("newAction")
+
+    assert str(original_error) == first_message
+    assert str(original_error).count("\n\nCompatibility suggestions:\n") == 1
+
+
+def test_call_action_preserves_frontend_failure_without_cached_version(
+    session, mocker
+):
+    original_error = CartaActionFailed("newAction is unavailable")
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaActionFailed) as error:
+        session.call_action("newAction")
+
+    assert error.value is original_error
+
+
+def test_call_action_does_not_add_compatibility_suggestion_to_request_failure(
+    session, mocker
+):
+    original_error = CartaRequestFailed("session is unavailable")
+    session._cache = {"carta_version": "7.0.0"}
+    session._protocol = mocker.Mock()
+    session._protocol.request_scripting_action.side_effect = original_error
+
+    with pytest.raises(CartaRequestFailed) as error:
+        session.call_action("newAction")
+
+    assert error.value is original_error
+
+
 def test_interact_checks_connection_by_default(mocker):
     protocol = mocker.Mock(frontend_url="http://localhost:3000")
     mocker.patch("carta.session.Protocol", return_value=protocol)

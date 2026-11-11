@@ -48,6 +48,7 @@ from .util import (
 )
 from .validation import validate, String, Number, Color, Constant, Boolean, NoneOr, IterableOf, InstanceOf, MapOf, Union, Parameter
 from .version import (
+    action_failure_compatibility_suggestions,
     latest_compatibility,
     version_mismatch_details,
 )
@@ -475,7 +476,17 @@ class Session:
         CartaBadResponse
             If a request which was expected to have a JSON response did not have one, or if a JSON response could not be decoded.
         """
-        return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
+        try:
+            return self._protocol.request_scripting_action(self.session_id, path, *args, **kwargs)
+        except CartaActionFailed as error:
+            version = getattr(self, "_cache", {}).get("carta_version")
+            suggestions = action_failure_compatibility_suggestions(version)
+            if not suggestions:
+                raise
+
+            # Preserve the original exception instance while making enrichment idempotent.
+            error._add_compatibility_suggestions(suggestions)
+            raise
 
     def get_value(self, path, return_path=None):
         """Get the value of an attribute from a frontend store.
