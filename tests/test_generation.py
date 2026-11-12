@@ -257,3 +257,17 @@ def test_pv_generate_needs_region_of_same_image(pv, session, session_call_action
         pv.generate(region(RT.LINE, owner=Image(session, 1)))
     assert "does not belong to this image" in str(e.value)
     session_call_action.assert_not_called()
+
+
+def test_pv_generate_needs_region_of_same_session(pv, session_call_action, region):
+    with pytest.raises(CartaValidationFailed) as e:
+        pv.generate(region(RT.LINE, owner=Image(Session(0, None), 0)))
+    assert "does not belong to this image" in str(e.value)
+    session_call_action.assert_not_called()
+
+
+def test_pv_generate_sends_booleans(pv, session_call_action, region):
+    pv.generate(region(RT.LINE), reverse=1, keep=0)
+    settings = session_call_action.call_args.args[2]
+    assert settings["reverse"] is True
+    assert settings["keep"] is False
