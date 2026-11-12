@@ -7,6 +7,7 @@ import json
 import urllib
 
 from .util import CartaBadToken, CartaBadUrl
+from .validation import InstanceOf, Parameter
 
 
 class Token:
@@ -252,3 +253,24 @@ class ControllerToken(Token):
             "value": self.string,
             "domain": domain,
         }
+
+
+class _OptionalToken(Parameter):
+    """Validate an optional token without including its value in error messages."""
+
+    def __init__(self, types):
+        self._instance_of = InstanceOf(types)
+
+    def validate(self, value, parent):
+        """Check the token type, reporting only the type of an invalid value."""
+        if value is not None and not isinstance(value, self._instance_of.types):
+            raise TypeError(f"a value of type {type(value).__name__} was provided, but {self.description} was expected.")
+
+    @property
+    def description(self):
+        """Describe the accepted token types."""
+        return f"{self._instance_of.description} or ``None``"
+
+
+_BACKEND_TOKEN = _OptionalToken(BackendToken)
+_ANY_TOKEN = _OptionalToken((BackendToken, ControllerToken))

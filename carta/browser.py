@@ -18,11 +18,12 @@ except ModuleNotFoundError as error:
 else:
     _SELENIUM_IMPORT_ERROR = None
 
-from .backend import Backend
+from .backend import Backend, _BackendParams, _EXECUTABLE_PATH
 from .constants import VersionMismatchAction
 from .util import CartaBadSession, logger
 from .protocol import Protocol
-from .session import Session, _ANY_TOKEN, _BACKEND_TOKEN, _EXECUTABLE_PATH, _BackendParams
+from .session import Session
+from .token import _ANY_TOKEN, _BACKEND_TOKEN
 from .validation import validate, String, Number, Constant, Boolean, NoneOr, InstanceOf
 
 

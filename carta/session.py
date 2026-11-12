@@ -7,8 +7,6 @@ Alternatively, the user can create a new session which runs in a headless browse
 """
 
 import base64
-from collections.abc import Iterable
-import os
 import posixpath
 
 from .image import Image
@@ -23,8 +21,8 @@ from .constants import (
     ColormapSet,
     VersionMismatchAction,
 )
-from .backend import Backend
-from .token import BackendToken, ControllerToken
+from .backend import Backend, _BackendParams, _EXECUTABLE_PATH
+from .token import _ANY_TOKEN, _BACKEND_TOKEN
 from .error_messages import (
     format_frontend_version_unavailable_error,
     format_session_validation_error,
@@ -72,42 +70,6 @@ class _BrowserInstance(Parameter):
     def description(self):
         """Describe the browser instance required by session creation."""
         return "an instance of :obj:`carta.browser.Browser`"
-
-
-class _OptionalToken(Parameter):
-    """Validate an optional token without including its value in error messages."""
-
-    def __init__(self, types):
-        self._instance_of = InstanceOf(types)
-
-    def validate(self, value, parent):
-        """Check the token type, reporting only the type of an invalid value."""
-        if value is not None and not isinstance(value, self._instance_of.types):
-            raise TypeError(f"a value of type {type(value).__name__} was provided, but {self.description} was expected.")
-
-    @property
-    def description(self):
-        """Describe the accepted token types."""
-        return f"{self._instance_of.description} or ``None``"
-
-
-class _BackendParams(Parameter):
-    """Validate additional backend command-line parameters."""
-
-    def validate(self, value, parent):
-        """Accept any iterable except a single string, which would be split into characters."""
-        if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
-            raise TypeError(f"{value!r} was provided, but {self.description} was expected.")
-
-    @property
-    def description(self):
-        """Describe the accepted backend parameters."""
-        return "an iterable of command-line parameters (not a single string)"
-
-
-_EXECUTABLE_PATH = Union(String(), InstanceOf(os.PathLike))
-_BACKEND_TOKEN = _OptionalToken(BackendToken)
-_ANY_TOKEN = _OptionalToken((BackendToken, ControllerToken))
 
 
 class Session:
