@@ -100,6 +100,50 @@ Creating a new interactive session
             # New session, start remote backend
             session = Session.start_and_interact(remote_host="REMOTE HOSTNAME OR IP")
 
+        For local macOS launches with the default ``executable_path="carta"``,
+        the wrapper checks these locations in order:
+
+        #. A valid ``carta`` alias in your shell configuration files.
+        #. ``/Applications/CARTA.app/Contents/MacOS/CARTA``.
+        #. A ``carta`` executable on ``PATH``.
+
+        No alias is needed for the standard desktop app installation. For a
+        custom app name or location, specify its executable explicitly:
+
+        .. code-block:: python
+
+            session = Session.start_and_interact(
+                executable_path="/Applications/CARTA-6.1.app/Contents/MacOS/CARTA"
+            )
+
+        Aliases support literal absolute paths or paths starting with ``~/``,
+        ``$HOME/`` or ``${HOME}/``, optionally followed by literal arguments.
+        Arguments in the alias are added to every launch, and the wrapper logs a
+        warning when it uses them. The wrapper does not execute shell
+        configuration files or expand other shell variables; an alias it cannot
+        use is skipped, and the reason is logged at debug level. For more
+        complex configurations, pass ``executable_path`` and ``params``
+        explicitly.
+        See :obj:`carta.backend.Backend` for the alias search order and
+        executable resolution details.
+
+        ``start_and_interact`` returns once connected, without waiting for
+        the CARTA window to close.
+        To start CARTA and then continue at a Python prompt, save the
+        following as ``start_carta.py``:
+
+        .. code-block:: python
+
+            from carta.session import Session
+
+            session = Session.start_and_interact()
+            # Open an image here with session.open_image(...), if needed.
+
+        Run it with ``python -i start_carta.py``. Keep ``session`` at module
+        scope so it remains available at the prompt, and call
+        ``session.close()`` when finished. The session stops the backend it
+        started when cleaned up, including when a normal script finishes.
+
     .. tab:: Controller access
 
         It isn't possible to create a new CARTA session automatically in your default browser using a controller instance. However, you can adapt the instructions below for `creating a new non-interactive session`_ in a browser controlled by the wrapper, and use a custom browser which isn't headless. For example, you can disable the headless option in the built-in Chrome browser configuration with a parameter:

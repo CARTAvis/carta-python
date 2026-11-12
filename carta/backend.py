@@ -6,9 +6,145 @@ import os
 import subprocess
 import pathlib
 import signal
+import shutil
+import shlex
+import sys
 
 from .token import BackendToken
 from .util import logger
+
+
+_MACOS_APP_EXECUTABLE = pathlib.Path("/Applications/CARTA.app/Contents/MacOS/CARTA")
+_ALIAS_SHELL_SYNTAX = "$`;|&<>()*?"
+# A leading $HOME or ${HOME} at the start of a word, before a slash.
+_ALIAS_HOME_VARIABLE = re.compile(r"""(?<![^\s'"])\$(?:HOME|\{HOME\})(?=/)""")
+
+
+def _shell_config_files(home):
+    """Return alias configuration files in a fixed search order."""
+    configs = [home / ".zshrc"]
+    for filename in (".bash_profile", ".bash_login", ".profile"):
+        profile = home / filename
+        if profile.is_file() and os.access(profile, os.R_OK):
+            configs.append(profile)
+            break
+    configs.append(home / ".bashrc")
+    return tuple(configs)
+
+
+def _alias_path(word, home):
+    """Return an absolute path from an alias word, expanding a leading ``~/``."""
+    if word.startswith("~/"):
+        return home / word[2:]
+    path = pathlib.Path(word)
+    return path if path.is_absolute() else None
+
+
+def _is_executable_file(path):
+    """Check whether a path is an existing file with execute permission."""
+    return path is not None and path.is_file() and os.access(path, os.X_OK)
+
+
+def _shell_commands(source):
+    """Yield nonempty semicolon-separated commands, skipping malformed lines."""
+    for line in source.splitlines():
+        lexer = shlex.shlex(line, posix=True, punctuation_chars=";")
+        lexer.whitespace_split = True
+        try:
+            words = list(lexer)
+        except ValueError:
+            continue
+        command = []
+        for word in (*words, ";"):
+            if word != ";":
+                command.append(word)
+                continue
+            if command:
+                yield command
+            command = []
+
+
+def _read_carta_alias(config_file, home):
+    """Read a literal carta alias without executing the shell configuration.
+
+    Return the alias executable and its arguments, or ``None`` if the
+    configuration file has no usable alias. A leading ``~``, ``$HOME`` or
+    ``${HOME}`` in a word is expanded to the home directory.
+    """
+    try:
+        source = config_file.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeError) as error:
+        logger.debug(f"Could not read {config_file} while looking for a carta alias: {error}")
+        return None
+
+    alias = None
+    for name, *arguments in _shell_commands(source):
+        if name == "alias":
+            for definition in arguments:
+                if definition.startswith("carta="):
+                    alias = definition.removeprefix("carta=")
+        elif name == "unalias" and ("carta" in arguments or "-a" in arguments):
+            alias = None
+
+    if not alias:
+        return None
+
+    def skip(reason):
+        logger.debug(f"Ignoring the carta alias in {config_file} ({alias!r}): {reason}.")
+        return None
+
+    alias = _ALIAS_HOME_VARIABLE.sub("~", alias)
+
+    # Check the whole alias first to support executable paths containing spaces.
+    executable = _alias_path(alias, home)
+    if _is_executable_file(executable):
+        return executable, ()
+
+    if any(character in alias for character in _ALIAS_SHELL_SYNTAX):
+        return skip("it uses shell syntax, which is not evaluated")
+    try:
+        words = shlex.split(alias)
+    except ValueError:
+        return skip("it cannot be parsed")
+    if not words:
+        return skip("it is empty")
+
+    executable = _alias_path(words[0], home)
+    if executable is None:
+        return skip("its command is not an absolute or home-relative path")
+    if not _is_executable_file(executable):
+        return skip(f"{executable} is not an executable file")
+    args = tuple(str(home) + word[1:] if word.startswith("~/") else word for word in words[1:])
+    return executable, args
+
+
+def _resolve_local_executable(executable_path, cwd):
+    """Return the local macOS launch command prefix with executable symlinks resolved."""
+    if executable_path == "carta":
+        for config in _shell_config_files(cwd):
+            alias = _read_carta_alias(config, cwd)
+            if alias is not None:
+                executable, args = alias
+                if args:
+                    logger.warning(
+                        f"Using the carta alias in {config}, which adds arguments to every backend launch: "
+                        f"{shlex.join(args)}. Pass executable_path to start CARTA without them."
+                    )
+                return (str(executable.resolve()), *args)
+        if _is_executable_file(_MACOS_APP_EXECUTABLE):
+            return (str(_MACOS_APP_EXECUTABLE.resolve()),)
+
+    if os.path.dirname(executable_path):
+        executable = cwd / executable_path
+    else:
+        search_path = os.pathsep.join(str(cwd / directory) for directory in os.get_exec_path())
+        executable = shutil.which(executable_path, path=search_path)
+        if executable is None:
+            return (executable_path,)
+
+    return (str(pathlib.Path(executable).resolve()),)
 
 
 class Backend:
@@ -21,7 +157,14 @@ class Backend:
     params : iterable
         Parameters to pass to the CARTA backend process. Example: ``["--verbosity", 5, "--port", 3010]``
     executable_path : string
-        The path to the backend executable. Default: ``"carta"``.
+        The path to the backend executable. Default: ``"carta"``. For local
+        macOS launches, the default first checks a literal ``carta`` alias in
+        ~/.zshrc, the first readable bash login profile, then ~/.bashrc.
+        Literal arguments in the alias are passed before ``params``, with a
+        warning. A leading ``~/``, ``$HOME/`` or ``${HOME}/`` is expanded.
+        If no valid alias is found, it checks CARTA.app in /Applications,
+        then PATH. Executable symlinks are resolved before starting the
+        process so an Electron app can locate its bundled helpers.
     remote_host : string
         If this is set, an attempt will be made to start the backend over ``ssh`` on this host.
     token : :obj:`carta.token.BackendToken`
@@ -71,8 +214,10 @@ class Backend:
         self.last_session_id = None
         self.frontend_url_timeout = frontend_url_timeout
         self.session_creation_timeout = session_creation_timeout
+        self._remote_host = remote_host
 
         ssh_cmd = ("ssh", "-tt", remote_host) if remote_host is not None else tuple()
+        self._executable_index = len(ssh_cmd)
         self.cmd = tuple(str(p) for p in (*ssh_cmd, executable_path, *params))
 
     def _update_output(self):
@@ -92,7 +237,27 @@ class Backend:
         This method creates the subprocess object and parses the backend host and the frontend URL from the process output.
         """
         # TODO currently we log everything to stdout, but maybe we shouldn't
-        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, cwd=pathlib.Path.home(), preexec_fn=os.setpgrp)
+        cwd = pathlib.Path.home()
+        cmd = self.cmd
+        if sys.platform == "darwin" and self._remote_host is None:
+            cmd = (*_resolve_local_executable(cmd[0], cwd), *cmd[1:])
+        self.debug_no_auth = "--debug_no_auth" in cmd[self._executable_index + 1:]
+        executable = cmd[self._executable_index]
+        if self._remote_host is None:
+            logger.debug(f"Starting CARTA backend with executable: {executable}")
+        else:
+            logger.debug(f"Starting CARTA backend on {self._remote_host} with executable: {executable}")
+        try:
+            self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=cwd, preexec_fn=os.setpgrp)
+        except FileNotFoundError as error:
+            if sys.platform == "darwin" and self._remote_host is None and self.cmd[0] == "carta":
+                raise FileNotFoundError(
+                    error.errno,
+                    f"{error.strerror}. CARTA was not found in a carta shell alias, in {_MACOS_APP_EXECUTABLE.parents[2]}, "
+                    "or on PATH; pass executable_path with the path to the CARTA executable",
+                    error.filename,
+                ) from error
+            raise
         os.set_blocking(self.proc.stdout.fileno(), False)
 
         start = time.time()
