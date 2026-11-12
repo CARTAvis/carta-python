@@ -117,9 +117,13 @@ Creating a new interactive session
             )
 
         Aliases support literal absolute paths or paths starting with ``~/``,
-        optionally followed by literal arguments. The wrapper does not execute
-        shell configuration files or expand shell variables. For more complex
-        configurations, pass ``executable_path`` and ``params`` explicitly.
+        ``$HOME/`` or ``${HOME}/``, optionally followed by literal arguments.
+        Arguments in the alias are added to every launch, and the wrapper logs a
+        warning when it uses them. The wrapper does not execute shell
+        configuration files or expand other shell variables; an alias it cannot
+        use is skipped, and the reason is logged at debug level. For more
+        complex configurations, pass ``executable_path`` and ``params``
+        explicitly.
         See :obj:`carta.backend.Backend` for the alias search order and
         executable resolution details.
 

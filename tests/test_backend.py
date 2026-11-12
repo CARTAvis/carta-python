@@ -169,6 +169,80 @@ def test_start_expands_home_in_alias(launch_home, popen):
     assert popen.call_args.args[0] == (str(executable),)
 
 
+@pytest.mark.parametrize("prefix", ["$HOME", "${HOME}"])
+@pytest.mark.parametrize("quote", ["'", '"'])
+def test_start_expands_home_variable_in_alias(prefix, quote, launch_home, popen):
+    executable = make_executable(launch_home / "Applications/CARTA.app/Contents/MacOS/CARTA")
+    (launch_home / ".zshrc").write_text(f"alias carta={quote}{prefix}/Applications/CARTA.app/Contents/MacOS/CARTA{quote}\n")
+
+    Backend(()).start()
+
+    assert popen.call_args.args[0] == (str(executable),)
+
+
+def test_start_expands_home_variable_in_alias_arguments(launch_home, popen):
+    app = launch_home / "CARTA.app/Contents/Resources/app"
+    backend_executable = make_executable(app / "carta-backend/bin/carta_backend")
+    (launch_home / ".zshrc").write_text(
+        "alias carta='$HOME/CARTA.app/Contents/Resources/app/carta-backend/bin/carta_backend"
+        " --frontend_folder ${HOME}/CARTA.app/Contents/Resources/app/'\n"
+    )
+
+    Backend(()).start()
+
+    assert popen.call_args.args[0] == (str(backend_executable), "--frontend_folder", f"{app}/")
+
+
+@pytest.mark.parametrize("definition", [
+    "alias carta='$HOMEDIR/CARTA'",
+    "alias carta='/opt/$HOME/CARTA'",
+    "alias carta='$CARTA_HOME/CARTA'",
+])
+def test_start_skips_other_shell_variables_in_alias(definition, launch_home, popen, caplog):
+    app = make_executable(backend_module._MACOS_APP_EXECUTABLE)
+    (launch_home / ".zshrc").write_text(definition + "\n")
+
+    with caplog.at_level("DEBUG", logger="carta_scripting"):
+        Backend(()).start()
+
+    assert popen.call_args.args[0] == (str(app),)
+    assert "it uses shell syntax, which is not evaluated" in caplog.text
+
+
+def test_start_warns_about_alias_arguments(launch_home, popen, caplog):
+    executable = make_executable(launch_home / "CARTA.app/Contents/MacOS/CARTA")
+    (launch_home / ".zshrc").write_text(f"alias carta='{executable} --no_browser --port 3010'\n")
+
+    with caplog.at_level("WARNING", logger="carta_scripting"):
+        Backend(()).start()
+
+    assert popen.call_args.args[0] == (str(executable), "--no_browser", "--port", "3010")
+    assert "adds arguments to every backend launch: --no_browser --port 3010" in caplog.text
+    assert "executable_path" in caplog.text
+
+
+def test_start_does_not_warn_about_alias_without_arguments(launch_home, popen, caplog):
+    executable = make_executable(launch_home / "CARTA.app/Contents/MacOS/CARTA")
+    (launch_home / ".zshrc").write_text(f"alias carta='{executable}'\n")
+
+    with caplog.at_level("WARNING", logger="carta_scripting"):
+        Backend(()).start()
+
+    assert caplog.records == []
+
+
+def test_start_logs_why_an_alias_is_skipped(launch_home, popen, caplog):
+    missing = launch_home / "missing/CARTA"
+    (launch_home / ".zshrc").write_text(f"alias carta='{missing} --debug'\n")
+    (launch_home / ".bashrc").write_text("alias carta='carta-relative'\n")
+
+    with caplog.at_level("DEBUG", logger="carta_scripting"):
+        Backend(()).start()
+
+    assert f"{missing} is not an executable file" in caplog.text
+    assert "its command is not an absolute or home-relative path" in caplog.text
+
+
 def test_start_passes_browser_mode_alias_arguments(launch_home, popen):
     app = launch_home / "CARTA 6.app/Contents/Resources/app"
     backend_executable = make_executable(app / "carta-backend/bin/carta_backend")
@@ -407,6 +481,7 @@ def test_start_preserves_missing_default_error(launch_home, popen, monkeypatch):
         Backend(()).start()
 
     assert error.value.filename == "carta"
+    assert "pass executable_path" in str(error.value)
     assert popen.call_args.args[0] == ("carta",)
 
 
@@ -433,6 +508,7 @@ def test_start_preserves_missing_executable_error(launch_home, popen, monkeypatc
         backend.start()
 
     assert error.value.filename == "missing-carta"
+    assert "pass executable_path" not in str(error.value)
     assert popen.call_args.args[0] == ("missing-carta",)
 
 
@@ -451,6 +527,17 @@ def test_start_preserves_other_launch_commands(platform, remote_host, expected, 
 
     resolve.assert_not_called()
     popen.assert_called_once_with(expected, stdout=subprocess.PIPE, cwd=launch_home, preexec_fn=os.setpgrp)
+
+
+@pytest.mark.parametrize("platform,remote_host", [("linux", None), ("darwin", "server")])
+def test_start_does_not_add_macos_hint_elsewhere(platform, remote_host, launch_home, popen, monkeypatch):
+    monkeypatch.setattr("carta.backend.sys.platform", platform)
+    popen.side_effect = FileNotFoundError(2, "No such file or directory", "carta")
+
+    with pytest.raises(FileNotFoundError) as error:
+        Backend((), remote_host=remote_host).start()
+
+    assert "pass executable_path" not in str(error.value)
 
 
 def test_start_logs_resolved_executable(launch_home, popen, caplog):
