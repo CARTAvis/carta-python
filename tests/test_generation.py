@@ -1,7 +1,7 @@
 import pytest
 
 from carta.constants import JobStatus, Moment as M, MomentMask as MM, RegionType as RT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
-from carta.generation import CartaJobFailed, GenerationJob, MomentImages, MomentJob, channel_settings
+from carta.generation import CartaJobFailed, GenerationJob, MomentImages, MomentJob, PvImages, PvJob, channel_settings
 from carta.image import Image
 from carta.region import Region
 from carta.session import Session
@@ -196,3 +196,64 @@ def test_moment_job_wait_bad_response(session, session_call_action, mocker, stat
     with pytest.raises(CartaBadResponse) as e:
         MomentJob(session, 2).wait()
     assert message in str(e.value)
+
+
+# PV IMAGES
+
+
+@pytest.fixture
+def pv(image):
+    return PvImages(image)
+
+
+def test_pv_generate(pv, session_call_action, region):
+    session_call_action.return_value = 6
+    job = pv.generate(region(RT.POLYLINE, 8), width=3, channels=(2, 20), reverse=True, keep=False)
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 8, "width": 3, "reverse": True, "keep": False, "channels": {"min": 2, "max": 20}}, response_expected=True)
+    assert isinstance(job, PvJob)
+    assert job.job_id == 6
+
+
+def test_pv_generate_defaults_and_spectral_range(pv, session_call_action, region):
+    pv.generate(region(RT.LINE), spectral_range=(230.51, 230.57), unit=SU.GHZ)
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 3, "width": 1, "reverse": False, "keep": True, "spectralRange": {"min": 230.51, "max": 230.57, "unit": SU.GHZ}}, response_expected=True)
+
+
+@pytest.mark.parametrize("region_type", [RT.RECTANGLE, RT.ANNLINE, RT.POINT])
+def test_pv_generate_needs_line_region(pv, session_call_action, region, region_type):
+    with pytest.raises(CartaValidationFailed) as e:
+        pv.generate(region(region_type))
+    assert "line or polyline region" in str(e.value)
+    session_call_action.assert_not_called()
+
+
+@pytest.mark.parametrize("width", [0, 21, 1.5])
+def test_pv_generate_invalid_width(pv, session_call_action, region, width):
+    with pytest.raises(CartaValidationFailed):
+        pv.generate(region(RT.LINE), width=width)
+    session_call_action.assert_not_called()
+
+
+def test_pv_images(pv, image, session, mocker):
+    get_value = mocker.patch.object(image, "get_value", return_value=[7, 8])
+    mocker.patch.object(session, "get_value", return_value=[0, 8])
+    assert [i.image_id for i in pv.images] == [8]
+    get_value.assert_called_with("pvImages", return_path="frameInfo.fileId")
+
+
+@pytest.mark.parametrize("images,expected", [
+    ([{"fileId": 9}], 9),
+    ([], None),
+])
+def test_pv_job_wait(session, session_call_action, mocker, images, expected):
+    mocker.patch("carta.generation.time.sleep")
+    session_call_action.side_effect = job_states({"status": "done", "progress": 1, "images": images})
+    result = PvJob(session, 2).wait()
+    assert (result.image_id if result else None) == expected
+
+
+def test_pv_generate_needs_region_of_same_image(pv, session, session_call_action, region):
+    with pytest.raises(CartaValidationFailed) as e:
+        pv.generate(region(RT.LINE, owner=Image(session, 1)))
+    assert "does not belong to this image" in str(e.value)
+    session_call_action.assert_not_called()
