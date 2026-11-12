@@ -4,6 +4,7 @@ from carta.constants import JobStatus, Moment as M, MomentMask as MM, RegionType
 from carta.generation import CartaJobFailed, GenerationJob, MomentImages, MomentJob, channel_settings
 from carta.image import Image
 from carta.region import Region
+from carta.session import Session
 from carta.util import CartaBadResponse, CartaValidationFailed
 
 # FIXTURES
@@ -93,6 +94,19 @@ def test_generate_needs_region_of_same_image(moments, session, session_call_acti
         moments.generate([M.MAX], region=region(RT.RECTANGLE, owner=Image(session, 1)))
     assert "does not belong to this image" in str(e.value)
     session_call_action.assert_not_called()
+
+
+def test_generate_needs_region_of_same_session(moments, session_call_action, region):
+    other_session = Session(0, None)
+    with pytest.raises(CartaValidationFailed) as e:
+        moments.generate([M.MAX], region=region(RT.RECTANGLE, owner=Image(other_session, 0)))
+    assert "does not belong to this image" in str(e.value)
+    session_call_action.assert_not_called()
+
+
+def test_generate_sends_keep_as_boolean(moments, session_call_action):
+    moments.generate([M.MAX], keep=0)
+    assert session_call_action.call_args.args[2]["keep"] is False
 
 
 @pytest.mark.parametrize("kwargs", [

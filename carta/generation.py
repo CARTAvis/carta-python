@@ -324,11 +324,11 @@ class MomentImages:
             If the frontend cannot start the job, for example when this image already makes moment images.
         """
         # Ask for each moment once. The images are returned by moment, so a second image of the same moment would be lost.
-        settings = {"moments": list(dict.fromkeys(Moment(m) for m in moments)), "mask": mask, "keep": keep}
+        settings = {"moments": list(dict.fromkeys(Moment(m) for m in moments)), "mask": mask, "keep": bool(keep)}
         if region is not None:
             if region.region_type not in CLOSED_REGION_TYPES:
                 raise CartaValidationFailed(f"Moments are made over a rectangle, ellipse or polygon region, not over a region of the type {region.region_type.name}.")
-            if region.region_set.image.image_id != self.image.image_id:
+            if region.session is not self.session or region.region_set.image.image_id != self.image.image_id:
                 raise CartaValidationFailed("The region does not belong to this image.")
             settings["regionId"] = region.region_id
         if mask != MomentMask.NONE:
