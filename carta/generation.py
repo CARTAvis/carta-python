@@ -7,7 +7,7 @@ import time
 
 from .constants import JobStatus, Moment, MomentMask, RegionType, SpectralSystem, SpectralType, SpectralUnit
 from .region import Region
-from .util import CartaScriptingException, CartaValidationFailed
+from .util import CartaBadResponse, CartaScriptingException, CartaValidationFailed
 from .validation import validate, Number, Constant, Boolean, IterableOf, NoneOr, InstanceOf
 
 JOBS_PATH = "imageGenerationJobs"
@@ -63,9 +63,7 @@ def channel_settings(spectral_range, spectral_type, unit, spectral_system, chann
     spectral = {"min": first, "max": last}
     if spectral_type is not None:
         spectral_type = SpectralType(spectral_type)
-        if unit is None:
-            unit = spectral_type.default_unit
-        elif SpectralUnit(unit) not in spectral_type.units:
+        if unit is not None and SpectralUnit(unit) not in spectral_type.units:
             raise CartaValidationFailed(f"{unit} is not a unit of the spectral type {spectral_type}.")
         spectral["type"] = spectral_type
     if unit is not None:
@@ -193,6 +191,8 @@ class GenerationJob:
         ------
         CartaJobFailed
             If the job fails or is cancelled.
+        CartaBadResponse
+            If the frontend returns a status or images that this wrapper cannot read.
         """
         state = self._state()
         while state["status"] == JobStatus.RUNNING:
@@ -202,6 +202,8 @@ class GenerationJob:
             raise CartaJobFailed(f"The job failed: {state.get('error') or 'no reason was given'}.")
         if state["status"] == JobStatus.CANCELLED:
             raise CartaJobFailed("The job was cancelled.")
+        if state["status"] != JobStatus.DONE:
+            raise CartaBadResponse(f"The job has an unknown status: {state['status']}.")
         return self._images(state["images"])
 
     def _images(self, images):
@@ -217,6 +219,8 @@ class MomentJob(GenerationJob):
 
     def _images(self, images):
         from .image import Image
+        if any("moment" not in image for image in images):
+            raise CartaBadResponse("The frontend could not tell which moment each new image shows.")
         return {Moment(image["moment"]): Image(self.session, image["fileId"]) for image in images}
 
     @validate(Number.POSITIVE)
@@ -239,6 +243,8 @@ class MomentJob(GenerationJob):
         ------
         CartaJobFailed
             If the job fails or is cancelled.
+        CartaBadResponse
+            If the frontend returns a status or images that this wrapper cannot read.
         """
         return super().wait(poll_interval)
 
@@ -293,7 +299,7 @@ class MomentImages:
         spectral_type : {3}
             The spectral type of *spectral_range*. The default is the type that the image shows.
         unit : {4}
-            The unit of *spectral_range*. The default is the default unit of *spectral_type*, or the unit that the image shows when *spectral_type* is not given.
+            The unit of *spectral_range*. The default is the unit that the image shows, when *spectral_type* is not given or is the type that the image shows. Otherwise the default is the first unit that the image supports for *spectral_type*.
         spectral_system : {5}
             The spectral system of *spectral_range*. The default is the system that the image shows.
         channels : {6}
@@ -317,7 +323,8 @@ class MomentImages:
         CartaActionFailed
             If the frontend cannot start the job, for example when this image already makes moment images.
         """
-        settings = {"moments": list(moments), "mask": mask, "keep": keep}
+        # Ask for each moment once. The images are returned by moment, so a second image of the same moment would be lost.
+        settings = {"moments": list(dict.fromkeys(Moment(m) for m in moments)), "mask": mask, "keep": keep}
         if region is not None:
             if region.region_type not in CLOSED_REGION_TYPES:
                 raise CartaValidationFailed(f"Moments are made over a rectangle, ellipse or polygon region, not over a region of the type {region.region_type.name}.")

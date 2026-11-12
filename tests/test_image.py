@@ -575,7 +575,6 @@ def test_set_spectral_coordinate_bad_unit(image, property_):
     assert "Unsupported unit: Hz" in str(e.value)
 
 
-
 @pytest.mark.parametrize("args,expected_unit", [
     ([230.538], "GHz"),
     ([230538, FU.MHZ], "MHz"),

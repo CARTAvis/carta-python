@@ -4,7 +4,7 @@ from carta.constants import JobStatus, Moment as M, MomentMask as MM, RegionType
 from carta.generation import CartaJobFailed, GenerationJob, MomentImages, MomentJob, channel_settings
 from carta.image import Image
 from carta.region import Region
-from carta.util import CartaValidationFailed
+from carta.util import CartaBadResponse, CartaValidationFailed
 
 # FIXTURES
 
@@ -40,7 +40,7 @@ def job_states(*states):
     ([None, None, None, None, None], {}),
     ([None, None, None, None, (2, 7)], {"channels": {"min": 2, "max": 7}}),
     ([(1.5, 2.5), None, None, None, None], {"spectralRange": {"min": 1.5, "max": 2.5}}),
-    ([(-10, 20), ST.VRAD, None, None, None], {"spectralRange": {"min": -10, "max": 20, "type": ST.VRAD, "unit": SU.KMS}}),
+    ([(-10, 20), ST.VRAD, None, None, None], {"spectralRange": {"min": -10, "max": 20, "type": ST.VRAD}}),
     ([(-10, 20), ST.VRAD, SU.MS, SS.BARY, None], {"spectralRange": {"min": -10, "max": 20, "type": ST.VRAD, "unit": SU.MS, "system": SS.BARY}}),
     ([(230.5, 230.6), None, SU.GHZ, None, None], {"spectralRange": {"min": 230.5, "max": 230.6, "unit": SU.GHZ}}),
 ])
@@ -76,7 +76,7 @@ def test_generate_with_all_settings(moments, session_call_action, region):
         "keep": False,
         "regionId": 7,
         "pixelRange": {"min": 0.01, "max": 1},
-        "spectralRange": {"min": -10, "max": 20, "type": ST.VRAD, "unit": SU.KMS},
+        "spectralRange": {"min": -10, "max": 20, "type": ST.VRAD},
     }, response_expected=True)
 
 
@@ -165,3 +165,20 @@ def test_job_wait_invalid_interval(session, session_call_action):
     with pytest.raises(CartaValidationFailed):
         GenerationJob(session, 2).wait(poll_interval=0)
     session_call_action.assert_not_called()
+
+
+def test_generate_asks_for_each_moment_once(moments, session_call_action):
+    moments.generate([M.MAX, M.INTEGRATED, M.MAX])
+    assert session_call_action.call_args.args[2]["moments"] == [M.MAX, M.INTEGRATED]
+
+
+@pytest.mark.parametrize("state,message", [
+    ({"status": "done", "progress": 1, "images": [{"fileId": 3}]}, "could not tell which moment"),
+    ({"status": "paused", "progress": 0, "images": []}, "unknown status: paused"),
+])
+def test_moment_job_wait_bad_response(session, session_call_action, mocker, state, message):
+    mocker.patch("carta.generation.time.sleep")
+    session_call_action.side_effect = job_states(state)
+    with pytest.raises(CartaBadResponse) as e:
+        MomentJob(session, 2).wait()
+    assert message in str(e.value)
