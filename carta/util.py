@@ -70,7 +70,26 @@ class CartaRequestFailed(CartaScriptingException):
 
 class CartaActionFailed(CartaScriptingException):
     """An action request received a failure response from the CARTA frontend."""
-    pass
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self._compatibility_suggestions = None
+
+    def _add_compatibility_suggestions(self, suggestions):
+        """Attach compatibility suggestions to this error once."""
+        if self._compatibility_suggestions is None:
+            self._compatibility_suggestions = tuple(suggestions)
+
+    def __str__(self):
+        """Return the error message with any compatibility suggestions."""
+        message = super().__str__()
+        if not self._compatibility_suggestions:
+            return message
+
+        return (
+            f"{message}\n\nCompatibility suggestions:\n"
+            + "\n".join(f"- {suggestion}" for suggestion in self._compatibility_suggestions)
+        )
 
 
 class CartaUnsupportedVersion(CartaScriptingException):

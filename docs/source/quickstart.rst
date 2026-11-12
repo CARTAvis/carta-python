@@ -133,6 +133,18 @@ If session creation fails during startup validation, check that the frontend
 URL is reachable, the session ID is correct, the token is valid, and the
 backend was started with ``--enable_scripting``.
 
+The version recorded at startup is also used when a frontend action fails:
+
+* If CARTA is older than the supported minimum (possible only with
+  ``VersionMismatchAction.WARN``), every
+  :obj:`carta.util.CartaActionFailed` message suggests upgrading CARTA,
+  because any failure may come from the unsupported version.
+* If the version is supported and the frontend reports a missing action,
+  target or response path, the message suggests how to resolve an API
+  mismatch, such as upgrading ``carta-python`` or updating hard-coded
+  ``call_action()`` paths. Other failures on a supported version, such as a
+  missing file, are reported unchanged.
+
 Connecting to an existing interactive session
 ---------------------------------------------
 

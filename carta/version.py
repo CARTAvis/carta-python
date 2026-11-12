@@ -198,3 +198,60 @@ def version_mismatch_details(version):
         f"functionality with carta-python {current.wrapper_label}."
     ]
     return mismatches, _older_carta_suggestions(version, current)
+
+
+_CONTRACT_FAILURE_PATTERN = re.compile(
+    r"Missing target object:|Missing action function:|Missing macro target:"
+    r"|Response path not found:|Cannot read response path from a non-object response"
+)
+"""Frontend scripting errors that indicate a missing action, target or response path."""
+
+
+def is_contract_failure(message):
+    """Return whether a frontend error message indicates a missing API target."""
+    return bool(_CONTRACT_FAILURE_PATTERN.search(message))
+
+
+def action_failure_compatibility_suggestions(version, message):
+    """Return compatibility suggestions after a frontend action failure.
+
+    Parameters
+    ----------
+    version : string or None
+        The CARTA version recorded when the session was validated.
+    message : string
+        The frontend error message.
+
+    Returns
+    -------
+    list of strings
+        Suggestions to append to the error. If CARTA is older than the supported
+        minimum, the suggestions recommend an upgrade for any failure. Otherwise
+        they are only returned when the frontend reports a missing action,
+        target or response path, which is what an API mismatch looks like.
+    """
+    parsed_version = parse_carta_version(version)
+    if parsed_version is None:
+        return []
+
+    current = latest_compatibility()
+    if parsed_version[:2] < current._minimum:
+        return _older_carta_suggestions(version, current)
+
+    if not is_contract_failure(message):
+        return []
+
+    return [
+        "For direct scripting calls, verify that the frontend action, attribute, "
+        "or response path exists.",
+        "If this failure started after a CARTA upgrade, upgrade carta-python to "
+        "the latest available release and retry:\n"
+        "  python -m pip install --upgrade carta-python\n"
+        "  or, for a uv-managed script:\n"
+        "  uv add --script your_script.py carta-python --upgrade-package carta-python\n"
+        "  uv run your_script.py",
+        "If the failure persists after upgrading, check whether your script uses "
+        "a renamed carta-python function or argument, a direct `call_action()` "
+        "API path, or a changed response structure. Updating carta-python does "
+        "not rewrite hard-coded API paths in your script.",
+    ]
