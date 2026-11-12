@@ -6,9 +6,28 @@ import os
 import subprocess
 import pathlib
 import signal
+from collections.abc import Iterable
 
 from .token import BackendToken
 from .util import logger
+from .validation import InstanceOf, Parameter, String, Union
+
+
+class _BackendParams(Parameter):
+    """Validate additional backend command-line parameters."""
+
+    def validate(self, value, parent):
+        """Accept any iterable except a single string, which would be split into characters."""
+        if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
+            raise TypeError(f"{value!r} was provided, but {self.description} was expected.")
+
+    @property
+    def description(self):
+        """Describe the accepted backend parameters."""
+        return "an iterable of command-line parameters (not a single string)"
+
+
+_EXECUTABLE_PATH = Union(String(), InstanceOf(os.PathLike))
 
 
 class Backend:

@@ -4,28 +4,134 @@ CARTA scripting quick start
 Installation
 ------------
 
-This package is not yet published on PyPi, but can be installed from a local checkout of the repository.
+The initial PyPI release, ``carta-python`` 2.0.0, supports CARTA 6.1.0 or
+later. Session creation inspects the CARTA version reported by the frontend
+and reports a version mismatch when this requirement is not met. As new
+``carta-python`` series are published, the compatibility table retains the
+recommended series for older CARTA releases.
+
+The recommended installation workflow is:
+
+#. Install the latest available ``carta-python`` release.
+#. Connect to the desired CARTA session as described in
+   `Connecting to an existing interactive session`_.
+#. If session creation reports a version mismatch, follow its suggestion to
+   upgrade CARTA or install the recommended older ``carta-python`` series.
+#. Pin the selected release in the script or project so future installations
+   use the same compatible version.
+
+For the initial 2.0.0 release, a version mismatch only recommends upgrading
+CARTA because no older ``carta-python`` releases exist on PyPI. Once multiple
+series have been published, a mismatch may also recommend an older series.
+For example, the following hypothetical future compatibility table response
+shows ``carta-python`` 3.0.x recommending 2.0.x for CARTA 6.1:
+
+.. code-block:: text
+
+    CartaUnsupportedVersion: CARTA version validation failed:
+    - CARTA version '6.1.0' is older than the minimum '7.1.0' required for complete functionality with carta-python 3.0.x.
+
+    Suggested actions:
+    - Upgrade CARTA to at least '7.1.0'.
+    - If CARTA cannot be upgraded, use carta-python 2.0.x, the recommended series for CARTA 6.1 - 7.0.
+    - If this combination is known to work, set `version_mismatch_action=VersionMismatchAction.WARN`.
 
 Requires **Python 3.10** or later. Install with ``pip``:
 
 .. code-block:: shell
 
-    git clone https://github.com/CARTAvis/carta-python.git
-    cd carta-python
-    pip install .
+    pip install --upgrade carta-python
+
+If the compatibility error recommends an older published series, install the
+latest release in that series. For example, for a recommendation of
+``2.0.x``:
+
+.. code-block:: shell
+
+    pip install --upgrade "carta-python~=2.0.0"
+
+If your script is managed with ``uv``, add the pinned dependency to the
+script's inline metadata and run the script with ``uv run``. The following
+example selects the latest release in the ``2.0.x`` series:
+
+.. code-block:: shell
+
+    uv add --script your_script.py "carta-python~=2.0.0" --upgrade-package carta-python
+    uv run your_script.py
+
+This updates the PEP 723 dependency metadata at the top of
+``your_script.py``. It will look similar to:
+
+.. code-block:: python
+
+    # /// script
+    # dependencies = [
+    #   "carta-python~=2.0.0",
+    # ]
+    # ///
+
+To add the latest ``carta-python`` release without selecting a specific
+series, use:
+
+.. code-block:: shell
+
+    uv add --script your_script.py carta-python --upgrade-package carta-python
+    uv run your_script.py
+
+If the script already contains an exact pin such as
+``carta-python==1.0.0``, specify the new requirement explicitly with
+``uv add --script``. Updating a package in the system Python environment with
+``pip`` does not change the isolated environment used by ``uv run``.
 
 The required Python library dependencies should be installed automatically. To create new frontend sessions which are controlled by the wrapper instead of connecting to existing frontend sessions, you also need to install the optional browser dependencies:
 
 .. code-block:: shell
 
-    pip install ".[browser]"
+    pip install --upgrade "carta-python[browser]"
+
+For a script managed with ``uv``, add the optional extra to the script's inline
+metadata:
+
+.. code-block:: shell
+
+    uv add --script your_script.py "carta-python[browser]"
+    uv run your_script.py
+
+To pin a browser-enabled release series, combine the extra with a version
+constraint, for example:
+
+.. code-block:: shell
+
+    uv add --script your_script.py "carta-python[browser]~=2.0.0" --upgrade-package carta-python
+    uv run your_script.py
+
+If ``your_script.py`` already pins ``carta-python``, include the existing
+version constraint when adding the ``browser`` extra. For example, replace
+``carta-python~=2.0.0`` with ``carta-python[browser]~=2.0.0`` in one command.
+Adding ``carta-python[browser]`` without a version constraint can replace the
+existing requirement and remove its version restriction.
 
 You need access either to a CARTA backend executable, on the local host or on a remote host which you can access through SSH, or to a CARTA controller instance (a multi-user system with web-based authentication). You must be able to access the frontend served by this CARTA instance. If you are using your own backend executable, you must start it with the ``--enable_scripting`` commandline parameter to enable the scripting interface.
 
-.. note::
-   This version of the wrapper requires at least the 4.0 release versions of the CARTA backend, frontend and (optionally) controller. Older versions of these components may not work correctly and are not supported.
-
 If you want to create browser sessions from the wrapper, you also need to make sure that your desired browser is installed, together with a corresponding web driver. At present only Chrome (or Chromium) can be used for headless sessions.
+
+CARTA version compatibility
+----------------------------
+
+Every session creation method checks that the CARTA version is compatible
+with the minimum version supported by the installed ``carta-python`` wrapper.
+The wrapper's minimum is maintained by the package and is not set by the
+script. Version mismatches raise an exception by default. Use
+``version_mismatch_action=VersionMismatchAction.WARN`` to continue with a
+warning and suggested actions instead.
+
+When a script needs a specific ``carta-python`` version, pin that dependency
+in the script's ``uv`` metadata rather than passing a CARTA version to the
+session API.
+
+If session creation fails during startup validation, check that the frontend
+URL is reachable, the session ID is correct, the token is valid, and the
+backend was started with ``--enable_scripting``.
 
 Connecting to an existing interactive session
 ---------------------------------------------

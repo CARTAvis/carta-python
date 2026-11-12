@@ -37,6 +37,12 @@ class ImageType(IntEnum):
     PV_PREVIEW = 2
 
 
+class VersionMismatchAction(StrEnum):
+    """Action to take when a CARTA version check does not pass."""
+    WARN = "warn"
+    ERROR = "error"
+
+
 Scaling = IntEnum('Scaling', ('LINEAR', 'LOG', 'SQRT', 'SQUARE', 'POWER', 'GAMMA'), start=0)
 Scaling.__doc__ = """Colormap scaling types."""
 

@@ -40,7 +40,7 @@ class CartaBadUrl(CartaScriptingException):
 
 
 class CartaValidationFailed(CartaScriptingException):
-    """Invalid parameters were passed to a function with a :obj:`carta.validation.validate` decorator."""
+    """A user-supplied parameter or requirement is invalid."""
     pass
 
 
@@ -50,8 +50,22 @@ class CartaBadRequest(CartaScriptingException):
 
 
 class CartaRequestFailed(CartaScriptingException):
-    """A request received a failure response from the CARTA backend."""
-    pass
+    """A request received a failure response from the CARTA backend.
+
+    Parameters
+    ----------
+    *args
+        Positional arguments passed to :class:`Exception`.
+    status_code : int, optional
+        The HTTP status code returned by the CARTA backend.
+    backend_message : str, optional
+        A human-readable description of the backend failure.
+    """
+
+    def __init__(self, *args, status_code=None, backend_message=None):
+        super().__init__(*args)
+        self.status_code = status_code
+        self.backend_message = backend_message
 
 
 class CartaActionFailed(CartaScriptingException):
@@ -59,8 +73,18 @@ class CartaActionFailed(CartaScriptingException):
     pass
 
 
+class CartaUnsupportedVersion(CartaScriptingException):
+    """The connected CARTA version is not supported."""
+    pass
+
+
 class CartaBadResponse(CartaScriptingException):
     """An action request received an unexpected response from the CARTA frontend."""
+    pass
+
+
+class CartaMissingResponse(CartaBadResponse):
+    """An action request expected a response but received none."""
     pass
 
 
