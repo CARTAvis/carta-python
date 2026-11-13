@@ -1,0 +1,32 @@
+/* sphinx-tabs only knows its own light colors and a dark mode that looks for
+   data-theme on <body>, but the PyData theme sets it on <html>. Use the
+   theme's color variables instead, so that the tabs follow light and dark
+   mode like the rest of the page. */
+
+[role="tablist"] {
+  border-bottom: 1px solid var(--pst-color-border);
+}
+
+.sphinx-tabs-tab {
+  font-family: inherit;
+  color: var(--pst-color-text-muted);
+  background-color: transparent;
+}
+
+.sphinx-tabs-tab:hover {
+  color: var(--pst-color-primary);
+}
+
+.sphinx-tabs-tab[aria-selected="true"] {
+  color: var(--pst-color-primary);
+  background-color: var(--pst-color-background);
+  border: 1px solid var(--pst-color-border);
+  border-bottom: 1px solid var(--pst-color-background);
+}
+
+.sphinx-tabs-panel {
+  color: var(--pst-color-text-base);
+  background-color: var(--pst-color-background);
+  border: 1px solid var(--pst-color-border);
+  border-top: 0;
+}
