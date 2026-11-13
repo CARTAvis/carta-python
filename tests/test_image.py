@@ -3,7 +3,7 @@ import pytest
 from carta.image import Image
 from carta.view import View
 from carta.util import CartaActionFailed, CartaValidationFailed, Point as Pt
-from carta.constants import ImageType, NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
+from carta.constants import ImageType, NumberFormat as NF, SpatialAxis as SA, PaletteColor as PC, BeamType as BT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU, FrequencyUnit as FU
 
 
 # FIXTURES
@@ -573,3 +573,27 @@ def test_set_spectral_coordinate_bad_unit(image, property_):
     with pytest.raises(ValueError) as e:
         image.set_spectral_coordinate(ST.VRAD, SU.HZ)
     assert "Unsupported unit: Hz" in str(e.value)
+
+
+@pytest.mark.parametrize("args,expected_unit", [
+    ([230.538], "GHz"),
+    ([230538, FU.MHZ], "MHz"),
+])
+def test_set_rest_frequency(mocker, image, call_action, args, expected_unit):
+    image.set_rest_frequency(*args)
+    call_action.assert_has_calls([
+        mocker.call("restFreqStore.setCustomUnit", expected_unit),
+        mocker.call("restFreqStore.setCustomVal", args[0]),
+    ])
+
+
+@pytest.mark.parametrize("args", [[0], [-1], [1, "km/s"]])
+def test_set_rest_frequency_invalid(image, call_action, args):
+    with pytest.raises(CartaValidationFailed):
+        image.set_rest_frequency(*args)
+    call_action.assert_not_called()
+
+
+def test_reset_rest_frequency(image, call_action):
+    image.reset_rest_frequency()
+    call_action.assert_called_with("restFreqStore.restoreDefaults")

@@ -403,3 +403,74 @@ class SpectralType(StrEnum):
     FREQ = "FREQ",
     WAVE = "WAVE",
     AWAV = "AWAV",
+
+
+class FrequencyUnit(StrEnum):
+    """Frequency units."""
+    GHZ = "GHz"
+    MHZ = "MHz"
+    KHZ = "kHz"
+    HZ = "Hz"
+
+
+MOMENT_DESCRIPTION = {
+    "MEAN": ("-1", "Mean value of the spectrum"),
+    "INTEGRATED": ("0", "Integrated value of the spectrum"),
+    "WEIGHTED_COORD": ("1", "Intensity weighted coordinate"),
+    "WEIGHTED_DISPERSION_COORD": ("2", "Intensity weighted dispersion of the coordinate"),
+    "MEDIAN": ("3", "Median value of the spectrum"),
+    "MEDIAN_COORD": ("4", "Median coordinate"),
+    "STD_DEV": ("5", "Standard deviation about the mean of the spectrum"),
+    "RMS": ("6", "Root mean square of the spectrum"),
+    "ABS_MEAN_DEV": ("7", "Absolute mean deviation of the spectrum"),
+    "MAX": ("8", "Maximum value of the spectrum"),
+    "MAX_COORD": ("9", "Coordinate of the maximum value of the spectrum"),
+    "MIN": ("10", "Minimum value of the spectrum"),
+    "MIN_COORD": ("11", "Coordinate of the minimum value of the spectrum"),
+}
+
+
+class Moment(IntEnum):
+    """Moments of a spectral cube, corresponding to the protobuf enum.
+
+    Members of this enum class have additional attributes.
+
+    Attributes
+    ----------
+    tag : string
+        The tag that the GUI shows for this moment, from ``"-1"`` to ``"11"``.
+    description : string
+        The human-readable description of this moment.
+    """
+
+    def __init__(self, value):
+        self.tag, self.description = MOMENT_DESCRIPTION[self.name]
+
+    MEAN = 0
+    INTEGRATED = 1
+    WEIGHTED_COORD = 2
+    WEIGHTED_DISPERSION_COORD = 3
+    MEDIAN = 4
+    MEDIAN_COORD = 5
+    STD_DEV = 6
+    RMS = 7
+    ABS_MEAN_DEV = 8
+    MAX = 9
+    MAX_COORD = 10
+    MIN = 11
+    MIN_COORD = 12
+
+
+class MomentMask(IntEnum):
+    """How the pixel range masks the cube when moments are made, corresponding to the protobuf enum."""
+    NONE = 0
+    INCLUDE = 1
+    EXCLUDE = 2
+
+
+class JobStatus(StrEnum):
+    """The status of a job that makes images in the background."""
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
