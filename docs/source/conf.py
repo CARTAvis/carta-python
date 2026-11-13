@@ -94,7 +94,8 @@ html_theme_options = {
     "pygments_dark_style": "nord",
 }
 
-html_title = f"{project} {release}"
+# The version is shown on the home page and in the Read the Docs version menu
+html_title = project
 
 # Do not link to the reStructuredText source of each page
 html_show_sourcelink = False

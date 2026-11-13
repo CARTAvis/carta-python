@@ -1,6 +1,8 @@
 carta-python: a scripting wrapper for CARTA
 ===========================================
 
+**Version**: |release|
+
 carta-python lets you control `CARTA <https://cartavis.org/>`_, the Cube Analysis and Rendering Tool for Astronomy, from Python: open images, change how they are displayed, add regions and overlays, and save the rendered views, all from a script.
 
 .. grid:: 1 1 3 3
