@@ -70,7 +70,9 @@ sphinx==7.3.7
     # via
     #   myst-parser
     #   pydata-sphinx-theme
+    #   sphinx-design
     #   sphinx-tabs
+sphinx-design==0.6.1
 sphinx-tabs==3.4.5
 sphinxcontrib-applehelp==2.0.0
     # via sphinx

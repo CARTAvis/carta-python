@@ -25,7 +25,7 @@ author = 'Adrianna Pińska'
 # The full version, including alpha/beta/rc tags
 
 with open("../../VERSION.txt") as f:
-    version = f.read()
+    version = f.read().strip()
 
 release = version
 
@@ -40,6 +40,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
     'sphinx_tabs.tabs',
+    'sphinx_design',
     'myst_parser',
 ]
 
@@ -85,7 +86,21 @@ html_theme_options = {
     ],
     "navbar_align": "left",
     "show_toc_level": 2,
+    # The home page has no sections, so it needs no page table of contents
+    "secondary_sidebar_items": {
+        "**": ["page-toc"],
+        "index": [],
+    },
+    "pygments_dark_style": "nord",
 }
+
+html_title = f"{project} {release}"
+
+# Do not link to the reStructuredText source of each page
+html_show_sourcelink = False
+
+# Read the Docs sets this so that search engines point to one version of each page
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
 
 # Pages with no left sidebar content
 html_sidebars = {
