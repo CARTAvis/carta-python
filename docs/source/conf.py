@@ -37,9 +37,20 @@ release = version
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
     'sphinx_tabs.tabs',
+    'myst_parser',
 ]
+
+# Pages can be written in reStructuredText or in MyST Markdown
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
+
+# Generate one API reference page per module (see _templates/autosummary)
+autosummary_generate = True
 
 napoleon_google_docstring = False
 napoleon_use_param = False
@@ -62,7 +73,24 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'pydata_sphinx_theme'
+
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/CARTAvis/carta-python",
+            "icon": "fa-brands fa-github",
+        },
+    ],
+    "navbar_align": "left",
+    "show_toc_level": 2,
+}
+
+# Pages with no left sidebar content
+html_sidebars = {
+    "index": [],
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

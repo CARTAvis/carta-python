@@ -9,3 +9,4 @@ carta.egg-info
 .pytest_cache
 .ruff_cache
 .venv
+docs/source/api
