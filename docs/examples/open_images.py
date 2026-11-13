@@ -5,8 +5,6 @@ tutorial. It downloads two public images from the Astropy data server, starts
 a CARTA backend and a headless browser, and saves the result as PNG files.
 """
 
-import gzip
-import shutil
 from pathlib import Path
 from urllib.request import urlretrieve
 
@@ -17,17 +15,13 @@ from carta.session import Session
 DATA_URL = "https://www.astropy.org/astropy-data/tutorials/FITS-cubes/"
 DATA_DIR = Path("carta-tutorial-data").resolve()
 HI_CUBE = DATA_DIR / "reduced_TAN_C14.fits"
-DUST_MAP = DATA_DIR / "herschel-350.fits"
+DUST_MAP = DATA_DIR / "herschel-350.fits.gz"
 
-# Download the data once. The dust map is compressed, so unpack it.
+# Download the data once. CARTA opens gzip-compressed FITS files directly.
 DATA_DIR.mkdir(exist_ok=True)
-if not HI_CUBE.exists():
-    urlretrieve(DATA_URL + HI_CUBE.name, HI_CUBE)
-if not DUST_MAP.exists():
-    compressed = DATA_DIR / "herschel-350.fits.gz"
-    urlretrieve(DATA_URL + compressed.name, compressed)
-    with gzip.open(compressed, "rb") as source, open(DUST_MAP, "wb") as target:
-        shutil.copyfileobj(source, target)
+for path in (HI_CUBE, DUST_MAP):
+    if not path.exists():
+        urlretrieve(DATA_URL + path.name, path)
 
 # Start a CARTA backend and connect to it from a headless Chrome browser
 session = Session.start_and_create(Chrome())

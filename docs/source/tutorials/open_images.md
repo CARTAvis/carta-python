@@ -13,7 +13,7 @@ In this tutorial you open an HI data cube of the Small Magellanic Cloud (SMC), g
 
 ### Download the data
 
-The script downloads the two files into a `carta-tutorial-data` folder next to it, and unpacks the compressed dust map. It skips the download if the files are already there.
+The script downloads the two files into a `carta-tutorial-data` folder in the current directory, and skips the download if the files are already there. The dust map stays compressed: CARTA opens gzip-compressed FITS files directly.
 
 ```{literalinclude} ../../examples/open_images.py
 :language: python
