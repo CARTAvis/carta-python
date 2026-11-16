@@ -4,6 +4,7 @@ import time
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 
@@ -181,7 +182,9 @@ class Chrome(Browser):
             "options": chrome_options,
         }
 
+        # Selenium 4.10 removed the executable_path argument; the driver path
+        # is now given to a Service object.
         if driver_path:
-            kwargs["executable_path"] = driver_path
+            kwargs["service"] = Service(executable_path=driver_path)
 
         super().__init__(webdriver.Chrome, **kwargs)

@@ -71,7 +71,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "requests" },
-    { name = "selenium", marker = "extra == 'browser'" },
+    { name = "selenium", marker = "extra == 'browser'", specifier = ">=4.10" },
     { name = "simplejson" },
 ]
 provides-extras = ["browser"]
