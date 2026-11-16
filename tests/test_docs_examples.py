@@ -14,6 +14,7 @@ image header) are allowed.
 """
 
 import ast
+import functools
 import importlib
 import inspect
 import pkgutil
@@ -25,13 +26,7 @@ import pytest
 
 import carta
 
-# Selenium is an optional dependency (the "browser" extra) and is not installed
-# for the unit tests; stub it so that carta.browser can be imported.
-try:
-    import selenium  # noqa: F401
-except ImportError:
-    for name in ("selenium", "selenium.webdriver", "selenium.common", "selenium.common.exceptions", "selenium.webdriver.chrome", "selenium.webdriver.chrome.options", "selenium.webdriver.common", "selenium.webdriver.common.by"):
-        sys.modules.setdefault(name, mock.MagicMock())
+SELENIUM_MODULES = ("selenium", "selenium.webdriver", "selenium.common", "selenium.common.exceptions", "selenium.webdriver.chrome", "selenium.webdriver.chrome.options", "selenium.webdriver.chrome.service", "selenium.webdriver.common", "selenium.webdriver.common.by")
 
 EXAMPLES_DIR = Path(__file__).parents[1] / "docs" / "examples"
 EXAMPLES = sorted(EXAMPLES_DIR.glob("*.py"))
@@ -39,11 +34,41 @@ EXAMPLES = sorted(EXAMPLES_DIR.glob("*.py"))
 BUILTIN_TYPES = (dict, list, tuple, str, bytes, int, float, set)
 
 
+@pytest.fixture(scope="module", autouse=True)
+def stub_selenium():
+    """Stub selenium while these tests run, if it is not installed.
+
+    Selenium is an optional dependency (the "browser" extra) and is not
+    installed for the unit tests, but the examples use carta.browser. The stubs
+    and carta.browser are removed afterwards, so that other tests are not
+    affected.
+    """
+    try:
+        import selenium  # noqa: F401
+        stubs = {}
+    except ImportError:
+        stubs = {name: mock.MagicMock() for name in SELENIUM_MODULES}
+
+    # patch.dict restores sys.modules on exit, which also removes any module
+    # first imported inside it. Import the rest of carta first, so that only
+    # carta.browser is removed and other tests keep the same carta classes.
+    for info in pkgutil.iter_modules(carta.__path__, "carta."):
+        if info.name != "carta.browser":
+            importlib.import_module(info.name)
+
+    with mock.patch.dict(sys.modules, stubs):
+        sys.modules.pop("carta.browser", None)
+        yield
+    if "carta.browser" not in sys.modules and hasattr(carta, "browser"):
+        del carta.browser
+
+
 def carta_modules():
     for info in pkgutil.iter_modules(carta.__path__, "carta."):
         yield importlib.import_module(info.name)
 
 
+@functools.cache
 def carta_api():
     """Map each public attribute name on carta classes to its signatures."""
     api = {}
@@ -70,9 +95,6 @@ def carta_api():
                 if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "self" and isinstance(node.ctx, ast.Store) and not node.attr.startswith("_"):
                     api.setdefault(node.attr, [])
     return api
-
-
-API = carta_api()
 
 
 def root_name(node):
@@ -162,14 +184,14 @@ def check_example(path):
             obj = imported[node.value.id]
             if obj is not None and not hasattr(obj, node.attr):
                 problems.append(f"line {node.lineno}: {node.value.id} has no attribute {node.attr!r}")
-        elif node.attr not in API and not is_builtin_attribute(node.attr):
+        elif node.attr not in carta_api() and not is_builtin_attribute(node.attr):
             problems.append(f"line {node.lineno}: no carta class has an attribute named {node.attr!r}")
 
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and root_name(node.func) in names):
             continue
         name = node.func.attr
-        signatures = API.get(name, [])
+        signatures = carta_api().get(name, [])
         if not signatures:
             continue
         for keyword in node.keywords:
