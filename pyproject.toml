@@ -36,7 +36,7 @@ Documentation = "https://carta-python.readthedocs.io"
 
 [project.optional-dependencies]
 browser = [
-    "selenium",
+    "selenium>=4.10",
 ]
 
 [dependency-groups]
