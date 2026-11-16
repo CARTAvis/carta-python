@@ -1,4 +1,5 @@
 import importlib
+import pkgutil
 import sys
 from unittest import mock
 
@@ -14,7 +15,7 @@ def browser():
     """Import carta.browser, with selenium stubbed if it is not installed.
 
     Selenium is an optional dependency (the "browser" extra) and is not
-    installed for the unit tests. The stubs and the imported module are removed
+    installed for the unit tests. The stubs and carta.browser are removed
     afterwards, so that other tests are not affected.
     """
     try:
@@ -23,11 +24,17 @@ def browser():
     except ImportError:
         stubs = {name: mock.MagicMock() for name in SELENIUM_MODULES}
 
+    # patch.dict restores sys.modules on exit, which also removes any module
+    # first imported inside it. Import the rest of carta first, so that only
+    # carta.browser is removed and other tests keep the same carta classes.
+    for info in pkgutil.iter_modules(carta.__path__, "carta."):
+        if info.name != "carta.browser":
+            importlib.import_module(info.name)
+
     with mock.patch.dict(sys.modules, stubs):
         sys.modules.pop("carta.browser", None)
         yield importlib.import_module("carta.browser")
-        sys.modules.pop("carta.browser", None)
-    if hasattr(carta, "browser"):
+    if "carta.browser" not in sys.modules and hasattr(carta, "browser"):
         del carta.browser
 
 
