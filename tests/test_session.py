@@ -922,3 +922,24 @@ def test_open_hypercube_bad(mocker, session, call_action, method, paths, expecte
     with pytest.raises(Exception) as e:
         session.open_hypercube(paths, append)
     assert expected_error in str(e.value)
+
+
+# CLOSING
+
+
+def test_close_stops_browser_and_backend_once(mocker):
+    browser = mocker.Mock()
+    backend = mocker.Mock()
+    session = Session(1, None, browser=browser, backend=backend)
+
+    session.close()
+    session.close()
+    session.__del__()
+
+    browser.close.assert_called_once_with()
+    backend.stop.assert_called_once_with()
+
+
+def test_close_without_browser_or_backend(session):
+    session.close()
+    session.close()

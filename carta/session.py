@@ -1053,10 +1053,18 @@ class Session:
         If this session opened a CARTA frontend session in a headless browser, this method will close the browser together with that session. If this session is interacting with a session running in an external browser, that browser session will be unaffected. This includes the new CARTA frontend session which is started automatically when :obj:`carta.session.Session.start_and_interact` is used: that frontend session is opened in the user's browser, which is not controlled by this object.
 
         If this session started a new backend process, this method will stop that process. If this session is interacting with an externally started backend process, that process will be unaffected.
+
+        Calling this method more than once has no further effect. It is also called when the session object is deleted.
         """
 
-        if self._browser is not None:
-            self._browser.close()
+        # Clear the references first, so that a second call (for example from
+        # __del__ at interpreter exit) does not close the browser or stop the
+        # backend again.
+        browser, self._browser = self._browser, None
+        backend, self._backend = self._backend, None
 
-        if self._backend is not None:
-            self._backend.stop()
+        if browser is not None:
+            browser.close()
+
+        if backend is not None:
+            backend.stop()
