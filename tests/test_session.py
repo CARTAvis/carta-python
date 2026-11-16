@@ -943,3 +943,15 @@ def test_close_stops_browser_and_backend_once(mocker):
 def test_close_without_browser_or_backend(session):
     session.close()
     session.close()
+
+
+def test_close_stops_backend_when_browser_close_fails(mocker):
+    browser = mocker.Mock()
+    browser.close.side_effect = RuntimeError("driver is gone")
+    backend = mocker.Mock()
+    session = Session(1, None, browser=browser, backend=backend)
+
+    with pytest.raises(RuntimeError):
+        session.close()
+
+    backend.stop.assert_called_once_with()

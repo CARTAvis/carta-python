@@ -1063,8 +1063,11 @@ class Session:
         browser, self._browser = self._browser, None
         backend, self._backend = self._backend, None
 
-        if browser is not None:
-            browser.close()
-
-        if backend is not None:
-            backend.stop()
+        # Stop the backend even if closing the browser fails, so that the
+        # backend process is not left running.
+        try:
+            if browser is not None:
+                browser.close()
+        finally:
+            if backend is not None:
+                backend.stop()
