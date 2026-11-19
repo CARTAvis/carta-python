@@ -451,7 +451,7 @@ class PvImages(DerivedImages):
         Boolean(),
         Boolean(),
     )
-    def generate(self, line_region, width=1, spectral_range=None, spectral_type=None, unit=None, spectral_system=None, channels=None, reverse=False, keep=True):
+    def generate(self, line_region, width=3, spectral_range=None, spectral_type=None, unit=None, spectral_system=None, channels=None, reverse=False, keep=True):
         """Start a job that makes a PV image of this image along a line or polyline region.
 
         The job runs in the background. Call :obj:`carta.generation.PvJob.wait` on the returned job to get the new image.
@@ -463,7 +463,7 @@ class PvImages(DerivedImages):
         line_region : {0}
             A line or polyline region of this image. The PV image follows this cut.
         width : {1}
-            The number of pixels that the cut is averaged over. The default is ``1``.
+            The number of pixels that the cut is averaged over. The default is ``3``, as in the GUI.
         spectral_range : {2}
             The first and last spectral value.
         spectral_type : {3}

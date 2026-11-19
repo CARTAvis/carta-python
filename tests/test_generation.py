@@ -216,7 +216,7 @@ def test_pv_generate(pv, session_call_action, region):
 
 def test_pv_generate_defaults_and_spectral_range(pv, session_call_action, region):
     pv.generate(region(RT.LINE), spectral_range=(230.51, 230.57), unit=SU.GHZ)
-    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 3, "width": 1, "reverse": False, "keep": True, "spectralRange": {"min": 230.51, "max": 230.57, "unit": SU.GHZ}}, response_expected=True)
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 3, "width": 3, "reverse": False, "keep": True, "spectralRange": {"min": 230.51, "max": 230.57, "unit": SU.GHZ}}, response_expected=True)
 
 
 @pytest.mark.parametrize("region_type", [RT.RECTANGLE, RT.ANNLINE, RT.POINT])
