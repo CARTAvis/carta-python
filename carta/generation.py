@@ -180,12 +180,31 @@ class GenerationJob:
         """
         return self._state().get("request")
 
-    def cancel(self):
-        """Cancel the job.
+    @validate(Number.POSITIVE)
+    def cancel(self, timeout=60):
+        """Cancel the job, and wait until its image is free again.
+
+        The job is cancelled at once. The backend can take some time to stop, and until then the image cannot start another job of the same kind. This method waits for that, so that a new job can be started on the image as soon as it returns.
 
         Images that the backend still makes for the job are closed without being shown. Nothing happens when the job has already ended.
+
+        Parameters
+        ----------
+        timeout : {0}
+            The number of seconds to wait for the image to be free. The default is ``60``.
+
+        Raises
+        ------
+        CartaJobFailed
+            If the image is still busy after *timeout* seconds. The job is cancelled all the same.
         """
         self.session.call_action(f"{JOBS_PATH}.cancelJob", self.job_id)
+        end = time.monotonic() + timeout
+        # Older frontends do not say whether the image is busy.
+        while self._state().get("isImageBusy", False):
+            if time.monotonic() > end:
+                raise CartaJobFailed(f"The job was cancelled, but its image is still busy after {timeout} seconds. Wait before starting another job on it.")
+            time.sleep(0.2)
 
     @validate(Number.POSITIVE)
     def wait(self, poll_interval=1):

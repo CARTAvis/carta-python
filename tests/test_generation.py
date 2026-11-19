@@ -149,9 +149,39 @@ def test_job_state(session, session_call_action):
     session_call_action.assert_called_with("imageGenerationJobs.getJob", 2, response_expected=True)
 
 
-def test_job_cancel(session, session_call_action):
+def test_job_cancel_waits_until_image_is_free(session, session_call_action, mocker):
+    sleep = mocker.patch("carta.generation.time.sleep")
+    cancelled = {"status": "cancelled", "progress": 0, "images": []}
+    session_call_action.side_effect = [None, {**cancelled, "isImageBusy": True}, {**cancelled, "isImageBusy": True}, {**cancelled, "isImageBusy": False}]
     GenerationJob(session, 2).cancel()
-    session_call_action.assert_called_with("imageGenerationJobs.cancelJob", 2)
+    assert session_call_action.call_args_list == [
+        mocker.call("imageGenerationJobs.cancelJob", 2),
+        *[mocker.call("imageGenerationJobs.getJob", 2, response_expected=True)] * 3,
+    ]
+    assert sleep.call_count == 2
+
+
+def test_job_cancel_with_older_frontend(session, session_call_action, mocker):
+    sleep = mocker.patch("carta.generation.time.sleep")
+    session_call_action.side_effect = [None, {"status": "cancelled", "progress": 0, "images": []}]
+    GenerationJob(session, 2).cancel()
+    sleep.assert_not_called()
+
+
+def test_job_cancel_timeout(session, session_call_action, mocker):
+    mocker.patch("carta.generation.time.sleep")
+    mocker.patch("carta.generation.time.monotonic", side_effect=[0, 1, 6])
+    busy = {"status": "cancelled", "progress": 0, "images": [], "isImageBusy": True}
+    session_call_action.side_effect = [None, busy, busy]
+    with pytest.raises(CartaJobFailed, match="still busy after 5 seconds"):
+        GenerationJob(session, 2).cancel(timeout=5)
+
+
+@pytest.mark.parametrize("timeout", [0, -1])
+def test_job_cancel_invalid_timeout(session, session_call_action, timeout):
+    with pytest.raises(CartaValidationFailed):
+        GenerationJob(session, 2).cancel(timeout=timeout)
+    session_call_action.assert_not_called()
 
 
 def test_moment_job_wait(session, session_call_action, mocker):
