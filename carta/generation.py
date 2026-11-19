@@ -167,6 +167,19 @@ class GenerationJob:
         """
         return self._state().get("error")
 
+    @property
+    def settings(self):
+        """The settings that the job uses, after the frontend has filled in its defaults.
+
+        Use this to see the values that the job really uses, such as the default width of a PV image. The settings are the same while the job runs and after it ends.
+
+        Returns
+        -------
+        dict or None
+            The settings, as the frontend gives them. Channel ranges are channel indices. ``None`` if the frontend does not give the settings.
+        """
+        return self._state().get("request")
+
     def cancel(self):
         """Cancel the job.
 
@@ -442,16 +455,16 @@ class PvImages(DerivedImages):
 
     @validate(
         InstanceOf(Region),
-        Number(1, 20, step=1),
+        NoneOr(Number(1, 20, step=1)),
         NoneOr(IterableOf(Number(), min_size=2, max_size=2)),
         NoneOr(Constant(SpectralType)),
         NoneOr(Constant(SpectralUnit)),
         NoneOr(Constant(SpectralSystem)),
         NoneOr(IterableOf(Number.ID, min_size=2, max_size=2)),
-        Boolean(),
+        NoneOr(Boolean()),
         Boolean(),
     )
-    def generate(self, line_region, width=3, spectral_range=None, spectral_type=None, unit=None, spectral_system=None, channels=None, reverse=False, keep=True):
+    def generate(self, line_region, width=None, spectral_range=None, spectral_type=None, unit=None, spectral_system=None, channels=None, reverse=None, keep=True):
         """Start a job that makes a PV image of this image along a line or polyline region.
 
         The job runs in the background. Call :obj:`carta.generation.PvJob.wait` on the returned job to get the new image.
@@ -463,7 +476,7 @@ class PvImages(DerivedImages):
         line_region : {0}
             A line or polyline region of this image. The PV image follows this cut.
         width : {1}
-            The number of pixels that the cut is averaged over. The default is ``3``, as in the GUI.
+            The number of pixels that the cut is averaged over. The default is the default of the GUI (``3`` at the time of writing). :obj:`carta.generation.GenerationJob.settings` shows the width that the job uses.
         spectral_range : {2}
             The first and last spectral value.
         spectral_type : {3}
@@ -475,7 +488,7 @@ class PvImages(DerivedImages):
         channels : {6}
             The first and last channel, as channel indices.
         reverse : {7}
-            Whether to draw the position axis vertically and the spectral axis horizontally. The default is ``False``.
+            Whether to draw the position axis vertically and the spectral axis horizontally. The default follows the PV axes order in the user's preferences, as in the GUI.
         keep : {8}
             Whether to keep the PV images made from this image before. The default is ``True``. With ``False``, the earlier PV images are closed, as in the GUI.
 
@@ -492,7 +505,12 @@ class PvImages(DerivedImages):
             If the frontend cannot start the job, for example when this image already makes a PV image.
         """
         self._check_region(line_region, LINE_REGION_TYPES, "A PV image is made along a line or polyline region")
-        settings = {"regionId": line_region.region_id, "width": width, "reverse": bool(reverse), "keep": bool(keep)}
+        # Leave out the settings that are not given, so that the frontend uses the same defaults as the GUI.
+        settings = {"regionId": line_region.region_id, "keep": bool(keep)}
+        if width is not None:
+            settings["width"] = width
+        if reverse is not None:
+            settings["reverse"] = bool(reverse)
         settings.update(channel_settings(spectral_range, spectral_type, unit, spectral_system, channels))
         job_id = self.session.call_action(f"{JOBS_PATH}.startPv", self.image.image_id, settings, response_expected=True)
         return PvJob(self.session, job_id)

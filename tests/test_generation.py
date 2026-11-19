@@ -209,14 +209,14 @@ def pv(image):
 def test_pv_generate(pv, session_call_action, region):
     session_call_action.return_value = 6
     job = pv.generate(region(RT.POLYLINE, 8), width=3, channels=(2, 20), reverse=True, keep=False)
-    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 8, "width": 3, "reverse": True, "keep": False, "channels": {"min": 2, "max": 20}}, response_expected=True)
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 8, "keep": False, "width": 3, "reverse": True, "channels": {"min": 2, "max": 20}}, response_expected=True)
     assert isinstance(job, PvJob)
     assert job.job_id == 6
 
 
 def test_pv_generate_defaults_and_spectral_range(pv, session_call_action, region):
     pv.generate(region(RT.LINE), spectral_range=(230.51, 230.57), unit=SU.GHZ)
-    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 3, "width": 3, "reverse": False, "keep": True, "spectralRange": {"min": 230.51, "max": 230.57, "unit": SU.GHZ}}, response_expected=True)
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 3, "keep": True, "spectralRange": {"min": 230.51, "max": 230.57, "unit": SU.GHZ}}, response_expected=True)
 
 
 @pytest.mark.parametrize("region_type", [RT.RECTANGLE, RT.ANNLINE, RT.POINT])
@@ -264,6 +264,22 @@ def test_pv_generate_needs_region_of_same_session(pv, session_call_action, regio
         pv.generate(region(RT.LINE, owner=Image(Session(0, None), 0)))
     assert "does not belong to this image" in str(e.value)
     session_call_action.assert_not_called()
+
+
+def test_pv_generate_leaves_defaults_to_the_frontend(pv, session_call_action, region):
+    pv.generate(region(RT.LINE, 4))
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 4, "keep": True}, response_expected=True)
+
+
+@pytest.mark.parametrize("state,expected", [
+    ({"status": "running", "progress": 0, "images": [], "request": {"regionId": 4, "width": 3, "channelRange": None, "reverse": False, "keep": True}},
+     {"regionId": 4, "width": 3, "channelRange": None, "reverse": False, "keep": True}),
+    ({"status": "running", "progress": 0, "images": []}, None),
+])
+def test_job_settings(session, session_call_action, state, expected):
+    session_call_action.return_value = state
+    assert PvJob(session, 2).settings == expected
+    session_call_action.assert_called_with("imageGenerationJobs.getJob", 2, response_expected=True)
 
 
 def test_pv_generate_sends_booleans(pv, session_call_action, region):
