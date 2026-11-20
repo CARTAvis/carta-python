@@ -64,6 +64,11 @@ class CartaBadResponse(CartaScriptingException):
     pass
 
 
+class CartaJobFailed(CartaScriptingException):
+    """A job that makes images in the background failed or was cancelled."""
+    pass
+
+
 class Macro:
     """A placeholder for a target and a variable which will be evaluated dynamically by the frontend.
 

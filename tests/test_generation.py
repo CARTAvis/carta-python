@@ -1,11 +1,11 @@
 import pytest
 
 from carta.constants import JobStatus, Moment as M, MomentMask as MM, RegionType as RT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
-from carta.generation import CartaJobFailed, GenerationJob, MomentImages, MomentJob, channel_settings
+from carta.generation import GenerationJob, MomentImages, MomentJob, channel_settings
 from carta.image import Image
 from carta.region import Region
 from carta.session import Session
-from carta.util import CartaBadResponse, CartaValidationFailed
+from carta.util import CartaBadResponse, CartaJobFailed, CartaValidationFailed
 
 # FIXTURES
 
@@ -89,18 +89,17 @@ def test_generate_needs_closed_region(moments, session_call_action, region, regi
     session_call_action.assert_not_called()
 
 
-def test_generate_needs_region_of_same_image(moments, session, session_call_action, region):
-    with pytest.raises(CartaValidationFailed) as e:
-        moments.generate([M.MAX], region=region(RT.RECTANGLE, owner=Image(session, 1)))
-    assert "does not belong to this image" in str(e.value)
-    session_call_action.assert_not_called()
+def test_generate_with_region_of_matched_image(moments, session, session_call_action, region):
+    """A spatially matched image shares the regions of its spatial reference, so the frontend checks the region."""
+    moments.generate([M.MAX], region=region(RT.RECTANGLE, 5, owner=Image(session, 1)))
+    assert session_call_action.call_args.args[2]["regionId"] == 5
 
 
 def test_generate_needs_region_of_same_session(moments, session_call_action, region):
     other_session = Session(0, None)
     with pytest.raises(CartaValidationFailed) as e:
         moments.generate([M.MAX], region=region(RT.RECTANGLE, owner=Image(other_session, 0)))
-    assert "does not belong to this image" in str(e.value)
+    assert "belongs to another session" in str(e.value)
     session_call_action.assert_not_called()
 
 
@@ -113,6 +112,7 @@ def test_generate_sends_keep_as_boolean(moments, session_call_action):
     {"moments": []},
     {"moments": [13]},
     {"moments": [M.MAX], "mask": MM.INCLUDE},
+    {"moments": [M.MAX], "pixel_range": (0, 1)},
     {"moments": [M.MAX], "channels": (-1, 2)},
     {"moments": [M.MAX], "channels": (1, 2, 3)},
     {"moments": [M.MAX], "spectral_range": (1, 2), "channels": (1, 2)},
@@ -175,10 +175,35 @@ def test_job_wait_raises(session, session_call_action, mocker, state, message):
     assert str(e.value) == message
 
 
-def test_job_wait_invalid_interval(session, session_call_action):
+@pytest.mark.parametrize("kwargs", [{"poll_interval": 0}, {"timeout": 0}, {"timeout": -1}])
+def test_job_wait_invalid(session, session_call_action, kwargs):
     with pytest.raises(CartaValidationFailed):
-        GenerationJob(session, 2).wait(poll_interval=0)
+        GenerationJob(session, 2).wait(**kwargs)
     session_call_action.assert_not_called()
+
+
+@pytest.mark.parametrize("job_class", [GenerationJob, MomentJob])
+def test_job_wait_timeout(session, session_call_action, mocker, job_class):
+    mocker.patch("carta.generation.time.sleep")
+    mocker.patch("carta.generation.time.monotonic", side_effect=[0, 1, 6])
+    running = {"status": "running", "progress": 0.5, "images": []}
+    session_call_action.side_effect = [running, running]
+    with pytest.raises(TimeoutError, match="still running after 5 seconds"):
+        job_class(session, 2).wait(timeout=5)
+    # The job is not cancelled.
+    assert all(c.args[0] == "imageGenerationJobs.getJob" for c in session_call_action.call_args_list)
+
+
+def test_job_wait_ends_before_timeout(session, session_call_action, mocker):
+    mocker.patch("carta.generation.time.sleep")
+    mocker.patch("carta.generation.time.monotonic", side_effect=[0, 1])
+    session_call_action.side_effect = job_states({"status": "done", "progress": 1, "images": [{"fileId": 9, "moment": 9}]})
+    assert MomentJob(session, 2).wait(timeout=5)[M.MAX].image_id == 9
+
+
+def test_job_failed_is_also_in_generation():
+    import carta.generation
+    assert carta.generation.CartaJobFailed is CartaJobFailed
 
 
 def test_generate_asks_for_each_moment_once(moments, session_call_action):
