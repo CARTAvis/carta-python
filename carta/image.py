@@ -15,7 +15,7 @@ from .contours import Contours
 from .vector_overlay import VectorOverlay
 from .wcs_overlay import ImageWCSOverlay
 from .region import RegionSet
-from .generation import MomentImages
+from .generation import MomentImages, PvImages
 
 
 class Image(View, BasePathMixin):
@@ -48,6 +48,8 @@ class Image(View, BasePathMixin):
         Functions for manipulating regions associated with this image.
     moments : :obj:`carta.generation.MomentImages` object
         Functions for making moment images of this image.
+    pv : :obj:`carta.generation.PvImages` object
+        Functions for making PV images of this image.
     """
 
     VIEW_TYPE = ImageType.FRAME
@@ -66,6 +68,7 @@ class Image(View, BasePathMixin):
         self.wcs = ImageWCSOverlay(self)
         self.regions = RegionSet(self)
         self.moments = MomentImages(self)
+        self.pv = PvImages(self)
 
     @property
     def _stable_id(self):

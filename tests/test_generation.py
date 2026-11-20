@@ -1,7 +1,7 @@
 import pytest
 
 from carta.constants import JobStatus, Moment as M, MomentMask as MM, RegionType as RT, SpectralSystem as SS, SpectralType as ST, SpectralUnit as SU
-from carta.generation import GenerationJob, MomentImages, MomentJob, channel_settings
+from carta.generation import GenerationJob, MomentImages, MomentJob, PvImages, PvJob, channel_settings
 from carta.image import Image
 from carta.region import Region
 from carta.session import Session
@@ -149,9 +149,39 @@ def test_job_state(session, session_call_action):
     session_call_action.assert_called_with("imageGenerationJobs.getJob", 2, response_expected=True)
 
 
-def test_job_cancel(session, session_call_action):
+def test_job_cancel_waits_until_image_is_free(session, session_call_action, mocker):
+    sleep = mocker.patch("carta.generation.time.sleep")
+    cancelled = {"status": "cancelled", "progress": 0, "images": []}
+    session_call_action.side_effect = [None, {**cancelled, "isImageBusy": True}, {**cancelled, "isImageBusy": True}, {**cancelled, "isImageBusy": False}]
     GenerationJob(session, 2).cancel()
-    session_call_action.assert_called_with("imageGenerationJobs.cancelJob", 2)
+    assert session_call_action.call_args_list == [
+        mocker.call("imageGenerationJobs.cancelJob", 2),
+        *[mocker.call("imageGenerationJobs.getJob", 2, response_expected=True)] * 3,
+    ]
+    assert sleep.call_count == 2
+
+
+def test_job_cancel_with_older_frontend(session, session_call_action, mocker):
+    sleep = mocker.patch("carta.generation.time.sleep")
+    session_call_action.side_effect = [None, {"status": "cancelled", "progress": 0, "images": []}]
+    GenerationJob(session, 2).cancel()
+    sleep.assert_not_called()
+
+
+def test_job_cancel_timeout(session, session_call_action, mocker):
+    mocker.patch("carta.generation.time.sleep")
+    mocker.patch("carta.generation.time.monotonic", side_effect=[0, 1, 6])
+    busy = {"status": "cancelled", "progress": 0, "images": [], "isImageBusy": True}
+    session_call_action.side_effect = [None, busy, busy]
+    with pytest.raises(TimeoutError, match="still busy after 5 seconds"):
+        GenerationJob(session, 2).cancel(timeout=5)
+
+
+@pytest.mark.parametrize("timeout", [0, -1])
+def test_job_cancel_invalid_timeout(session, session_call_action, timeout):
+    with pytest.raises(CartaValidationFailed):
+        GenerationJob(session, 2).cancel(timeout=timeout)
+    session_call_action.assert_not_called()
 
 
 def test_moment_job_wait(session, session_call_action, mocker):
@@ -182,7 +212,7 @@ def test_job_wait_invalid(session, session_call_action, kwargs):
     session_call_action.assert_not_called()
 
 
-@pytest.mark.parametrize("job_class", [GenerationJob, MomentJob])
+@pytest.mark.parametrize("job_class", [MomentJob, PvJob])
 def test_job_wait_timeout(session, session_call_action, mocker, job_class):
     mocker.patch("carta.generation.time.sleep")
     mocker.patch("carta.generation.time.monotonic", side_effect=[0, 1, 6])
@@ -197,8 +227,8 @@ def test_job_wait_timeout(session, session_call_action, mocker, job_class):
 def test_job_wait_ends_before_timeout(session, session_call_action, mocker):
     mocker.patch("carta.generation.time.sleep")
     mocker.patch("carta.generation.time.monotonic", side_effect=[0, 1])
-    session_call_action.side_effect = job_states({"status": "done", "progress": 1, "images": [{"fileId": 9, "moment": 9}]})
-    assert MomentJob(session, 2).wait(timeout=5)[M.MAX].image_id == 9
+    session_call_action.side_effect = job_states({"status": "done", "progress": 1, "images": [{"fileId": 9}]})
+    assert PvJob(session, 2).wait(timeout=5).image_id == 9
 
 
 def test_job_failed_is_also_in_generation():
@@ -221,3 +251,92 @@ def test_moment_job_wait_bad_response(session, session_call_action, mocker, stat
     with pytest.raises(CartaBadResponse) as e:
         MomentJob(session, 2).wait()
     assert message in str(e.value)
+
+
+# PV IMAGES
+
+
+@pytest.fixture
+def pv(image):
+    return PvImages(image)
+
+
+def test_pv_generate(pv, session_call_action, region):
+    session_call_action.return_value = 6
+    job = pv.generate(region(RT.POLYLINE, 8), width=3, channels=(2, 20), reverse=True, keep=False)
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 8, "keep": False, "width": 3, "reverse": True, "channels": {"min": 2, "max": 20}}, response_expected=True)
+    assert isinstance(job, PvJob)
+    assert job.job_id == 6
+
+
+def test_pv_generate_defaults_and_spectral_range(pv, session_call_action, region):
+    pv.generate(region(RT.LINE), spectral_range=(230.51, 230.57), spectral_unit=SU.GHZ)
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 3, "keep": True, "spectralRange": {"min": 230.51, "max": 230.57, "unit": SU.GHZ}}, response_expected=True)
+
+
+@pytest.mark.parametrize("region_type", [RT.RECTANGLE, RT.ANNLINE, RT.POINT])
+def test_pv_generate_needs_line_region(pv, session_call_action, region, region_type):
+    with pytest.raises(CartaValidationFailed) as e:
+        pv.generate(region(region_type))
+    assert "line or polyline region" in str(e.value)
+    session_call_action.assert_not_called()
+
+
+@pytest.mark.parametrize("width", [0, 21, 1.5])
+def test_pv_generate_invalid_width(pv, session_call_action, region, width):
+    with pytest.raises(CartaValidationFailed):
+        pv.generate(region(RT.LINE), width=width)
+    session_call_action.assert_not_called()
+
+
+def test_pv_images(pv, image, session, mocker):
+    get_value = mocker.patch.object(image, "get_value", return_value=[7, 8])
+    mocker.patch.object(session, "get_value", return_value=[0, 8])
+    assert [i.image_id for i in pv.images] == [8]
+    get_value.assert_called_with("pvImages", return_path="frameInfo.fileId")
+
+
+@pytest.mark.parametrize("images,expected", [
+    ([{"fileId": 9}], 9),
+    ([], None),
+])
+def test_pv_job_wait(session, session_call_action, mocker, images, expected):
+    mocker.patch("carta.generation.time.sleep")
+    session_call_action.side_effect = job_states({"status": "done", "progress": 1, "images": images})
+    result = PvJob(session, 2).wait()
+    assert (result.image_id if result else None) == expected
+
+
+def test_pv_generate_with_region_of_matched_image(pv, session, session_call_action, region):
+    pv.generate(region(RT.LINE, 5, owner=Image(session, 1)))
+    assert session_call_action.call_args.args[2]["regionId"] == 5
+
+
+def test_pv_generate_needs_region_of_same_session(pv, session_call_action, region):
+    with pytest.raises(CartaValidationFailed) as e:
+        pv.generate(region(RT.LINE, owner=Image(Session(0, None), 0)))
+    assert "belongs to another session" in str(e.value)
+    session_call_action.assert_not_called()
+
+
+def test_pv_generate_leaves_defaults_to_the_frontend(pv, session_call_action, region):
+    pv.generate(region(RT.LINE, 4))
+    session_call_action.assert_called_with("imageGenerationJobs.startPv", 0, {"regionId": 4, "keep": True}, response_expected=True)
+
+
+@pytest.mark.parametrize("state,expected", [
+    ({"status": "running", "progress": 0, "images": [], "request": {"regionId": 4, "width": 3, "channelRange": None, "reverse": False, "keep": True}},
+     {"regionId": 4, "width": 3, "channelRange": None, "reverse": False, "keep": True}),
+    ({"status": "running", "progress": 0, "images": []}, None),
+])
+def test_job_settings(session, session_call_action, state, expected):
+    session_call_action.return_value = state
+    assert PvJob(session, 2).settings == expected
+    session_call_action.assert_called_with("imageGenerationJobs.getJob", 2, response_expected=True)
+
+
+def test_pv_generate_sends_booleans(pv, session_call_action, region):
+    pv.generate(region(RT.LINE), reverse=1, keep=0)
+    settings = session_call_action.call_args.args[2]
+    assert settings["reverse"] is True
+    assert settings["keep"] is False
