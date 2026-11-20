@@ -4,7 +4,7 @@ Image objects should not be instantiated directly, and should only be created th
 """
 
 
-from .constants import ImageType, Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
+from .constants import FrequencyUnit, ImageType, Polarization, SpatialAxis, SpectralSystem, SpectralType, SpectralUnit
 from .view import View
 from .util import Macro, cached, BasePathMixin, CartaScriptingException, Point as Pt
 from .units import AngularSize, WorldCoordinate
@@ -15,6 +15,7 @@ from .contours import Contours
 from .vector_overlay import VectorOverlay
 from .wcs_overlay import ImageWCSOverlay
 from .region import RegionSet
+from .generation import MomentImages
 
 
 class Image(View, BasePathMixin):
@@ -45,6 +46,8 @@ class Image(View, BasePathMixin):
         Sub-object with functions related to the WCS overlay.
     regions : :obj:`carta.region.RegionSet` object
         Functions for manipulating regions associated with this image.
+    moments : :obj:`carta.generation.MomentImages` object
+        Functions for making moment images of this image.
     """
 
     VIEW_TYPE = ImageType.FRAME
@@ -62,6 +65,7 @@ class Image(View, BasePathMixin):
         self.vectors = VectorOverlay(self)
         self.wcs = ImageWCSOverlay(self)
         self.regions = RegionSet(self)
+        self.moments = MomentImages(self)
 
     @property
     def _stable_id(self):
@@ -530,6 +534,26 @@ class Image(View, BasePathMixin):
 
         spectral_coordinate_string = description if spectral_unit is None else f"{description} ({spectral_unit})"
         self.call_action("setSpectralCoordinate", spectral_coordinate_string)
+
+    @validate(Number.POSITIVE, Constant(FrequencyUnit))
+    def set_rest_frequency(self, value, unit=FrequencyUnit.GHZ):
+        """Set the rest frequency of this image.
+
+        This works like the rest frequency field in the GUI. The rest frequency is used to convert between frequencies and velocities, for example for a velocity range of moments or for velocity moments. A workspace saves the rest frequency with the image.
+
+        Parameters
+        ----------
+        value : {0}
+            The rest frequency.
+        unit : {1}
+            The unit of the rest frequency. The default is GHz.
+        """
+        self.call_action("restFreqStore.setCustomUnit", unit)
+        self.call_action("restFreqStore.setCustomVal", value)
+
+    def reset_rest_frequency(self):
+        """Reset the rest frequency of this image to the value in the image header."""
+        self.call_action("restFreqStore.restoreDefaults")
 
     # COORDINATE AND SIZE CONVERSIONS
 

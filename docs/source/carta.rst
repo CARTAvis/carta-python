@@ -41,6 +41,14 @@ carta.contours module
    :undoc-members:
    :show-inheritance:
 
+carta.generation module
+-----------------------
+
+.. automodule:: carta.generation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 carta.image module
 ------------------
 
