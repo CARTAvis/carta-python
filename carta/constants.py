@@ -346,7 +346,7 @@ class SpectralSystem(StrEnum):
 
 
 class SpectralUnit(StrEnum):
-    """Spectral units."""
+    """Spectral units. :obj:`carta.constants.FrequencyUnit` has only the frequency units."""
     KMS = "km/s"
     MS = "m/s"
     GHZ = "GHz"
@@ -406,7 +406,10 @@ class SpectralType(StrEnum):
 
 
 class FrequencyUnit(StrEnum):
-    """Frequency units."""
+    """Frequency units, such as the unit of a rest frequency.
+
+    These are the frequency units of :obj:`carta.constants.SpectralUnit`, without the other spectral units.
+    """
     GHZ = "GHz"
     MHZ = "MHz"
     KHZ = "kHz"

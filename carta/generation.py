@@ -7,7 +7,7 @@ import time
 
 from .constants import JobStatus, Moment, MomentMask, RegionType, SpectralSystem, SpectralType, SpectralUnit
 from .region import Region
-from .util import CartaBadResponse, CartaScriptingException, CartaValidationFailed
+from .util import CartaBadResponse, CartaJobFailed, CartaValidationFailed
 from .validation import validate, Number, Constant, Boolean, IterableOf, NoneOr, InstanceOf
 
 JOBS_PATH = "imageGenerationJobs"
@@ -20,12 +20,7 @@ LINE_REGION_TYPES = (RegionType.LINE, RegionType.POLYLINE)
 """The region types that a PV image can be made along."""
 
 
-class CartaJobFailed(CartaScriptingException):
-    """A job that makes images failed or was cancelled."""
-    pass
-
-
-def channel_settings(spectral_range, spectral_type, unit, spectral_system, channels):
+def channel_settings(spectral_range, spectral_type, spectral_unit, spectral_system, channels):
     """Return the channel settings of a job, as the frontend reads them.
 
     This is an internal helper function which should not be used directly.
@@ -36,7 +31,7 @@ def channel_settings(spectral_range, spectral_type, unit, spectral_system, chann
         The first and last spectral value.
     spectral_type : :obj:`carta.constants.SpectralType` or None
         The spectral type of the values.
-    unit : :obj:`carta.constants.SpectralUnit` or None
+    spectral_unit : :obj:`carta.constants.SpectralUnit` or None
         The unit of the values.
     spectral_system : :obj:`carta.constants.SpectralSystem` or None
         The spectral system of the values.
@@ -55,7 +50,7 @@ def channel_settings(spectral_range, spectral_type, unit, spectral_system, chann
     """
     if spectral_range is not None and channels is not None:
         raise CartaValidationFailed("Give either a spectral range or channels, not both.")
-    if spectral_range is None and (spectral_type is not None or unit is not None or spectral_system is not None):
+    if spectral_range is None and (spectral_type is not None or spectral_unit is not None or spectral_system is not None):
         raise CartaValidationFailed("A spectral type, unit or system needs a spectral range.")
     if channels is not None:
         first, last = channels
@@ -66,11 +61,11 @@ def channel_settings(spectral_range, spectral_type, unit, spectral_system, chann
     spectral = {"min": first, "max": last}
     if spectral_type is not None:
         spectral_type = SpectralType(spectral_type)
-        if unit is not None and SpectralUnit(unit) not in spectral_type.units:
-            raise CartaValidationFailed(f"{unit} is not a unit of the spectral type {spectral_type}.")
+        if spectral_unit is not None and SpectralUnit(spectral_unit) not in spectral_type.units:
+            raise CartaValidationFailed(f"{spectral_unit} is not a unit of the spectral type {spectral_type}.")
         spectral["type"] = spectral_type
-    if unit is not None:
-        spectral["unit"] = SpectralUnit(unit)
+    if spectral_unit is not None:
+        spectral["unit"] = SpectralUnit(spectral_unit)
     if spectral_system is not None:
         spectral["system"] = SpectralSystem(spectral_system)
     return {"spectralRange": spectral}
@@ -104,7 +99,7 @@ class GenerationJob:
 
     This class should not be instantiated directly. Methods such as :obj:`carta.generation.MomentImages.generate` return a job.
 
-    The job starts at once. A script can read its status and progress, wait for it, or cancel it. A large cube can take minutes, and :obj:`carta.generation.GenerationJob.wait` has no time limit.
+    The job starts at once. A script can read its status and progress, wait for it, or cancel it. A large cube can take minutes, and by default :obj:`carta.generation.GenerationJob.wait` has no time limit.
 
     Parameters
     ----------
@@ -173,10 +168,18 @@ class GenerationJob:
 
         Use this to see the values that the job really uses, such as the default width of a PV image. The settings are the same while the job runs and after it ends.
 
+        The dictionary is passed on from the frontend as it is, so its keys are those of the frontend. Both kinds of job have these keys:
+
+        * ``regionId``: the ID of the region, or ``-1`` for the whole image.
+        * ``channelRange``: a dictionary with the first and last channel as ``min`` and ``max``, as channel indices. Spectral values are converted to channels.
+        * ``keep``: whether the earlier images are kept.
+
+        A moment job also has ``moments`` (a list of integers, the values of :obj:`carta.constants.Moment`), ``mask`` (an integer, the value of :obj:`carta.constants.MomentMask`) and ``pixelRange`` (a dictionary with ``min`` and ``max``). A PV job also has ``width`` and ``reverse``; its ``channelRange`` is ``None`` when all channels are used.
+
         Returns
         -------
         dict or None
-            The settings, as the frontend gives them. Channel ranges are channel indices. ``None`` if the frontend does not give the settings.
+            The settings. ``None`` if the frontend does not give the settings.
         """
         return self._state().get("request")
 
@@ -195,7 +198,7 @@ class GenerationJob:
 
         Raises
         ------
-        CartaJobFailed
+        TimeoutError
             If the image is still busy after *timeout* seconds. The job is cancelled all the same.
         """
         self.session.call_action(f"{JOBS_PATH}.cancelJob", self.job_id)
@@ -203,19 +206,21 @@ class GenerationJob:
         # Older frontends do not say whether the image is busy.
         while self._state().get("isImageBusy", False):
             if time.monotonic() > end:
-                raise CartaJobFailed(f"The job was cancelled, but its image is still busy after {timeout} seconds. Wait before starting another job on it.")
+                raise TimeoutError(f"The job was cancelled, but its image is still busy after {timeout} seconds. Wait before starting another job on it.")
             time.sleep(0.2)
 
-    @validate(Number.POSITIVE)
-    def wait(self, poll_interval=1):
+    @validate(Number.POSITIVE, NoneOr(Number.POSITIVE))
+    def wait(self, poll_interval=1, timeout=None):
         """Wait until the job ends, and return the images that it made.
 
-        This method has no time limit. It checks the status of the job every *poll_interval* seconds.
+        It checks the status of the job every *poll_interval* seconds.
 
         Parameters
         ----------
         poll_interval : {0}
             The number of seconds between two checks of the status. The default is ``1``.
+        timeout : {1}
+            The number of seconds to wait. The default is no time limit.
 
         Returns
         -------
@@ -228,9 +233,14 @@ class GenerationJob:
             If the job fails or is cancelled.
         CartaBadResponse
             If the frontend returns a status or images that this wrapper cannot read.
+        TimeoutError
+            If the job is still running after *timeout* seconds. The job is not cancelled.
         """
+        end = None if timeout is None else time.monotonic() + timeout
         state = self._state()
         while state["status"] == JobStatus.RUNNING:
+            if end is not None and time.monotonic() > end:
+                raise TimeoutError(f"The job is still running after {timeout} seconds.")
             time.sleep(poll_interval)
             state = self._state()
         if state["status"] == JobStatus.FAILED:
@@ -258,16 +268,18 @@ class MomentJob(GenerationJob):
             raise CartaBadResponse("The frontend could not tell which moment each new image shows.")
         return {Moment(image["moment"]): Image(self.session, image["fileId"]) for image in images}
 
-    @validate(Number.POSITIVE)
-    def wait(self, poll_interval=1):
+    @validate(Number.POSITIVE, NoneOr(Number.POSITIVE))
+    def wait(self, poll_interval=1, timeout=None):
         """Wait until the job ends, and return the moment images that it made.
 
-        This method has no time limit. It checks the status of the job every *poll_interval* seconds.
+        It checks the status of the job every *poll_interval* seconds.
 
         Parameters
         ----------
         poll_interval : {0}
             The number of seconds between two checks of the status. The default is ``1``.
+        timeout : {1}
+            The number of seconds to wait. The default is no time limit.
 
         Returns
         -------
@@ -279,9 +291,11 @@ class MomentJob(GenerationJob):
         CartaJobFailed
             If the job fails or is cancelled.
         CartaBadResponse
-            If the frontend returns a status or images that this wrapper cannot read.
+            If the frontend returns a status or images that this wrapper cannot read. The new images are open all the same, and :obj:`carta.generation.MomentImages.images` lists them.
+        TimeoutError
+            If the job is still running after *timeout* seconds. The job is not cancelled.
         """
-        return super().wait(poll_interval)
+        return super().wait(poll_interval, timeout)
 
 
 class DerivedImages:
@@ -312,8 +326,9 @@ class DerivedImages:
     def _check_region(self, region, region_types, description):
         if region.region_type not in region_types:
             raise CartaValidationFailed(f"{description}, not a region of the type {region.region_type.name}.")
-        if region.session is not self.session or region.region_set.image.image_id != self.image.image_id:
-            raise CartaValidationFailed("The region does not belong to this image.")
+        # The frontend checks that the image has the region. An image that is spatially matched to another image shares the regions of that image.
+        if region.session is not self.session:
+            raise CartaValidationFailed("The region belongs to another session.")
 
     @property
     def images(self):
@@ -362,24 +377,26 @@ class MomentImages(DerivedImages):
         NoneOr(IterableOf(Number(), min_size=2, max_size=2)),
         Boolean(),
     )
-    def generate(self, moments, region=None, spectral_range=None, spectral_type=None, unit=None, spectral_system=None, channels=None, mask=MomentMask.NONE, pixel_range=None, keep=True):
+    def generate(self, moments, region=None, spectral_range=None, spectral_type=None, spectral_unit=None, spectral_system=None, channels=None, mask=MomentMask.NONE, pixel_range=None, keep=True):
         """Start a job that makes moment images of this image.
 
         The job runs in the background. Call :obj:`carta.generation.MomentJob.wait` on the returned job to get the new images.
 
         Give the channels either as spectral values with *spectral_range*, or as channel indices with *channels*. Give neither to use all channels. The spectral type, unit and system of the values default to those that the image shows. Giving them does not change what the image shows.
 
+        The moments are made of the Stokes parameter that the image shows.
+
         Parameters
         ----------
         moments : {0}
             The moments to make.
         region : {1}
-            A rectangle, ellipse or polygon region of this image. The moments are made over the region. The default is the whole image.
+            A rectangle, ellipse or polygon region of this image, or of the image that it is spatially matched to. The moments are made over the region. The default is the whole image.
         spectral_range : {2}
             The first and last spectral value.
         spectral_type : {3}
             The spectral type of *spectral_range*. The default is the type that the image shows.
-        unit : {4}
+        spectral_unit : {4}
             The unit of *spectral_range*. The default is the unit that the image shows, when *spectral_type* is not given or is the type that the image shows. Otherwise the default is the first unit that the image supports for *spectral_type*.
         spectral_system : {5}
             The spectral system of *spectral_range*. The default is the system that the image shows.
@@ -388,9 +405,9 @@ class MomentImages(DerivedImages):
         mask : {7}
             How *pixel_range* masks the cube. The default is no mask.
         pixel_range : {8}
-            The pixel range of the mask, in the brightness unit of the image. It is needed when *mask* is set.
+            The pixel range of the mask, in the brightness unit of the image. It is needed when *mask* is set, and only then.
         keep : {9}
-            Whether to keep the moment images made from this image before. The default is ``True``. With ``False``, the earlier moment images are closed, as in the GUI.
+            Whether to keep the moment images made from this image before. The default is ``True``. With ``False``, the earlier moment images are closed when the job starts, as in the GUI. They stay closed if the job fails or is cancelled.
 
         Returns
         -------
@@ -400,22 +417,23 @@ class MomentImages(DerivedImages):
         Raises
         ------
         CartaValidationFailed
-            If the region is not a rectangle, ellipse or polygon region of this image, if both *spectral_range* and *channels* are given, or if a mask is given without a pixel range.
+            If the region is not a rectangle, ellipse or polygon region of this session, if both *spectral_range* and *channels* are given, or if only one of a mask and a pixel range is given.
         CartaActionFailed
-            If the frontend cannot start the job, for example when this image already makes moment images.
+            If the frontend cannot start the job, for example when this image has no such region, or already makes moment images.
         """
         # Ask for each moment once. The images are returned by moment, so a second image of the same moment would be lost.
         settings = {"moments": list(dict.fromkeys(Moment(m) for m in moments)), "mask": mask, "keep": bool(keep)}
         if region is not None:
             self._check_region(region, CLOSED_REGION_TYPES, "Moments are made over a rectangle, ellipse or polygon region")
             settings["regionId"] = region.region_id
-        if mask != MomentMask.NONE:
-            if pixel_range is None:
-                raise CartaValidationFailed("A mask needs a pixel range.")
+        if mask != MomentMask.NONE and pixel_range is None:
+            raise CartaValidationFailed("A mask needs a pixel range.")
+        if mask == MomentMask.NONE and pixel_range is not None:
+            raise CartaValidationFailed("A pixel range needs a mask.")
         if pixel_range is not None:
             first, last = pixel_range
             settings["pixelRange"] = {"min": first, "max": last}
-        settings.update(channel_settings(spectral_range, spectral_type, unit, spectral_system, channels))
+        settings.update(channel_settings(spectral_range, spectral_type, spectral_unit, spectral_system, channels))
         job_id = self.session.call_action(f"{JOBS_PATH}.startMoments", self.image.image_id, settings, response_expected=True)
         return MomentJob(self.session, job_id)
 
@@ -430,16 +448,18 @@ class PvJob(GenerationJob):
         from .image import Image
         return Image(self.session, images[0]["fileId"]) if images else None
 
-    @validate(Number.POSITIVE)
-    def wait(self, poll_interval=1):
+    @validate(Number.POSITIVE, NoneOr(Number.POSITIVE))
+    def wait(self, poll_interval=1, timeout=None):
         """Wait until the job ends, and return the PV image that it made.
 
-        This method has no time limit. It checks the status of the job every *poll_interval* seconds.
+        It checks the status of the job every *poll_interval* seconds.
 
         Parameters
         ----------
         poll_interval : {0}
             The number of seconds between two checks of the status. The default is ``1``.
+        timeout : {1}
+            The number of seconds to wait. The default is no time limit.
 
         Returns
         -------
@@ -450,8 +470,12 @@ class PvJob(GenerationJob):
         ------
         CartaJobFailed
             If the job fails or is cancelled.
+        CartaBadResponse
+            If the frontend returns a status that this wrapper cannot read.
+        TimeoutError
+            If the job is still running after *timeout* seconds. The job is not cancelled.
         """
-        return super().wait(poll_interval)
+        return super().wait(poll_interval, timeout)
 
 
 class PvImages(DerivedImages):
@@ -483,7 +507,7 @@ class PvImages(DerivedImages):
         NoneOr(Boolean()),
         Boolean(),
     )
-    def generate(self, line_region, width=None, spectral_range=None, spectral_type=None, unit=None, spectral_system=None, channels=None, reverse=None, keep=True):
+    def generate(self, line_region, width=None, spectral_range=None, spectral_type=None, spectral_unit=None, spectral_system=None, channels=None, reverse=None, keep=True):
         """Start a job that makes a PV image of this image along a line or polyline region.
 
         The job runs in the background. Call :obj:`carta.generation.PvJob.wait` on the returned job to get the new image.
@@ -493,23 +517,23 @@ class PvImages(DerivedImages):
         Parameters
         ----------
         line_region : {0}
-            A line or polyline region of this image. The PV image follows this cut.
+            A line or polyline region of this image, or of the image that it is spatially matched to. The PV image follows this cut.
         width : {1}
             The number of pixels that the cut is averaged over. The default is the default of the GUI (``3`` at the time of writing). :obj:`carta.generation.GenerationJob.settings` shows the width that the job uses.
         spectral_range : {2}
             The first and last spectral value.
         spectral_type : {3}
             The spectral type of *spectral_range*. The default is the type that the image shows.
-        unit : {4}
+        spectral_unit : {4}
             The unit of *spectral_range*. The default is the unit that the image shows, when *spectral_type* is not given or is the type that the image shows. Otherwise the default is the first unit that the image supports for *spectral_type*.
         spectral_system : {5}
             The spectral system of *spectral_range*. The default is the system that the image shows.
         channels : {6}
             The first and last channel, as channel indices.
         reverse : {7}
-            Whether to draw the position axis vertically and the spectral axis horizontally. The default follows the PV axes order in the user's preferences, as in the GUI.
+            Whether to draw the position axis vertically and the spectral axis horizontally. The default follows the PV axes order in the user's preferences, as in the GUI. Give it to get the same result for every user.
         keep : {8}
-            Whether to keep the PV images made from this image before. The default is ``True``. With ``False``, the earlier PV images are closed, as in the GUI.
+            Whether to keep the PV images made from this image before. The default is ``True``. With ``False``, the earlier PV images are closed when the job starts, as in the GUI. They stay closed if the job fails or is cancelled.
 
         Returns
         -------
@@ -519,9 +543,9 @@ class PvImages(DerivedImages):
         Raises
         ------
         CartaValidationFailed
-            If the region is not a line or polyline region of this image, or if both *spectral_range* and *channels* are given.
+            If the region is not a line or polyline region of this session, or if both *spectral_range* and *channels* are given.
         CartaActionFailed
-            If the frontend cannot start the job, for example when this image already makes a PV image.
+            If the frontend cannot start the job, for example when this image has no such region, or already makes a PV image.
         """
         self._check_region(line_region, LINE_REGION_TYPES, "A PV image is made along a line or polyline region")
         # Leave out the settings that are not given, so that the frontend uses the same defaults as the GUI.
@@ -530,6 +554,6 @@ class PvImages(DerivedImages):
             settings["width"] = width
         if reverse is not None:
             settings["reverse"] = bool(reverse)
-        settings.update(channel_settings(spectral_range, spectral_type, unit, spectral_system, channels))
+        settings.update(channel_settings(spectral_range, spectral_type, spectral_unit, spectral_system, channels))
         job_id = self.session.call_action(f"{JOBS_PATH}.startPv", self.image.image_id, settings, response_expected=True)
         return PvJob(self.session, job_id)
